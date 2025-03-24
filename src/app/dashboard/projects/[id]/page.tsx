@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { FileUpload } from '@/components/FileUpload';
 import { utils, write } from 'xlsx';
@@ -210,6 +210,9 @@ function transformMappedDataToBalanceSheet(mappedData: MappedData[]) {
   // Initialize all possible SARS items from the mapping guide with 0
   Object.entries(mappingGuide.balanceSheet).forEach(([section, items]) => {
     items.forEach(({ sarsItem }) => {
+      // Skip SA Revenue Service initialization as it will be handled specially
+      if (sarsItem === 'SA Revenue Service') return;
+
       switch (section) {
         case 'nonCurrentAssets':
           balanceSheet.nonCurrentAssets[sarsItem] = 0;
@@ -235,6 +238,16 @@ function transformMappedDataToBalanceSheet(mappedData: MappedData[]) {
 
   // Map aggregated balances to the balance sheet structure
   Object.entries(aggregatedBalances).forEach(([sarsItem, balance]) => {
+    // Special handling for SA Revenue Service
+    if (sarsItem === 'SA Revenue Service') {
+      if (balance > 0) {
+        balanceSheet.currentAssets[sarsItem] = balance;
+      } else {
+        balanceSheet.currentLiabilities[sarsItem] = balance;
+      }
+      return;
+    }
+
     // Find which section this SARS item belongs to
     Object.entries(mappingGuide.balanceSheet).forEach(([section, items]) => {
       const matchingItem = items.find(item => item.sarsItem === sarsItem);
@@ -282,19 +295,194 @@ interface BalanceSheetItemProps {
   balance: number;
   mappedAccounts: MappedData[];
   isAsset: boolean;
+  projectId: string;
+  onMappingUpdate: (accountId: number, newSarsItem: string) => Promise<void>;
 }
 
-function BalanceSheetItem({ sarsItem, balance, mappedAccounts, isAsset }: BalanceSheetItemProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+interface MappingEditorProps {
+  currentSarsItem: string;
+  currentSection: string;
+  onUpdate: (newSarsItem: string) => Promise<void>;
+}
 
-  // For assets: show positive as positive, negative in red with parentheses
-  // For equity/liabilities: show negative as positive, positive in red with parentheses
+function MappingEditor({ currentSarsItem, currentSection, onUpdate }: MappingEditorProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Get available SARS items based on section with their categories
+  const getAvailableSarsItems = () => {
+    const section = currentSection.toLowerCase();
+    if (section === 'balance sheet') {
+      return [
+        ...mappingGuide.balanceSheet.nonCurrentAssets.map(item => ({
+          sarsItem: item.sarsItem,
+          category: 'Non Current Assets'
+        })),
+        ...mappingGuide.balanceSheet.currentAssets.map(item => ({
+          sarsItem: item.sarsItem,
+          category: 'Current Assets'
+        })),
+        ...mappingGuide.balanceSheet.capitalAndReservesCreditBalances.map(item => ({
+          sarsItem: item.sarsItem,
+          category: 'Capital and Reserves (Credit)'
+        })),
+        ...mappingGuide.balanceSheet.capitalAndReservesDebitBalances.map(item => ({
+          sarsItem: item.sarsItem,
+          category: 'Capital and Reserves (Debit)'
+        })),
+        ...mappingGuide.balanceSheet.nonCurrentLiabilities.map(item => ({
+          sarsItem: item.sarsItem,
+          category: 'Non Current Liabilities'
+        })),
+        ...mappingGuide.balanceSheet.currentLiabilities.map(item => ({
+          sarsItem: item.sarsItem,
+          category: 'Current Liabilities'
+        }))
+      ];
+    } else {
+      return [
+        ...mappingGuide.incomeStatement.grossProfitOrLoss.map(item => ({
+          sarsItem: item.sarsItem,
+          category: 'Gross Profit or Loss'
+        })),
+        ...mappingGuide.incomeStatement.incomeItemsCreditAmounts.map(item => ({
+          sarsItem: item.sarsItem,
+          category: 'Income Items (Credit)'
+        })),
+        ...mappingGuide.incomeStatement.expenseItemsDebitAmounts.map(item => ({
+          sarsItem: item.sarsItem,
+          category: 'Expense Items (Debit)'
+        })),
+        ...mappingGuide.incomeStatement.incomeItemsOnlyCreditAmounts.map(item => ({
+          sarsItem: item.sarsItem,
+          category: 'Income Items (Credit Only)'
+        }))
+      ];
+    }
+  };
+
+  const filteredItems = useMemo(() => {
+    const items = getAvailableSarsItems();
+    if (!searchTerm) return items;
+    return items.filter(item => 
+      item.sarsItem.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [searchTerm, currentSection]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSelect = async (sarsItem: string) => {
+    if (sarsItem === currentSarsItem) {
+      setIsOpen(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    try {
+      await onUpdate(sarsItem);
+      setIsOpen(false);
+    } catch (error) {
+      console.error('Failed to update mapping:', error);
+      setError('Failed to update mapping. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        disabled={isLoading}
+        className={`w-full text-left px-2 py-1 text-sm rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+          isLoading ? 'opacity-50 cursor-not-allowed' : ''
+        }`}
+      >
+        <div className="flex items-center justify-between">
+          <span className="truncate">{currentSarsItem}</span>
+          {isLoading ? (
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+          ) : (
+            <ChevronDownIcon className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          )}
+        </div>
+      </button>
+
+      {error && (
+        <div className="absolute top-full left-0 right-0 mt-1 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-600">
+          {error}
+        </div>
+      )}
+
+      {isOpen && (
+        <div className="absolute z-50 mt-1 w-96 bg-white rounded-md shadow-lg">
+          <div className="p-2">
+            <input
+              type="text"
+              placeholder="Search SARS items..."
+              className="w-full px-3 py-2 border rounded-md text-sm"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <div className="max-h-96 overflow-y-auto">
+            {filteredItems.map((item, index) => (
+              <div key={`${item.category}-${item.sarsItem}`}>
+                {(index === 0 || filteredItems[index - 1].category !== item.category) && (
+                  <div className="px-4 py-1 bg-gray-50 text-xs font-medium text-gray-500">
+                    {item.category}
+                  </div>
+                )}
+                <button
+                  onClick={() => handleSelect(item.sarsItem)}
+                  className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 ${
+                    item.sarsItem === currentSarsItem ? 'bg-blue-50 text-blue-700' : ''
+                  }`}
+                >
+                  {item.sarsItem}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BalanceSheetItem({ sarsItem, balance, mappedAccounts, isAsset, projectId, onMappingUpdate }: BalanceSheetItemProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const isNegative = isAsset ? balance < 0 : balance > 0;
+
+  const handleUpdateMapping = async (accountId: number, newSarsItem: string) => {
+    setIsUpdating(true);
+    try {
+      await onMappingUpdate(accountId, newSarsItem);
+    } catch (error) {
+      console.error('Error updating mapping:', error);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   return (
     <>
       <div 
-        className="grid grid-cols-12 gap-4 cursor-pointer hover:bg-gray-50"
+        className={`grid grid-cols-12 gap-4 cursor-pointer hover:bg-gray-50 ${isUpdating ? 'opacity-50' : ''}`}
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className={`col-span-8 pl-4 ${isNegative ? 'text-red-600' : ''} flex items-center`}>
@@ -302,6 +490,9 @@ function BalanceSheetItem({ sarsItem, balance, mappedAccounts, isAsset }: Balanc
             className={`h-4 w-4 mr-2 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
           />
           {sarsItem}
+          {isUpdating && (
+            <div className="ml-2 animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+          )}
         </div>
         <div className={`col-span-4 text-right tabular-nums ${isNegative ? 'text-red-600' : ''}`}>
           {isNegative 
@@ -313,10 +504,17 @@ function BalanceSheetItem({ sarsItem, balance, mappedAccounts, isAsset }: Balanc
       {isExpanded && mappedAccounts.length > 0 && (
         <div className="ml-8 mt-2 mb-2 border-l-2 border-gray-200 pl-4">
           <div className="text-sm text-gray-500 mb-2">Mapped Accounts:</div>
-          {mappedAccounts.map((account, index) => (
-            <div key={index} className="grid grid-cols-12 gap-4 text-sm">
+          {mappedAccounts.map((account) => (
+            <div key={account.id} className="grid grid-cols-12 gap-4 text-sm items-center">
               <div className="col-span-2 text-gray-600">{account.accountCode}</div>
-              <div className="col-span-6 text-gray-800">{account.account}</div>
+              <div className="col-span-3 text-gray-800 truncate">{account.account}</div>
+              <div className="col-span-3">
+                <MappingEditor
+                  currentSarsItem={account.sarsItem}
+                  currentSection={account.section}
+                  onUpdate={(newSarsItem) => handleUpdateMapping(account.id, newSarsItem)}
+                />
+              </div>
               <div className={`col-span-4 text-right tabular-nums ${account.balance < 0 ? 'text-red-600' : ''}`}>
                 {account.balance < 0 
                   ? `(${formatAmount(Math.abs(account.balance))})` 
@@ -340,7 +538,9 @@ function renderBalanceSheet(
     currentLiabilities: Record<string, number>;
   }, 
   totals: { balanceSheet: number; incomeStatement: number },
-  mappedData: MappedData[]
+  mappedData: MappedData[],
+  projectId: string,
+  onMappingUpdate: (accountId: number, newSarsItem: string) => Promise<void>
 ) {
   // Helper function to get mapped accounts for a SARS item
   const getMappedAccounts = (sarsItem: string) => {
@@ -351,9 +551,6 @@ function renderBalanceSheet(
     <div className="max-w-5xl mx-auto">
       {/* Header */}
       <div className="text-center mb-8">
-        <h1 className="text-2xl font-bold">Adeo South Africa (Pty) Ltd</h1>
-        <p className="text-gray-600">Balance Sheet</p>
-        <p className="text-gray-600">As at {new Date().toLocaleDateString('en-ZA')}</p>
       </div>
 
       <div className="space-y-6">
@@ -369,6 +566,8 @@ function renderBalanceSheet(
                   balance={balance}
                   mappedAccounts={getMappedAccounts(sarsItem)}
                   isAsset={true}
+                  projectId={projectId}
+                  onMappingUpdate={onMappingUpdate}
                 />
               )
             ))}
@@ -395,6 +594,8 @@ function renderBalanceSheet(
                   balance={balance}
                   mappedAccounts={getMappedAccounts(sarsItem)}
                   isAsset={true}
+                  projectId={projectId}
+                  onMappingUpdate={onMappingUpdate}
                 />
               )
             ))}
@@ -429,6 +630,8 @@ function renderBalanceSheet(
                   balance={balance}
                   mappedAccounts={getMappedAccounts(sarsItem)}
                   isAsset={false}
+                  projectId={projectId}
+                  onMappingUpdate={onMappingUpdate}
                 />
               )
             ))}
@@ -440,6 +643,8 @@ function renderBalanceSheet(
                   balance={balance}
                   mappedAccounts={getMappedAccounts(sarsItem)}
                   isAsset={false}
+                  projectId={projectId}
+                  onMappingUpdate={onMappingUpdate}
                 />
               )
             ))}
@@ -476,6 +681,8 @@ function renderBalanceSheet(
                   balance={balance}
                   mappedAccounts={getMappedAccounts(sarsItem)}
                   isAsset={false}
+                  projectId={projectId}
+                  onMappingUpdate={onMappingUpdate}
                 />
               )
             ))}
@@ -502,6 +709,8 @@ function renderBalanceSheet(
                   balance={balance}
                   mappedAccounts={getMappedAccounts(sarsItem)}
                   isAsset={false}
+                  projectId={projectId}
+                  onMappingUpdate={onMappingUpdate}
                 />
               )
             ))}
@@ -542,30 +751,182 @@ function formatAmount(amount: number) {
   }).format(amount);
 }
 
+// Convert renderMappingTable to a proper React component
+interface MappingTableProps {
+  mappedData: MappedData[];
+  projectId: string;
+  onMappingUpdate: (accountId: number, newSarsItem: string) => Promise<void>;
+}
+
+function MappingTable({ mappedData, projectId, onMappingUpdate }: MappingTableProps) {
+  const [updatingRows, setUpdatingRows] = useState<Record<number, boolean>>({});
+
+  const handleUpdateMapping = async (accountId: number, newSarsItem: string) => {
+    setUpdatingRows(prev => ({ ...prev, [accountId]: true }));
+    try {
+      await onMappingUpdate(accountId, newSarsItem);
+    } catch (error) {
+      console.error('Error updating mapping:', error);
+    } finally {
+      setUpdatingRows(prev => ({ ...prev, [accountId]: false }));
+    }
+  };
+
+  return (
+    <table className="min-w-full table-fixed divide-y divide-gray-200">
+      <thead className="bg-gray-50">
+        <tr>
+          <th scope="col" className="w-24 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Code
+          </th>
+          <th scope="col" className="w-1/4 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Account
+          </th>
+          <th scope="col" className="w-28 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Section
+          </th>
+          <th scope="col" className="w-32 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Balance
+          </th>
+          <th scope="col" className="w-1/3 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            SARS Item
+          </th>
+        </tr>
+      </thead>
+      <tbody className="bg-white divide-y divide-gray-200">
+        {mappedData.map((item) => {
+          const isBalanceSheet = item.section.toLowerCase() === 'balance sheet';
+          const rowClass = isBalanceSheet 
+            ? 'bg-blue-50/30 even:bg-blue-50/20'
+            : 'bg-green-50/30 even:bg-green-50/20';
+
+          return (
+            <tr key={item.id} className={`${rowClass} ${updatingRows[item.id] ? 'opacity-50' : ''}`}>
+              <td className="px-3 py-2 text-sm text-gray-900 truncate">
+                {item.accountCode}
+              </td>
+              <td className="px-3 py-2 text-sm text-gray-900 truncate">
+                {item.account}
+              </td>
+              <td className="px-3 py-2 text-sm">
+                <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium truncate
+                  ${isBalanceSheet ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>
+                  {item.section}
+                </span>
+              </td>
+              <td className="px-3 py-2 text-sm text-gray-900 text-right tabular-nums">
+                {formatAmount(item.balance)}
+              </td>
+              <td className="px-3 py-2 text-sm relative">
+                <MappingEditor
+                  currentSarsItem={item.sarsItem}
+                  currentSection={item.section}
+                  onUpdate={(newSarsItem) => handleUpdateMapping(item.id, newSarsItem)}
+                />
+                {updatingRows[item.id] && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-50">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  </div>
+                )}
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
 export default function ProjectPage({ params }: { params: { id: string } }) {
   const [activeTab, setActiveTab] = useState('mapping');
   const [mappedData, setMappedData] = useState<MappedData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [projectName, setProjectName] = useState<string>('');
+
+  // Fetch project name
+  useEffect(() => {
+    async function fetchProjectName() {
+      try {
+        const response = await fetch(`/api/projects/${params.id}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch project details');
+        }
+        const data = await response.json();
+        setProjectName(data.name);
+      } catch (err) {
+        console.error('Error fetching project name:', err);
+        setProjectName('Project'); // Fallback name
+      }
+    }
+
+    fetchProjectName();
+  }, [params.id]);
+
+  // Optimized refresh function
+  const refreshMappedData = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/projects/${params.id}/mapped-accounts`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch mapped data');
+      }
+      const data = await response.json();
+      setMappedData(data);
+      return data;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      throw err;
+    }
+  }, [params.id]);
 
   useEffect(() => {
     async function fetchMappedData() {
       try {
-        const response = await fetch(`/api/projects/${params.id}/mapped-accounts`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch mapped data');
-        }
-        const data = await response.json();
-        setMappedData(data);
-        setIsLoading(false);
+        await refreshMappedData();
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
+        // Error already handled in refreshMappedData
+      } finally {
         setIsLoading(false);
       }
     }
 
     fetchMappedData();
-  }, [params.id]);
+  }, [refreshMappedData]);
+
+  // Optimized mapping update handler
+  const handleMappingUpdate = async (accountId: number, newSarsItem: string) => {
+    try {
+      // Optimistic update
+      setMappedData(prevData => 
+        prevData.map(item => 
+          item.id === accountId 
+            ? { ...item, sarsItem: newSarsItem }
+            : item
+        )
+      );
+
+      // Make API call
+      const response = await fetch(`/api/projects/${params.id}/mapped-accounts/${accountId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ sarsItem: newSarsItem }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update mapping');
+      }
+
+      // Refresh data in background
+      refreshMappedData();
+    } catch (error) {
+      console.error('Error updating mapping:', error);
+      // Revert optimistic update on error
+      refreshMappedData();
+      throw error;
+    }
+  };
 
   const renderContent = () => {
     if (isLoading) {
@@ -589,7 +950,10 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
             {mappedData && mappedData.length > 0 ? (
               <div className="space-y-4 bg-white rounded-xl shadow-lg p-6">
                 <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-semibold text-gray-900">Mapped Results</h2>
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900">{projectName}</h2>
+                    <p className="text-sm text-gray-500">Trial Balance</p>
+                  </div>
                   <div className="flex space-x-4">
                     <button
                       onClick={downloadJSON}
@@ -612,76 +976,23 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                   <div className="bg-blue-50 p-4 rounded-lg">
                     <h3 className="text-sm font-medium text-blue-800 mb-2">Balance Sheet Total</h3>
                     <p className="text-lg font-semibold text-blue-900">
-                      {totals.balanceSheet.toLocaleString('en-ZA', { 
-                        style: 'currency', 
-                        currency: 'ZAR'
-                      })}
+                      {formatAmount(totals.balanceSheet)}
                     </p>
                   </div>
                   <div className="bg-green-50 p-4 rounded-lg">
                     <h3 className="text-sm font-medium text-green-800 mb-2">Income Statement Total</h3>
                     <p className="text-lg font-semibold text-green-900">
-                      {totals.incomeStatement.toLocaleString('en-ZA', { 
-                        style: 'currency', 
-                        currency: 'ZAR'
-                      })}
+                      {formatAmount(totals.incomeStatement)}
                     </p>
                   </div>
                 </div>
 
                 <div className="overflow-x-auto rounded-lg border border-gray-200">
-                  <table className="min-w-full table-fixed divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th scope="col" className="w-24 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Code
-                        </th>
-                        <th scope="col" className="w-1/4 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Account
-                        </th>
-                        <th scope="col" className="w-28 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Section
-                        </th>
-                        <th scope="col" className="w-32 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Balance
-                        </th>
-                        <th scope="col" className="w-1/4 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          SARS Item
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {mappedData.map((item, index) => {
-                        const isBalanceSheet = item.section.toLowerCase() === 'balance sheet';
-                        const rowClass = isBalanceSheet 
-                          ? index % 2 === 0 ? 'bg-blue-50/30' : 'bg-blue-50/20'
-                          : index % 2 === 0 ? 'bg-green-50/30' : 'bg-green-50/20';
-
-                        return (
-                          <tr key={index} className={rowClass}>
-                            <td className="px-3 py-2 text-sm text-gray-900 truncate">
-                              {item.accountCode}
-                            </td>
-                            <td className="px-3 py-2 text-sm text-gray-900 truncate">
-                              {item.account}
-                            </td>
-                            <td className="px-3 py-2 text-sm">
-                              <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium truncate
-                                ${isBalanceSheet ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>
-                                {item.section}
-                              </span>
-                            </td>
-                            <td className="px-3 py-2 text-sm text-gray-900 text-right tabular-nums">
-                              {formatAmount(item.balance)}
-                            </td>
-                            <td className="px-3 py-2 text-sm text-gray-900 truncate" title={item.sarsItem}>
-                              {item.sarsItem}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                  <MappingTable
+                    mappedData={mappedData}
+                    projectId={params.id}
+                    onMappingUpdate={handleMappingUpdate}
+                  />
                 </div>
               </div>
             ) : (
@@ -695,7 +1006,8 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         return (
           <div className="bg-white rounded-xl shadow-lg p-6">
             <div className="mb-6 border-b border-gray-200 pb-4">
-              <h2 className="text-xl font-semibold text-gray-900">Balance Sheet</h2>
+              <h2 className="text-xl font-semibold text-gray-900">{projectName}</h2>
+              <p className="text-sm text-gray-500">Balance Sheet</p>
               <p className="text-sm text-gray-500">As at {new Date().toLocaleDateString('en-ZA')}</p>
             </div>
             {mappedData.length === 0 ? (
@@ -703,7 +1015,13 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                 No mapped data available. Upload a trial balance to get started.
               </div>
             ) : (
-              renderBalanceSheet(transformMappedDataToBalanceSheet(mappedData), calculateTotals(), mappedData)
+              renderBalanceSheet(
+                transformMappedDataToBalanceSheet(mappedData),
+                calculateTotals(),
+                mappedData,
+                params.id,
+                handleMappingUpdate
+              )
             )}
           </div>
         );

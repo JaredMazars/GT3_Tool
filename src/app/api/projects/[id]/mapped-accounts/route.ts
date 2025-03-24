@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(
-  request: NextRequest,
+  request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    const projectId = parseInt(params.id, 10);
+    const projectId = parseInt(params.id);
     
     if (isNaN(projectId)) {
       return NextResponse.json(
@@ -16,11 +16,12 @@ export async function GET(
     }
 
     const mappedAccounts = await prisma.mappedAccount.findMany({
-      where: { projectId },
-      orderBy: [
-        { section: 'asc' },
-        { accountCode: 'asc' }
-      ]
+      where: {
+        projectId: projectId,
+      },
+      orderBy: {
+        accountCode: 'asc',
+      },
     });
 
     return NextResponse.json(mappedAccounts);
