@@ -292,9 +292,8 @@ function calculateNestedTotal(obj: Record<string, any>): number {
 
 interface BalanceSheetItemProps {
   sarsItem: string;
-  balance: number;
-  mappedAccounts: MappedData[];
-  isAsset: boolean;
+  amount: number;
+  mappedData: MappedData[];
   projectId: string;
   onMappingUpdate: (accountId: number, newSarsItem: string) => Promise<void>;
 }
@@ -463,10 +462,20 @@ function MappingEditor({ currentSarsItem, currentSection, onUpdate }: MappingEdi
   );
 }
 
-function BalanceSheetItem({ sarsItem, balance, mappedAccounts, isAsset, projectId, onMappingUpdate }: BalanceSheetItemProps) {
+function BalanceSheetItem({ sarsItem, amount, mappedData, projectId, onMappingUpdate }: BalanceSheetItemProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
-  const isNegative = isAsset ? balance < 0 : balance > 0;
+  const isNegative = amount < 0;
+
+  // Filter out accounts with zero balances and get only accounts mapped to this SARS item
+  const relevantAccounts = mappedData.filter(account => 
+    account.sarsItem === sarsItem && account.balance !== 0
+  );
+
+  // If there are no relevant accounts, don't render anything
+  if (amount === 0) {
+    return null;
+  }
 
   const handleUpdateMapping = async (accountId: number, newSarsItem: string) => {
     setIsUpdating(true);
@@ -496,15 +505,15 @@ function BalanceSheetItem({ sarsItem, balance, mappedAccounts, isAsset, projectI
         </div>
         <div className={`col-span-4 text-right tabular-nums ${isNegative ? 'text-red-600' : ''}`}>
           {isNegative 
-            ? `(${formatAmount(Math.abs(balance))})` 
-            : formatAmount(Math.abs(balance))}
+            ? `(${formatAmount(Math.abs(amount))})` 
+            : formatAmount(Math.abs(amount))}
         </div>
       </div>
       
-      {isExpanded && mappedAccounts.length > 0 && (
+      {isExpanded && relevantAccounts.length > 0 && (
         <div className="ml-8 mt-2 mb-2 border-l-2 border-gray-200 pl-4">
           <div className="text-sm text-gray-500 mb-2">Mapped Accounts:</div>
-          {mappedAccounts.map((account) => (
+          {relevantAccounts.map((account) => (
             <div key={account.id} className="grid grid-cols-12 gap-4 text-sm items-center">
               <div className="col-span-2 text-gray-600">{account.accountCode}</div>
               <div className="col-span-3 text-gray-800 truncate">{account.account}</div>
@@ -544,7 +553,7 @@ function renderBalanceSheet(
 ) {
   // Helper function to get mapped accounts for a SARS item
   const getMappedAccounts = (sarsItem: string) => {
-    return mappedData.filter(item => item.sarsItem === sarsItem);
+    return mappedData.filter(item => item.sarsItem === sarsItem && item.balance !== 0);
   };
 
   return (
@@ -563,9 +572,8 @@ function renderBalanceSheet(
                 <BalanceSheetItem
                   key={sarsItem}
                   sarsItem={sarsItem}
-                  balance={balance}
-                  mappedAccounts={getMappedAccounts(sarsItem)}
-                  isAsset={true}
+                  amount={balance}
+                  mappedData={getMappedAccounts(sarsItem)}
                   projectId={projectId}
                   onMappingUpdate={onMappingUpdate}
                 />
@@ -591,9 +599,8 @@ function renderBalanceSheet(
                 <BalanceSheetItem
                   key={sarsItem}
                   sarsItem={sarsItem}
-                  balance={balance}
-                  mappedAccounts={getMappedAccounts(sarsItem)}
-                  isAsset={true}
+                  amount={balance}
+                  mappedData={getMappedAccounts(sarsItem)}
                   projectId={projectId}
                   onMappingUpdate={onMappingUpdate}
                 />
@@ -627,9 +634,8 @@ function renderBalanceSheet(
                 <BalanceSheetItem
                   key={sarsItem}
                   sarsItem={sarsItem}
-                  balance={balance}
-                  mappedAccounts={getMappedAccounts(sarsItem)}
-                  isAsset={false}
+                  amount={balance}
+                  mappedData={getMappedAccounts(sarsItem)}
                   projectId={projectId}
                   onMappingUpdate={onMappingUpdate}
                 />
@@ -640,9 +646,8 @@ function renderBalanceSheet(
                 <BalanceSheetItem
                   key={sarsItem}
                   sarsItem={sarsItem}
-                  balance={balance}
-                  mappedAccounts={getMappedAccounts(sarsItem)}
-                  isAsset={false}
+                  amount={balance}
+                  mappedData={getMappedAccounts(sarsItem)}
                   projectId={projectId}
                   onMappingUpdate={onMappingUpdate}
                 />
@@ -678,9 +683,8 @@ function renderBalanceSheet(
                 <BalanceSheetItem
                   key={sarsItem}
                   sarsItem={sarsItem}
-                  balance={balance}
-                  mappedAccounts={getMappedAccounts(sarsItem)}
-                  isAsset={false}
+                  amount={balance}
+                  mappedData={getMappedAccounts(sarsItem)}
                   projectId={projectId}
                   onMappingUpdate={onMappingUpdate}
                 />
@@ -706,9 +710,8 @@ function renderBalanceSheet(
                 <BalanceSheetItem
                   key={sarsItem}
                   sarsItem={sarsItem}
-                  balance={balance}
-                  mappedAccounts={getMappedAccounts(sarsItem)}
-                  isAsset={false}
+                  amount={balance}
+                  mappedData={getMappedAccounts(sarsItem)}
                   projectId={projectId}
                   onMappingUpdate={onMappingUpdate}
                 />
@@ -834,6 +837,231 @@ function MappingTable({ mappedData, projectId, onMappingUpdate }: MappingTablePr
         })}
       </tbody>
     </table>
+  );
+}
+
+// Add this new type and function before the ProjectPage component
+type IncomeStatementData = {
+  totalIncome: Record<string, number>;
+  costOfSales: Record<string, number>;
+  otherIncome: Record<string, number>;
+  expenses: Record<string, number>;
+};
+
+function transformMappedDataToIncomeStatement(mappedData: MappedData[]): IncomeStatementData {
+  const incomeStatement = {
+    totalIncome: {} as Record<string, number>,
+    costOfSales: {} as Record<string, number>,
+    otherIncome: {} as Record<string, number>,
+    expenses: {} as Record<string, number>,
+  };
+
+  // First, aggregate balances for the same SARS items
+  const aggregatedBalances = mappedData.reduce((acc, { sarsItem, balance }) => {
+    if (!acc[sarsItem]) {
+      acc[sarsItem] = 0;
+    }
+    acc[sarsItem] += balance;
+    return acc;
+  }, {} as Record<string, number>);
+
+  // Initialize all possible SARS items from the mapping guide with 0
+  Object.entries(mappingGuide.incomeStatement).forEach(([section, items]) => {
+    items.forEach(({ sarsItem }) => {
+      switch (section) {
+        case 'grossProfitOrLoss':
+          if (sarsItem.toLowerCase().includes('sales')) {
+            incomeStatement.totalIncome[sarsItem] = 0;
+          } else {
+            incomeStatement.costOfSales[sarsItem] = 0;
+          }
+          break;
+        case 'incomeItemsCreditAmounts':
+        case 'incomeItemsOnlyCreditAmounts':
+          incomeStatement.otherIncome[sarsItem] = 0;
+          break;
+        case 'expenseItemsDebitAmounts':
+          incomeStatement.expenses[sarsItem] = 0;
+          break;
+      }
+    });
+  });
+
+  // Map aggregated balances to the income statement structure
+  Object.entries(aggregatedBalances).forEach(([sarsItem, balance]) => {
+    // Find which section this SARS item belongs to
+    Object.entries(mappingGuide.incomeStatement).forEach(([section, items]) => {
+      const matchingItem = items.find(item => item.sarsItem === sarsItem);
+      if (matchingItem) {
+        switch (section) {
+          case 'grossProfitOrLoss':
+            if (sarsItem.toLowerCase().includes('sales')) {
+              // For sales: negative (credit) balances should be positive
+              incomeStatement.totalIncome[sarsItem] = balance < 0 ? Math.abs(balance) : -balance;
+            } else {
+              // For cost of sales: positive (debit) balances should be positive
+              // Except for Closing stock and Rebates which reduce the cost
+              if (sarsItem.includes('Closing stock') || sarsItem.includes('Rebates')) {
+                incomeStatement.costOfSales[sarsItem] = balance < 0 ? Math.abs(balance) : -balance;
+              } else {
+                incomeStatement.costOfSales[sarsItem] = Math.abs(balance);
+              }
+            }
+            break;
+          case 'incomeItemsCreditAmounts':
+          case 'incomeItemsOnlyCreditAmounts':
+            // For other income: negative (credit) balances should be positive
+            incomeStatement.otherIncome[sarsItem] = balance < 0 ? Math.abs(balance) : -balance;
+            break;
+          case 'expenseItemsDebitAmounts':
+            // For expenses: positive (debit) balances should be positive
+            incomeStatement.expenses[sarsItem] = Math.abs(balance);
+            break;
+        }
+      }
+    });
+  });
+
+  return incomeStatement;
+}
+
+function renderIncomeStatement(
+  incomeStatement: IncomeStatementData,
+  mappedData: MappedData[],
+  projectId: string,
+  onMappingUpdate: (accountId: number, newSarsItem: string) => Promise<void>
+) {
+  const formatAmount = (amount: number) => {
+    const formattedAmount = new Intl.NumberFormat('en-ZA', {
+      style: 'currency',
+      currency: 'ZAR',
+      minimumFractionDigits: 2,
+    }).format(Math.abs(amount));
+    
+    return formattedAmount;
+  };
+
+  const calculateTotal = (section: Record<string, number>) => {
+    return Object.values(section).reduce((sum, value) => sum + value, 0);
+  };
+
+  const totalIncome = calculateTotal(incomeStatement.totalIncome);
+  const totalCostOfSales = calculateTotal(incomeStatement.costOfSales);
+  const grossProfit = totalIncome - totalCostOfSales;
+  const totalOtherIncome = calculateTotal(incomeStatement.otherIncome);
+  const totalExpenses = calculateTotal(incomeStatement.expenses);
+  const netProfitBeforeTax = grossProfit + totalOtherIncome - totalExpenses;
+
+  return (
+    <div className="space-y-6">
+      {/* Income Section */}
+      <div>
+        <h3 className="text-lg font-semibold mb-2">Total Income</h3>
+        {Object.entries(incomeStatement.totalIncome)
+          .filter(([_, amount]) => amount !== 0)
+          .map(([item, amount]) => (
+            <BalanceSheetItem
+              key={item}
+              sarsItem={item}
+              amount={amount}
+              mappedData={mappedData.filter(data => data.sarsItem === item && data.balance !== 0)}
+              projectId={projectId}
+              onMappingUpdate={onMappingUpdate}
+            />
+          ))}
+        <div className="grid grid-cols-12 gap-4 font-semibold border-t border-gray-200 mt-2 pt-2">
+          <div className="col-span-8">Total Income</div>
+          <div className="col-span-4 text-right tabular-nums">
+            {formatAmount(totalIncome)}
+          </div>
+        </div>
+      </div>
+
+      {/* Cost of Sales Section */}
+      <div>
+        <h3 className="text-lg font-semibold mb-2">Cost of Sales</h3>
+        {Object.entries(incomeStatement.costOfSales)
+          .filter(([_, amount]) => amount !== 0)
+          .map(([item, amount]) => (
+            <BalanceSheetItem
+              key={item}
+              sarsItem={item}
+              amount={amount}
+              mappedData={mappedData.filter(data => data.sarsItem === item && data.balance !== 0)}
+              projectId={projectId}
+              onMappingUpdate={onMappingUpdate}
+            />
+          ))}
+        <div className="grid grid-cols-12 gap-4 font-semibold border-t border-gray-200 mt-2 pt-2">
+          <div className="col-span-8">Total Cost of Sales</div>
+          <div className="col-span-4 text-right tabular-nums">
+            {formatAmount(totalCostOfSales)}
+          </div>
+        </div>
+      </div>
+
+      {/* Gross Profit */}
+      <div className="grid grid-cols-12 gap-4 bg-gray-50 p-4 rounded-lg font-semibold">
+        <div className="col-span-8">Gross Profit</div>
+        <div className="col-span-4 text-right tabular-nums">
+          {formatAmount(grossProfit)}
+        </div>
+      </div>
+
+      {/* Other Income Section */}
+      <div>
+        <h3 className="text-lg font-semibold mb-2">Other Income</h3>
+        {Object.entries(incomeStatement.otherIncome)
+          .filter(([_, amount]) => amount !== 0)
+          .map(([item, amount]) => (
+            <BalanceSheetItem
+              key={item}
+              sarsItem={item}
+              amount={amount}
+              mappedData={mappedData.filter(data => data.sarsItem === item && data.balance !== 0)}
+              projectId={projectId}
+              onMappingUpdate={onMappingUpdate}
+            />
+          ))}
+        <div className="grid grid-cols-12 gap-4 font-semibold border-t border-gray-200 mt-2 pt-2">
+          <div className="col-span-8">Total Other Income</div>
+          <div className="col-span-4 text-right tabular-nums">
+            {formatAmount(totalOtherIncome)}
+          </div>
+        </div>
+      </div>
+
+      {/* Expenses Section */}
+      <div>
+        <h3 className="text-lg font-semibold mb-2">Expenses</h3>
+        {Object.entries(incomeStatement.expenses)
+          .filter(([_, amount]) => amount !== 0)
+          .map(([item, amount]) => (
+            <BalanceSheetItem
+              key={item}
+              sarsItem={item}
+              amount={amount}
+              mappedData={mappedData.filter(data => data.sarsItem === item && data.balance !== 0)}
+              projectId={projectId}
+              onMappingUpdate={onMappingUpdate}
+            />
+          ))}
+        <div className="grid grid-cols-12 gap-4 font-semibold border-t border-gray-200 mt-2 pt-2">
+          <div className="col-span-8">Total Expenses</div>
+          <div className="col-span-4 text-right tabular-nums">
+            {formatAmount(totalExpenses)}
+          </div>
+        </div>
+      </div>
+
+      {/* Net Profit Before Tax */}
+      <div className="grid grid-cols-12 gap-4 bg-gray-100 p-4 rounded-lg font-bold text-lg">
+        <div className="col-span-8">Net Profit Before Tax</div>
+        <div className="col-span-4 text-right tabular-nums">
+          {formatAmount(netProfitBeforeTax)}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1025,6 +1253,28 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
             )}
           </div>
         );
+      case 'income-statement':
+        return (
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="mb-6 border-b border-gray-200 pb-4">
+              <h2 className="text-xl font-semibold text-gray-900">{projectName}</h2>
+              <p className="text-sm text-gray-500">Income Statement</p>
+              <p className="text-sm text-gray-500">For the year ended {new Date().toLocaleDateString('en-ZA')}</p>
+            </div>
+            {mappedData.length === 0 ? (
+              <div className="text-gray-500 text-center py-8">
+                No mapped data available. Upload a trial balance to get started.
+              </div>
+            ) : (
+              renderIncomeStatement(
+                transformMappedDataToIncomeStatement(mappedData),
+                mappedData,
+                params.id,
+                handleMappingUpdate
+              )
+            )}
+          </div>
+        );
       case 'settings':
         return <div>Settings content</div>;
       default:
@@ -1105,6 +1355,12 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
               selected={activeTab === 'balance-sheet'}
             >
               Balance Sheet
+            </Tab>
+            <Tab
+              onClick={() => setActiveTab('income-statement')}
+              selected={activeTab === 'income-statement'}
+            >
+              Income Statement
             </Tab>
             <Tab
               onClick={() => setActiveTab('settings')}
