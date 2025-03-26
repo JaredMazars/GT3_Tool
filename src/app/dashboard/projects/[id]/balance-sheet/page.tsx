@@ -336,6 +336,9 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
       if (typeof val === 'number') {
         return sum + val;
       }
+      if (typeof val === 'object' && val !== null && val.amount !== undefined) {
+        return sum + val.amount;
+      }
       if (typeof val === 'object' && val !== null) {
         return sum + calculateNestedTotal(val);
       }
@@ -348,8 +351,8 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
     const balanceSheet = {
       nonCurrentAssets: {} as Record<string, { amount: number; subsection: string; mappedAccounts: MappedData[] }>,
       currentAssets: {} as Record<string, { amount: number; subsection: string; mappedAccounts: MappedData[] }>,
-      capitalAndReserves: {} as Record<string, { amount: number; subsection: string; mappedAccounts: MappedData[] }>,
-      debitBalances: {} as Record<string, { amount: number; subsection: string; mappedAccounts: MappedData[] }>,
+      capitalAndReservesCreditBalances: {} as Record<string, { amount: number; subsection: string; mappedAccounts: MappedData[] }>,
+      capitalAndReservesDebitBalances: {} as Record<string, { amount: number; subsection: string; mappedAccounts: MappedData[] }>,
       nonCurrentLiabilities: {} as Record<string, { amount: number; subsection: string; mappedAccounts: MappedData[] }>,
       currentLiabilities: {} as Record<string, { amount: number; subsection: string; mappedAccounts: MappedData[] }>,
     };
@@ -386,18 +389,21 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
         case 'currentassets':
           balanceSheet.currentAssets[sarsItem] = data;
           break;
-        case 'capitalandreserves':
-          if (amount < 0) {
-            balanceSheet.capitalAndReserves[sarsItem] = data;
-          } else {
-            balanceSheet.debitBalances[sarsItem] = { ...data, amount: -amount };
-          }
+        case 'capitalandreservescreditbalances':
+          // For credit balances, negative in DB means positive on BS
+          balanceSheet.capitalAndReservesCreditBalances[sarsItem] = { ...data, amount: -amount };
+          break;
+        case 'capitalandreservesdebitbalances':
+          // For debit balances, positive in DB means negative on BS
+          balanceSheet.capitalAndReservesDebitBalances[sarsItem] = { ...data, amount: -amount };
           break;
         case 'noncurrentliabilities':
-          balanceSheet.nonCurrentLiabilities[sarsItem] = { ...data, amount: Math.abs(amount) };
+          // For liabilities, negative in DB means positive on BS
+          balanceSheet.nonCurrentLiabilities[sarsItem] = { ...data, amount: -amount };
           break;
         case 'currentliabilities':
-          balanceSheet.currentLiabilities[sarsItem] = { ...data, amount: Math.abs(amount) };
+          // For liabilities, negative in DB means positive on BS
+          balanceSheet.currentLiabilities[sarsItem] = { ...data, amount: -amount };
           break;
         default:
           console.warn(`Unknown subsection: ${subsection} for SARS item: ${sarsItem}`);
@@ -448,16 +454,21 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
   const balanceSheet = transformMappedDataToBalanceSheet(mappedData);
   const totals = calculateTotals();
   
-  // Helper function to get mapped accounts for a SARS item
-  const getMappedAccounts = (sarsItem: string) => {
-    return mappedData.filter(item => item.sarsItem === sarsItem && item.balance !== 0);
-  };
-
   // Calculate totals with proper sign handling
   const totalAssets = calculateNestedTotal(balanceSheet.nonCurrentAssets) + calculateNestedTotal(balanceSheet.currentAssets);
   const currentYearProfitLoss = totals.incomeStatement;
-  const totalEquity = -calculateNestedTotal(balanceSheet.capitalAndReserves) - calculateNestedTotal(balanceSheet.debitBalances) + currentYearProfitLoss;
-  const totalLiabilities = calculateNestedTotal(balanceSheet.nonCurrentLiabilities) + calculateNestedTotal(balanceSheet.currentLiabilities);
+  
+  // Calculate total capital and reserves (including current year profit/loss)
+  const totalCapitalAndReserves = calculateNestedTotal(balanceSheet.capitalAndReservesCreditBalances) + 
+                                 calculateNestedTotal(balanceSheet.capitalAndReservesDebitBalances) - 
+                                 currentYearProfitLoss;
+  
+  // For liabilities, credit balances should be positive
+  const totalLiabilities = calculateNestedTotal(balanceSheet.nonCurrentLiabilities) + 
+                          calculateNestedTotal(balanceSheet.currentLiabilities);
+
+  // Total reserves & liabilities is the sum of capital and reserves plus liabilities
+  const totalReservesAndLiabilities = totalCapitalAndReserves + totalLiabilities;
 
   return (
     <div className="space-y-2 p-8">
@@ -517,7 +528,7 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
 
       <BalanceSheetSection
         title=""
-        items={Object.entries(balanceSheet.capitalAndReserves).map(([sarsItem, data]) => ({
+        items={Object.entries(balanceSheet.capitalAndReservesCreditBalances).map(([sarsItem, data]) => ({
           sarsItem,
           amount: data.amount,
           subsection: data.subsection,
@@ -528,13 +539,47 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
         onMappingUpdate={handleMappingUpdate}
       />
 
-      {/* Debit Balances */}
+      {/* Current Year Net Profit */}
       <div className="grid grid-cols-12">
-        <div className="col-span-9 font-bold">Debit balances</div>
-        <div className="col-span-3 text-right px-4 tabular-nums text-red-600 font-bold">
-          {formatAmount(Math.abs(calculateNestedTotal(balanceSheet.debitBalances)))}
+        <div className="col-span-9 pl-8 py-2 text-sm flex items-center">
+          <ChevronRightIcon className="h-4 w-4 mr-2 opacity-0" />
+          Current Year Net Profit
+        </div>
+        <div className="col-span-3 text-right px-4 tabular-nums text-sm">
+          {formatAmount(-currentYearProfitLoss)}
         </div>
       </div>
+
+      {/* Total Capital and Reserves */}
+      <div className="grid grid-cols-12 border-t border-gray-200">
+        <div className="col-span-9 pl-4 py-1 font-semibold">Total Capital and Reserves</div>
+        <div className="col-span-3 text-right px-4 tabular-nums font-semibold">
+          {formatAmount(
+            calculateNestedTotal(balanceSheet.capitalAndReservesCreditBalances) + 
+            calculateNestedTotal(balanceSheet.capitalAndReservesDebitBalances) - 
+            currentYearProfitLoss
+          )}
+        </div>
+      </div>
+
+      {/* Debit Balances */}
+      <div className="grid grid-cols-12 mt-4">
+        <div className="col-span-9 font-bold">Debit balances</div>
+        <div className="col-span-3"></div>
+      </div>
+
+      <BalanceSheetSection
+        title=""
+        items={Object.entries(balanceSheet.capitalAndReservesDebitBalances).map(([sarsItem, data]) => ({
+          sarsItem,
+          amount: data.amount,
+          subsection: data.subsection,
+          mappedAccounts: data.mappedAccounts,
+        }))}
+        mappedData={mappedData}
+        projectId={params.id}
+        onMappingUpdate={handleMappingUpdate}
+      />
 
       {/* Non-Current Liabilities */}
       <div className="grid grid-cols-12 mt-4">
@@ -578,15 +623,15 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
       <div className="grid grid-cols-12 border-t border-b border-gray-200 py-1">
         <div className="col-span-9 font-bold">TOTAL RESERVES & LIABILITIES</div>
         <div className="col-span-3 text-right px-4 tabular-nums font-bold">
-          {formatAmount(totalEquity + totalLiabilities)}
+          {formatAmount(totalReservesAndLiabilities)}
         </div>
       </div>
 
       {/* Check row */}
-      <div className="grid grid-cols-12 text-sm">
+      <div className="grid grid-cols-12">
         <div className="col-span-9 pl-4">Check (should be nil)</div>
         <div className="col-span-3 text-right px-4 tabular-nums">
-          {formatAmount(totalAssets - (totalEquity + totalLiabilities))}
+          {formatAmount(totalAssets - totalReservesAndLiabilities)}
         </div>
       </div>
     </div>

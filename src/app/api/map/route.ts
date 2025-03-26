@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
           content: incomeStatementPrompt
         }
       ],
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       temperature: 0.5,
     });
 
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
           content: balanceSheetPrompt
         }
       ],
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       temperature: 0.5,
     });
 
@@ -176,6 +176,7 @@ Rules:
 8. For long-term loans:
    - If balance is negative, set section to "Balance Sheet" and subsection to "nonCurrentLiabilities"
    - If balance is positive, set section to "Balance Sheet" and subsection to "nonCurrentAssets"
+9. For balance sheet items if it refers to accumulated depreciation, set the sarsItem to a Other non-current assets
 9. For all other items, set the subsection based on the mapping guide structure
 
 Example Response Format:
