@@ -6,6 +6,7 @@ import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import BalanceSheetPage from './balance-sheet/page';
 import IncomeStatementPage from './income-statement/page';
 import MappingPage from './mapping/page';
+import TaxCalculationPage from './tax-calculation/page';
 
 interface TabProps {
   selected: boolean;
@@ -60,6 +61,8 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         return <BalanceSheetPage params={params} />;
       case 'income-statement':
         return <IncomeStatementPage params={params} />;
+      case 'tax-calculation':
+        return <TaxCalculationPage params={params} />;
       case 'settings':
         return <div>Settings content</div>;
       default:
@@ -99,6 +102,12 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
               selected={activeTab === 'income-statement'}
             >
               Income Statement
+            </Tab>
+            <Tab
+              onClick={() => setActiveTab('tax-calculation')}
+              selected={activeTab === 'tax-calculation'}
+            >
+              Tax Calculation
             </Tab>
             <Tab
               onClick={() => setActiveTab('settings')}

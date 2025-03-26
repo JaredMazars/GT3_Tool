@@ -8,13 +8,14 @@ datasource db {
 }
 
 model Project {
-  id          Int             @id @default(autoincrement())
-  name        String
-  description String?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  status      String          @default("ACTIVE")
-  mappings    MappedAccount[]
+  id            Int             @id @default(autoincrement())
+  name          String
+  description   String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  status        String          @default("ACTIVE")
+  mappings      MappedAccount[]
+  taxAdjustments TaxAdjustment[]
 }
 
 model MappedAccount {
@@ -29,4 +30,17 @@ model MappedAccount {
   updatedAt   DateTime @updatedAt
   projectId   Int
   project     Project  @relation(fields: [projectId], references: [id])
+}
+
+model TaxAdjustment {
+  id          Int      @id @default(autoincrement())
+  projectId   Int
+  type        String   // DEBIT, CREDIT, or ALLOWANCE
+  description String
+  amount      Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  project     Project  @relation(fields: [projectId], references: [id])
+
+  @@index([projectId])
 }
