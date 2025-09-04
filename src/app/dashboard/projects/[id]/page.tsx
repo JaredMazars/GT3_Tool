@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import BalanceSheetPage from './balance-sheet/page';
@@ -32,26 +32,7 @@ function Tab({ selected, children, onClick, className = '' }: TabProps) {
 
 export default function ProjectPage({ params }: { params: { id: string } }) {
   const [activeTab, setActiveTab] = useState('mapping');
-  const [projectName, setProjectName] = useState<string>('');
 
-  // Fetch project name
-  useEffect(() => {
-    async function fetchProjectName() {
-      try {
-        const response = await fetch(`/api/projects/${params.id}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch project details');
-        }
-        const data = await response.json();
-        setProjectName(data.name);
-      } catch (err) {
-        console.error('Error fetching project name:', err);
-        setProjectName('Project'); // Fallback name
-      }
-    }
-
-    fetchProjectName();
-  }, [params.id]);
 
   const renderContent = () => {
     switch (activeTab) {

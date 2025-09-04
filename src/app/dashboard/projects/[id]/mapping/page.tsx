@@ -37,7 +37,7 @@ interface CustomSelectProps {
   section: string;
 }
 
-function CustomSelect({ value, onChange, disabled, section }: CustomSelectProps) {
+function CustomSelect({ value, onChange, disabled }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -204,22 +204,6 @@ function MappingTable({ mappedData, onMappingUpdate }: MappingTableProps) {
     }
   };
 
-  // Get all available SARS items from the mapping guide
-  const getAllSarsItems = () => {
-    const items: Record<string, string[]> = {};
-    
-    // Add Balance Sheet items
-    Object.entries(mappingGuide.balanceSheet).forEach(([subsection, sectionItems]) => {
-      items[subsection] = sectionItems.map(item => item.sarsItem);
-    });
-    
-    // Add Income Statement items
-    Object.entries(mappingGuide.incomeStatement).forEach(([subsection, sectionItems]) => {
-      items[subsection] = sectionItems.map(item => item.sarsItem);
-    });
-    
-    return items;
-  };
 
   return (
     <div className="overflow-x-auto">

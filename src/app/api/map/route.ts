@@ -57,14 +57,20 @@ export async function POST(request: NextRequest) {
 
     // Split trial balance data
     const incomeStatementData = trialBalanceData.filter(
-      (row: any) => row['Section']?.toLowerCase() === 'income statement'
+      (row: unknown) => {
+        const typedRow = row as Record<string, unknown>;
+        return typedRow['Section']?.toString().toLowerCase() === 'income statement';
+      }
     );
     const balanceSheetData = trialBalanceData.filter(
-      (row: any) => row['Section']?.toLowerCase() === 'balance sheet'
+      (row: unknown) => {
+        const typedRow = row as Record<string, unknown>;
+        return typedRow['Section']?.toString().toLowerCase() === 'balance sheet';
+      }
     );
 
     // Process Income Statement first
-    const incomeStatementPrompt = generatePrompt(incomeStatementData, mappingGuide.incomeStatement, 'Income Statement');
+    const incomeStatementPrompt = generatePrompt(incomeStatementData as Record<string, unknown>[], mappingGuide.incomeStatement, 'Income Statement');
     const incomeStatementCompletion = await openai.chat.completions.create({
       messages: [
         {
@@ -85,7 +91,7 @@ export async function POST(request: NextRequest) {
     const incomeStatementMapped = parseLLMResponse(incomeStatementCompletion.choices[0].message.content);
 
     // Process Balance Sheet
-    const balanceSheetPrompt = generatePrompt(balanceSheetData, mappingGuide.balanceSheet, 'Balance Sheet');
+    const balanceSheetPrompt = generatePrompt(balanceSheetData as Record<string, unknown>[], mappingGuide.balanceSheet, 'Balance Sheet');
     const balanceSheetCompletion = await openai.chat.completions.create({
       messages: [
         {
@@ -153,7 +159,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function generatePrompt(trialBalanceData: any[], mappingGuide: any, section: string) {
+function generatePrompt(trialBalanceData: Record<string, unknown>[], mappingGuide: Record<string, unknown>, section: string) {
   const trialBalanceStr = JSON.stringify(trialBalanceData, null, 2);
   const mappingGuideStr = JSON.stringify(mappingGuide, null, 2);
 

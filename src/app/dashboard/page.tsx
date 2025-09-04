@@ -143,7 +143,7 @@ export default function DashboardPage() {
 
         {/* Projects list */}
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {projects.map((project: any) => (
+          {projects.map((project: { id: string; name: string; description?: string }) => (
             <Link
               key={project.id}
               href={`/dashboard/projects/${project.id}`}

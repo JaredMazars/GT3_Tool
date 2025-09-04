@@ -6,17 +6,6 @@ import { formatAmount } from '@/lib/formatters';
 import { MappedData } from '@/types';
 import { ChevronRightIcon } from '@heroicons/react/24/outline';
 
-interface IncomeStatementSectionProps {
-  title: string;
-  items: { sarsItem: string; balance: number }[];
-  mappedData: MappedData[];
-  projectId: string;
-  onMappingUpdate: (accountId: number, newSarsItem: string) => Promise<void>;
-  showTotal?: boolean;
-  isSubtotal?: boolean;
-  isGrossProfit?: boolean;
-  isNetProfit?: boolean;
-}
 
 interface SarsItem {
   sarsItem: string;
@@ -36,7 +25,7 @@ const subsectionDisplayNames: Record<string, string> = {
   incomeItemsOnlyCreditAmounts: 'Income Items (Credit Only)'
 };
 
-function CustomSelect({ value, onChange, disabled, section }: CustomSelectProps) {
+function CustomSelect({ value, onChange, disabled }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -147,125 +136,6 @@ function CustomSelect({ value, onChange, disabled, section }: CustomSelectProps)
   );
 }
 
-function IncomeStatementSection({ 
-  title, 
-  items, 
-  mappedData,
-  projectId,
-  onMappingUpdate,
-  showTotal = true,
-  isSubtotal = false,
-  isGrossProfit = false,
-  isNetProfit = false
-}: IncomeStatementSectionProps) {
-  const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
-  const [updatingAccount, setUpdatingAccount] = useState<number | null>(null);
-
-  const total = items.reduce((sum, item) => sum + item.balance, 0);
-
-  const toggleItem = (sarsItem: string) => {
-    setExpandedItems(prev => ({
-      ...prev,
-      [sarsItem]: !prev[sarsItem]
-    }));
-  };
-
-  const getMappedAccounts = (sarsItem: string) => {
-    return mappedData.filter(item => item.sarsItem === sarsItem && item.balance !== 0);
-  };
-
-  const handleMappingChange = async (accountId: number, newSarsItem: string) => {
-    try {
-      setUpdatingAccount(accountId);
-      await onMappingUpdate(accountId, newSarsItem);
-    } finally {
-      setUpdatingAccount(null);
-    }
-  };
-
-  const renderMappedAccounts = (sarsItem: string) => {
-    if (!expandedItems[sarsItem]) return null;
-
-    const accounts = getMappedAccounts(sarsItem);
-    if (accounts.length === 0) return null;
-
-    // Find the subsection for this SARS item
-    const subsectionEntry = Object.entries(mappingGuide.incomeStatement).find(([_, items]) =>
-      items.some(item => item.sarsItem === sarsItem)
-    );
-    
-    const subsectionName = subsectionEntry 
-      ? subsectionDisplayNames[subsectionEntry[0]] || subsectionEntry[0]
-      : '';
-
-    return (
-      <div className="pl-8 pr-4 py-2 bg-gray-50 border-t border-b border-gray-200">
-        <div className="space-y-1">
-          {accounts.map((account) => (
-            <div key={account.id} className="grid grid-cols-12 text-sm items-center">
-              <div className="col-span-1 text-gray-500">{account.accountCode}</div>
-              <div className="col-span-3 truncate">{account.accountName}</div>
-              <div className="col-span-2 text-gray-500 text-xs truncate">{subsectionName}</div>
-              <div className="col-span-4">
-                {updatingAccount === account.id ? (
-                  <div className="animate-pulse text-xs text-gray-500">Updating...</div>
-                ) : (
-                  <CustomSelect
-                    value={account.sarsItem}
-                    onChange={(newSarsItem) => handleMappingChange(account.id, newSarsItem)}
-                    section="Income Statement"
-                  />
-                )}
-              </div>
-              <div className={`col-span-2 text-right tabular-nums ${account.balance < 0 ? 'text-red-600' : ''}`}>
-                {account.balance < 0 ? `(${formatAmount(Math.abs(account.balance))})` : formatAmount(account.balance)}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
-  if (items.length === 0) return null;
-
-  const bgClass = isGrossProfit ? 'bg-gray-50' : isNetProfit ? 'bg-gray-100' : '';
-
-  return (
-    <div className={`space-y-1 ${isSubtotal ? 'mt-2' : 'mt-4'}`}>
-      <h3 className="font-bold text-gray-700">{title}</h3>
-      {items.map(({ sarsItem, balance }) => (
-        balance !== 0 && (
-          <div key={sarsItem} className="space-y-1">
-            <div 
-              className="grid grid-cols-12 cursor-pointer hover:bg-gray-50 rounded-lg p-1" 
-              onClick={() => toggleItem(sarsItem)}
-            >
-              <div className="col-span-8 pl-4 flex items-center">
-                <ChevronRightIcon 
-                  className={`h-4 w-4 mr-2 transition-transform ${expandedItems[sarsItem] ? 'rotate-90' : ''}`}
-                />
-                {sarsItem}
-              </div>
-              <div className={`col-span-4 text-right tabular-nums ${balance > 0 ? 'text-red-600' : ''}`}>
-                {balance > 0 ? `(${formatAmount(Math.abs(balance))})` : formatAmount(Math.abs(balance))}
-              </div>
-            </div>
-            {renderMappedAccounts(sarsItem)}
-          </div>
-        )
-      ))}
-      {showTotal && (
-        <div className={`grid grid-cols-12 gap-4 font-bold border-t border-gray-300 pt-1 mt-1 ${bgClass}`}>
-          <div className="col-span-8">Total {title}</div>
-          <div className={`col-span-4 text-right tabular-nums ${total > 0 ? 'text-red-600' : ''}`}>
-            {total > 0 ? `(${formatAmount(Math.abs(total))})` : formatAmount(Math.abs(total))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 export default function IncomeStatementPage({ params }: { params: { id: string } }) {
   const [mappedData, setMappedData] = useState<MappedData[]>([]);
@@ -302,6 +172,7 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
 
   const handleMappingUpdate = async (accountId: number, newSarsItem: string) => {
     try {
+      setUpdatingAccount(accountId);
       const response = await fetch(`/api/projects/${params.id}/mapped-accounts/${accountId}`, {
         method: 'PATCH',
         headers: {
@@ -326,6 +197,8 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
     } catch (error) {
       console.error('Error updating mapping:', error);
       throw error;
+    } finally {
+      setUpdatingAccount(null);
     }
   };
 
@@ -340,7 +213,7 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
     return mappedData.filter(item => item.sarsItem === sarsItem && item.balance !== 0);
   };
 
-  const renderSection = (title: string, subsection: string, items: [string, number][], isTotal = false) => {
+  const renderSection = (title: string, _subsection: string, items: [string, number][], isTotal = false) => {
     if (items.length === 0) return null;
     
     return (
@@ -348,8 +221,8 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
         {!isTotal && (
           <div className="text-sm font-medium text-gray-900">
             {title}
-            {subsection && (
-              <span className="text-gray-500 ml-2">({subsectionDisplayNames[subsection] || subsection})</span>
+            {_subsection && (
+              <span className="text-gray-500 ml-2">({subsectionDisplayNames[_subsection] || _subsection})</span>
             )}
           </div>
         )}
@@ -383,7 +256,7 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
     if (accounts.length === 0) return null;
 
     // Find the subsection for this SARS item
-    const subsectionEntry = Object.entries(mappingGuide.incomeStatement).find(([_, items]) =>
+    const subsectionEntry = Object.entries(mappingGuide.incomeStatement).find(([, items]) =>
       items.some(item => item.sarsItem === sarsItem)
     );
     
@@ -444,23 +317,23 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
   // Calculate section totals - using absolute values
   const totalIncome = Object.entries(aggregatedData)
     .filter(([sarsItem]) => sarsItem.includes('Sales'))
-    .reduce((sum, [_, balance]) => sum + Math.abs(balance), 0);
+    .reduce((sum, [, balance]) => sum + Math.abs(balance), 0);
 
   // For Cost of Sales, keep the original sign from the sum of accounts
   const costOfSales = Object.entries(aggregatedData)
     .filter(([sarsItem]) => sarsItem.includes('Purchases') || sarsItem.includes('stock'))
-    .reduce((sum, [_, balance]) => sum + balance, 0);
+    .reduce((sum, [, balance]) => sum + balance, 0);
 
   // Gross profit = Total Income - Cost of Sales
   const grossProfit = totalIncome - costOfSales;
 
   const otherIncome = Object.entries(aggregatedData)
     .filter(([sarsItem, balance]) => !sarsItem.includes('Sales') && !sarsItem.includes('Purchases') && !sarsItem.includes('stock') && balance < 0)
-    .reduce((sum, [_, balance]) => sum + Math.abs(balance), 0);
+    .reduce((sum, [, balance]) => sum + Math.abs(balance), 0);
 
   const expenses = Object.entries(aggregatedData)
     .filter(([sarsItem, balance]) => !sarsItem.includes('Sales') && !sarsItem.includes('Purchases') && !sarsItem.includes('stock') && balance > 0)
-    .reduce((sum, [_, balance]) => sum + Math.abs(balance), 0);
+    .reduce((sum, [, balance]) => sum + Math.abs(balance), 0);
 
   // Net profit = Gross Profit + Other Income - Expenses
   const netProfitBeforeTax = grossProfit + otherIncome - expenses;

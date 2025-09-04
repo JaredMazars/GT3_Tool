@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { mappingGuide } from '@/lib/mappingGuide';
 import { formatAmount } from '@/lib/formatters';
 import { MappedData } from '@/types';
-import { useRouter } from 'next/navigation';
 import { ChevronRightIcon } from '@heroicons/react/24/outline';
 
 interface BalanceSheetSectionProps {
@@ -48,7 +47,7 @@ const subsectionDisplayNames: Record<string, string> = {
   currentLiabilities: 'Current Liabilities'
 };
 
-function CustomSelect({ value, onChange, disabled, section }: CustomSelectProps) {
+function CustomSelect({ value, onChange, disabled }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -159,7 +158,7 @@ function CustomSelect({ value, onChange, disabled, section }: CustomSelectProps)
   );
 }
 
-function BalanceSheetSection({ title, items, mappedData, projectId, onMappingUpdate }: BalanceSheetSectionProps) {
+function BalanceSheetSection({ title, items, onMappingUpdate }: BalanceSheetSectionProps) {
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
   const [updatingAccount, setUpdatingAccount] = useState<number | null>(null);
 
@@ -175,7 +174,7 @@ function BalanceSheetSection({ title, items, mappedData, projectId, onMappingUpd
     }));
   };
 
-  const handleMappingChange = async (accountId: number, newSarsItem: string, newSection: string, newSubsection: string) => {
+  const handleMappingChange = async (accountId: number, newSarsItem: string) => {
     try {
       setUpdatingAccount(accountId);
       await onMappingUpdate(accountId, newSarsItem);
@@ -240,8 +239,8 @@ function BalanceSheetSection({ title, items, mappedData, projectId, onMappingUpd
                       ) : (
                         <CustomSelect
                           value={account.sarsItem}
-                          onChange={(newSarsItem, newSection, newSubsection) => 
-                            handleMappingChange(account.id, newSarsItem, newSection, newSubsection)
+                          onChange={(newSarsItem) => 
+                            handleMappingChange(account.id, newSarsItem)
                           }
                           section="Balance Sheet"
                         />
@@ -267,26 +266,7 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
   const [mappedData, setMappedData] = useState<MappedData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [projectName, setProjectName] = useState<string>('');
 
-  // Fetch project name
-  useEffect(() => {
-    async function fetchProjectName() {
-      try {
-        const response = await fetch(`/api/projects/${params.id}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch project details');
-        }
-        const data = await response.json();
-        setProjectName(data.name);
-      } catch (err) {
-        console.error('Error fetching project name:', err);
-        setProjectName('Project'); // Fallback name
-      }
-    }
-
-    fetchProjectName();
-  }, [params.id]);
 
   // Fetch mapped data
   useEffect(() => {
@@ -331,16 +311,16 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
     }
   };
 
-  function calculateNestedTotal(obj: Record<string, any>): number {
-    return Object.values(obj).reduce((sum, val) => {
+  function calculateNestedTotal(obj: Record<string, unknown>): number {
+    return Object.values(obj).reduce((sum: number, val: unknown) => {
       if (typeof val === 'number') {
         return sum + val;
       }
-      if (typeof val === 'object' && val !== null && val.amount !== undefined) {
-        return sum + val.amount;
+      if (typeof val === 'object' && val !== null && 'amount' in val && typeof (val as { amount: unknown }).amount === 'number') {
+        return sum + (val as { amount: number }).amount;
       }
       if (typeof val === 'object' && val !== null) {
-        return sum + calculateNestedTotal(val);
+        return sum + calculateNestedTotal(val as Record<string, unknown>);
       }
       return sum;
     }, 0);

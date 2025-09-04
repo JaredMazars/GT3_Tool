@@ -16,7 +16,7 @@ interface TaxAdjustment {
 export default function TaxCalculationPage({ params }: TaxCalculationProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<{ calculatedProfit?: number } | null>(null);
 
   useEffect(() => {
     async function fetchData() {

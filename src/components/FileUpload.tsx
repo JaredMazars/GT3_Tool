@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { CloudArrowUpIcon, DocumentTextIcon, ExclamationCircleIcon, InformationCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 interface FileUploadProps {
-  onFileUpload: (data: any) => void;
+  onFileUpload: (data: unknown) => void;
   projectId: number;
 }
 
@@ -115,7 +115,7 @@ export function FileUpload({ onFileUpload, projectId }: FileUploadProps) {
                 <h4 className="text-sm font-medium text-gray-900">Important Notes:</h4>
               </div>
               <ul className="list-disc list-inside text-sm text-gray-600 space-y-1 ml-1">
-                <li>The <span className="font-medium">Section</span> column must contain either "Balance Sheet" or "Income Statement"</li>
+                <li>The <span className="font-medium">Section</span> column must contain either &quot;Balance Sheet&quot; or &quot;Income Statement&quot;</li>
                 <li>The <span className="font-medium">Balance</span> column should contain numerical values</li>
                 <li>Ensure there are no empty cells in required columns</li>
               </ul>
