@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
           content: balanceSheetPrompt
         }
       ],
-      model: "gpt-4o",
+      model: "gpt-4.1",
       temperature: 0.5,
     });
 
