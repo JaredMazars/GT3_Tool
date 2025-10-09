@@ -1,14 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const includeArchived = searchParams.get('includeArchived') === 'true';
+
     const projects = await prisma.project.findMany({
       where: {
         status: 'ACTIVE',
+        archived: includeArchived ? undefined : false,
       },
       orderBy: {
-        createdAt: 'desc',
+        updatedAt: 'desc',
+      },
+      include: {
+        _count: {
+          select: {
+            mappings: true,
+            taxAdjustments: true,
+          },
+        },
       },
     });
     return NextResponse.json(projects);

@@ -213,32 +213,36 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
     return mappedData.filter(item => item.sarsItem === sarsItem && item.balance !== 0);
   };
 
-  const renderSection = (title: string, _subsection: string, items: [string, number][], isTotal = false) => {
+  const renderSection = (title: string, _subsection: string, items: [string, number][], color: string = 'gray') => {
     if (items.length === 0) return null;
     
+    const colorClasses = {
+      green: 'bg-green-50 text-green-900 border-green-200',
+      red: 'bg-red-50 text-red-900 border-red-200',
+      blue: 'bg-blue-50 text-blue-900 border-blue-200',
+      gray: 'bg-gray-50 text-gray-900 border-gray-200'
+    }[color];
+    
     return (
-      <div className="space-y-1">
-        {!isTotal && (
-          <div className="text-sm font-medium text-gray-900">
+      <div className="space-y-0.5">
+        {title && (
+          <div className={`text-xs font-semibold px-3 py-1 rounded-t-lg border-t border-x ${colorClasses}`}>
             {title}
-            {_subsection && (
-              <span className="text-gray-500 ml-2">({subsectionDisplayNames[_subsection] || _subsection})</span>
-            )}
           </div>
         )}
         {items.map(([sarsItem, balance]) => (
           <div key={sarsItem} className="group">
             <div 
-              className="grid grid-cols-12 cursor-pointer hover:bg-gray-50"
+              className="grid grid-cols-12 cursor-pointer hover:bg-blue-50 transition-colors duration-150"
               onClick={() => toggleItem(sarsItem)}
             >
-              <div className="col-span-9 pl-4 flex items-center gap-2">
+              <div className="col-span-9 pl-4 py-1.5 flex items-center gap-2">
                 <ChevronRightIcon 
-                  className={`h-3 w-3 transition-transform ${expandedItems[sarsItem] ? 'rotate-90' : ''}`}
+                  className={`h-3.5 w-3.5 text-gray-500 group-hover:text-blue-600 transition-all duration-200 ${expandedItems[sarsItem] ? 'rotate-90' : ''}`}
                 />
-                {sarsItem}
+                <span className="group-hover:text-blue-900 text-xs">{sarsItem}</span>
               </div>
-              <div className="col-span-3 text-right px-4 tabular-nums">
+              <div className="col-span-3 text-right px-3 py-1.5 tabular-nums font-medium text-xs">
                 {formatAmount(Math.abs(balance))}
               </div>
             </div>
@@ -265,16 +269,27 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
       : '';
 
     return (
-      <div className="pl-8 pr-4 py-2 bg-gray-50 border-t border-b border-gray-200">
-        <div className="space-y-1">
-          {accounts.map((account) => (
-            <div key={account.id} className="grid grid-cols-12 text-sm items-center">
-              <div className="col-span-1 text-gray-500">{account.accountCode}</div>
-              <div className="col-span-3 truncate">{account.accountName}</div>
+      <div className="pl-6 pr-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 border-t border-blue-200 border-b border-blue-200">
+        <div className="px-3 py-1 mb-1 border-b border-blue-300 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-t">
+          <div className="text-xs font-semibold text-blue-900 uppercase tracking-wide">Mapped Accounts</div>
+        </div>
+        <div className="space-y-0.5">
+          {accounts.map((account, accIndex) => (
+            <div 
+              key={account.id} 
+              className={`grid grid-cols-12 text-xs items-center py-1.5 px-2 rounded hover:bg-blue-100 transition-colors duration-150 ${
+                accIndex % 2 === 0 ? 'bg-white bg-opacity-40' : 'bg-blue-50 bg-opacity-60'
+              }`}
+            >
+              <div className="col-span-1 text-gray-600 font-medium">{account.accountCode}</div>
+              <div className="col-span-3 truncate font-medium">{account.accountName}</div>
               <div className="col-span-2 text-gray-500 text-xs truncate">{subsectionName}</div>
               <div className="col-span-4">
                 {updatingAccount === account.id ? (
-                  <div className="animate-pulse text-xs text-gray-500">Updating...</div>
+                  <div className="flex items-center gap-2 text-blue-600">
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                    <span className="text-xs">Updating...</span>
+                  </div>
                 ) : (
                   <CustomSelect
                     value={account.sarsItem}
@@ -283,7 +298,7 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
                   />
                 )}
               </div>
-              <div className={`col-span-2 text-right tabular-nums ${account.balance < 0 ? 'text-red-600' : ''}`}>
+              <div className={`col-span-2 text-right tabular-nums font-semibold ${account.balance < 0 ? 'text-red-600' : 'text-gray-900'}`}>
                 {account.balance < 0 ? `(${formatAmount(Math.abs(account.balance))})` : formatAmount(account.balance)}
               </div>
             </div>
@@ -342,104 +357,201 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
   const totalOfAllItems = Object.values(aggregatedData).reduce((sum, balance) => sum + balance, 0);
 
   return (
-    <div className="p-8">
-      <div className="space-y-4">
-        {/* Header */}
-        <div className="grid grid-cols-12">
-          <div className="col-span-9 text-lg font-bold">Income Statement</div>
-          <div className="col-span-3 text-right font-semibold">R</div>
-        </div>
-
-        {/* TOTAL INCOME */}
-        <div>
-          <div className="grid grid-cols-12 font-bold border-b border-gray-200 pb-1">
-            <div className="col-span-9">TOTAL INCOME (SALES & OTHER INCOME)</div>
-            <div className="col-span-3 text-right px-4 tabular-nums">
-              {formatAmount(totalIncome)}
+    <div className="space-y-4">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-lg p-3 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-green-100 text-xs font-medium">Total Income</p>
+              <p className="text-xl font-bold mt-1">{formatAmount(totalIncome)}</p>
             </div>
-          </div>
-
-          {renderSection("Sales", "grossProfitOrLoss", 
-            Object.entries(aggregatedData)
-              .filter(([sarsItem]) => sarsItem.includes('Sales'))
-              .map(([sarsItem, balance]) => [sarsItem, Math.abs(balance)])
-          )}
-
-          <div className="grid grid-cols-12 mt-2 italic border-t border-gray-200 pt-1">
-            <div className="col-span-9">Turnover per AFS</div>
-            <div className="col-span-3 text-right px-4 tabular-nums">
-              {formatAmount(totalIncome)}
+            <div className="bg-green-400 bg-opacity-30 rounded-full p-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
             </div>
           </div>
         </div>
 
-        {/* Cost of Sales */}
-        <div>
-          {renderSection("Cost of Sales", "grossProfitOrLoss", 
-            Object.entries(aggregatedData)
-              .filter(([sarsItem]) => sarsItem.includes('Purchases') || sarsItem.includes('stock'))
-              .map(([sarsItem, balance]) => [sarsItem, Math.abs(balance)])
-          )}
-          <div className="grid grid-cols-12 font-bold border-t border-gray-200 pt-1">
-            <div className="col-span-9">TOTAL COST OF SALES</div>
-            <div className={`col-span-3 text-right px-4 tabular-nums ${costOfSales < 0 ? 'text-red-600' : ''}`}>
-              {costOfSales < 0 ? `(${formatAmount(Math.abs(costOfSales))})` : formatAmount(costOfSales)}
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-lg p-3 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-blue-100 text-xs font-medium">Gross Profit</p>
+              <p className="text-xl font-bold mt-1">{formatAmount(grossProfit)}</p>
             </div>
+            <div className="bg-blue-400 bg-opacity-30 rounded-full p-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-lg shadow-lg p-3 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-red-100 text-xs font-medium">Total Expenses</p>
+              <p className="text-xl font-bold mt-1">{formatAmount(expenses)}</p>
+            </div>
+            <div className="bg-red-400 bg-opacity-30 rounded-full p-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div className={`bg-gradient-to-br ${netProfitBeforeTax >= 0 ? 'from-purple-500 to-purple-600' : 'from-gray-500 to-gray-600'} rounded-lg shadow-lg p-3 text-white`}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className={`${netProfitBeforeTax >= 0 ? 'text-purple-100' : 'text-gray-100'} text-xs font-medium`}>Net Profit</p>
+              <p className="text-xl font-bold mt-1">{formatAmount(netProfitBeforeTax)}</p>
+            </div>
+            <div className={`${netProfitBeforeTax >= 0 ? 'bg-purple-400' : 'bg-gray-400'} bg-opacity-30 rounded-full p-2`}>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Action Bar */}
+      <div className="flex items-center justify-end bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+        <a
+          href={`/dashboard/projects/${params.id}/tax-calculation`}
+          className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 text-xs shadow-md hover:shadow-lg"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+          </svg>
+          Generate Tax Adjustments
+        </a>
+      </div>
+
+      {/* Main Income Statement Card */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between border-b border-gray-400 pb-2">
+            <h1 className="text-xl font-bold text-gray-900">INCOME STATEMENT</h1>
+            <div className="text-right font-semibold text-gray-700">R</div>
+          </div>
+
+        {/* REVENUE SECTION */}
+        <div className="border border-green-200 rounded-lg overflow-hidden">
+          <div className="grid grid-cols-12 font-bold bg-gradient-to-r from-green-100 to-green-200 py-1.5">
+            <div className="col-span-9 px-3 text-sm text-green-900">REVENUE & SALES</div>
+            <div className="col-span-3 text-right px-3 text-xs tabular-nums text-green-900">
+              {formatAmount(totalIncome)}
+            </div>
+          </div>
+
+          <div className="bg-white p-3">
+            {renderSection("Sales Revenue", "grossProfitOrLoss", 
+              Object.entries(aggregatedData)
+                .filter(([sarsItem]) => sarsItem.includes('Sales'))
+                .map(([sarsItem, balance]) => [sarsItem, Math.abs(balance)]),
+              'green'
+            )}
+
+            <div className="grid grid-cols-12 mt-2 italic bg-green-50 py-1.5 rounded border border-green-200">
+              <div className="col-span-9 px-3 text-xs text-green-900 font-medium">Turnover per Annual Financial Statements</div>
+              <div className="col-span-3 text-right px-3 text-xs tabular-nums text-green-900 font-semibold">
+                {formatAmount(totalIncome)}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* COST OF SALES SECTION */}
+        <div className="border border-red-200 rounded-lg overflow-hidden">
+          <div className="grid grid-cols-12 font-bold bg-gradient-to-r from-red-100 to-red-200 py-1.5">
+            <div className="col-span-9 px-3 text-sm text-red-900">COST OF SALES</div>
+            <div className={`col-span-3 text-right px-3 text-xs tabular-nums text-red-900`}>
+              {formatAmount(costOfSales)}
+            </div>
+          </div>
+
+          <div className="bg-white p-3">
+            {renderSection("Direct Costs", "grossProfitOrLoss", 
+              Object.entries(aggregatedData)
+                .filter(([sarsItem]) => sarsItem.includes('Purchases') || sarsItem.includes('stock'))
+                .map(([sarsItem, balance]) => [sarsItem, Math.abs(balance)]),
+              'red'
+            )}
           </div>
         </div>
 
         {/* GROSS PROFIT/LOSS */}
-        <div className="grid grid-cols-12 font-bold bg-gray-50 p-2 rounded-t-lg">
-          <div className="col-span-9">GROSS PROFIT/LOSS</div>
-          <div className="col-span-3 text-right px-4 tabular-nums">
+        <div className={`grid grid-cols-12 font-bold border rounded-lg py-2 ${
+          grossProfit >= 0 
+            ? 'bg-gradient-to-r from-blue-100 to-blue-200 border-blue-300' 
+            : 'bg-gradient-to-r from-gray-100 to-gray-200 border-gray-300'
+        }`}>
+          <div className={`col-span-9 px-3 text-sm ${grossProfit >= 0 ? 'text-blue-900' : 'text-gray-900'}`}>GROSS PROFIT / (LOSS)</div>
+          <div className={`col-span-3 text-right px-3 text-xs tabular-nums ${grossProfit >= 0 ? 'text-blue-900' : 'text-gray-900'}`}>
             {formatAmount(grossProfit)}
           </div>
         </div>
 
-        {/* Income Items */}
-        <div>
-          {renderSection("Income Items", "incomeItemsOnlyCreditAmounts", 
-            Object.entries(aggregatedData)
-              .filter(([sarsItem, val]) => !sarsItem.includes('Sales') && !sarsItem.includes('Purchases') && !sarsItem.includes('stock') && val < 0)
-              .map(([sarsItem, balance]) => [sarsItem, Math.abs(balance)])
-          )}
-          <div className="grid grid-cols-12 font-bold border-t border-gray-200 pt-1">
-            <div className="col-span-9">TOTAL OTHER INCOME</div>
-            <div className="col-span-3 text-right px-4 tabular-nums">
+        {/* OTHER INCOME SECTION */}
+        <div className="border border-green-200 rounded-lg overflow-hidden">
+          <div className="grid grid-cols-12 font-bold bg-gradient-to-r from-green-50 to-green-100 py-1.5">
+            <div className="col-span-9 px-3 text-sm text-green-900">OTHER INCOME</div>
+            <div className="col-span-3 text-right px-3 text-xs tabular-nums text-green-900">
               {formatAmount(otherIncome)}
             </div>
           </div>
+
+          <div className="bg-white p-3">
+            {renderSection("Income Items", "incomeItemsOnlyCreditAmounts", 
+              Object.entries(aggregatedData)
+                .filter(([sarsItem, val]) => !sarsItem.includes('Sales') && !sarsItem.includes('Purchases') && !sarsItem.includes('stock') && val < 0)
+                .map(([sarsItem, balance]) => [sarsItem, Math.abs(balance)]),
+              'green'
+            )}
+          </div>
         </div>
 
-        {/* Expense Items */}
-        <div>
-          {renderSection("Expense Items", "expenseItemsDebitAmounts", 
-            Object.entries(aggregatedData)
-              .filter(([sarsItem, val]) => !sarsItem.includes('Sales') && !sarsItem.includes('Purchases') && !sarsItem.includes('stock') && val > 0)
-              .map(([sarsItem, balance]) => [sarsItem, Math.abs(balance)])
-          )}
-          <div className="grid grid-cols-12 font-bold border-t border-gray-200 pt-1">
-            <div className="col-span-9">TOTAL OTHER EXPENSES</div>
-            <div className="col-span-3 text-right px-4 tabular-nums">
+        {/* EXPENSES SECTION */}
+        <div className="border border-red-200 rounded-lg overflow-hidden">
+          <div className="grid grid-cols-12 font-bold bg-gradient-to-r from-red-100 to-red-200 py-1.5">
+            <div className="col-span-9 px-3 text-sm text-red-900">OPERATING EXPENSES</div>
+            <div className="col-span-3 text-right px-3 text-xs tabular-nums text-red-900">
               {formatAmount(expenses)}
             </div>
+          </div>
+
+          <div className="bg-white p-3">
+            {renderSection("Expense Items", "expenseItemsDebitAmounts", 
+              Object.entries(aggregatedData)
+                .filter(([sarsItem, val]) => !sarsItem.includes('Sales') && !sarsItem.includes('Purchases') && !sarsItem.includes('stock') && val > 0)
+                .map(([sarsItem, balance]) => [sarsItem, Math.abs(balance)]),
+              'red'
+            )}
           </div>
         </div>
 
         {/* NET PROFIT/LOSS BEFORE TAX */}
-        <div className="grid grid-cols-12 font-bold bg-gray-100 p-2 rounded-lg">
-          <div className="col-span-9">NET PROFIT/(LOSS) BEFORE TAX</div>
-          <div className="col-span-3 text-right px-4 tabular-nums">
+        <div className={`grid grid-cols-12 font-bold border rounded-lg py-2 ${
+          netProfitBeforeTax >= 0 
+            ? 'bg-gradient-to-r from-purple-100 to-purple-200 border-purple-300' 
+            : 'bg-gradient-to-r from-gray-100 to-gray-200 border-gray-300'
+        }`}>
+          <div className={`col-span-9 px-3 text-base ${netProfitBeforeTax >= 0 ? 'text-purple-900' : 'text-gray-900'}`}>NET PROFIT / (LOSS) BEFORE TAX</div>
+          <div className={`col-span-3 text-right px-3 text-sm tabular-nums ${netProfitBeforeTax >= 0 ? 'text-purple-900' : 'text-gray-900'}`}>
             {formatAmount(netProfitBeforeTax)}
           </div>
         </div>
 
         {/* Verification total */}
-        <div className="grid grid-cols-12 text-sm text-gray-500 border-t border-gray-200 pt-2">
-          <div className="col-span-9">Total of all items (for verification)</div>
-          <div className="col-span-3 text-right px-4 tabular-nums">
+        <div className="grid grid-cols-12 text-xs bg-gray-50 border border-gray-300 rounded-lg py-1.5">
+          <div className="col-span-9 px-3 text-gray-600">Total of all items (for verification)</div>
+          <div className="col-span-3 text-right px-3 tabular-nums text-gray-700 font-medium">
             {formatAmount(Math.abs(totalOfAllItems))}
           </div>
+        </div>
         </div>
       </div>
     </div>

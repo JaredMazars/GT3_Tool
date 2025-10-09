@@ -188,30 +188,32 @@ function BalanceSheetSection({ title, items, onMappingUpdate }: BalanceSheetSect
   return (
     <div>
       {/* Section header */}
-      <div className="grid grid-cols-12 border-b border-gray-200">
-        <div className="col-span-9 font-semibold px-4 py-1">{title}</div>
-        <div className="col-span-3 text-right px-4 tabular-nums font-semibold">
-          {isNegative 
-            ? `(${formatAmount(Math.abs(totalAmount))})` 
-            : formatAmount(totalAmount)}
+      {title && (
+        <div className="grid grid-cols-12 border-b border-gray-300 bg-gradient-to-r from-gray-50 to-gray-100">
+          <div className="col-span-9 font-bold px-3 py-1.5 text-sm text-gray-900">{title}</div>
+          <div className={`col-span-3 text-right px-3 py-1.5 text-xs tabular-nums font-bold ${isNegative ? 'text-red-600' : 'text-gray-900'}`}>
+            {isNegative 
+              ? `(${formatAmount(Math.abs(totalAmount))})` 
+              : formatAmount(totalAmount)}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* SARS Items */}
       <div className="divide-y divide-gray-100">
         {nonZeroItems.map((item, index) => (
-          <div key={index}>
+          <div key={index} className="group">
             <div 
-              className="grid grid-cols-12 cursor-pointer hover:bg-gray-50"
+              className="grid grid-cols-12 cursor-pointer hover:bg-blue-50 transition-colors duration-150"
               onClick={() => toggleItem(item.sarsItem)}
             >
-              <div className="col-span-9 pl-8 py-2 text-sm flex items-center">
+              <div className="col-span-9 pl-6 py-1.5 text-xs flex items-center">
                 <ChevronRightIcon 
-                  className={`h-4 w-4 mr-2 transition-transform ${expandedItems[item.sarsItem] ? 'rotate-90' : ''}`}
+                  className={`h-3.5 w-3.5 mr-2 text-gray-500 group-hover:text-blue-600 transition-all duration-200 ${expandedItems[item.sarsItem] ? 'rotate-90' : ''}`}
                 />
-                {item.sarsItem}
+                <span className="group-hover:text-blue-900">{item.sarsItem}</span>
               </div>
-              <div className={`col-span-3 text-right px-4 py-2 text-sm tabular-nums ${item.amount < 0 ? 'text-red-600' : ''}`}>
+              <div className={`col-span-3 text-right px-3 py-1.5 text-xs tabular-nums font-medium ${item.amount < 0 ? 'text-red-600' : 'text-gray-900'}`}>
                 {item.amount !== 0 && (item.amount < 0 
                   ? `(${formatAmount(Math.abs(item.amount))})` 
                   : formatAmount(item.amount))}
@@ -220,22 +222,27 @@ function BalanceSheetSection({ title, items, onMappingUpdate }: BalanceSheetSect
 
             {/* Expanded account details */}
             {expandedItems[item.sarsItem] && (
-              <div className="bg-gray-50 border-t border-gray-200">
-                <div className="px-4 py-2 border-b border-gray-200 bg-gray-100">
-                  <div className="text-xs font-medium text-gray-500">Mapped Accounts</div>
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-t border-blue-200 border-b border-blue-200">
+                <div className="px-3 py-1 border-b border-blue-300 bg-gradient-to-r from-blue-100 to-indigo-100">
+                  <div className="text-xs font-semibold text-blue-900 uppercase tracking-wide">Mapped Accounts</div>
                 </div>
-                {item.mappedAccounts.map((account) => (
+                {item.mappedAccounts.map((account, accIndex) => (
                   <div 
                     key={account.id} 
-                    className="grid grid-cols-12 px-10 py-2 text-sm hover:bg-gray-100 border-b border-gray-200 last:border-b-0"
+                    className={`grid grid-cols-12 px-6 py-1.5 text-xs hover:bg-blue-100 border-b border-blue-100 last:border-b-0 transition-colors duration-150 ${
+                      accIndex % 2 === 0 ? 'bg-white bg-opacity-40' : 'bg-blue-50 bg-opacity-60'
+                    }`}
                   >
-                    <div className="col-span-2 text-gray-500">{account.accountCode}</div>
+                    <div className="col-span-2 text-gray-600 font-medium">{account.accountCode}</div>
                     <div className="col-span-4">
-                      <div className="text-gray-900">{account.accountName}</div>
+                      <div className="text-gray-900 font-medium">{account.accountName}</div>
                     </div>
                     <div className="col-span-3">
                       {updatingAccount === account.id ? (
-                        <div className="animate-pulse text-xs text-gray-500">Updating...</div>
+                        <div className="flex items-center gap-2 text-blue-600">
+                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                          <span className="text-xs">Updating...</span>
+                        </div>
                       ) : (
                         <CustomSelect
                           value={account.sarsItem}
@@ -246,7 +253,7 @@ function BalanceSheetSection({ title, items, onMappingUpdate }: BalanceSheetSect
                         />
                       )}
                     </div>
-                    <div className={`col-span-3 text-right tabular-nums ${account.balance < 0 ? 'text-red-600' : ''}`}>
+                    <div className={`col-span-3 text-right tabular-nums font-semibold ${account.balance < 0 ? 'text-red-600' : 'text-gray-900'}`}>
                       {account.balance < 0 
                         ? `(${formatAmount(Math.abs(account.balance))})` 
                         : formatAmount(account.balance)}
@@ -266,6 +273,11 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
   const [mappedData, setMappedData] = useState<MappedData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    assets: true,
+    capitalReserves: true,
+    liabilities: true
+  });
 
 
   // Fetch mapped data
@@ -450,168 +462,326 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
   // Total reserves & liabilities is the sum of capital and reserves plus liabilities
   const totalReservesAndLiabilities = totalCapitalAndReserves + totalLiabilities;
 
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
+  const expandAll = () => {
+    setExpandedSections({
+      assets: true,
+      capitalReserves: true,
+      liabilities: true
+    });
+  };
+
+  const collapseAll = () => {
+    setExpandedSections({
+      assets: false,
+      capitalReserves: false,
+      liabilities: false
+    });
+  };
+
   return (
-    <div className="space-y-2 p-8">
-      {/* Header */}
-      <div className="grid grid-cols-12 mb-4">
-        <div className="col-span-9"></div>
-        <div className="col-span-3 text-center font-semibold">R</div>
-      </div>
+    <div className="space-y-4">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-lg p-3 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-blue-100 text-xs font-medium">Total Assets</p>
+              <p className="text-xl font-bold mt-1">{formatAmount(totalAssets)}</p>
+            </div>
+            <div className="bg-blue-400 bg-opacity-30 rounded-full p-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+            </div>
+          </div>
+        </div>
 
-      {/* Balance Sheet Title */}
-      <div className="grid grid-cols-12">
-        <div className="col-span-9 font-bold">Balance Sheet</div>
-        <div className="col-span-3"></div>
-      </div>
+        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-lg p-3 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-purple-100 text-xs font-medium">Total Equity</p>
+              <p className="text-xl font-bold mt-1">{formatAmount(totalCapitalAndReserves)}</p>
+            </div>
+            <div className="bg-purple-400 bg-opacity-30 rounded-full p-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
 
-      {/* Non-Current Assets */}
-      <BalanceSheetSection
-        title="Non Current Assets"
-        items={Object.entries(balanceSheet.nonCurrentAssets).map(([sarsItem, data]) => ({
-          sarsItem,
-          amount: data.amount,
-          subsection: data.subsection,
-          mappedAccounts: data.mappedAccounts,
-        }))}
-        mappedData={mappedData}
-        projectId={params.id}
-        onMappingUpdate={handleMappingUpdate}
-      />
-
-      {/* Current Assets */}
-      <BalanceSheetSection
-        title="Current Assets"
-        items={Object.entries(balanceSheet.currentAssets).map(([sarsItem, data]) => ({
-          sarsItem,
-          amount: data.amount,
-          subsection: data.subsection,
-          mappedAccounts: data.mappedAccounts,
-        }))}
-        mappedData={mappedData}
-        projectId={params.id}
-        onMappingUpdate={handleMappingUpdate}
-      />
-
-      {/* Total Assets */}
-      <div className="grid grid-cols-12 border-t border-b border-gray-200 py-1">
-        <div className="col-span-9 font-bold">TOTAL ASSETS</div>
-        <div className="col-span-3 text-right px-4 tabular-nums font-bold">
-          {formatAmount(totalAssets)}
+        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg shadow-lg p-3 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-orange-100 text-xs font-medium">Total Liabilities</p>
+              <p className="text-xl font-bold mt-1">{formatAmount(totalLiabilities)}</p>
+            </div>
+            <div className="bg-orange-400 bg-opacity-30 rounded-full p-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+              </svg>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Capital and Reserves */}
-      <div className="grid grid-cols-12 mt-4">
-        <div className="col-span-9 font-bold">Capital and Reserves</div>
-        <div className="col-span-3"></div>
+      {/* Main Balance Sheet Card */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="space-y-3">
+          {/* Header with Controls */}
+          <div className="flex items-center justify-between border-b border-gray-400 pb-2">
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl font-bold text-gray-900">Balance Sheet</h1>
+              <span className="text-xs text-gray-500">Financial Year End</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={expandAll}
+                className="px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors duration-150"
+              >
+                Expand All
+              </button>
+              <button
+                onClick={collapseAll}
+                className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-150"
+              >
+                Collapse All
+              </button>
+              <div className="text-right font-semibold text-gray-700">R</div>
+            </div>
+          </div>
+
+      {/* ASSETS SECTION */}
+      <div className="border border-blue-200 rounded-lg overflow-hidden">
+        <button
+          onClick={() => toggleSection('assets')}
+          className="w-full grid grid-cols-12 bg-gradient-to-r from-blue-100 to-blue-200 hover:from-blue-200 hover:to-blue-300 transition-colors duration-150 py-2"
+        >
+          <div className="col-span-9 flex items-center gap-2 px-3">
+            <ChevronRightIcon 
+              className={`h-4 w-4 text-blue-700 transition-transform duration-200 ${expandedSections.assets ? 'rotate-90' : ''}`}
+            />
+            <span className="font-bold text-base text-blue-900">ASSETS</span>
+          </div>
+          <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-blue-900">
+            {formatAmount(totalAssets)}
+          </div>
+        </button>
+
+        {expandedSections.assets && (
+          <div className="bg-white">
+            {/* Non-Current Assets */}
+            <BalanceSheetSection
+              title="Non Current Assets"
+              items={Object.entries(balanceSheet.nonCurrentAssets).map(([sarsItem, data]) => ({
+                sarsItem,
+                amount: data.amount,
+                subsection: data.subsection,
+                mappedAccounts: data.mappedAccounts,
+              }))}
+              mappedData={mappedData}
+              projectId={params.id}
+              onMappingUpdate={handleMappingUpdate}
+            />
+
+            {/* Current Assets */}
+            <BalanceSheetSection
+              title="Current Assets"
+              items={Object.entries(balanceSheet.currentAssets).map(([sarsItem, data]) => ({
+                sarsItem,
+                amount: data.amount,
+                subsection: data.subsection,
+                mappedAccounts: data.mappedAccounts,
+              }))}
+              mappedData={mappedData}
+              projectId={params.id}
+              onMappingUpdate={handleMappingUpdate}
+            />
+
+            {/* Total Assets */}
+            <div className="grid grid-cols-12 border-t border-blue-300 bg-blue-50 py-1.5">
+              <div className="col-span-9 font-bold px-3 text-sm text-blue-900">TOTAL ASSETS</div>
+              <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-blue-900">
+                {formatAmount(totalAssets)}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      <BalanceSheetSection
-        title=""
-        items={Object.entries(balanceSheet.capitalAndReservesCreditBalances).map(([sarsItem, data]) => ({
-          sarsItem,
-          amount: data.amount,
-          subsection: data.subsection,
-          mappedAccounts: data.mappedAccounts,
-        }))}
-        mappedData={mappedData}
-        projectId={params.id}
-        onMappingUpdate={handleMappingUpdate}
-      />
+      {/* EQUITY & RESERVES SECTION */}
+      <div className="border border-purple-200 rounded-lg overflow-hidden">
+        <button
+          onClick={() => toggleSection('capitalReserves')}
+          className="w-full grid grid-cols-12 bg-gradient-to-r from-purple-100 to-purple-200 hover:from-purple-200 hover:to-purple-300 transition-colors duration-150 py-2"
+        >
+          <div className="col-span-9 flex items-center gap-2 px-3">
+            <ChevronRightIcon 
+              className={`h-4 w-4 text-purple-700 transition-transform duration-200 ${expandedSections.capitalReserves ? 'rotate-90' : ''}`}
+            />
+            <span className="font-bold text-base text-purple-900">EQUITY & RESERVES</span>
+          </div>
+          <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-purple-900">
+            {formatAmount(totalCapitalAndReserves)}
+          </div>
+        </button>
 
-      {/* Current Year Net Profit */}
-      <div className="grid grid-cols-12">
-        <div className="col-span-9 pl-8 py-2 text-sm flex items-center">
-          <ChevronRightIcon className="h-4 w-4 mr-2 opacity-0" />
-          Current Year Net Profit
-        </div>
-        <div className="col-span-3 text-right px-4 tabular-nums text-sm">
-          {formatAmount(-currentYearProfitLoss)}
-        </div>
+        {expandedSections.capitalReserves && (
+          <div className="bg-white">
+            {/* Capital and Reserves */}
+            <div className="grid grid-cols-12 bg-gradient-to-r from-purple-50 to-purple-100 border-b border-purple-200">
+              <div className="col-span-9 font-semibold px-4 py-2 text-purple-900">Capital and Reserves</div>
+              <div className="col-span-3"></div>
+            </div>
+
+            <BalanceSheetSection
+              title=""
+              items={Object.entries(balanceSheet.capitalAndReservesCreditBalances).map(([sarsItem, data]) => ({
+                sarsItem,
+                amount: data.amount,
+                subsection: data.subsection,
+                mappedAccounts: data.mappedAccounts,
+              }))}
+              mappedData={mappedData}
+              projectId={params.id}
+              onMappingUpdate={handleMappingUpdate}
+            />
+
+            {/* Current Year Net Profit */}
+            <div className="grid grid-cols-12 bg-purple-50">
+              <div className="col-span-9 pl-8 py-2 text-sm flex items-center">
+                <ChevronRightIcon className="h-4 w-4 mr-2 opacity-0" />
+                <span className="font-medium text-purple-900">Current Year Net Profit</span>
+              </div>
+              <div className="col-span-3 text-right px-4 tabular-nums text-sm font-medium text-purple-900">
+                {formatAmount(-currentYearProfitLoss)}
+              </div>
+            </div>
+
+            {/* Total Capital and Reserves */}
+            <div className="grid grid-cols-12 border-t border-purple-200 bg-purple-50">
+              <div className="col-span-9 pl-4 py-2 font-semibold text-purple-900">Total Capital and Reserves</div>
+              <div className="col-span-3 text-right px-4 tabular-nums font-semibold text-purple-900">
+                {formatAmount(
+                  calculateNestedTotal(balanceSheet.capitalAndReservesCreditBalances) + 
+                  calculateNestedTotal(balanceSheet.capitalAndReservesDebitBalances) - 
+                  currentYearProfitLoss
+                )}
+              </div>
+            </div>
+
+            {/* Debit Balances */}
+            <div className="grid grid-cols-12 bg-gradient-to-r from-purple-50 to-purple-100 border-t-2 border-purple-300">
+              <div className="col-span-9 font-semibold px-4 py-2 text-purple-900">Debit balances</div>
+              <div className="col-span-3"></div>
+            </div>
+
+            <BalanceSheetSection
+              title=""
+              items={Object.entries(balanceSheet.capitalAndReservesDebitBalances).map(([sarsItem, data]) => ({
+                sarsItem,
+                amount: data.amount,
+                subsection: data.subsection,
+                mappedAccounts: data.mappedAccounts,
+              }))}
+              mappedData={mappedData}
+              projectId={params.id}
+              onMappingUpdate={handleMappingUpdate}
+            />
+          </div>
+        )}
       </div>
 
-      {/* Total Capital and Reserves */}
-      <div className="grid grid-cols-12 border-t border-gray-200">
-        <div className="col-span-9 pl-4 py-1 font-semibold">Total Capital and Reserves</div>
-        <div className="col-span-3 text-right px-4 tabular-nums font-semibold">
-          {formatAmount(
-            calculateNestedTotal(balanceSheet.capitalAndReservesCreditBalances) + 
-            calculateNestedTotal(balanceSheet.capitalAndReservesDebitBalances) - 
-            currentYearProfitLoss
-          )}
-        </div>
+      {/* LIABILITIES SECTION */}
+      <div className="border border-orange-200 rounded-lg overflow-hidden">
+        <button
+          onClick={() => toggleSection('liabilities')}
+          className="w-full grid grid-cols-12 bg-gradient-to-r from-orange-100 to-orange-200 hover:from-orange-200 hover:to-orange-300 transition-colors duration-150 py-2"
+        >
+          <div className="col-span-9 flex items-center gap-2 px-3">
+            <ChevronRightIcon 
+              className={`h-4 w-4 text-orange-700 transition-transform duration-200 ${expandedSections.liabilities ? 'rotate-90' : ''}`}
+            />
+            <span className="font-bold text-base text-orange-900">LIABILITIES</span>
+          </div>
+          <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-orange-900">
+            {formatAmount(totalLiabilities)}
+          </div>
+        </button>
+
+        {expandedSections.liabilities && (
+          <div className="bg-white">
+            {/* Non-Current Liabilities */}
+            <div className="grid grid-cols-12 bg-gradient-to-r from-orange-50 to-orange-100 border-b border-orange-200">
+              <div className="col-span-9 font-semibold px-4 py-2 text-orange-900">Non-Current Liabilities</div>
+              <div className="col-span-3"></div>
+            </div>
+
+            <BalanceSheetSection
+              title=""
+              items={Object.entries(balanceSheet.nonCurrentLiabilities).map(([sarsItem, data]) => ({
+                sarsItem,
+                amount: data.amount,
+                subsection: data.subsection,
+                mappedAccounts: data.mappedAccounts,
+              }))}
+              mappedData={mappedData}
+              projectId={params.id}
+              onMappingUpdate={handleMappingUpdate}
+            />
+
+            {/* Current Liabilities */}
+            <div className="grid grid-cols-12 bg-gradient-to-r from-orange-50 to-orange-100 border-t-2 border-orange-300">
+              <div className="col-span-9 font-semibold px-4 py-2 text-orange-900">Current Liabilities</div>
+              <div className="col-span-3"></div>
+            </div>
+
+            <BalanceSheetSection
+              title=""
+              items={Object.entries(balanceSheet.currentLiabilities).map(([sarsItem, data]) => ({
+                sarsItem,
+                amount: data.amount,
+                subsection: data.subsection,
+                mappedAccounts: data.mappedAccounts,
+              }))}
+              mappedData={mappedData}
+              projectId={params.id}
+              onMappingUpdate={handleMappingUpdate}
+            />
+          </div>
+        )}
       </div>
-
-      {/* Debit Balances */}
-      <div className="grid grid-cols-12 mt-4">
-        <div className="col-span-9 font-bold">Debit balances</div>
-        <div className="col-span-3"></div>
-      </div>
-
-      <BalanceSheetSection
-        title=""
-        items={Object.entries(balanceSheet.capitalAndReservesDebitBalances).map(([sarsItem, data]) => ({
-          sarsItem,
-          amount: data.amount,
-          subsection: data.subsection,
-          mappedAccounts: data.mappedAccounts,
-        }))}
-        mappedData={mappedData}
-        projectId={params.id}
-        onMappingUpdate={handleMappingUpdate}
-      />
-
-      {/* Non-Current Liabilities */}
-      <div className="grid grid-cols-12 mt-4">
-        <div className="col-span-9 font-bold">Non-Current Liabilities</div>
-        <div className="col-span-3"></div>
-      </div>
-
-      <BalanceSheetSection
-        title=""
-        items={Object.entries(balanceSheet.nonCurrentLiabilities).map(([sarsItem, data]) => ({
-          sarsItem,
-          amount: data.amount,
-          subsection: data.subsection,
-          mappedAccounts: data.mappedAccounts,
-        }))}
-        mappedData={mappedData}
-        projectId={params.id}
-        onMappingUpdate={handleMappingUpdate}
-      />
-
-      {/* Current Liabilities */}
-      <div className="grid grid-cols-12 mt-4">
-        <div className="col-span-9 font-bold">Current Liabilities</div>
-        <div className="col-span-3"></div>
-      </div>
-
-      <BalanceSheetSection
-        title=""
-        items={Object.entries(balanceSheet.currentLiabilities).map(([sarsItem, data]) => ({
-          sarsItem,
-          amount: data.amount,
-          subsection: data.subsection,
-          mappedAccounts: data.mappedAccounts,
-        }))}
-        mappedData={mappedData}
-        projectId={params.id}
-        onMappingUpdate={handleMappingUpdate}
-      />
 
       {/* Total Reserves & Liabilities */}
-      <div className="grid grid-cols-12 border-t border-b border-gray-200 py-1">
-        <div className="col-span-9 font-bold">TOTAL RESERVES & LIABILITIES</div>
-        <div className="col-span-3 text-right px-4 tabular-nums font-bold">
+      <div className="grid grid-cols-12 border border-gray-400 bg-gray-100 rounded-lg py-2">
+        <div className="col-span-9 font-bold px-3 text-sm text-gray-900">TOTAL EQUITY & LIABILITIES</div>
+        <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-gray-900">
           {formatAmount(totalReservesAndLiabilities)}
         </div>
       </div>
 
       {/* Check row */}
-      <div className="grid grid-cols-12">
-        <div className="col-span-9 pl-4">Check (should be nil)</div>
-        <div className="col-span-3 text-right px-4 tabular-nums">
+      <div className={`grid grid-cols-12 rounded-lg py-1.5 ${
+        Math.abs(totalAssets - totalReservesAndLiabilities) < 0.01 
+          ? 'bg-green-50 border border-green-300' 
+          : 'bg-red-50 border border-red-300'
+      }`}>
+        <div className="col-span-9 pl-3 text-xs font-medium text-gray-700">Balance Check (should be zero)</div>
+        <div className={`col-span-3 text-right px-3 text-xs tabular-nums font-semibold ${
+          Math.abs(totalAssets - totalReservesAndLiabilities) < 0.01 
+            ? 'text-green-700' 
+            : 'text-red-700'
+        }`}>
           {formatAmount(totalAssets - totalReservesAndLiabilities)}
+        </div>
+      </div>
         </div>
       </div>
     </div>

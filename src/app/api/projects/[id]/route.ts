@@ -16,7 +16,15 @@ export async function GET(
     }
 
     const project = await prisma.project.findUnique({
-      where: { id: projectId }
+      where: { id: projectId },
+      include: {
+        _count: {
+          select: {
+            mappings: true,
+            taxAdjustments: true,
+          },
+        },
+      },
     });
 
     if (!project) {
@@ -31,6 +39,82 @@ export async function GET(
     console.error('Error fetching project:', error);
     return NextResponse.json(
       { error: 'Failed to fetch project details' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const projectId = parseInt(params.id, 10);
+    
+    if (isNaN(projectId)) {
+      return NextResponse.json(
+        { error: 'Invalid project ID format' },
+        { status: 400 }
+      );
+    }
+
+    const body = await request.json();
+    const { name, description } = body;
+
+    if (!name || !name.trim()) {
+      return NextResponse.json(
+        { error: 'Project name is required' },
+        { status: 400 }
+      );
+    }
+
+    const project = await prisma.project.update({
+      where: { id: projectId },
+      data: {
+        name: name.trim(),
+        description: description?.trim() || null,
+      },
+    });
+
+    return NextResponse.json(project);
+  } catch (error) {
+    console.error('Error updating project:', error);
+    return NextResponse.json(
+      { error: 'Failed to update project' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const projectId = parseInt(params.id, 10);
+    
+    if (isNaN(projectId)) {
+      return NextResponse.json(
+        { error: 'Invalid project ID format' },
+        { status: 400 }
+      );
+    }
+
+    // Archive the project instead of deleting
+    const project = await prisma.project.update({
+      where: { id: projectId },
+      data: { archived: true },
+    });
+
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Project archived successfully',
+      project 
+    });
+  } catch (error) {
+    console.error('Error archiving project:', error);
+    return NextResponse.json(
+      { error: 'Failed to archive project' },
       { status: 500 }
     );
   }

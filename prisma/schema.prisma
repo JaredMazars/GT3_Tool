@@ -14,8 +14,10 @@ model Project {
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
   status        String          @default("ACTIVE")
+  archived      Boolean         @default(false)
   mappings      MappedAccount[]
   taxAdjustments TaxAdjustment[]
+  adjustmentDocuments AdjustmentDocument[]
 }
 
 model MappedAccount {
@@ -38,9 +40,40 @@ model TaxAdjustment {
   type        String   // DEBIT, CREDIT, or ALLOWANCE
   description String
   amount      Float
+  status      String   @default("SUGGESTED") // SUGGESTED, APPROVED, REJECTED, MODIFIED
+  sourceDocuments String? // JSON array of document references
+  extractedData String? // JSON object of LLM-extracted information
+  calculationDetails String? // JSON object of calculation breakdown
+  notes       String? // Analyst comments
+  sarsSection String? // Relevant SARS tax act section
+  confidenceScore Float? // AI confidence score (0-1)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   project     Project  @relation(fields: [projectId], references: [id])
+  documents   AdjustmentDocument[]
 
   @@index([projectId])
+  @@index([status])
+}
+
+model AdjustmentDocument {
+  id              Int      @id @default(autoincrement())
+  projectId       Int
+  taxAdjustmentId Int?
+  fileName        String
+  fileType        String // PDF, EXCEL, etc.
+  fileSize        Int // Size in bytes
+  filePath        String // Storage path
+  uploadedBy      String? // User identifier
+  extractionStatus String @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+  extractedData   String? // JSON object of extracted data
+  extractionError String? // Error message if extraction failed
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  project         Project  @relation(fields: [projectId], references: [id])
+  taxAdjustment   TaxAdjustment? @relation(fields: [taxAdjustmentId], references: [id])
+
+  @@index([projectId])
+  @@index([taxAdjustmentId])
+  @@index([extractionStatus])
 }
