@@ -7,7 +7,7 @@ const openai = new OpenAI({
 
 export async function GET() {
   try {
-    console.log('Testing gpt-5-mini model...');
+    console.log('Testing gpt-5-nano-2025-08-07 model...');
     
     const completion = await openai.chat.completions.create({
       messages: [
@@ -20,13 +20,13 @@ export async function GET() {
           content: "Say 'test successful' in JSON format with a key 'status'."
         }
       ],
-      model: "gpt-5-mini",
+      model: "gpt-5-nano-2025-08-07",
       response_format: { type: "json_object" }
     });
 
     return NextResponse.json({
       success: true,
-      model: "gpt-5-mini",
+      model: "gpt-5-nano-2025-08-07",
       response: completion.choices[0].message.content
     });
 
@@ -34,7 +34,7 @@ export async function GET() {
     console.error('Model test error:', error);
     return NextResponse.json({
       success: false,
-      model: "gpt-5-mini",
+      model: "gpt-5-nano-2025-08-07",
       error: error.message,
       errorType: error.type,
       errorCode: error.code,

@@ -210,10 +210,10 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
   };
 
   const getMappedAccounts = (sarsItem: string) => {
-    return mappedData.filter(item => item.sarsItem === sarsItem && item.balance !== 0);
+    return mappedData.filter(item => item.sarsItem === sarsItem && (item.balance !== 0 || item.priorYearBalance !== 0));
   };
 
-  const renderSection = (title: string, _subsection: string, items: [string, number][], color: string = 'gray') => {
+  const renderSection = (title: string, _subsection: string, items: [string, number, number][], color: string = 'gray') => {
     if (items.length === 0) return null;
     
     const colorClasses = {
@@ -230,20 +230,23 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
             {title}
           </div>
         )}
-        {items.map(([sarsItem, balance]) => (
+        {items.map(([sarsItem, balance, priorBalance]) => (
           <div key={sarsItem} className="group">
             <div 
               className="grid grid-cols-12 cursor-pointer hover:bg-blue-50 transition-colors duration-150"
               onClick={() => toggleItem(sarsItem)}
             >
-              <div className="col-span-9 pl-4 py-1.5 flex items-center gap-2">
+              <div className="col-span-7 pl-4 py-1.5 flex items-center gap-2">
                 <ChevronRightIcon 
                   className={`h-3.5 w-3.5 text-gray-500 group-hover:text-blue-600 transition-all duration-200 ${expandedItems[sarsItem] ? 'rotate-90' : ''}`}
                 />
                 <span className="group-hover:text-blue-900 text-xs">{sarsItem}</span>
               </div>
-              <div className="col-span-3 text-right px-3 py-1.5 tabular-nums font-medium text-xs">
+              <div className="col-span-2 text-right px-3 py-1.5 tabular-nums font-medium text-xs">
                 {formatAmount(Math.abs(balance))}
+              </div>
+              <div className="col-span-3 text-right px-3 py-1.5 tabular-nums font-medium text-xs text-gray-600">
+                {formatAmount(Math.abs(priorBalance))}
               </div>
             </div>
             {renderMappedAccounts(sarsItem)}
@@ -269,7 +272,7 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
       : '';
 
     return (
-      <div className="pl-6 pr-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 border-t border-blue-200 border-b border-blue-200">
+      <div className="pl-6 pr-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 border-t border-b border-blue-200">
         <div className="px-3 py-1 mb-1 border-b border-blue-300 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-t">
           <div className="text-xs font-semibold text-blue-900 uppercase tracking-wide">Mapped Accounts</div>
         </div>
@@ -282,9 +285,9 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
               }`}
             >
               <div className="col-span-1 text-gray-600 font-medium">{account.accountCode}</div>
-              <div className="col-span-3 truncate font-medium">{account.accountName}</div>
+              <div className="col-span-2 truncate font-medium">{account.accountName}</div>
               <div className="col-span-2 text-gray-500 text-xs truncate">{subsectionName}</div>
-              <div className="col-span-4">
+              <div className="col-span-3">
                 {updatingAccount === account.id ? (
                   <div className="flex items-center gap-2 text-blue-600">
                     <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
@@ -300,6 +303,9 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
               </div>
               <div className={`col-span-2 text-right tabular-nums font-semibold ${account.balance < 0 ? 'text-red-600' : 'text-gray-900'}`}>
                 {account.balance < 0 ? `(${formatAmount(Math.abs(account.balance))})` : formatAmount(account.balance)}
+              </div>
+              <div className={`col-span-2 text-right tabular-nums font-semibold ${account.priorYearBalance < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                {account.priorYearBalance < 0 ? `(${formatAmount(Math.abs(account.priorYearBalance))})` : formatAmount(account.priorYearBalance)}
               </div>
             </div>
           ))}
@@ -320,41 +326,73 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
     </div>;
   }
 
-  // Transform and aggregate data
+  // Transform and aggregate data by sarsItem and subsection
   const aggregatedData = mappedData.reduce((acc, item) => {
-    if (!acc[item.sarsItem]) {
-      acc[item.sarsItem] = 0;
+    const key = `${item.sarsItem}`;
+    if (!acc[key]) {
+      acc[key] = { current: 0, prior: 0, subsection: item.subsection };
     }
-    acc[item.sarsItem] += item.balance;
+    acc[key].current += item.balance;
+    acc[key].prior += item.priorYearBalance;
     return acc;
-  }, {} as Record<string, number>);
+  }, {} as Record<string, { current: number; prior: number; subsection: string }>);
 
-  // Calculate section totals - using absolute values
-  const totalIncome = Object.entries(aggregatedData)
-    .filter(([sarsItem]) => sarsItem.includes('Sales'))
-    .reduce((sum, [, balance]) => sum + Math.abs(balance), 0);
+  // Group by subsection
+  const grossProfitLossItems = Object.entries(aggregatedData)
+    .filter(([, data]) => data.subsection === 'grossProfitOrLoss');
 
-  // For Cost of Sales, keep the original sign from the sum of accounts
-  const costOfSales = Object.entries(aggregatedData)
-    .filter(([sarsItem]) => sarsItem.includes('Purchases') || sarsItem.includes('stock'))
-    .reduce((sum, [, balance]) => sum + balance, 0);
+  const incomeItemsCreditItems = Object.entries(aggregatedData)
+    .filter(([, data]) => data.subsection === 'incomeItemsCreditAmounts');
+  
+  const incomeItemsOnlyItems = Object.entries(aggregatedData)
+    .filter(([, data]) => data.subsection === 'incomeItemsOnlyCreditAmounts');
 
-  // Gross profit = Total Income - Cost of Sales
-  const grossProfit = totalIncome - costOfSales;
+  const expenseItemsDebitItems = Object.entries(aggregatedData)
+    .filter(([, data]) => data.subsection === 'expenseItemsDebitAmounts');
 
-  const otherIncome = Object.entries(aggregatedData)
-    .filter(([sarsItem, balance]) => !sarsItem.includes('Sales') && !sarsItem.includes('Purchases') && !sarsItem.includes('stock') && balance < 0)
-    .reduce((sum, [, balance]) => sum + Math.abs(balance), 0);
+  // Calculate Gross Profit/Loss items
+  // Sales are negative (credit), costs are positive (debit)
+  const grossProfitLossTotal = grossProfitLossItems.reduce((sum, [, data]) => sum + data.current, 0);
+  const grossProfitLossTotalPrior = grossProfitLossItems.reduce((sum, [, data]) => sum + data.prior, 0);
 
-  const expenses = Object.entries(aggregatedData)
-    .filter(([sarsItem, balance]) => !sarsItem.includes('Sales') && !sarsItem.includes('Purchases') && !sarsItem.includes('stock') && balance > 0)
-    .reduce((sum, [, balance]) => sum + Math.abs(balance), 0);
+  // Separate sales revenue for display (absolute value)
+  const totalIncome = grossProfitLossItems
+    .filter(([sarsItem]) => sarsItem.includes('Sales') && !sarsItem.includes('Credit notes'))
+    .reduce((sum, [, data]) => sum + Math.abs(data.current), 0);
+
+  const totalIncomePrior = grossProfitLossItems
+    .filter(([sarsItem]) => sarsItem.includes('Sales') && !sarsItem.includes('Credit notes'))
+    .reduce((sum, [, data]) => sum + Math.abs(data.prior), 0);
+
+  // Cost of sales items (for display)
+  const costOfSalesItems = grossProfitLossItems
+    .filter(([sarsItem]) => !sarsItem.includes('Sales') || sarsItem.includes('Credit notes'));
+  
+  const costOfSales = costOfSalesItems.reduce((sum, [, data]) => sum + data.current, 0);
+  const costOfSalesPrior = costOfSalesItems.reduce((sum, [, data]) => sum + data.prior, 0);
+
+  // Gross profit = sum of all grossProfitOrLoss items (already includes sales minus costs)
+  const grossProfit = -grossProfitLossTotal; // Negate because sales are negative
+  const grossProfitPrior = -grossProfitLossTotalPrior;
+
+  // Other income from incomeItemsCreditAmounts and incomeItemsOnlyCreditAmounts
+  const otherIncome = [...incomeItemsCreditItems, ...incomeItemsOnlyItems]
+    .reduce((sum, [, data]) => sum + Math.abs(data.current), 0);
+
+  const otherIncomePrior = [...incomeItemsCreditItems, ...incomeItemsOnlyItems]
+    .reduce((sum, [, data]) => sum + Math.abs(data.prior), 0);
+
+  // Expenses from expenseItemsDebitAmounts
+  const expenses = expenseItemsDebitItems.reduce((sum, [, data]) => sum + Math.abs(data.current), 0);
+  const expensesPrior = expenseItemsDebitItems.reduce((sum, [, data]) => sum + Math.abs(data.prior), 0);
 
   // Net profit = Gross Profit + Other Income - Expenses
   const netProfitBeforeTax = grossProfit + otherIncome - expenses;
+  const netProfitBeforeTaxPrior = grossProfitPrior + otherIncomePrior - expensesPrior;
 
   // Calculate total of all income statement items for verification
-  const totalOfAllItems = Object.values(aggregatedData).reduce((sum, balance) => sum + balance, 0);
+  const totalOfAllItems = Object.values(aggregatedData).reduce((sum, data) => sum + data.current, 0);
+  const totalOfAllItemsPrior = Object.values(aggregatedData).reduce((sum, data) => sum + data.prior, 0);
 
   return (
     <div className="space-y-4">
@@ -433,32 +471,44 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
       {/* Main Income Statement Card */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
         <div className="space-y-3">
-          <div className="flex items-center justify-between border-b border-gray-400 pb-2">
-            <h1 className="text-xl font-bold text-gray-900">INCOME STATEMENT</h1>
-            <div className="text-right font-semibold text-gray-700">R</div>
+          <div className="border-b border-gray-400 pb-2">
+            <div className="flex items-center justify-between mb-2">
+              <h1 className="text-xl font-bold text-gray-900">INCOME STATEMENT</h1>
+            </div>
+            <div className="grid grid-cols-12 text-xs font-semibold text-gray-600">
+              <div className="col-span-7"></div>
+              <div className="col-span-2 text-right px-3">Current Year (R)</div>
+              <div className="col-span-3 text-right px-3">Prior Year (R)</div>
+            </div>
           </div>
 
         {/* REVENUE SECTION */}
         <div className="border border-green-200 rounded-lg overflow-hidden">
           <div className="grid grid-cols-12 font-bold bg-gradient-to-r from-green-100 to-green-200 py-1.5">
-            <div className="col-span-9 px-3 text-sm text-green-900">REVENUE & SALES</div>
-            <div className="col-span-3 text-right px-3 text-xs tabular-nums text-green-900">
+            <div className="col-span-7 px-3 text-sm text-green-900">REVENUE & SALES</div>
+            <div className="col-span-2 text-right px-3 text-xs tabular-nums text-green-900">
               {formatAmount(totalIncome)}
+            </div>
+            <div className="col-span-3 text-right px-3 text-xs tabular-nums text-green-700">
+              {formatAmount(totalIncomePrior)}
             </div>
           </div>
 
           <div className="bg-white p-3">
             {renderSection("Sales Revenue", "grossProfitOrLoss", 
-              Object.entries(aggregatedData)
-                .filter(([sarsItem]) => sarsItem.includes('Sales'))
-                .map(([sarsItem, balance]) => [sarsItem, Math.abs(balance)]),
+              grossProfitLossItems
+                .filter(([sarsItem]) => sarsItem.includes('Sales') && !sarsItem.includes('Credit notes'))
+                .map(([sarsItem, data]) => [sarsItem, Math.abs(data.current), Math.abs(data.prior)]),
               'green'
             )}
 
             <div className="grid grid-cols-12 mt-2 italic bg-green-50 py-1.5 rounded border border-green-200">
-              <div className="col-span-9 px-3 text-xs text-green-900 font-medium">Turnover per Annual Financial Statements</div>
-              <div className="col-span-3 text-right px-3 text-xs tabular-nums text-green-900 font-semibold">
+              <div className="col-span-7 px-3 text-xs text-green-900 font-medium">Turnover per Annual Financial Statements</div>
+              <div className="col-span-2 text-right px-3 text-xs tabular-nums text-green-900 font-semibold">
                 {formatAmount(totalIncome)}
+              </div>
+              <div className="col-span-3 text-right px-3 text-xs tabular-nums text-green-700 font-semibold">
+                {formatAmount(totalIncomePrior)}
               </div>
             </div>
           </div>
@@ -467,17 +517,19 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
         {/* COST OF SALES SECTION */}
         <div className="border border-red-200 rounded-lg overflow-hidden">
           <div className="grid grid-cols-12 font-bold bg-gradient-to-r from-red-100 to-red-200 py-1.5">
-            <div className="col-span-9 px-3 text-sm text-red-900">COST OF SALES</div>
-            <div className={`col-span-3 text-right px-3 text-xs tabular-nums text-red-900`}>
+            <div className="col-span-7 px-3 text-sm text-red-900">COST OF SALES</div>
+            <div className={`col-span-2 text-right px-3 text-xs tabular-nums text-red-900`}>
               {formatAmount(costOfSales)}
+            </div>
+            <div className={`col-span-3 text-right px-3 text-xs tabular-nums text-red-700`}>
+              {formatAmount(costOfSalesPrior)}
             </div>
           </div>
 
           <div className="bg-white p-3">
-            {renderSection("Direct Costs", "grossProfitOrLoss", 
-              Object.entries(aggregatedData)
-                .filter(([sarsItem]) => sarsItem.includes('Purchases') || sarsItem.includes('stock'))
-                .map(([sarsItem, balance]) => [sarsItem, Math.abs(balance)]),
+            {renderSection("Cost of Sales Items", "grossProfitOrLoss", 
+              costOfSalesItems
+                .map(([sarsItem, data]) => [sarsItem, Math.abs(data.current), Math.abs(data.prior)]),
               'red'
             )}
           </div>
@@ -489,26 +541,37 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
             ? 'bg-gradient-to-r from-blue-100 to-blue-200 border-blue-300' 
             : 'bg-gradient-to-r from-gray-100 to-gray-200 border-gray-300'
         }`}>
-          <div className={`col-span-9 px-3 text-sm ${grossProfit >= 0 ? 'text-blue-900' : 'text-gray-900'}`}>GROSS PROFIT / (LOSS)</div>
-          <div className={`col-span-3 text-right px-3 text-xs tabular-nums ${grossProfit >= 0 ? 'text-blue-900' : 'text-gray-900'}`}>
+          <div className={`col-span-7 px-3 text-sm ${grossProfit >= 0 ? 'text-blue-900' : 'text-gray-900'}`}>GROSS PROFIT / (LOSS)</div>
+          <div className={`col-span-2 text-right px-3 text-xs tabular-nums ${grossProfit >= 0 ? 'text-blue-900' : 'text-gray-900'}`}>
             {formatAmount(grossProfit)}
+          </div>
+          <div className={`col-span-3 text-right px-3 text-xs tabular-nums ${grossProfitPrior >= 0 ? 'text-blue-700' : 'text-gray-700'}`}>
+            {formatAmount(grossProfitPrior)}
           </div>
         </div>
 
         {/* OTHER INCOME SECTION */}
         <div className="border border-green-200 rounded-lg overflow-hidden">
           <div className="grid grid-cols-12 font-bold bg-gradient-to-r from-green-50 to-green-100 py-1.5">
-            <div className="col-span-9 px-3 text-sm text-green-900">OTHER INCOME</div>
-            <div className="col-span-3 text-right px-3 text-xs tabular-nums text-green-900">
+            <div className="col-span-7 px-3 text-sm text-green-900">OTHER INCOME</div>
+            <div className="col-span-2 text-right px-3 text-xs tabular-nums text-green-900">
               {formatAmount(otherIncome)}
+            </div>
+            <div className="col-span-3 text-right px-3 text-xs tabular-nums text-green-700">
+              {formatAmount(otherIncomePrior)}
             </div>
           </div>
 
           <div className="bg-white p-3">
-            {renderSection("Income Items", "incomeItemsOnlyCreditAmounts", 
-              Object.entries(aggregatedData)
-                .filter(([sarsItem, val]) => !sarsItem.includes('Sales') && !sarsItem.includes('Purchases') && !sarsItem.includes('stock') && val < 0)
-                .map(([sarsItem, balance]) => [sarsItem, Math.abs(balance)]),
+            {renderSection("Income Items (Credit Amounts)", "incomeItemsCreditAmounts", 
+              incomeItemsCreditItems
+                .map(([sarsItem, data]) => [sarsItem, Math.abs(data.current), Math.abs(data.prior)]),
+              'green'
+            )}
+            
+            {incomeItemsOnlyItems.length > 0 && renderSection("Royalties & Mineral Resources", "incomeItemsOnlyCreditAmounts", 
+              incomeItemsOnlyItems
+                .map(([sarsItem, data]) => [sarsItem, Math.abs(data.current), Math.abs(data.prior)]),
               'green'
             )}
           </div>
@@ -517,17 +580,19 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
         {/* EXPENSES SECTION */}
         <div className="border border-red-200 rounded-lg overflow-hidden">
           <div className="grid grid-cols-12 font-bold bg-gradient-to-r from-red-100 to-red-200 py-1.5">
-            <div className="col-span-9 px-3 text-sm text-red-900">OPERATING EXPENSES</div>
-            <div className="col-span-3 text-right px-3 text-xs tabular-nums text-red-900">
+            <div className="col-span-7 px-3 text-sm text-red-900">OPERATING EXPENSES</div>
+            <div className="col-span-2 text-right px-3 text-xs tabular-nums text-red-900">
               {formatAmount(expenses)}
+            </div>
+            <div className="col-span-3 text-right px-3 text-xs tabular-nums text-red-700">
+              {formatAmount(expensesPrior)}
             </div>
           </div>
 
           <div className="bg-white p-3">
-            {renderSection("Expense Items", "expenseItemsDebitAmounts", 
-              Object.entries(aggregatedData)
-                .filter(([sarsItem, val]) => !sarsItem.includes('Sales') && !sarsItem.includes('Purchases') && !sarsItem.includes('stock') && val > 0)
-                .map(([sarsItem, balance]) => [sarsItem, Math.abs(balance)]),
+            {renderSection("Expense Items (Debit Amounts)", "expenseItemsDebitAmounts", 
+              expenseItemsDebitItems
+                .map(([sarsItem, data]) => [sarsItem, Math.abs(data.current), Math.abs(data.prior)]),
               'red'
             )}
           </div>
@@ -539,17 +604,23 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
             ? 'bg-gradient-to-r from-purple-100 to-purple-200 border-purple-300' 
             : 'bg-gradient-to-r from-gray-100 to-gray-200 border-gray-300'
         }`}>
-          <div className={`col-span-9 px-3 text-base ${netProfitBeforeTax >= 0 ? 'text-purple-900' : 'text-gray-900'}`}>NET PROFIT / (LOSS) BEFORE TAX</div>
-          <div className={`col-span-3 text-right px-3 text-sm tabular-nums ${netProfitBeforeTax >= 0 ? 'text-purple-900' : 'text-gray-900'}`}>
+          <div className={`col-span-7 px-3 text-base ${netProfitBeforeTax >= 0 ? 'text-purple-900' : 'text-gray-900'}`}>NET PROFIT / (LOSS) BEFORE TAX</div>
+          <div className={`col-span-2 text-right px-3 text-sm tabular-nums ${netProfitBeforeTax >= 0 ? 'text-purple-900' : 'text-gray-900'}`}>
             {formatAmount(netProfitBeforeTax)}
+          </div>
+          <div className={`col-span-3 text-right px-3 text-sm tabular-nums ${netProfitBeforeTaxPrior >= 0 ? 'text-purple-700' : 'text-gray-700'}`}>
+            {formatAmount(netProfitBeforeTaxPrior)}
           </div>
         </div>
 
         {/* Verification total */}
         <div className="grid grid-cols-12 text-xs bg-gray-50 border border-gray-300 rounded-lg py-1.5">
-          <div className="col-span-9 px-3 text-gray-600">Total of all items (for verification)</div>
-          <div className="col-span-3 text-right px-3 tabular-nums text-gray-700 font-medium">
+          <div className="col-span-7 px-3 text-gray-600">Total of all items (for verification)</div>
+          <div className="col-span-2 text-right px-3 tabular-nums text-gray-700 font-medium">
             {formatAmount(Math.abs(totalOfAllItems))}
+          </div>
+          <div className="col-span-3 text-right px-3 tabular-nums text-gray-600 font-medium">
+            {formatAmount(Math.abs(totalOfAllItemsPrior))}
           </div>
         </div>
         </div>

@@ -10,7 +10,9 @@ import {
   PencilIcon,
   ArchiveBoxIcon,
   EllipsisVerticalIcon,
-  FolderIcon
+  FolderIcon,
+  ArrowPathIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
 
@@ -34,6 +36,8 @@ export default function DashboardPage() {
   const [showModal, setShowModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showRestoreModal, setShowRestoreModal] = useState(false);
+  const [showPermanentDeleteModal, setShowPermanentDeleteModal] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -107,6 +111,22 @@ export default function DashboardPage() {
     e.stopPropagation();
     setSelectedProject(project);
     setShowDeleteModal(true);
+    setOpenDropdown(null);
+  };
+
+  const handleRestoreClick = (project: Project, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedProject(project);
+    setShowRestoreModal(true);
+    setOpenDropdown(null);
+  };
+
+  const handlePermanentDeleteClick = (project: Project, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedProject(project);
+    setShowPermanentDeleteModal(true);
     setOpenDropdown(null);
   };
 
@@ -199,6 +219,56 @@ export default function DashboardPage() {
     }
   };
 
+  const handleRestoreConfirm = async () => {
+    if (!selectedProject) return;
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch(`/api/projects/${selectedProject.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'restore' }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to restore project');
+      }
+
+      setShowRestoreModal(false);
+      await fetchProjects();
+    } catch (error) {
+      console.error('Error restoring project:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handlePermanentDeleteConfirm = async () => {
+    if (!selectedProject) return;
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch(`/api/projects/${selectedProject.id}/permanent`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to permanently delete project');
+      }
+
+      setShowPermanentDeleteModal(false);
+      await fetchProjects();
+    } catch (error) {
+      console.error('Error permanently deleting project:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { 
@@ -213,18 +283,35 @@ export default function DashboardPage() {
       return (
         <div
           key={project.id}
-          className="group relative bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 border border-gray-200 overflow-hidden"
+          className={`group relative rounded-xl shadow-sm hover:shadow-md transition-all duration-200 border overflow-hidden ${
+            project.archived 
+              ? 'bg-gray-50 border-gray-300 opacity-75' 
+              : 'bg-white border-gray-200'
+          }`}
         >
           <Link href={`/dashboard/projects/${project.id}`} className="block p-6">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <FolderIcon className="h-5 w-5 text-blue-600" />
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                  project.archived ? 'bg-gray-200' : 'bg-blue-100'
+                }`}>
+                  <FolderIcon className={`h-5 w-5 ${
+                    project.archived ? 'text-gray-500' : 'text-blue-600'
+                  }`} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-semibold text-gray-900 truncate">
-                    {project.name}
-                  </h3>
+                  <div className="flex items-center space-x-2">
+                    <h3 className={`text-lg font-semibold truncate ${
+                      project.archived ? 'text-gray-600' : 'text-gray-900'
+                    }`}>
+                      {project.name}
+                    </h3>
+                    {project.archived && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-200 text-gray-700">
+                        Archived
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -269,13 +356,32 @@ export default function DashboardPage() {
                   <PencilIcon className="h-4 w-4" />
                   <span>Edit Project</span>
                 </button>
-                <button
-                  onClick={(e) => handleDeleteClick(project, e)}
-                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
-                >
-                  <ArchiveBoxIcon className="h-4 w-4" />
-                  <span>Archive Project</span>
-                </button>
+                {project.archived ? (
+                  <>
+                    <button
+                      onClick={(e) => handleRestoreClick(project, e)}
+                      className="w-full text-left px-4 py-2 text-sm text-green-600 hover:bg-green-50 flex items-center space-x-2"
+                    >
+                      <ArrowPathIcon className="h-4 w-4" />
+                      <span>Restore Project</span>
+                    </button>
+                    <button
+                      onClick={(e) => handlePermanentDeleteClick(project, e)}
+                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                      <span>Delete Permanently</span>
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={(e) => handleDeleteClick(project, e)}
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
+                  >
+                    <ArchiveBoxIcon className="h-4 w-4" />
+                    <span>Archive Project</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -285,18 +391,35 @@ export default function DashboardPage() {
       return (
         <div
           key={project.id}
-          className="group bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 border border-gray-200"
+          className={`group rounded-lg shadow-sm hover:shadow-md transition-all duration-200 border ${
+            project.archived 
+              ? 'bg-gray-50 border-gray-300 opacity-75' 
+              : 'bg-white border-gray-200'
+          }`}
         >
           <Link href={`/dashboard/projects/${project.id}`} className="block p-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4 flex-1 min-w-0">
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <FolderIcon className="h-5 w-5 text-blue-600" />
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                  project.archived ? 'bg-gray-200' : 'bg-blue-100'
+                }`}>
+                  <FolderIcon className={`h-5 w-5 ${
+                    project.archived ? 'text-gray-500' : 'text-blue-600'
+                  }`} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-base font-semibold text-gray-900 truncate">
-                    {project.name}
-                  </h3>
+                  <div className="flex items-center space-x-2">
+                    <h3 className={`text-base font-semibold truncate ${
+                      project.archived ? 'text-gray-600' : 'text-gray-900'
+                    }`}>
+                      {project.name}
+                    </h3>
+                    {project.archived && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-200 text-gray-700">
+                        Archived
+                      </span>
+                    )}
+                  </div>
                   {project.description && (
                     <p className="text-sm text-gray-600 truncate mt-0.5">
                       {project.description}
@@ -337,13 +460,32 @@ export default function DashboardPage() {
                         <PencilIcon className="h-4 w-4" />
                         <span>Edit Project</span>
                       </button>
-                      <button
-                        onClick={(e) => handleDeleteClick(project, e)}
-                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
-                      >
-                        <ArchiveBoxIcon className="h-4 w-4" />
-                        <span>Archive Project</span>
-                      </button>
+                      {project.archived ? (
+                        <>
+                          <button
+                            onClick={(e) => handleRestoreClick(project, e)}
+                            className="w-full text-left px-4 py-2 text-sm text-green-600 hover:bg-green-50 flex items-center space-x-2"
+                          >
+                            <ArrowPathIcon className="h-4 w-4" />
+                            <span>Restore Project</span>
+                          </button>
+                          <button
+                            onClick={(e) => handlePermanentDeleteClick(project, e)}
+                            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                            <span>Delete Permanently</span>
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={(e) => handleDeleteClick(project, e)}
+                          className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
+                        >
+                          <ArchiveBoxIcon className="h-4 w-4" />
+                          <span>Archive Project</span>
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -555,6 +697,71 @@ export default function DashboardPage() {
                   className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {isSubmitting ? 'Archiving...' : 'Archive Project'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Restore Confirmation Modal */}
+        {showRestoreModal && selectedProject && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+              <h2 className="text-2xl font-bold mb-4 text-gray-900">Restore Project</h2>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to restore <span className="font-semibold">{selectedProject.name}</span>? 
+                This will make the project active and visible in your main project list.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowRestoreModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRestoreConfirm}
+                  disabled={isSubmitting}
+                  className="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isSubmitting ? 'Restoring...' : 'Restore Project'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Permanent Delete Confirmation Modal */}
+        {showPermanentDeleteModal && selectedProject && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+              <h2 className="text-2xl font-bold mb-4 text-red-600">Delete Project Permanently</h2>
+              <div className="mb-6">
+                <p className="text-gray-600 mb-3">
+                  Are you sure you want to permanently delete <span className="font-semibold">{selectedProject.name}</span>?
+                </p>
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <p className="text-sm text-red-800 font-medium">⚠️ Warning: This action cannot be undone!</p>
+                  <p className="text-sm text-red-700 mt-1">
+                    All project data including mappings, tax adjustments, and calculations will be permanently deleted.
+                  </p>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowPermanentDeleteModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handlePermanentDeleteConfirm}
+                  disabled={isSubmitting}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isSubmitting ? 'Deleting...' : 'Delete Permanently'}
                 </button>
               </div>
             </div>

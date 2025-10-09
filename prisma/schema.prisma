@@ -27,6 +27,7 @@ model MappedAccount {
   section     String
   subsection  String
   balance     Float
+  priorYearBalance Float @default(0)
   sarsItem    String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

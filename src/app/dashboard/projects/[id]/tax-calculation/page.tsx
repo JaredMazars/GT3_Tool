@@ -42,7 +42,7 @@ export default function TaxCalculationPage({ params }: TaxCalculationProps) {
       const incomeResponse = await fetch(`/api/projects/${params.id}/tax-calculation`);
       if (incomeResponse.ok) {
         const incomeData = await incomeResponse.json();
-        setAccountingProfit(incomeData.calculatedProfit || 0);
+        setAccountingProfit(incomeData.netProfit || 0);
       }
 
       // Fetch tax adjustments

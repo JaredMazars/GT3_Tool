@@ -12,12 +12,14 @@ interface BalanceSheetSectionProps {
     sarsItem: string;
     subsection: string;
     amount: number;
+    priorYearAmount: number;
     mappedAccounts: Array<{
       id: number;
       accountCode: string;
       accountName: string;
       subsection: string;
       balance: number;
+      priorYearBalance: number;
       section: string;
       sarsItem: string;
     }>;
@@ -162,9 +164,10 @@ function BalanceSheetSection({ title, items, onMappingUpdate }: BalanceSheetSect
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
   const [updatingAccount, setUpdatingAccount] = useState<number | null>(null);
 
-  // Filter out items with zero amount
-  const nonZeroItems = items.filter(item => item.amount !== 0);
+  // Filter out items with zero amount (in either year)
+  const nonZeroItems = items.filter(item => item.amount !== 0 || item.priorYearAmount !== 0);
   const totalAmount = nonZeroItems.reduce((sum, item) => sum + item.amount, 0);
+  const totalPriorYearAmount = nonZeroItems.reduce((sum, item) => sum + item.priorYearAmount, 0);
   const isNegative = totalAmount < 0;
 
   const toggleItem = (sarsItem: string) => {
@@ -190,11 +193,16 @@ function BalanceSheetSection({ title, items, onMappingUpdate }: BalanceSheetSect
       {/* Section header */}
       {title && (
         <div className="grid grid-cols-12 border-b border-gray-300 bg-gradient-to-r from-gray-50 to-gray-100">
-          <div className="col-span-9 font-bold px-3 py-1.5 text-sm text-gray-900">{title}</div>
-          <div className={`col-span-3 text-right px-3 py-1.5 text-xs tabular-nums font-bold ${isNegative ? 'text-red-600' : 'text-gray-900'}`}>
+          <div className="col-span-7 font-bold px-3 py-1.5 text-sm text-gray-900">{title}</div>
+          <div className={`col-span-2 text-right px-3 py-1.5 text-xs tabular-nums font-bold ${isNegative ? 'text-red-600' : 'text-gray-900'}`}>
             {isNegative 
               ? `(${formatAmount(Math.abs(totalAmount))})` 
               : formatAmount(totalAmount)}
+          </div>
+          <div className={`col-span-3 text-right px-3 py-1.5 text-xs tabular-nums font-bold ${totalPriorYearAmount < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+            {totalPriorYearAmount < 0 
+              ? `(${formatAmount(Math.abs(totalPriorYearAmount))})` 
+              : formatAmount(totalPriorYearAmount)}
           </div>
         </div>
       )}
@@ -207,22 +215,27 @@ function BalanceSheetSection({ title, items, onMappingUpdate }: BalanceSheetSect
               className="grid grid-cols-12 cursor-pointer hover:bg-blue-50 transition-colors duration-150"
               onClick={() => toggleItem(item.sarsItem)}
             >
-              <div className="col-span-9 pl-6 py-1.5 text-xs flex items-center">
+              <div className="col-span-7 pl-6 py-1.5 text-xs flex items-center">
                 <ChevronRightIcon 
                   className={`h-3.5 w-3.5 mr-2 text-gray-500 group-hover:text-blue-600 transition-all duration-200 ${expandedItems[item.sarsItem] ? 'rotate-90' : ''}`}
                 />
                 <span className="group-hover:text-blue-900">{item.sarsItem}</span>
               </div>
-              <div className={`col-span-3 text-right px-3 py-1.5 text-xs tabular-nums font-medium ${item.amount < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+              <div className={`col-span-2 text-right px-3 py-1.5 text-xs tabular-nums font-medium ${item.amount < 0 ? 'text-red-600' : 'text-gray-900'}`}>
                 {item.amount !== 0 && (item.amount < 0 
                   ? `(${formatAmount(Math.abs(item.amount))})` 
                   : formatAmount(item.amount))}
+              </div>
+              <div className={`col-span-3 text-right px-3 py-1.5 text-xs tabular-nums font-medium ${item.priorYearAmount < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                {item.priorYearAmount !== 0 && (item.priorYearAmount < 0 
+                  ? `(${formatAmount(Math.abs(item.priorYearAmount))})` 
+                  : formatAmount(item.priorYearAmount))}
               </div>
             </div>
 
             {/* Expanded account details */}
             {expandedItems[item.sarsItem] && (
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-t border-blue-200 border-b border-blue-200">
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-t border-b border-blue-200">
                 <div className="px-3 py-1 border-b border-blue-300 bg-gradient-to-r from-blue-100 to-indigo-100">
                   <div className="text-xs font-semibold text-blue-900 uppercase tracking-wide">Mapped Accounts</div>
                 </div>
@@ -233,8 +246,8 @@ function BalanceSheetSection({ title, items, onMappingUpdate }: BalanceSheetSect
                       accIndex % 2 === 0 ? 'bg-white bg-opacity-40' : 'bg-blue-50 bg-opacity-60'
                     }`}
                   >
-                    <div className="col-span-2 text-gray-600 font-medium">{account.accountCode}</div>
-                    <div className="col-span-4">
+                    <div className="col-span-1 text-gray-600 font-medium">{account.accountCode}</div>
+                    <div className="col-span-3">
                       <div className="text-gray-900 font-medium">{account.accountName}</div>
                     </div>
                     <div className="col-span-3">
@@ -253,10 +266,15 @@ function BalanceSheetSection({ title, items, onMappingUpdate }: BalanceSheetSect
                         />
                       )}
                     </div>
-                    <div className={`col-span-3 text-right tabular-nums font-semibold ${account.balance < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                    <div className={`col-span-2 text-right tabular-nums font-semibold ${account.balance < 0 ? 'text-red-600' : 'text-gray-900'}`}>
                       {account.balance < 0 
                         ? `(${formatAmount(Math.abs(account.balance))})` 
                         : formatAmount(account.balance)}
+                    </div>
+                    <div className={`col-span-3 text-right tabular-nums font-semibold ${account.priorYearBalance < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                      {account.priorYearBalance < 0 
+                        ? `(${formatAmount(Math.abs(account.priorYearBalance))})` 
+                        : formatAmount(account.priorYearBalance)}
                     </div>
                   </div>
                 ))}
@@ -338,15 +356,30 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
     }, 0);
   }
 
+  function calculateNestedPriorYearTotal(obj: Record<string, unknown>): number {
+    return Object.values(obj).reduce((sum: number, val: unknown) => {
+      if (typeof val === 'number') {
+        return sum + val;
+      }
+      if (typeof val === 'object' && val !== null && 'priorYearAmount' in val && typeof (val as { priorYearAmount: unknown }).priorYearAmount === 'number') {
+        return sum + (val as { priorYearAmount: number }).priorYearAmount;
+      }
+      if (typeof val === 'object' && val !== null) {
+        return sum + calculateNestedPriorYearTotal(val as Record<string, unknown>);
+      }
+      return sum;
+    }, 0);
+  }
+
   function transformMappedDataToBalanceSheet(mappedData: MappedData[]) {
     // Initialize balance sheet structure
     const balanceSheet = {
-      nonCurrentAssets: {} as Record<string, { amount: number; subsection: string; mappedAccounts: MappedData[] }>,
-      currentAssets: {} as Record<string, { amount: number; subsection: string; mappedAccounts: MappedData[] }>,
-      capitalAndReservesCreditBalances: {} as Record<string, { amount: number; subsection: string; mappedAccounts: MappedData[] }>,
-      capitalAndReservesDebitBalances: {} as Record<string, { amount: number; subsection: string; mappedAccounts: MappedData[] }>,
-      nonCurrentLiabilities: {} as Record<string, { amount: number; subsection: string; mappedAccounts: MappedData[] }>,
-      currentLiabilities: {} as Record<string, { amount: number; subsection: string; mappedAccounts: MappedData[] }>,
+      nonCurrentAssets: {} as Record<string, { amount: number; priorYearAmount: number; subsection: string; mappedAccounts: MappedData[] }>,
+      currentAssets: {} as Record<string, { amount: number; priorYearAmount: number; subsection: string; mappedAccounts: MappedData[] }>,
+      capitalAndReservesCreditBalances: {} as Record<string, { amount: number; priorYearAmount: number; subsection: string; mappedAccounts: MappedData[] }>,
+      capitalAndReservesDebitBalances: {} as Record<string, { amount: number; priorYearAmount: number; subsection: string; mappedAccounts: MappedData[] }>,
+      nonCurrentLiabilities: {} as Record<string, { amount: number; priorYearAmount: number; subsection: string; mappedAccounts: MappedData[] }>,
+      currentLiabilities: {} as Record<string, { amount: number; priorYearAmount: number; subsection: string; mappedAccounts: MappedData[] }>,
     };
 
     // First, aggregate balances for the same SARS items
@@ -360,19 +393,21 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
           sarsItem: key,
           subsection: item.subsection,
           amount: 0,
+          priorYearAmount: 0,
           mappedAccounts: []
         };
       }
 
       acc[key].amount += item.balance;
+      acc[key].priorYearAmount += item.priorYearBalance;
       acc[key].mappedAccounts.push(item);
       return acc;
-    }, {} as Record<string, { sarsItem: string; subsection: string; amount: number; mappedAccounts: MappedData[] }>);
+    }, {} as Record<string, { sarsItem: string; subsection: string; amount: number; priorYearAmount: number; mappedAccounts: MappedData[] }>);
 
     // Distribute items to their respective sections based on database subsection
     Object.values(aggregatedBalances).forEach(item => {
-      const { sarsItem, subsection, amount, mappedAccounts } = item;
-      const data = { amount, subsection, mappedAccounts };
+      const { sarsItem, subsection, amount, priorYearAmount, mappedAccounts } = item;
+      const data = { amount, priorYearAmount, subsection, mappedAccounts };
 
       switch (subsection.toLowerCase()) {
         case 'noncurrentassets':
@@ -383,19 +418,19 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
           break;
         case 'capitalandreservescreditbalances':
           // For credit balances, negative in DB means positive on BS
-          balanceSheet.capitalAndReservesCreditBalances[sarsItem] = { ...data, amount: -amount };
+          balanceSheet.capitalAndReservesCreditBalances[sarsItem] = { ...data, amount: -amount, priorYearAmount: -priorYearAmount };
           break;
         case 'capitalandreservesdebitbalances':
           // For debit balances, positive in DB means negative on BS
-          balanceSheet.capitalAndReservesDebitBalances[sarsItem] = { ...data, amount: -amount };
+          balanceSheet.capitalAndReservesDebitBalances[sarsItem] = { ...data, amount: -amount, priorYearAmount: -priorYearAmount };
           break;
         case 'noncurrentliabilities':
           // For liabilities, negative in DB means positive on BS
-          balanceSheet.nonCurrentLiabilities[sarsItem] = { ...data, amount: -amount };
+          balanceSheet.nonCurrentLiabilities[sarsItem] = { ...data, amount: -amount, priorYearAmount: -priorYearAmount };
           break;
         case 'currentliabilities':
           // For liabilities, negative in DB means positive on BS
-          balanceSheet.currentLiabilities[sarsItem] = { ...data, amount: -amount };
+          balanceSheet.currentLiabilities[sarsItem] = { ...data, amount: -amount, priorYearAmount: -priorYearAmount };
           break;
         default:
           console.warn(`Unknown subsection: ${subsection} for SARS item: ${sarsItem}`);
@@ -408,7 +443,7 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
 
   // Calculate totals
   const calculateTotals = () => {
-    if (!mappedData) return { balanceSheet: 0, incomeStatement: 0 };
+    if (!mappedData) return { balanceSheet: 0, incomeStatement: 0, priorYearIncomeStatement: 0 };
     
     return mappedData.reduce((acc, item) => {
       const isBalanceSheet = item.section.toLowerCase() === 'balance sheet';
@@ -418,9 +453,10 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
         acc.balanceSheet += item.balance;
       } else if (isIncomeStatement) {
         acc.incomeStatement += item.balance;
+        acc.priorYearIncomeStatement += item.priorYearBalance;
       }
       return acc;
-    }, { balanceSheet: 0, incomeStatement: 0 });
+    }, { balanceSheet: 0, incomeStatement: 0, priorYearIncomeStatement: 0 });
   };
 
   if (isLoading) {
@@ -435,18 +471,10 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
     </div>;
   }
 
-  if (mappedData.length === 0) {
-    return (
-      <div className="text-gray-500 text-center py-8">
-        No mapped data available. Upload a trial balance to get started.
-      </div>
-    );
-  }
-
   const balanceSheet = transformMappedDataToBalanceSheet(mappedData);
   const totals = calculateTotals();
   
-  // Calculate totals with proper sign handling
+  // Calculate current year totals with proper sign handling
   const totalAssets = calculateNestedTotal(balanceSheet.nonCurrentAssets) + calculateNestedTotal(balanceSheet.currentAssets);
   const currentYearProfitLoss = totals.incomeStatement;
   
@@ -459,8 +487,20 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
   const totalLiabilities = calculateNestedTotal(balanceSheet.nonCurrentLiabilities) + 
                           calculateNestedTotal(balanceSheet.currentLiabilities);
 
+  // Calculate prior year totals
+  const totalPriorYearAssets = calculateNestedPriorYearTotal(balanceSheet.nonCurrentAssets) + calculateNestedPriorYearTotal(balanceSheet.currentAssets);
+  const priorYearProfitLoss = totals.priorYearIncomeStatement || 0;
+  
+  const totalPriorYearCapitalAndReserves = calculateNestedPriorYearTotal(balanceSheet.capitalAndReservesCreditBalances) + 
+                                          calculateNestedPriorYearTotal(balanceSheet.capitalAndReservesDebitBalances) - 
+                                          priorYearProfitLoss;
+  
+  const totalPriorYearLiabilities = calculateNestedPriorYearTotal(balanceSheet.nonCurrentLiabilities) + 
+                                   calculateNestedPriorYearTotal(balanceSheet.currentLiabilities);
+
   // Total reserves & liabilities is the sum of capital and reserves plus liabilities
   const totalReservesAndLiabilities = totalCapitalAndReserves + totalLiabilities;
+  const totalPriorYearReservesAndLiabilities = totalPriorYearCapitalAndReserves + totalPriorYearLiabilities;
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => ({
@@ -536,25 +576,31 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
         <div className="space-y-3">
           {/* Header with Controls */}
-          <div className="flex items-center justify-between border-b border-gray-400 pb-2">
-            <div className="flex items-center gap-3">
-              <h1 className="text-xl font-bold text-gray-900">Balance Sheet</h1>
-              <span className="text-xs text-gray-500">Financial Year End</span>
+          <div className="border-b border-gray-400 pb-2">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-3">
+                <h1 className="text-xl font-bold text-gray-900">Balance Sheet</h1>
+                <span className="text-xs text-gray-500">Financial Year End</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={expandAll}
+                  className="px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors duration-150"
+                >
+                  Expand All
+                </button>
+                <button
+                  onClick={collapseAll}
+                  className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-150"
+                >
+                  Collapse All
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={expandAll}
-                className="px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors duration-150"
-              >
-                Expand All
-              </button>
-              <button
-                onClick={collapseAll}
-                className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-150"
-              >
-                Collapse All
-              </button>
-              <div className="text-right font-semibold text-gray-700">R</div>
+            <div className="grid grid-cols-12 text-xs font-semibold text-gray-600">
+              <div className="col-span-7"></div>
+              <div className="col-span-2 text-right px-3">Current Year (R)</div>
+              <div className="col-span-3 text-right px-3">Prior Year (R)</div>
             </div>
           </div>
 
@@ -564,14 +610,17 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
           onClick={() => toggleSection('assets')}
           className="w-full grid grid-cols-12 bg-gradient-to-r from-blue-100 to-blue-200 hover:from-blue-200 hover:to-blue-300 transition-colors duration-150 py-2"
         >
-          <div className="col-span-9 flex items-center gap-2 px-3">
+          <div className="col-span-7 flex items-center gap-2 px-3">
             <ChevronRightIcon 
               className={`h-4 w-4 text-blue-700 transition-transform duration-200 ${expandedSections.assets ? 'rotate-90' : ''}`}
             />
             <span className="font-bold text-base text-blue-900">ASSETS</span>
           </div>
-          <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-blue-900">
+          <div className="col-span-2 text-right px-3 tabular-nums font-bold text-sm text-blue-900">
             {formatAmount(totalAssets)}
+          </div>
+          <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-blue-700">
+            {formatAmount(totalPriorYearAssets)}
           </div>
         </button>
 
@@ -583,6 +632,7 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
               items={Object.entries(balanceSheet.nonCurrentAssets).map(([sarsItem, data]) => ({
                 sarsItem,
                 amount: data.amount,
+                priorYearAmount: data.priorYearAmount,
                 subsection: data.subsection,
                 mappedAccounts: data.mappedAccounts,
               }))}
@@ -597,6 +647,7 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
               items={Object.entries(balanceSheet.currentAssets).map(([sarsItem, data]) => ({
                 sarsItem,
                 amount: data.amount,
+                priorYearAmount: data.priorYearAmount,
                 subsection: data.subsection,
                 mappedAccounts: data.mappedAccounts,
               }))}
@@ -607,9 +658,12 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
 
             {/* Total Assets */}
             <div className="grid grid-cols-12 border-t border-blue-300 bg-blue-50 py-1.5">
-              <div className="col-span-9 font-bold px-3 text-sm text-blue-900">TOTAL ASSETS</div>
-              <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-blue-900">
+              <div className="col-span-7 font-bold px-3 text-sm text-blue-900">TOTAL ASSETS</div>
+              <div className="col-span-2 text-right px-3 tabular-nums font-bold text-sm text-blue-900">
                 {formatAmount(totalAssets)}
+              </div>
+              <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-blue-700">
+                {formatAmount(totalPriorYearAssets)}
               </div>
             </div>
           </div>
@@ -622,14 +676,17 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
           onClick={() => toggleSection('capitalReserves')}
           className="w-full grid grid-cols-12 bg-gradient-to-r from-purple-100 to-purple-200 hover:from-purple-200 hover:to-purple-300 transition-colors duration-150 py-2"
         >
-          <div className="col-span-9 flex items-center gap-2 px-3">
+          <div className="col-span-7 flex items-center gap-2 px-3">
             <ChevronRightIcon 
               className={`h-4 w-4 text-purple-700 transition-transform duration-200 ${expandedSections.capitalReserves ? 'rotate-90' : ''}`}
             />
             <span className="font-bold text-base text-purple-900">EQUITY & RESERVES</span>
           </div>
-          <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-purple-900">
+          <div className="col-span-2 text-right px-3 tabular-nums font-bold text-sm text-purple-900">
             {formatAmount(totalCapitalAndReserves)}
+          </div>
+          <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-purple-700">
+            {formatAmount(totalPriorYearCapitalAndReserves)}
           </div>
         </button>
 
@@ -637,7 +694,8 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
           <div className="bg-white">
             {/* Capital and Reserves */}
             <div className="grid grid-cols-12 bg-gradient-to-r from-purple-50 to-purple-100 border-b border-purple-200">
-              <div className="col-span-9 font-semibold px-4 py-2 text-purple-900">Capital and Reserves</div>
+              <div className="col-span-7 font-semibold px-4 py-2 text-purple-900">Capital and Reserves</div>
+              <div className="col-span-2"></div>
               <div className="col-span-3"></div>
             </div>
 
@@ -646,6 +704,7 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
               items={Object.entries(balanceSheet.capitalAndReservesCreditBalances).map(([sarsItem, data]) => ({
                 sarsItem,
                 amount: data.amount,
+                priorYearAmount: data.priorYearAmount,
                 subsection: data.subsection,
                 mappedAccounts: data.mappedAccounts,
               }))}
@@ -656,30 +715,33 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
 
             {/* Current Year Net Profit */}
             <div className="grid grid-cols-12 bg-purple-50">
-              <div className="col-span-9 pl-8 py-2 text-sm flex items-center">
+              <div className="col-span-7 pl-8 py-2 text-sm flex items-center">
                 <ChevronRightIcon className="h-4 w-4 mr-2 opacity-0" />
                 <span className="font-medium text-purple-900">Current Year Net Profit</span>
               </div>
-              <div className="col-span-3 text-right px-4 tabular-nums text-sm font-medium text-purple-900">
+              <div className="col-span-2 text-right px-4 tabular-nums text-sm font-medium text-purple-900">
                 {formatAmount(-currentYearProfitLoss)}
+              </div>
+              <div className="col-span-3 text-right px-4 tabular-nums text-sm font-medium text-purple-700">
+                {formatAmount(-priorYearProfitLoss)}
               </div>
             </div>
 
             {/* Total Capital and Reserves */}
             <div className="grid grid-cols-12 border-t border-purple-200 bg-purple-50">
-              <div className="col-span-9 pl-4 py-2 font-semibold text-purple-900">Total Capital and Reserves</div>
-              <div className="col-span-3 text-right px-4 tabular-nums font-semibold text-purple-900">
-                {formatAmount(
-                  calculateNestedTotal(balanceSheet.capitalAndReservesCreditBalances) + 
-                  calculateNestedTotal(balanceSheet.capitalAndReservesDebitBalances) - 
-                  currentYearProfitLoss
-                )}
+              <div className="col-span-7 pl-4 py-2 font-semibold text-purple-900">Total Capital and Reserves</div>
+              <div className="col-span-2 text-right px-4 tabular-nums font-semibold text-purple-900">
+                {formatAmount(totalCapitalAndReserves)}
+              </div>
+              <div className="col-span-3 text-right px-4 tabular-nums font-semibold text-purple-700">
+                {formatAmount(totalPriorYearCapitalAndReserves)}
               </div>
             </div>
 
             {/* Debit Balances */}
             <div className="grid grid-cols-12 bg-gradient-to-r from-purple-50 to-purple-100 border-t-2 border-purple-300">
-              <div className="col-span-9 font-semibold px-4 py-2 text-purple-900">Debit balances</div>
+              <div className="col-span-7 font-semibold px-4 py-2 text-purple-900">Debit balances</div>
+              <div className="col-span-2"></div>
               <div className="col-span-3"></div>
             </div>
 
@@ -688,6 +750,7 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
               items={Object.entries(balanceSheet.capitalAndReservesDebitBalances).map(([sarsItem, data]) => ({
                 sarsItem,
                 amount: data.amount,
+                priorYearAmount: data.priorYearAmount,
                 subsection: data.subsection,
                 mappedAccounts: data.mappedAccounts,
               }))}
@@ -705,14 +768,17 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
           onClick={() => toggleSection('liabilities')}
           className="w-full grid grid-cols-12 bg-gradient-to-r from-orange-100 to-orange-200 hover:from-orange-200 hover:to-orange-300 transition-colors duration-150 py-2"
         >
-          <div className="col-span-9 flex items-center gap-2 px-3">
+          <div className="col-span-7 flex items-center gap-2 px-3">
             <ChevronRightIcon 
               className={`h-4 w-4 text-orange-700 transition-transform duration-200 ${expandedSections.liabilities ? 'rotate-90' : ''}`}
             />
             <span className="font-bold text-base text-orange-900">LIABILITIES</span>
           </div>
-          <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-orange-900">
+          <div className="col-span-2 text-right px-3 tabular-nums font-bold text-sm text-orange-900">
             {formatAmount(totalLiabilities)}
+          </div>
+          <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-orange-700">
+            {formatAmount(totalPriorYearLiabilities)}
           </div>
         </button>
 
@@ -720,7 +786,8 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
           <div className="bg-white">
             {/* Non-Current Liabilities */}
             <div className="grid grid-cols-12 bg-gradient-to-r from-orange-50 to-orange-100 border-b border-orange-200">
-              <div className="col-span-9 font-semibold px-4 py-2 text-orange-900">Non-Current Liabilities</div>
+              <div className="col-span-7 font-semibold px-4 py-2 text-orange-900">Non-Current Liabilities</div>
+              <div className="col-span-2"></div>
               <div className="col-span-3"></div>
             </div>
 
@@ -729,6 +796,7 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
               items={Object.entries(balanceSheet.nonCurrentLiabilities).map(([sarsItem, data]) => ({
                 sarsItem,
                 amount: data.amount,
+                priorYearAmount: data.priorYearAmount,
                 subsection: data.subsection,
                 mappedAccounts: data.mappedAccounts,
               }))}
@@ -739,7 +807,8 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
 
             {/* Current Liabilities */}
             <div className="grid grid-cols-12 bg-gradient-to-r from-orange-50 to-orange-100 border-t-2 border-orange-300">
-              <div className="col-span-9 font-semibold px-4 py-2 text-orange-900">Current Liabilities</div>
+              <div className="col-span-7 font-semibold px-4 py-2 text-orange-900">Current Liabilities</div>
+              <div className="col-span-2"></div>
               <div className="col-span-3"></div>
             </div>
 
@@ -748,6 +817,7 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
               items={Object.entries(balanceSheet.currentLiabilities).map(([sarsItem, data]) => ({
                 sarsItem,
                 amount: data.amount,
+                priorYearAmount: data.priorYearAmount,
                 subsection: data.subsection,
                 mappedAccounts: data.mappedAccounts,
               }))}
@@ -761,9 +831,12 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
 
       {/* Total Reserves & Liabilities */}
       <div className="grid grid-cols-12 border border-gray-400 bg-gray-100 rounded-lg py-2">
-        <div className="col-span-9 font-bold px-3 text-sm text-gray-900">TOTAL EQUITY & LIABILITIES</div>
-        <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-gray-900">
+        <div className="col-span-7 font-bold px-3 text-sm text-gray-900">TOTAL EQUITY & LIABILITIES</div>
+        <div className="col-span-2 text-right px-3 tabular-nums font-bold text-sm text-gray-900">
           {formatAmount(totalReservesAndLiabilities)}
+        </div>
+        <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-gray-600">
+          {formatAmount(totalPriorYearReservesAndLiabilities)}
         </div>
       </div>
 
@@ -773,13 +846,20 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
           ? 'bg-green-50 border border-green-300' 
           : 'bg-red-50 border border-red-300'
       }`}>
-        <div className="col-span-9 pl-3 text-xs font-medium text-gray-700">Balance Check (should be zero)</div>
-        <div className={`col-span-3 text-right px-3 text-xs tabular-nums font-semibold ${
+        <div className="col-span-7 pl-3 text-xs font-medium text-gray-700">Balance Check (should be zero)</div>
+        <div className={`col-span-2 text-right px-3 text-xs tabular-nums font-semibold ${
           Math.abs(totalAssets - totalReservesAndLiabilities) < 0.01 
             ? 'text-green-700' 
             : 'text-red-700'
         }`}>
           {formatAmount(totalAssets - totalReservesAndLiabilities)}
+        </div>
+        <div className={`col-span-3 text-right px-3 text-xs tabular-nums font-semibold ${
+          Math.abs(totalPriorYearAssets - totalPriorYearReservesAndLiabilities) < 0.01 
+            ? 'text-green-700' 
+            : 'text-red-700'
+        }`}>
+          {formatAmount(totalPriorYearAssets - totalPriorYearReservesAndLiabilities)}
         </div>
       </div>
         </div>

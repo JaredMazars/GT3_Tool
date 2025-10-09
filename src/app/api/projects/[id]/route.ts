@@ -86,6 +86,50 @@ export async function PUT(
   }
 }
 
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const projectId = parseInt(params.id, 10);
+    
+    if (isNaN(projectId)) {
+      return NextResponse.json(
+        { error: 'Invalid project ID format' },
+        { status: 400 }
+      );
+    }
+
+    const body = await request.json();
+    const { action } = body;
+
+    if (action === 'restore') {
+      // Restore archived project to active status
+      const project = await prisma.project.update({
+        where: { id: projectId },
+        data: { archived: false },
+      });
+
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Project restored successfully',
+        project 
+      });
+    }
+
+    return NextResponse.json(
+      { error: 'Invalid action' },
+      { status: 400 }
+    );
+  } catch (error) {
+    console.error('Error processing project action:', error);
+    return NextResponse.json(
+      { error: 'Failed to process project action' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }

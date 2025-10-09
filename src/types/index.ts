@@ -5,5 +5,6 @@ export interface MappedData {
   section: string;
   subsection: string;
   balance: number;
+  priorYearBalance: number;
   sarsItem: string;
 } 

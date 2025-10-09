@@ -12,19 +12,23 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Get the project's income statement data
+    // Get the project's income statement data (only income statement accounts)
     const mappedAccounts = await prisma.mappedAccount.findMany({
       where: {
         projectId: parseInt(params.id),
+        section: 'Income Statement', // Only include income statement accounts
       },
       select: {
         balance: true,
       },
     });
 
-    // Calculate net profit from income statement
-    const netProfit = mappedAccounts.reduce((sum: number, account: { balance: number }) => 
+    // Calculate net profit from income statement accounts only
+    // Note: In accounting, income accounts are credits (negative), expenses are debits (positive)
+    // A net credit balance (negative sum) represents profit, so we negate to show profit as positive
+    const rawBalance = mappedAccounts.reduce((sum: number, account: { balance: number }) => 
       sum + account.balance, 0);
+    const netProfit = -rawBalance; // Convert credit balance (profit) to positive amount
 
     // Get tax adjustments for this project
     const taxAdjustments = await prisma.taxAdjustment.findMany({

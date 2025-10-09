@@ -42,14 +42,14 @@ export async function GET(
       },
     });
 
-    // Fetch accounting profit (simplified - you may need to calculate this from income statement)
+    // Fetch accounting profit from income statement (net profit before tax adjustments)
     const incomeResponse = await fetch(
       `${request.nextUrl.origin}/api/projects/${projectId}/tax-calculation`
     );
     let accountingProfit = 0;
     if (incomeResponse.ok) {
       const incomeData = await incomeResponse.json();
-      accountingProfit = incomeData.calculatedProfit || 0;
+      accountingProfit = incomeData.netProfit || 0;
     }
 
     // Calculate totals

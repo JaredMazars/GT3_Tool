@@ -5,10 +5,18 @@ import { formatAmount } from '@/lib/formatters';
 import { MappedData } from '@/types';
 import * as XLSX from 'xlsx';
 import { mappingGuide } from '@/lib/mappingGuide';
+import { ProcessingModal } from '@/components/ProcessingModal';
 
 // Add type at the top of the file after imports
 interface SarsItem {
   sarsItem: string;
+}
+
+interface ProcessingStage {
+  id: number;
+  title: string;
+  description: string;
+  status: 'pending' | 'in-progress' | 'complete';
 }
 
 // Add type for section items at the top of the file after imports
@@ -210,22 +218,25 @@ function MappingTable({ mappedData, onMappingUpdate }: MappingTableProps) {
       <table className="w-full divide-y divide-gray-200 table-fixed">
         <thead className="bg-gradient-to-r from-gray-50 to-gray-100 sticky top-0">
           <tr>
-            <th scope="col" className="w-[8%] px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300">
+            <th scope="col" className="w-[7%] px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300">
               Code
             </th>
-            <th scope="col" className="w-[17%] px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300">
+            <th scope="col" className="w-[15%] px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300">
               Account Name
             </th>
-            <th scope="col" className="w-[10%] px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300">
+            <th scope="col" className="w-[9%] px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300">
               Section
             </th>
-            <th scope="col" className="w-[15%] px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300">
+            <th scope="col" className="w-[12%] px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300">
               Subsection
             </th>
-            <th scope="col" className="w-[10%] px-2 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300">
-              Balance
+            <th scope="col" className="w-[9%] px-2 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300">
+              Current Year
             </th>
-            <th scope="col" className="w-[40%] px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300">
+            <th scope="col" className="w-[9%] px-2 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300">
+              Prior Year
+            </th>
+            <th scope="col" className="w-[39%] px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300">
               SARS Item
             </th>
           </tr>
@@ -261,6 +272,11 @@ function MappingTable({ mappedData, onMappingUpdate }: MappingTableProps) {
               }`}>
                 {item.balance < 0 ? `(${formatAmount(Math.abs(item.balance))})` : formatAmount(item.balance)}
               </td>
+              <td className={`px-2 py-1 whitespace-nowrap text-xs text-right tabular-nums font-medium ${
+                item.priorYearBalance < 0 ? 'text-red-600' : 'text-gray-600'
+              }`}>
+                {item.priorYearBalance < 0 ? `(${formatAmount(Math.abs(item.priorYearBalance))})` : formatAmount(item.priorYearBalance)}
+              </td>
               <td className="px-2 py-1 whitespace-nowrap text-xs text-gray-900">
                 {updatingRow === item.id ? (
                   <div className="flex items-center gap-2 text-blue-600">
@@ -291,6 +307,64 @@ export default function MappingPage({ params }: { params: { id: string } }) {
   const [error, setError] = useState<string | null>(null);
   const [projectName, setProjectName] = useState<string>('');
   const [isUploading, setIsUploading] = useState(false);
+  const [processingStages, setProcessingStages] = useState<ProcessingStage[]>([
+    {
+      id: 1,
+      title: 'Parsing Trial Balance',
+      description: 'Reading and validating your Excel file...',
+      status: 'pending'
+    },
+    {
+      id: 2,
+      title: 'Mapping Income Statement',
+      description: 'Using AI to map income statement accounts to SARS categories...',
+      status: 'pending'
+    },
+    {
+      id: 3,
+      title: 'Mapping Balance Sheet',
+      description: 'Using AI to map balance sheet accounts to SARS categories...',
+      status: 'pending'
+    },
+    {
+      id: 4,
+      title: 'Saving to Database',
+      description: 'Storing mapped accounts in the database...',
+      status: 'pending'
+    }
+  ]);
+
+  // Reset stages to initial state when not uploading
+  useEffect(() => {
+    if (!isUploading) {
+      setProcessingStages([
+        {
+          id: 1,
+          title: 'Parsing Trial Balance',
+          description: 'Reading and validating your Excel file...',
+          status: 'pending'
+        },
+        {
+          id: 2,
+          title: 'Mapping Income Statement',
+          description: 'Using AI to map income statement accounts to SARS categories...',
+          status: 'pending'
+        },
+        {
+          id: 3,
+          title: 'Mapping Balance Sheet',
+          description: 'Using AI to map balance sheet accounts to SARS categories...',
+          status: 'pending'
+        },
+        {
+          id: 4,
+          title: 'Saving to Database',
+          description: 'Storing mapped accounts in the database...',
+          status: 'pending'
+        }
+      ]);
+    }
+  }, [isUploading]);
 
   // Fetch project name
   useEffect(() => {
@@ -369,6 +443,7 @@ export default function MappingPage({ params }: { params: { id: string } }) {
       const formData = new FormData();
       formData.append('trialBalance', file);
       formData.append('projectId', params.id);
+      formData.append('stream', 'true'); // Enable streaming
 
       const response = await fetch('/api/map', {
         method: 'POST',
@@ -379,9 +454,55 @@ export default function MappingPage({ params }: { params: { id: string } }) {
         throw new Error('Failed to upload file');
       }
 
-      // Refresh data
-      const updatedData = await fetch(`/api/projects/${params.id}/mapped-accounts`).then(res => res.json());
-      setMappedData(updatedData);
+      // Handle SSE streaming
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let finalData = null;
+
+      while (reader) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = JSON.parse(line.slice(6));
+            
+            if (data.type === 'error') {
+              throw new Error(data.message);
+            } else if (data.type === 'complete') {
+              finalData = data.data;
+            } else if (data.stage && data.status) {
+              // Update stage status
+              setProcessingStages(prev => prev.map(stage => {
+                if (stage.id === data.stage) {
+                  return { ...stage, status: data.status };
+                } else if (stage.id < data.stage) {
+                  return { ...stage, status: 'complete' };
+                } else if (stage.id === data.stage + 1 && data.status === 'complete') {
+                  return { ...stage, status: 'in-progress' };
+                }
+                return stage;
+              }));
+            }
+          }
+        }
+      }
+
+      if (finalData) {
+        // Brief delay to show completion before closing modal
+        await new Promise(resolve => setTimeout(resolve, 800));
+
+        // Refresh data
+        const updatedData = await fetch(`/api/projects/${params.id}/mapped-accounts`).then(res => res.json());
+        setMappedData(updatedData);
+      } else {
+        throw new Error('No data received from server');
+      }
     } catch (error) {
       console.error('Error uploading file:', error);
       setError(error instanceof Error ? error.message : 'An error occurred');
@@ -445,9 +566,12 @@ export default function MappingPage({ params }: { params: { id: string } }) {
   const incomeStatementAccounts = mappedData.filter(item => item.section.toLowerCase() === 'income statement').length;
 
   return (
-    <div className="space-y-4">
-      {/* Stats Dashboard */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+    <>
+      <ProcessingModal isOpen={isUploading} stages={processingStages} />
+      
+      <div className="space-y-4">
+        {/* Stats Dashboard */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-lg p-3 text-white">
           <div className="flex items-center justify-between">
             <div>
@@ -565,7 +689,8 @@ export default function MappingPage({ params }: { params: { id: string } }) {
                       <li><span className="font-medium">Account Code</span> (e.g., "1000", "2000")</li>
                       <li><span className="font-medium">Account Name</span> (e.g., "Cash at Bank")</li>
                       <li><span className="font-medium">Section</span> (must be "Balance Sheet" or "Income Statement")</li>
-                      <li><span className="font-medium">Balance</span> (numeric values)</li>
+                      <li><span className="font-medium">Balance</span> (current year numeric values)</li>
+                      <li><span className="font-medium">Prior Year Balance</span> (prior year numeric values for comparative reporting)</li>
                     </ul>
                   </div>
                   <div>
@@ -696,5 +821,6 @@ export default function MappingPage({ params }: { params: { id: string } }) {
         </div>
       </div>
     </div>
+    </>
   );
 } 

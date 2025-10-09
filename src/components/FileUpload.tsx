@@ -1,11 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { CloudArrowUpIcon, DocumentTextIcon, ExclamationCircleIcon, InformationCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { ProcessingModal } from './ProcessingModal';
 
 interface FileUploadProps {
   onFileUpload: (data: unknown) => void;
   projectId: number;
+}
+
+interface ProcessingStage {
+  id: number;
+  title: string;
+  description: string;
+  status: 'pending' | 'in-progress' | 'complete';
 }
 
 export function FileUpload({ onFileUpload, projectId }: FileUploadProps) {
@@ -13,6 +21,64 @@ export function FileUpload({ onFileUpload, projectId }: FileUploadProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [processingStages, setProcessingStages] = useState<ProcessingStage[]>([
+    {
+      id: 1,
+      title: 'Parsing Trial Balance',
+      description: 'Reading and validating your Excel file...',
+      status: 'pending'
+    },
+    {
+      id: 2,
+      title: 'Mapping Income Statement',
+      description: 'Using AI to map income statement accounts to SARS categories...',
+      status: 'pending'
+    },
+    {
+      id: 3,
+      title: 'Mapping Balance Sheet',
+      description: 'Using AI to map balance sheet accounts to SARS categories...',
+      status: 'pending'
+    },
+    {
+      id: 4,
+      title: 'Saving to Database',
+      description: 'Storing mapped accounts in the database...',
+      status: 'pending'
+    }
+  ]);
+
+  // Reset stages to initial state when not loading
+  useEffect(() => {
+    if (!isLoading) {
+      setProcessingStages([
+        {
+          id: 1,
+          title: 'Parsing Trial Balance',
+          description: 'Reading and validating your Excel file...',
+          status: 'pending'
+        },
+        {
+          id: 2,
+          title: 'Mapping Income Statement',
+          description: 'Using AI to map income statement accounts to SARS categories...',
+          status: 'pending'
+        },
+        {
+          id: 3,
+          title: 'Mapping Balance Sheet',
+          description: 'Using AI to map balance sheet accounts to SARS categories...',
+          status: 'pending'
+        },
+        {
+          id: 4,
+          title: 'Saving to Database',
+          description: 'Storing mapped accounts in the database...',
+          status: 'pending'
+        }
+      ]);
+    }
+  }, [isLoading]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -68,6 +134,7 @@ export function FileUpload({ onFileUpload, projectId }: FileUploadProps) {
       const formData = new FormData();
       formData.append('trialBalance', selectedFile);
       formData.append('projectId', projectId.toString());
+      formData.append('stream', 'true'); // Enable streaming
 
       const response = await fetch('/api/map', {
         method: 'POST',
@@ -75,23 +142,70 @@ export function FileUpload({ onFileUpload, projectId }: FileUploadProps) {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to process file');
+        throw new Error('Failed to process file');
       }
 
-      const data = await response.json();
-      onFileUpload(data);
+      // Handle SSE streaming
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let finalData = null;
+
+      while (reader) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = JSON.parse(line.slice(6));
+            
+            if (data.type === 'error') {
+              throw new Error(data.message);
+            } else if (data.type === 'complete') {
+              finalData = data.data;
+            } else if (data.stage && data.status) {
+              // Update stage status
+              setProcessingStages(prev => prev.map(stage => {
+                if (stage.id === data.stage) {
+                  return { ...stage, status: data.status };
+                } else if (stage.id < data.stage) {
+                  return { ...stage, status: 'complete' };
+                } else if (stage.id === data.stage + 1 && data.status === 'complete') {
+                  return { ...stage, status: 'in-progress' };
+                }
+                return stage;
+              }));
+            }
+          }
+        }
+      }
+
+      if (finalData) {
+        // Brief delay to show completion before closing modal
+        setTimeout(() => {
+          onFileUpload(finalData);
+          setIsLoading(false);
+        }, 800);
+      } else {
+        throw new Error('No data received from server');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to process file');
-    } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="space-y-8">
-      {/* Format Guide Section */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl shadow-lg p-6 border border-blue-100">
+    <>
+      <ProcessingModal isOpen={isLoading} stages={processingStages} />
+      
+      <div className="space-y-8">
+        {/* Format Guide Section */}
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl shadow-lg p-6 border border-blue-100">
         <div className="flex items-start space-x-4">
           <DocumentTextIcon className="h-8 w-8 text-blue-500 flex-shrink-0" />
           <div className="space-y-4 w-full">
@@ -100,8 +214,8 @@ export function FileUpload({ onFileUpload, projectId }: FileUploadProps) {
               <p className="text-sm text-gray-600 mb-4">
                 Please ensure your Trial Balance Excel file includes these columns:
               </p>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {['Account Code', 'Account', 'Section', 'Balance'].map((column) => (
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                {['Account Code', 'Account', 'Section', 'Balance', 'Prior Year Balance'].map((column) => (
                   <div key={column} className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
                     <p className="text-sm font-medium text-blue-700">{column}</p>
                   </div>
@@ -116,8 +230,10 @@ export function FileUpload({ onFileUpload, projectId }: FileUploadProps) {
               </div>
               <ul className="list-disc list-inside text-sm text-gray-600 space-y-1 ml-1">
                 <li>The <span className="font-medium">Section</span> column must contain either &quot;Balance Sheet&quot; or &quot;Income Statement&quot;</li>
-                <li>The <span className="font-medium">Balance</span> column should contain numerical values</li>
-                <li>Ensure there are no empty cells in required columns</li>
+                <li>The <span className="font-medium">Balance</span> column should contain current year numerical values</li>
+                <li>The <span className="font-medium">Prior Year Balance</span> column should contain prior year numerical values (use 0 if no prior year data)</li>
+                <li>All columns are required for proper comparative reporting</li>
+                <li>Ensure there are no empty cells in any columns</li>
               </ul>
             </div>
 
@@ -131,6 +247,7 @@ export function FileUpload({ onFileUpload, projectId }: FileUploadProps) {
                       <th className="px-4 py-2 text-left font-medium text-gray-500">Account</th>
                       <th className="px-4 py-2 text-left font-medium text-gray-500">Section</th>
                       <th className="px-4 py-2 text-right font-medium text-gray-500">Balance</th>
+                      <th className="px-4 py-2 text-right font-medium text-gray-500">Prior Year Balance</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white">
@@ -139,12 +256,14 @@ export function FileUpload({ onFileUpload, projectId }: FileUploadProps) {
                       <td className="px-4 py-2 text-gray-900">Cash at Bank</td>
                       <td className="px-4 py-2 text-gray-900">Balance Sheet</td>
                       <td className="px-4 py-2 text-right text-gray-900">50000.00</td>
+                      <td className="px-4 py-2 text-right text-gray-900">45000.00</td>
                     </tr>
                     <tr>
                       <td className="px-4 py-2 text-gray-900">4000</td>
                       <td className="px-4 py-2 text-gray-900">Sales Revenue</td>
                       <td className="px-4 py-2 text-gray-900">Income Statement</td>
                       <td className="px-4 py-2 text-right text-gray-900">-75000.00</td>
+                      <td className="px-4 py-2 text-right text-gray-900">-70000.00</td>
                     </tr>
                   </tbody>
                 </table>
@@ -247,5 +366,6 @@ export function FileUpload({ onFileUpload, projectId }: FileUploadProps) {
         </form>
       </div>
     </div>
+    </>
   );
 } 
