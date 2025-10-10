@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { determineSectionAndSubsection } from '@/app/api/map/route';
 
 export async function GET(
   request: Request,
@@ -31,6 +32,17 @@ export async function POST(
 ) {
   try {
     const data = await request.json();
+    
+    // If sarsItem and balance are provided, determine section and subsection
+    if (data.sarsItem && typeof data.balance === 'number') {
+      const { section, subsection } = determineSectionAndSubsection(
+        data.sarsItem,
+        data.balance
+      );
+      data.section = section;
+      data.subsection = subsection;
+    }
+
     const mappedAccount = await prisma.mappedAccount.create({
       data: {
         ...data,

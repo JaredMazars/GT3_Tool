@@ -74,9 +74,9 @@ export async function POST(
     }
 
     // Validate type
-    if (!['DEBIT', 'CREDIT', 'ALLOWANCE'].includes(type)) {
+    if (!['DEBIT', 'CREDIT', 'ALLOWANCE', 'RECOUPMENT'].includes(type)) {
       return NextResponse.json(
-        { error: 'Invalid type. Must be DEBIT, CREDIT, or ALLOWANCE' },
+        { error: 'Invalid type. Must be DEBIT, CREDIT, ALLOWANCE, or RECOUPMENT' },
         { status: 400 }
       );
     }

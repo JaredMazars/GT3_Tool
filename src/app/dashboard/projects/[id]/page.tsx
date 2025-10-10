@@ -11,12 +11,14 @@ import {
   Cog6ToothIcon,
   PencilIcon,
   ArchiveBoxIcon,
-  ArrowDownTrayIcon
+  ArrowDownTrayIcon,
+  ClipboardDocumentListIcon
 } from '@heroicons/react/24/outline';
 import BalanceSheetPage from './balance-sheet/page';
 import IncomeStatementPage from './income-statement/page';
 import MappingPage from './mapping/page';
 import TaxCalculationPage from './tax-calculation/page';
+import ReportingPage from './reporting/page';
 
 interface TabProps {
   selected: boolean;
@@ -321,6 +323,8 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         return <IncomeStatementPage params={params} />;
       case 'tax-calculation':
         return <TaxCalculationPage params={params} />;
+      case 'reporting':
+        return <ReportingPage params={params} />;
       case 'settings':
         return project ? <SettingsTab project={project} onUpdate={fetchProject} /> : null;
       default:
@@ -396,6 +400,13 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                 icon={CalculatorIcon}
               >
                 Tax Calculation
+              </Tab>
+              <Tab
+                onClick={() => setActiveTab('reporting')}
+                selected={activeTab === 'reporting'}
+                icon={ClipboardDocumentListIcon}
+              >
+                Reporting
               </Tab>
               <Tab
                 onClick={() => setActiveTab('settings')}

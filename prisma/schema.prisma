@@ -18,6 +18,7 @@ model Project {
   mappings      MappedAccount[]
   taxAdjustments TaxAdjustment[]
   adjustmentDocuments AdjustmentDocument[]
+  aiTaxReports  AITaxReport[]
 }
 
 model MappedAccount {
@@ -38,7 +39,7 @@ model MappedAccount {
 model TaxAdjustment {
   id          Int      @id @default(autoincrement())
   projectId   Int
-  type        String   // DEBIT, CREDIT, or ALLOWANCE
+  type        String   // DEBIT, CREDIT, ALLOWANCE, or RECOUPMENT
   description String
   amount      Float
   status      String   @default("SUGGESTED") // SUGGESTED, APPROVED, REJECTED, MODIFIED
@@ -77,4 +78,19 @@ model AdjustmentDocument {
   @@index([projectId])
   @@index([taxAdjustmentId])
   @@index([extractionStatus])
+}
+
+model AITaxReport {
+  id                Int      @id @default(autoincrement())
+  projectId         Int
+  executiveSummary  String
+  risks             String   // JSON array of risk objects
+  taxSensitiveItems String   // JSON array of tax-sensitive item objects
+  detailedFindings  String
+  recommendations   String   // JSON array of recommendation strings
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  project           Project  @relation(fields: [projectId], references: [id])
+
+  @@index([projectId])
 }

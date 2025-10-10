@@ -50,3 +50,6 @@ Add these example rows to show users the correct format:
 
 If preferred, you can create a new Excel template with the structure above and replace the existing file.
 
+
+
+

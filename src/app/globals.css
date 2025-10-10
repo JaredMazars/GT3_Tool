@@ -5,3 +5,80 @@
 body {
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Print Styles */
+@media print {
+  /* Hide navigation, buttons, and interactive elements */
+  nav,
+  button,
+  .no-print,
+  [class*="hover:"],
+  [class*="cursor-pointer"] {
+    display: none !important;
+  }
+
+  /* Reset page margins */
+  @page {
+    margin: 1cm;
+    size: A4;
+  }
+
+  body {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* Optimize page breaks */
+  .print-section {
+    page-break-after: always;
+    page-break-inside: avoid;
+  }
+
+  /* Ensure tables don't break awkwardly */
+  table {
+    page-break-inside: auto;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+
+  /* Optimize colors for printing */
+  .bg-gradient-to-r,
+  .bg-gradient-to-br {
+    background: #f3f4f6 !important;
+  }
+
+  /* Remove shadows for cleaner print */
+  .shadow-sm,
+  .shadow,
+  .shadow-md,
+  .shadow-lg,
+  .shadow-xl {
+    box-shadow: none !important;
+  }
+
+  /* Ensure borders are visible */
+  .border {
+    border-color: #000 !important;
+  }
+
+  /* Make text readable */
+  .text-white {
+    color: #000 !important;
+  }
+
+  /* Remove background colors from cards */
+  .rounded-lg {
+    border-radius: 0 !important;
+  }
+}

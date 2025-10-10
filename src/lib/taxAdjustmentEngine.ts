@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { taxAdjustmentsGuide, type TaxAdjustmentDefinition } from './taxAdjustmentsGuide';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -11,10 +12,11 @@ export interface MappedAccountData {
   subsection: string;
   balance: number;
   sarsItem: string;
+  priorYearBalance?: number;
 }
 
 export interface TaxAdjustmentSuggestion {
-  type: 'DEBIT' | 'CREDIT' | 'ALLOWANCE';
+  type: 'DEBIT' | 'CREDIT' | 'ALLOWANCE' | 'RECOUPMENT';
   description: string;
   amount: number;
   sarsSection: string;
@@ -27,6 +29,15 @@ export interface TaxAdjustmentSuggestion {
   };
 }
 
+export interface ExistingAdjustment {
+  id: number;
+  type: string;
+  description: string;
+  amount: number;
+  sarsSection?: string;
+  status: string;
+}
+
 // Rules-based adjustment detection
 export class TaxAdjustmentEngine {
   /**
@@ -34,7 +45,8 @@ export class TaxAdjustmentEngine {
    */
   static async analyzeMappedAccounts(
     mappedAccounts: MappedAccountData[],
-    useAI: boolean = true
+    useAI: boolean = true,
+    existingAdjustments: ExistingAdjustment[] = []
   ): Promise<TaxAdjustmentSuggestion[]> {
     const suggestions: TaxAdjustmentSuggestion[] = [];
 
@@ -44,7 +56,7 @@ export class TaxAdjustmentEngine {
     // Enhance with AI analysis if enabled
     if (useAI && suggestions.length > 0) {
       try {
-        const aiSuggestions = await this.getAIEnhancedSuggestions(mappedAccounts, suggestions);
+        const aiSuggestions = await this.getAIEnhancedSuggestions(mappedAccounts, suggestions, existingAdjustments);
         return aiSuggestions;
       } catch (error) {
         console.error('AI enhancement failed, returning rule-based suggestions:', error);
@@ -56,7 +68,7 @@ export class TaxAdjustmentEngine {
   }
 
   /**
-   * Apply rules-based tax adjustment logic
+   * Apply guide-based tax adjustment matching
    */
   private static applyRuleBasedSuggestions(
     mappedAccounts: MappedAccountData[]
@@ -64,120 +76,140 @@ export class TaxAdjustmentEngine {
     const suggestions: TaxAdjustmentSuggestion[] = [];
 
     for (const account of mappedAccounts) {
-      // Rule 1: Depreciation adjustments (s11-13)
-      if (account.sarsItem.includes('Depreciation') || account.accountName.toLowerCase().includes('depreciation')) {
-        suggestions.push({
-          type: 'DEBIT',
-          description: `Add back depreciation - ${account.accountName}`,
-          amount: Math.abs(account.balance),
-          sarsSection: 's11(e)',
-          confidenceScore: 0.95,
-          reasoning: 'Accounting depreciation must be added back and replaced with tax allowances per s11-13',
-          calculationDetails: {
-            method: 'addback_depreciation',
-            inputs: { accountBalance: account.balance, accountCode: account.accountCode },
-          },
-        });
-      }
+      // Check against all adjustment types in the guide
+      const matches = this.findMatchingAdjustments(account, mappedAccounts);
+      suggestions.push(...matches);
+    }
 
-      // Rule 2: Non-deductible expenses (s23)
-      if (this.isNonDeductibleExpense(account)) {
-        suggestions.push({
-          type: 'DEBIT',
-          description: `Non-deductible expense - ${account.accountName}`,
-          amount: Math.abs(account.balance),
-          sarsSection: 's23',
-          confidenceScore: 0.85,
-          reasoning: 'Expenses of a capital nature or not incurred in production of income (s23)',
-          calculationDetails: {
-            method: 'non_deductible_s23',
-            inputs: { accountBalance: account.balance, accountCode: account.accountCode },
-          },
-        });
-      }
+    return suggestions;
+  }
 
-      // Rule 3: Donations exceeding limits (s18A)
-      if (account.accountName.toLowerCase().includes('donation')) {
-        const limitAmount = this.calculateDonationLimit(mappedAccounts);
-        const excessDonation = Math.abs(account.balance) - limitAmount;
+  /**
+   * Find matching adjustments from the guide for a given account
+   */
+  private static findMatchingAdjustments(
+    account: MappedAccountData,
+    allAccounts: MappedAccountData[]
+  ): TaxAdjustmentSuggestion[] {
+    const suggestions: TaxAdjustmentSuggestion[] = [];
+    const accountNameLower = account.accountName.toLowerCase();
+    const sarsItemLower = account.sarsItem.toLowerCase();
+
+    // Combine all adjustment definitions
+    const allDefinitions = [
+      ...taxAdjustmentsGuide.debitAdjustments,
+      ...taxAdjustmentsGuide.creditAdjustments,
+      ...taxAdjustmentsGuide.allowances,
+      ...taxAdjustmentsGuide.recoupments
+    ];
+
+    for (const definition of allDefinitions) {
+      // Check if keywords match
+      const keywordMatch = definition.keywords.some(keyword => 
+        accountNameLower.includes(keyword.toLowerCase()) || 
+        sarsItemLower.includes(keyword.toLowerCase())
+      );
+
+      if (!keywordMatch) continue;
+
+      // Check account criteria if specified
+      if (definition.accountCriteria) {
+        const criteria = definition.accountCriteria;
         
-        if (excessDonation > 0) {
-          suggestions.push({
-            type: 'DEBIT',
-            description: `Donations exceeding 10% limit - ${account.accountName}`,
-            amount: excessDonation,
-            sarsSection: 's18A',
-            confidenceScore: 0.90,
-            reasoning: 'Donations limited to 10% of taxable income (before donations)',
-            calculationDetails: {
-              method: 'donation_limit',
-              inputs: { 
-                totalDonation: Math.abs(account.balance),
-                limit: limitAmount,
-                excess: excessDonation 
-              },
-              formula: 'Excess = Total Donation - (Taxable Income × 10%)',
-            },
-          });
+        // Check section match
+        if (criteria.sectionMatch && !criteria.sectionMatch.includes(account.section)) {
+          continue;
+        }
+
+        // Check subsection match
+        if ('subsectionMatch' in criteria) {
+          const subsections = (criteria as any).subsectionMatch;
+          if (Array.isArray(subsections) && subsections.length > 0) {
+            if (!subsections.includes(account.subsection)) {
+              continue;
+            }
+          }
+        }
+
+        // Check sarsItem contains
+        if ('sarsItemContains' in criteria) {
+          const sarsItems = (criteria as any).sarsItemContains;
+          if (Array.isArray(sarsItems) && sarsItems.length > 0) {
+            if (!sarsItems.some((item: string) => sarsItemLower.includes(item.toLowerCase()))) {
+              continue;
+            }
+          }
+        }
+
+        // Check balance sign
+        if ('balanceSign' in criteria) {
+          const balanceSign = (criteria as any).balanceSign;
+          if (balanceSign === 'positive' && account.balance <= 0) continue;
+          if (balanceSign === 'negative' && account.balance >= 0) continue;
         }
       }
 
-      // Rule 4: Interest limitations (thin capitalization)
-      if (account.accountName.toLowerCase().includes('interest') && 
-          account.section === 'Income Statement' && 
-          account.balance < 0) {
-        // This is a simplified rule - actual thin cap requires debt:equity analysis
-        const potentialExcess = this.checkThinCapitalization(mappedAccounts, account);
-        if (potentialExcess > 0) {
-          suggestions.push({
-            type: 'DEBIT',
-            description: `Interest limitation (thin capitalization) - ${account.accountName}`,
-            amount: potentialExcess,
-            sarsSection: 's23M',
-            confidenceScore: 0.70,
-            reasoning: 'Potential thin capitalization excess interest - requires detailed debt:equity analysis',
-            calculationDetails: {
-              method: 'thin_cap_preliminary',
-              inputs: { 
-                interestExpense: Math.abs(account.balance),
-                estimatedExcess: potentialExcess 
-              },
-            },
-          });
+      // Calculate amount based on calculation type
+      let amount = Math.abs(account.balance);
+      let calculationMethod = definition.name.toLowerCase().replace(/\s+/g, '_');
+
+      if (definition.calculationType === 'excess' && definition.name.includes('Donations')) {
+        // Special handling for donation limit
+        const limitAmount = this.calculateDonationLimit(allAccounts);
+        const excessDonation = Math.abs(account.balance) - limitAmount;
+        if (excessDonation <= 0) continue; // No excess, skip this adjustment
+        amount = excessDonation;
+      } else if (definition.calculationType === 'custom' && definition.name.includes('Thin Capitalization')) {
+        // Special handling for thin cap
+        const potentialExcess = this.checkThinCapitalization(allAccounts, account);
+        if (potentialExcess <= 0) continue;
+        amount = potentialExcess;
+      } else if (definition.calculationType === 'custom' && account.priorYearBalance !== undefined) {
+        // Handle year-on-year movements for provisions, prepayments, income in advance, etc.
+        const movement = account.balance - account.priorYearBalance;
+        
+        if (definition.name.includes('Increase') && movement <= 0) {
+          // Looking for increase but there's a decrease or no change
+          continue;
+        } else if (definition.name.includes('Decrease') && movement >= 0) {
+          // Looking for decrease but there's an increase or no change
+          continue;
         }
+        
+        amount = Math.abs(movement);
+        
+        // Skip if movement is negligible
+        if (amount < 1) continue;
       }
 
-      // Rule 5: Entertainment expenses (s23(b))
-      if (this.isEntertainmentExpense(account)) {
-        suggestions.push({
-          type: 'DEBIT',
-          description: `Non-deductible entertainment - ${account.accountName}`,
-          amount: Math.abs(account.balance),
-          sarsSection: 's23(b)',
-          confidenceScore: 0.85,
-          reasoning: 'Entertainment expenses are generally not deductible per s23(b)',
-          calculationDetails: {
-            method: 'entertainment_s23b',
-            inputs: { accountBalance: account.balance },
-          },
-        });
+      // Generate suggestion from definition
+      const description = definition.descriptionTemplate.replace('{accountName}', account.accountName);
+      
+      // Build calculation details
+      const calculationInputs: Record<string, any> = { 
+        accountBalance: account.balance, 
+        accountCode: account.accountCode,
+        accountName: account.accountName
+      };
+      
+      // Add prior year information if available and relevant
+      if (account.priorYearBalance !== undefined) {
+        calculationInputs.priorYearBalance = account.priorYearBalance;
+        calculationInputs.movement = account.balance - account.priorYearBalance;
       }
-
-      // Rule 6: Capital allowances to be deducted
-      if (this.isCapitalAllowanceAccount(account)) {
-        suggestions.push({
-          type: 'CREDIT',
-          description: `Capital allowances deduction - ${account.accountName}`,
-          amount: Math.abs(account.balance),
-          sarsSection: 's11-13',
-          confidenceScore: 0.80,
-          reasoning: 'Tax depreciation (capital allowances) to be deducted',
-          calculationDetails: {
-            method: 'capital_allowance',
-            inputs: { accountBalance: account.balance },
-          },
-        });
-      }
+      
+      suggestions.push({
+        type: definition.type,
+        description,
+        amount,
+        sarsSection: definition.sarsSection,
+        confidenceScore: definition.confidenceScore,
+        reasoning: definition.reasoning,
+        calculationDetails: {
+          method: calculationMethod,
+          inputs: calculationInputs,
+        },
+      });
     }
 
     return suggestions;
@@ -188,7 +220,8 @@ export class TaxAdjustmentEngine {
    */
   private static async getAIEnhancedSuggestions(
     mappedAccounts: MappedAccountData[],
-    ruleSuggestions: TaxAdjustmentSuggestion[]
+    ruleSuggestions: TaxAdjustmentSuggestion[],
+    existingAdjustments: ExistingAdjustment[] = []
   ): Promise<TaxAdjustmentSuggestion[]> {
     const prompt = `<task>
 Review and enhance tax adjustment suggestions for South African corporate income tax computation (IT14).
@@ -202,23 +235,50 @@ ${JSON.stringify(mappedAccounts, null, 2)}
 ${JSON.stringify(ruleSuggestions, null, 2)}
 </preliminary_suggestions>
 
+<existing_adjustments>
+${JSON.stringify(existingAdjustments, null, 2)}
+</existing_adjustments>
+
+<tax_adjustments_guide>
+${JSON.stringify(taxAdjustmentsGuide, null, 2)}
+</tax_adjustments_guide>
+
 <requirements>
 1. Review the preliminary suggestions and assess their validity
-2. Suggest additional adjustments that may have been missed
-3. Provide detailed reasoning with specific SARS section references
-4. Identify any potential issues or areas requiring manual review
-5. Ensure all amounts and calculations are accurate
+2. DO NOT suggest adjustments that are already in the existing_adjustments list - avoid duplicates
+3. Compare descriptions, types, and amounts to identify potential duplicates
+4. Reference the tax_adjustments_guide to identify additional adjustments that may have been missed
+5. Match account names/descriptions against the keywords in the guide
+6. Use the sarsSection and reasoning from the guide for consistency
+7. IMPORTANT: Consider year-on-year movements for balance sheet items
+   - For accounts with priorYearBalance data, calculate movements (current - prior)
+   - Provision increases = DEBIT adjustment (add back to taxable income)
+   - Provision decreases = CREDIT adjustment (reduce taxable income)
+   - Income received in advance increases = DEBIT adjustment
+   - Income received in advance decreases = CREDIT adjustment
+   - Prepayment increases = DEBIT adjustment
+   - Prepayment decreases = CREDIT adjustment
+8. Provide detailed reasoning with specific SARS section references
+9. Identify any potential issues or areas requiring manual review
+10. Ensure all amounts and calculations are accurate
 </requirements>
+
+<adjustment_types>
+- DEBIT: Amounts to add back to accounting profit (e.g., non-deductible expenses, depreciation add-back)
+- CREDIT: Amounts to deduct from accounting profit (e.g., exempt income, non-taxable receipts)
+- ALLOWANCE: Tax allowances that reduce taxable income (e.g., capital allowances s11-13, wear and tear)
+- RECOUPMENT: Previously deducted amounts that must be added back (e.g., s8(4) recoupments, disposal recoupments)
+</adjustment_types>
 
 <output_format>
 Return a JSON object with the following structure:
 {
   "suggestions": [
     {
-      "type": "DEBIT" | "CREDIT" | "ALLOWANCE",
+      "type": "DEBIT" | "CREDIT" | "ALLOWANCE" | "RECOUPMENT",
       "description": "Clear description",
       "amount": number,
-      "sarsSection": "Relevant section (e.g., s11(e), s23, s18A)",
+      "sarsSection": "Relevant section (e.g., s11(e), s23, s18A, s8(4))",
       "confidenceScore": 0.0 to 1.0,
       "reasoning": "Detailed explanation with tax law references",
       "calculationDetails": {
@@ -232,18 +292,33 @@ Return a JSON object with the following structure:
 </output_format>`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-5-nano-2025-08-07',
+      model: 'gpt-5-mini',
       messages: [
         {
           role: 'system',
           content: `You are an expert South African tax consultant specializing in corporate income tax and IT14 computations.
 
 <instructions>
-- Always reference specific sections of the Income Tax Act (e.g., s11, s23, s18A)
+- CRITICAL: Review the existing_adjustments list and DO NOT create duplicates
+- Check if an adjustment with similar description, type, and amount already exists before suggesting it
+- Reference the provided tax_adjustments_guide as your primary source for identifying adjustments
+- Match accounts against the keywords and criteria defined in the guide
+- Use the sarsSection and reasoning from the guide for consistency
+- IMPORTANT: Pay special attention to accounts with priorYearBalance data
+  * Calculate year-on-year movements for balance sheet items
+  * Provision/allowance increases require DEBIT adjustments (s23(e))
+  * Provision/allowance decreases require CREDIT adjustments
+  * Income received in advance movements affect taxable income timing (s24)
+  * Prepayment movements affect deduction timing (s23(d))
+- Always reference specific sections of the Income Tax Act (e.g., s11, s23, s18A, s8(4))
 - Apply current South African tax law accurately
-- Consider both deductions and adjustments required for tax computation
+- Distinguish between the four adjustment types:
+  * DEBIT: Add-backs to accounting profit (non-deductible items, depreciation, provision increases)
+  * CREDIT: Deductions from accounting profit (exempt income, provision decreases)
+  * ALLOWANCE: Tax allowances reducing taxable income (capital allowances s11-13)
+  * RECOUPMENT: Recovery of previously deducted amounts (s8(4) recoupments)
 - Provide clear, actionable reasoning for each adjustment
-- Flag any areas requiring additional professional judgment
+- Flag any areas requiring additional professional judgment (requiresManualReview in guide)
 - Return valid JSON in the specified format only
 </instructions>`,
         },
@@ -257,46 +332,6 @@ Return a JSON object with the following structure:
 
     const result = JSON.parse(completion.choices[0].message.content || '{}');
     return result.suggestions || ruleSuggestions;
-  }
-
-  /**
-   * Helper: Check if expense is non-deductible under s23
-   */
-  private static isNonDeductibleExpense(account: MappedAccountData): boolean {
-    const nonDeductibleKeywords = [
-      'fine', 'penalty', 'bribe', 'illegal', 
-      'capital expenditure', 'asset purchase',
-      'goodwill', 'trademark', 'patent cost'
-    ];
-
-    const accountNameLower = account.accountName.toLowerCase();
-    return nonDeductibleKeywords.some(keyword => accountNameLower.includes(keyword));
-  }
-
-  /**
-   * Helper: Check if expense is entertainment
-   */
-  private static isEntertainmentExpense(account: MappedAccountData): boolean {
-    const entertainmentKeywords = [
-      'entertainment', 'hospitality', 'golf day',
-      'yacht', 'hunting', 'fishing'
-    ];
-
-    const accountNameLower = account.accountName.toLowerCase();
-    return entertainmentKeywords.some(keyword => accountNameLower.includes(keyword));
-  }
-
-  /**
-   * Helper: Check if account represents capital allowances
-   */
-  private static isCapitalAllowanceAccount(account: MappedAccountData): boolean {
-    const allowanceKeywords = [
-      'tax depreciation', 'capital allowance', 
-      'wear and tear', 's11 allowance', 's12 allowance'
-    ];
-
-    const accountNameLower = account.accountName.toLowerCase();
-    return allowanceKeywords.some(keyword => accountNameLower.includes(keyword));
   }
 
   /**
@@ -352,7 +387,8 @@ Return a JSON object with the following structure:
    */
   static async analyzeSpecificAccount(
     account: MappedAccountData,
-    allAccounts: MappedAccountData[]
+    allAccounts: MappedAccountData[],
+    existingAdjustments: ExistingAdjustment[] = []
   ): Promise<TaxAdjustmentSuggestion[]> {
     const suggestions: TaxAdjustmentSuggestion[] = [];
     

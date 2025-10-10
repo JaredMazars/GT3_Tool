@@ -32,7 +32,7 @@ export async function DELETE(
     }
 
     // Delete project and all related data in a transaction to ensure atomicity
-    // Order: AdjustmentDocuments -> TaxAdjustments -> MappedAccounts -> Project
+    // Order: AdjustmentDocuments -> TaxAdjustments -> MappedAccounts -> AITaxReport -> Project
     try {
       await prisma.$transaction(async (tx) => {
         // 1. Delete adjustment documents first (they reference both Project and TaxAdjustment)
@@ -50,7 +50,12 @@ export async function DELETE(
           where: { projectId: projectId },
         });
 
-        // 4. Finally delete the project itself
+        // 4. Delete AI tax reports (they reference Project)
+        await tx.aITaxReport.deleteMany({
+          where: { projectId: projectId },
+        });
+
+        // 5. Finally delete the project itself
         await tx.project.delete({
           where: { id: projectId },
         });

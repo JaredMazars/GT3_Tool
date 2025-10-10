@@ -50,7 +50,8 @@ export class DocumentExtractor {
       await fs.writeFile(filePath, file);
     } else {
       // For File objects (browser)
-      const buffer = Buffer.from(await file.arrayBuffer());
+      const fileObj = file as File;
+      const buffer = Buffer.from(await fileObj.arrayBuffer());
       await fs.writeFile(filePath, buffer);
     }
 

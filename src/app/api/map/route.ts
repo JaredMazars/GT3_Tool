@@ -8,6 +8,46 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+export function determineSectionAndSubsection(sarsItem: string, balance: number): { section: string; subsection: string } {
+  // Search in Balance Sheet categories
+  for (const [subsection, items] of Object.entries(mappingGuide.balanceSheet)) {
+    if (items.some((item: { sarsItem: string }) => item.sarsItem === sarsItem)) {
+      // Special handling for long-term loans that can be assets or liabilities
+      if (sarsItem.includes('Long-term loans')) {
+        // Negative balance = liability, Positive balance = asset
+        if (balance < 0) {
+          return { section: 'Balance Sheet', subsection: 'nonCurrentLiabilities' };
+        } else {
+          return { section: 'Balance Sheet', subsection: 'nonCurrentAssets' };
+        }
+      }
+      return { section: 'Balance Sheet', subsection };
+    }
+  }
+
+  // Search in Income Statement categories
+  for (const [subsection, items] of Object.entries(mappingGuide.incomeStatement)) {
+    if (items.some((item: { sarsItem: string }) => item.sarsItem === sarsItem)) {
+      return { section: 'Income Statement', subsection };
+    }
+  }
+
+  // Fallback for unmapped items - map to appropriate "Other" category
+  console.warn(`Unmapped sarsItem: "${sarsItem}" with balance ${balance}. Mapping to "Other" category.`);
+  
+  // For Balance Sheet items, determine based on balance
+  if (balance > 0) {
+    // Positive balance = Asset
+    return { section: 'Balance Sheet', subsection: 'currentAssets' };
+  } else if (balance < 0) {
+    // Negative balance = Liability
+    return { section: 'Balance Sheet', subsection: 'currentLiabilities' };
+  } else {
+    // Zero balance - default to current assets
+    return { section: 'Balance Sheet', subsection: 'currentAssets' };
+  }
+}
+
 async function handleStreamingRequest(trialBalanceFile: File, projectId: number) {
   const encoder = new TextEncoder();
   
@@ -52,15 +92,13 @@ async function handleStreamingRequest(trialBalanceFile: File, projectId: number)
               content: `You are an expert accounting assistant specializing in mapping trial balance accounts to SARS tax categories.
 
 <task>
-Your task is to analyze trial balance data and map each account to the appropriate SARS category based on the provided mapping guide.
+Your task is to analyze trial balance data and map each account to the appropriate SARS category (sarsItem) based on the provided mapping guide.
 </task>
 
 <output_format>
 Return a valid JSON array where each object contains:
 - accountCode: string
 - accountName: string
-- section: string
-- subsection: string
 - balance: number (not string)
 - priorYearBalance: number (not string, defaults to 0 if missing)
 - sarsItem: string
@@ -70,10 +108,11 @@ Do not include any explanation, commentary, or text outside the JSON array.
 
 <instructions>
 - Match accounts to the most appropriate sarsItem based on account name and current year balance
+- CRITICAL: You MUST use ONLY the exact sarsItem values provided in the mapping guide - do not create new categories
+- If no perfect match exists, use the most appropriate "Other" category from the mapping guide
 - Preserve original account details exactly as provided, including both Balance and Prior Year Balance
 - Ensure all balance values are numbers, not strings
 - If Prior Year Balance column is missing, set priorYearBalance to 0
-- Follow the mapping guide structure precisely
 </instructions>`
             },
             {
@@ -81,7 +120,7 @@ Do not include any explanation, commentary, or text outside the JSON array.
               content: incomeStatementPrompt
             }
           ],
-          model: "gpt-5-nano-2025-08-07",
+          model: "gpt-5-mini",
           response_format: { type: "json_object" }
         });
         const incomeStatementMapped = parseLLMResponse(incomeStatementCompletion.choices[0].message.content);
@@ -97,16 +136,15 @@ Do not include any explanation, commentary, or text outside the JSON array.
               content: `You are an expert accounting assistant specializing in mapping trial balance accounts to SARS tax categories.
 
 <task>
-Your task is to analyze trial balance data and map each account to the appropriate SARS category based on the provided mapping guide.
+Your task is to analyze trial balance data and map each account to the appropriate SARS category (sarsItem) based on the provided mapping guide.
 </task>
 
 <output_format>
 Return a valid JSON array where each object contains:
 - accountCode: string
 - accountName: string
-- section: string
-- subsection: string
 - balance: number (not string)
+- priorYearBalance: number (not string, defaults to 0 if missing)
 - sarsItem: string
 
 Do not include any explanation, commentary, or text outside the JSON array.
@@ -114,9 +152,11 @@ Do not include any explanation, commentary, or text outside the JSON array.
 
 <instructions>
 - Match accounts to the most appropriate sarsItem based on account name and mapping guide
-- Preserve original account details exactly as provided
+- CRITICAL: You MUST use ONLY the exact sarsItem values provided in the mapping guide - do not create new categories
+- If no perfect match exists, use the most appropriate "Other" category from the mapping guide
+- Preserve original account details exactly as provided, including both Balance and Prior Year Balance
 - Ensure all balance values are numbers, not strings
-- Follow the mapping guide structure precisely
+- If Prior Year Balance column is missing, set priorYearBalance to 0
 </instructions>`
             },
             {
@@ -124,7 +164,7 @@ Do not include any explanation, commentary, or text outside the JSON array.
               content: balanceSheetPrompt
             }
           ],
-          model: "gpt-5-nano-2025-08-07",
+          model: "gpt-5-mini",
           response_format: { type: "json_object" }
         });
         const balanceSheetMapped = parseLLMResponse(balanceSheetCompletion.choices[0].message.content);
@@ -134,12 +174,22 @@ Do not include any explanation, commentary, or text outside the JSON array.
         sendProgress(4, 'in-progress', 'Saving mapped accounts to database...');
         const combinedResults = [...incomeStatementMapped, ...balanceSheetMapped];
         
+        // Add section and subsection programmatically
+        const enrichedResults = combinedResults.map(item => {
+          const { section, subsection } = determineSectionAndSubsection(item.sarsItem, item.balance);
+          return {
+            ...item,
+            section,
+            subsection
+          };
+        });
+        
         await prisma.$transaction(async (tx) => {
           await tx.mappedAccount.deleteMany({
             where: { projectId }
           });
 
-          for (const item of combinedResults) {
+          for (const item of enrichedResults) {
             await tx.mappedAccount.create({
               data: {
                 projectId,
@@ -157,7 +207,7 @@ Do not include any explanation, commentary, or text outside the JSON array.
         sendProgress(4, 'complete', 'All accounts saved successfully');
 
         // Send final result
-        const resultData = JSON.stringify({ type: 'complete', data: combinedResults });
+        const resultData = JSON.stringify({ type: 'complete', data: enrichedResults });
         controller.enqueue(encoder.encode(`data: ${resultData}\n\n`));
         
         controller.close();
@@ -263,15 +313,13 @@ export async function POST(request: NextRequest) {
             content: `You are an expert accounting assistant specializing in mapping trial balance accounts to SARS tax categories.
 
 <task>
-Your task is to analyze trial balance data and map each account to the appropriate SARS category based on the provided mapping guide.
+Your task is to analyze trial balance data and map each account to the appropriate SARS category (sarsItem) based on the provided mapping guide.
 </task>
 
 <output_format>
 Return a valid JSON array where each object contains:
 - accountCode: string
 - accountName: string
-- section: string
-- subsection: string
 - balance: number (not string)
 - priorYearBalance: number (not string, defaults to 0 if missing)
 - sarsItem: string
@@ -281,10 +329,11 @@ Do not include any explanation, commentary, or text outside the JSON array.
 
 <instructions>
 - Match accounts to the most appropriate sarsItem based on account name and current year balance
+- CRITICAL: You MUST use ONLY the exact sarsItem values provided in the mapping guide - do not create new categories
+- If no perfect match exists, use the most appropriate "Other" category from the mapping guide
 - Preserve original account details exactly as provided, including both Balance and Prior Year Balance
 - Ensure all balance values are numbers, not strings
 - If Prior Year Balance column is missing, set priorYearBalance to 0
-- Follow the mapping guide structure precisely
 </instructions>`
           },
           {
@@ -292,7 +341,7 @@ Do not include any explanation, commentary, or text outside the JSON array.
             content: incomeStatementPrompt
           }
         ],
-        model: "gpt-5-nano-2025-08-07",
+        model: "gpt-5-mini",
         response_format: { type: "json_object" }
       });
     } catch (apiError: any) {
@@ -321,16 +370,15 @@ Do not include any explanation, commentary, or text outside the JSON array.
           content: `You are an expert accounting assistant specializing in mapping trial balance accounts to SARS tax categories.
 
 <task>
-Your task is to analyze trial balance data and map each account to the appropriate SARS category based on the provided mapping guide.
+Your task is to analyze trial balance data and map each account to the appropriate SARS category (sarsItem) based on the provided mapping guide.
 </task>
 
 <output_format>
 Return a valid JSON array where each object contains:
 - accountCode: string
 - accountName: string
-- section: string
-- subsection: string
 - balance: number (not string)
+- priorYearBalance: number (not string, defaults to 0 if missing)
 - sarsItem: string
 
 Do not include any explanation, commentary, or text outside the JSON array.
@@ -338,9 +386,11 @@ Do not include any explanation, commentary, or text outside the JSON array.
 
 <instructions>
 - Match accounts to the most appropriate sarsItem based on account name and mapping guide
-- Preserve original account details exactly as provided
+- CRITICAL: You MUST use ONLY the exact sarsItem values provided in the mapping guide - do not create new categories
+- If no perfect match exists, use the most appropriate "Other" category from the mapping guide
+- Preserve original account details exactly as provided, including both Balance and Prior Year Balance
 - Ensure all balance values are numbers, not strings
-- Follow the mapping guide structure precisely
+- If Prior Year Balance column is missing, set priorYearBalance to 0
 </instructions>`
         },
         {
@@ -348,7 +398,7 @@ Do not include any explanation, commentary, or text outside the JSON array.
           content: balanceSheetPrompt
         }
       ],
-      model: "gpt-5-nano-2025-08-07",
+      model: "gpt-5-mini",
       response_format: { type: "json_object" }
     });
 
@@ -359,6 +409,16 @@ Do not include any explanation, commentary, or text outside the JSON array.
     // Combine results
     const combinedResults = [...incomeStatementMapped, ...balanceSheetMapped];
 
+    // Add section and subsection programmatically
+    const enrichedResults = combinedResults.map(item => {
+      const { section, subsection } = determineSectionAndSubsection(item.sarsItem, item.balance);
+      return {
+        ...item,
+        section,
+        subsection
+      };
+    });
+
     // Save mapped accounts to database
     await prisma.$transaction(async (tx) => {
       // Delete existing mapped accounts for this project
@@ -367,7 +427,7 @@ Do not include any explanation, commentary, or text outside the JSON array.
       });
 
       // Log the data we're about to insert
-      console.log('Data to insert:', combinedResults.map(item => ({
+      console.log('Data to insert:', enrichedResults.map(item => ({
         projectId,
         accountCode: item.accountCode.toString(),
         accountName: item.accountName,
@@ -379,7 +439,7 @@ Do not include any explanation, commentary, or text outside the JSON array.
       })));
 
       // Insert new mapped accounts one by one
-      for (const item of combinedResults) {
+      for (const item of enrichedResults) {
         await tx.mappedAccount.create({
           data: {
             projectId,
@@ -395,7 +455,7 @@ Do not include any explanation, commentary, or text outside the JSON array.
       }
     });
 
-    return NextResponse.json(combinedResults);
+    return NextResponse.json(enrichedResults);
 
   } catch (error) {
     console.error('Error processing files:', error);
@@ -412,7 +472,7 @@ function generatePrompt(trialBalanceData: Record<string, unknown>[], mappingGuid
   const mappingGuideStr = JSON.stringify(mappingGuide, null, 2);
 
   return `<task>
-Map the following ${section} trial balance accounts to their appropriate SARS categories based on the provided mapping guide.
+Map the following ${section} trial balance accounts to their appropriate SARS categories (sarsItem) based on the provided mapping guide.
 </task>
 
 <trial_balance_data>
@@ -424,19 +484,18 @@ ${mappingGuideStr}
 </mapping_guide>
 
 <rules>
-1. Each account must have: accountCode, accountName, section, subsection, balance (as number), priorYearBalance (as number), sarsItem
-2. Match accounts to the most appropriate sarsItem based on the account name and the current year balance (Balance column)
-3. Keep original account details exactly as provided, including both Balance and "Prior Year Balance" columns
-4. Balance and priorYearBalance must be numbers, not strings
-5. If "Prior Year Balance" is missing, set priorYearBalance to 0
-6. In the trial balance:
-   - Income statement: negative amounts = income, positive amounts = expenses
-   - Balance sheet: negative amounts = liabilities or equity, positive amounts = assets
-7. For long-term loans:
-   - If balance is negative: section = "Balance Sheet", subsection = "nonCurrentLiabilities"
-   - If balance is positive: section = "Balance Sheet", subsection = "nonCurrentAssets"
+1. Each account must have: accountCode, accountName, balance (as number), priorYearBalance (as number), sarsItem
+2. CRITICAL: Use ONLY the exact sarsItem values listed in the mapping guide - do not invent new categories
+3. Match accounts to the most appropriate sarsItem from the mapping guide based on the account name
+4. If no perfect match exists, use the appropriate "Other" category (e.g., "Other current assets", "Other expenses (excluding items listed above)", etc.)
+5. Keep original account details exactly as provided, including both Balance and "Prior Year Balance" columns
+6. Balance and priorYearBalance must be numbers, not strings
+7. If "Prior Year Balance" is missing, set priorYearBalance to 0
 8. For accumulated depreciation: set sarsItem to "Other non-current assets"
-9. For all other items: set subsection based on the mapping guide structure
+9. For income statement accounts, correctly distinguish between:
+   - Sales/purchases items (e.g., "Gross Sales", "Purchases", "Opening/Closing stock", "Credit notes", "Rebates")
+   - Income items (e.g., interest, dividends, foreign exchange gains, royalties)
+   - Expense items (e.g., salaries, rent, depreciation, operating costs)
 </rules>
 
 <output_format>
@@ -446,8 +505,6 @@ Return a JSON object with a single "accounts" key containing an array of mapped 
     {
       "accountCode": "1000",
       "accountName": "Cash at Bank",
-      "section": "${section}",
-      "subsection": "currentAssets",
       "balance": 50000.00,
       "priorYearBalance": 45000.00,
       "sarsItem": "Cash and cash equivalents"
@@ -474,8 +531,7 @@ function parseLLMResponse(llmResponse: string | null) {
 
     // Validate each object in the array
     accounts.forEach((item, index) => {
-      if (!item.accountCode || !item.accountName || !item.section || 
-          !item.subsection || typeof item.balance !== 'number' || !item.sarsItem) {
+      if (!item.accountCode || !item.accountName || typeof item.balance !== 'number' || !item.sarsItem) {
         throw new Error(`Invalid object structure at index ${index}: ${JSON.stringify(item)}`);
       }
       // Ensure priorYearBalance is a number, default to 0 if missing

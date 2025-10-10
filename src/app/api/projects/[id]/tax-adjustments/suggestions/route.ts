@@ -29,10 +29,29 @@ export async function POST(
       );
     }
 
+    // Fetch existing adjustments (excluding SUGGESTED to avoid checking against ones about to be replaced)
+    const existingAdjustments = await prisma.taxAdjustment.findMany({
+      where: {
+        projectId,
+        status: {
+          in: ['APPROVED', 'MODIFIED', 'REJECTED']
+        }
+      },
+      select: {
+        id: true,
+        type: true,
+        description: true,
+        amount: true,
+        sarsSection: true,
+        status: true,
+      }
+    });
+
     // Generate suggestions using the tax adjustment engine
     const suggestions = await TaxAdjustmentEngine.analyzeMappedAccounts(
       mappedAccounts,
-      useAI
+      useAI,
+      existingAdjustments
     );
 
     // Optionally save suggestions to database
