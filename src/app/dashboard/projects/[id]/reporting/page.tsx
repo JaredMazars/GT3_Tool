@@ -113,7 +113,8 @@ export default function ReportingPage({ params }: ReportingPageProps) {
       // Fetch tax calculation data
       const taxCalcResponse = await fetch(`/api/projects/${params.id}/tax-calculation`);
       if (taxCalcResponse.ok) {
-        const data = await taxCalcResponse.json();
+        const response = await taxCalcResponse.json();
+        const data = response.data || response;
         setAccountingProfit(data.netProfit || 0);
       }
 

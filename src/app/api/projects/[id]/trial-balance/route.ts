@@ -12,8 +12,13 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Ensure context and params exist
+    if (!context || !context.params) {
+      throw new Error('Invalid route context');
+    }
+    
     const params = await context.params;
-    const projectId = parseProjectId(params.id);
+    const projectId = parseProjectId(params?.id);
     
     // Verify project exists
     await getProjectOrThrow(projectId);

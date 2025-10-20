@@ -42,7 +42,8 @@ export default function AdjustmentsListPage({ params }: AdjustmentsListProps) {
 
       if (!response.ok) throw new Error('Failed to fetch adjustments');
 
-      const data = await response.json();
+      const result = await response.json();
+      const data = result.success ? result.data : result;
       setAdjustments(data);
       setError(null);
     } catch (err) {

@@ -155,7 +155,8 @@ export default function DashboardPage() {
         throw new Error('Failed to create project');
       }
 
-      const createdProject = await response.json();
+      const result = await response.json();
+      const createdProject = result.success ? result.data : result;
       
       setNewProject({ name: '', description: '' });
       setShowModal(false);
@@ -190,6 +191,8 @@ export default function DashboardPage() {
         throw new Error('Failed to update project');
       }
 
+      const result = await response.json();
+      
       setShowEditModal(false);
       await fetchProjects();
     } catch (error) {
@@ -213,6 +216,8 @@ export default function DashboardPage() {
         throw new Error('Failed to archive project');
       }
 
+      const result = await response.json();
+      
       setShowDeleteModal(false);
       await fetchProjects();
     } catch (error) {
@@ -240,6 +245,8 @@ export default function DashboardPage() {
         throw new Error('Failed to restore project');
       }
 
+      const result = await response.json();
+      
       setShowRestoreModal(false);
       await fetchProjects();
     } catch (error) {
@@ -263,6 +270,8 @@ export default function DashboardPage() {
         throw new Error('Failed to permanently delete project');
       }
 
+      const result = await response.json();
+      
       setShowPermanentDeleteModal(false);
       await fetchProjects();
     } catch (error) {

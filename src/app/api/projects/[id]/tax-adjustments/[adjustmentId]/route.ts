@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
+import { parseAdjustmentId, getTaxAdjustmentOrThrow, successResponse } from '@/lib/apiUtils';
+import { handleApiError, AppError, ErrorCodes } from '@/lib/errorHandler';
 
 /**
  * GET /api/projects/[id]/tax-adjustments/[adjustmentId]
@@ -12,28 +12,23 @@ export async function GET(
   context: { params: Promise<{ id: string; adjustmentId: string }> }
 ) {
   try {
+    // Ensure context and params exist
+    if (!context || !context.params) {
+      throw new Error('Invalid route context');
+    }
+    
     const params = await context.params;
-    const adjustmentId = parseInt(params.adjustmentId);
+    const adjustmentId = parseAdjustmentId(params?.adjustmentId);
 
-    const adjustment = await prisma.taxAdjustment.findUnique({
-      where: { id: adjustmentId },
-      include: {
-        documents: true,
-        project: {
-          select: {
-            id: true,
-            name: true,
-          },
+    const adjustment = await getTaxAdjustmentOrThrow(adjustmentId, {
+      documents: true,
+      project: {
+        select: {
+          id: true,
+          name: true,
         },
       },
     });
-
-    if (!adjustment) {
-      return NextResponse.json(
-        { error: 'Tax adjustment not found' },
-        { status: 404 }
-      );
-    }
 
     // Parse JSON fields
     const response = {
@@ -49,13 +44,9 @@ export async function GET(
         : null,
     };
 
-    return NextResponse.json(response);
+    return NextResponse.json(successResponse(response));
   } catch (error) {
-    console.error('Error fetching tax adjustment:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch tax adjustment' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Fetch Tax Adjustment');
   }
 }
 
@@ -68,8 +59,13 @@ export async function PATCH(
   context: { params: Promise<{ id: string; adjustmentId: string }> }
 ) {
   try {
+    // Ensure context and params exist
+    if (!context || !context.params) {
+      throw new Error('Invalid route context');
+    }
+    
     const params = await context.params;
-    const adjustmentId = parseInt(params.adjustmentId);
+    const adjustmentId = parseAdjustmentId(params?.adjustmentId);
     const body = await request.json();
 
     const {
@@ -126,13 +122,9 @@ export async function PATCH(
         : null,
     };
 
-    return NextResponse.json(response);
+    return NextResponse.json(successResponse(response));
   } catch (error) {
-    console.error('Error updating tax adjustment:', error);
-    return NextResponse.json(
-      { error: 'Failed to update tax adjustment' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Update Tax Adjustment');
   }
 }
 
@@ -145,8 +137,13 @@ export async function DELETE(
   context: { params: Promise<{ id: string; adjustmentId: string }> }
 ) {
   try {
+    // Ensure context and params exist
+    if (!context || !context.params) {
+      throw new Error('Invalid route context');
+    }
+    
     const params = await context.params;
-    const adjustmentId = parseInt(params.adjustmentId);
+    const adjustmentId = parseAdjustmentId(params?.adjustmentId);
 
     // Delete associated documents first
     await prisma.adjustmentDocument.deleteMany({
@@ -158,15 +155,11 @@ export async function DELETE(
       where: { id: adjustmentId },
     });
 
-    return NextResponse.json({ 
+    return NextResponse.json(successResponse({ 
       message: 'Tax adjustment deleted successfully' 
-    });
+    }));
   } catch (error) {
-    console.error('Error deleting tax adjustment:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete tax adjustment' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Delete Tax Adjustment');
   }
 }
 

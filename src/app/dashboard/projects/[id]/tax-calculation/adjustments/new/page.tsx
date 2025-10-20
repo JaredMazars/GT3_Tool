@@ -50,7 +50,8 @@ export default function NewAdjustmentPage({ params }: NewAdjustmentProps) {
       }
 
       const result = await response.json();
-      router.push(`/dashboard/projects/${params.id}/tax-calculation/adjustments/${result.id}`);
+      const createdAdjustment = result.success ? result.data : result;
+      router.push(`/dashboard/projects/${params.id}/tax-calculation/adjustments/${createdAdjustment.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create adjustment');
     } finally {

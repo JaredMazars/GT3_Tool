@@ -374,7 +374,8 @@ export default function MappingPage({ params }: { params: { id: string } }) {
         if (!response.ok) {
           throw new Error('Failed to fetch project details');
         }
-        const data = await response.json();
+        const result = await response.json();
+        const data = result.success ? result.data : result;
         setProjectName(data.name);
       } catch (err) {
         console.error('Error fetching project name:', err);

@@ -1,5 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { parseProjectId, successResponse, getProjectOrThrow } from '@/lib/apiUtils';
+import { handleApiError } from '@/lib/errorHandler';
 
 interface TaxAdjustment {
   type: string;
@@ -8,22 +10,36 @@ interface TaxAdjustment {
 }
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Ensure context and params exist
+    if (!context || !context.params) {
+      throw new Error('Invalid route context');
+    }
+    
     const params = await context.params;
+    const projectId = parseProjectId(params?.id);
+    
+    // Verify project exists
+    await getProjectOrThrow(projectId);
+    
     // Get the project's income statement data (only income statement accounts)
     const mappedAccounts = await prisma.mappedAccount.findMany({
       where: {
-        projectId: parseInt(params.id),
+        projectId,
         section: 'Income Statement', // Only include income statement accounts
       },
       select: {
         balance: true,
+        accountName: true,
+        sarsItem: true,
       },
     });
 
+    console.log(`Found ${mappedAccounts.length} income statement accounts for project ${projectId}`);
+    
     // Calculate net profit from income statement accounts only
     // Note: In accounting, income accounts are credits (negative), expenses are debits (positive)
     // A net credit balance (negative sum) represents profit, so we negate to show profit as positive
@@ -31,10 +47,12 @@ export async function GET(
       sum + account.balance, 0);
     const netProfit = -rawBalance; // Convert credit balance (profit) to positive amount
 
+    console.log(`Calculated net profit: ${netProfit} (raw balance: ${rawBalance})`);
+
     // Get tax adjustments for this project
     const taxAdjustments = await prisma.taxAdjustment.findMany({
       where: {
-        projectId: parseInt(params.id),
+        projectId,
       },
       select: {
         type: true,
@@ -59,18 +77,14 @@ export async function GET(
     // Calculate final profit/loss
     const calculatedProfit = netProfit + totalDebitAdjustments - Math.abs(totalCreditAdjustments) + totalAllowances;
 
-    return NextResponse.json({
+    return NextResponse.json(successResponse({
       netProfit,
       debitAdjustments: taxAdjustments.filter((adj: TaxAdjustment) => adj.type === 'DEBIT'),
       creditAdjustments: taxAdjustments.filter((adj: TaxAdjustment) => adj.type === 'CREDIT'),
       allowances: taxAdjustments.filter((adj: TaxAdjustment) => adj.type === 'ALLOWANCE'),
       calculatedProfit,
-    });
+    }));
   } catch (error) {
-    console.error('Error fetching tax calculation:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch tax calculation' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Fetch Tax Calculation');
   }
 } 

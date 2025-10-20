@@ -11,15 +11,24 @@ import { AppError, ErrorCodes } from './errorHandler';
  * @returns Validated numeric project ID
  * @throws AppError if ID is invalid
  */
-export function parseProjectId(id: string): number {
+export function parseProjectId(id: string | undefined): number {
+  if (!id || id === 'undefined' || id === 'null') {
+    throw new AppError(
+      400,
+      'Project ID is required',
+      ErrorCodes.VALIDATION_ERROR,
+      { providedId: id, type: typeof id }
+    );
+  }
+  
   const projectId = parseInt(id, 10);
   
   if (isNaN(projectId) || projectId <= 0) {
     throw new AppError(
       400,
-      'Invalid project ID format',
+      'Invalid project ID format - must be a positive integer',
       ErrorCodes.VALIDATION_ERROR,
-      { providedId: id }
+      { providedId: id, parsedValue: projectId }
     );
   }
   
@@ -32,15 +41,24 @@ export function parseProjectId(id: string): number {
  * @returns Validated numeric adjustment ID
  * @throws AppError if ID is invalid
  */
-export function parseAdjustmentId(id: string): number {
+export function parseAdjustmentId(id: string | undefined): number {
+  if (!id || id === 'undefined' || id === 'null') {
+    throw new AppError(
+      400,
+      'Adjustment ID is required',
+      ErrorCodes.VALIDATION_ERROR,
+      { providedId: id, type: typeof id }
+    );
+  }
+  
   const adjustmentId = parseInt(id, 10);
   
   if (isNaN(adjustmentId) || adjustmentId <= 0) {
     throw new AppError(
       400,
-      'Invalid adjustment ID format',
+      'Invalid adjustment ID format - must be a positive integer',
       ErrorCodes.VALIDATION_ERROR,
-      { providedId: id }
+      { providedId: id, parsedValue: adjustmentId }
     );
   }
   

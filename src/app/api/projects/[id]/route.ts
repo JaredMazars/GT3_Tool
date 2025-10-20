@@ -1,20 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { parseProjectId, successResponse } from '@/lib/apiUtils';
+import { handleApiError } from '@/lib/errorHandler';
 
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const params = await context.params;
-    const projectId = parseInt(params.id, 10);
-    
-    if (isNaN(projectId)) {
-      return NextResponse.json(
-        { error: 'Invalid project ID format' },
-        { status: 400 }
-      );
+    // Ensure context and params exist
+    if (!context || !context.params) {
+      throw new Error('Invalid route context');
     }
+    
+    const params = await context.params;
+    const projectId = parseProjectId(params?.id);
 
     const project = await prisma.project.findUnique({
       where: { id: projectId },
@@ -35,13 +35,9 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(project);
+    return NextResponse.json(successResponse(project));
   } catch (error) {
-    console.error('Error fetching project:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch project details' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Get Project');
   }
 }
 
@@ -50,15 +46,13 @@ export async function PUT(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const params = await context.params;
-    const projectId = parseInt(params.id, 10);
-    
-    if (isNaN(projectId)) {
-      return NextResponse.json(
-        { error: 'Invalid project ID format' },
-        { status: 400 }
-      );
+    // Ensure context and params exist
+    if (!context || !context.params) {
+      throw new Error('Invalid route context');
     }
+    
+    const params = await context.params;
+    const projectId = parseProjectId(params?.id);
 
     const body = await request.json();
     const { name, description } = body;
@@ -78,13 +72,9 @@ export async function PUT(
       },
     });
 
-    return NextResponse.json(project);
+    return NextResponse.json(successResponse(project));
   } catch (error) {
-    console.error('Error updating project:', error);
-    return NextResponse.json(
-      { error: 'Failed to update project' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Update Project');
   }
 }
 
@@ -93,15 +83,13 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const params = await context.params;
-    const projectId = parseInt(params.id, 10);
-    
-    if (isNaN(projectId)) {
-      return NextResponse.json(
-        { error: 'Invalid project ID format' },
-        { status: 400 }
-      );
+    // Ensure context and params exist
+    if (!context || !context.params) {
+      throw new Error('Invalid route context');
     }
+    
+    const params = await context.params;
+    const projectId = parseProjectId(params?.id);
 
     const body = await request.json();
     const { action } = body;
@@ -113,11 +101,10 @@ export async function PATCH(
         data: { archived: false },
       });
 
-      return NextResponse.json({ 
-        success: true, 
+      return NextResponse.json(successResponse({ 
         message: 'Project restored successfully',
         project 
-      });
+      }));
     }
 
     return NextResponse.json(
@@ -125,11 +112,7 @@ export async function PATCH(
       { status: 400 }
     );
   } catch (error) {
-    console.error('Error processing project action:', error);
-    return NextResponse.json(
-      { error: 'Failed to process project action' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Process Project Action');
   }
 }
 
@@ -138,15 +121,13 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const params = await context.params;
-    const projectId = parseInt(params.id, 10);
-    
-    if (isNaN(projectId)) {
-      return NextResponse.json(
-        { error: 'Invalid project ID format' },
-        { status: 400 }
-      );
+    // Ensure context and params exist
+    if (!context || !context.params) {
+      throw new Error('Invalid route context');
     }
+    
+    const params = await context.params;
+    const projectId = parseProjectId(params?.id);
 
     // Archive the project instead of deleting
     const project = await prisma.project.update({
@@ -154,16 +135,11 @@ export async function DELETE(
       data: { archived: true },
     });
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json(successResponse({ 
       message: 'Project archived successfully',
       project 
-    });
+    }));
   } catch (error) {
-    console.error('Error archiving project:', error);
-    return NextResponse.json(
-      { error: 'Failed to archive project' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Archive Project');
   }
 } 

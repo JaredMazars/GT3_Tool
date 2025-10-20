@@ -292,7 +292,8 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     try {
       const response = await fetch(`/api/projects/${params.id}`);
       if (!response.ok) throw new Error('Failed to fetch project');
-      const data = await response.json();
+      const result = await response.json();
+      const data = result.success ? result.data : result;
       setProject(data);
     } catch (error) {
       console.error('Error fetching project:', error);

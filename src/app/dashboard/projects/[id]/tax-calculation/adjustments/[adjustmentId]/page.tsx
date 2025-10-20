@@ -83,7 +83,8 @@ export default function AdjustmentDetailPage({ params }: AdjustmentDetailProps) 
 
       if (!response.ok) throw new Error('Failed to fetch adjustment');
 
-      const data = await response.json();
+      const result = await response.json();
+      const data = result.success ? result.data : result;
       setAdjustment(data);
       setError(null);
     } catch (err) {

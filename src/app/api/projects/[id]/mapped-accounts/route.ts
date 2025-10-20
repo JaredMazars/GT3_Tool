@@ -9,8 +9,13 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Ensure context and params exist
+    if (!context || !context.params) {
+      throw new Error('Invalid route context');
+    }
+    
     const params = await context.params;
-    const projectId = parseProjectId(params.id);
+    const projectId = parseProjectId(params?.id);
     
     const mappedAccounts = await prisma.mappedAccount.findMany({
       where: {
@@ -32,8 +37,13 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Ensure context and params exist
+    if (!context || !context.params) {
+      throw new Error('Invalid route context');
+    }
+    
     const params = await context.params;
-    const projectId = parseProjectId(params.id);
+    const projectId = parseProjectId(params?.id);
     const data = await request.json();
     
     // If sarsItem and balance are provided, determine section and subsection

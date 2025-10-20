@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { TaxAdjustmentEngine } from '@/lib/taxAdjustmentEngine';
-
-const prisma = new PrismaClient();
+import { parseProjectId, successResponse } from '@/lib/apiUtils';
+import { handleApiError } from '@/lib/errorHandler';
 
 /**
  * GET /api/projects/[id]/tax-adjustments
@@ -13,8 +13,13 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Ensure context and params exist
+    if (!context || !context.params) {
+      throw new Error('Invalid route context');
+    }
+    
     const params = await context.params;
-    const projectId = parseInt(params.id);
+    const projectId = parseProjectId(params?.id);
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
 
@@ -33,13 +38,9 @@ export async function GET(
       },
     });
 
-    return NextResponse.json(adjustments);
+    return NextResponse.json(successResponse(adjustments));
   } catch (error) {
-    console.error('Error fetching tax adjustments:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch tax adjustments' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Fetch Tax Adjustments');
   }
 }
 
@@ -52,8 +53,13 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Ensure context and params exist
+    if (!context || !context.params) {
+      throw new Error('Invalid route context');
+    }
+    
     const params = await context.params;
-    const projectId = parseInt(params.id);
+    const projectId = parseProjectId(params?.id);
     const body = await request.json();
 
     const {
@@ -100,13 +106,9 @@ export async function POST(
       },
     });
 
-    return NextResponse.json(adjustment, { status: 201 });
+    return NextResponse.json(successResponse(adjustment), { status: 201 });
   } catch (error) {
-    console.error('Error creating tax adjustment:', error);
-    return NextResponse.json(
-      { error: 'Failed to create tax adjustment' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Create Tax Adjustment');
   }
 }
 
@@ -119,8 +121,13 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Ensure context and params exist
+    if (!context || !context.params) {
+      throw new Error('Invalid route context');
+    }
+    
     const params = await context.params;
-    const projectId = parseInt(params.id);
+    const projectId = parseProjectId(params?.id);
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
 
@@ -133,16 +140,12 @@ export async function DELETE(
       where,
     });
 
-    return NextResponse.json({ 
+    return NextResponse.json(successResponse({ 
       message: `Deleted ${result.count} tax adjustments`,
       count: result.count 
-    });
+    }));
   } catch (error) {
-    console.error('Error deleting tax adjustments:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete tax adjustments' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Delete Tax Adjustments');
   }
 }
 
