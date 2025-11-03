@@ -71,21 +71,21 @@ export default function UserMenu({ user }: UserMenuProps) {
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+        className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-forvis-gray-100 transition-colors"
         aria-expanded={isOpen}
         aria-haspopup="true"
       >
-        <UserCircleIcon className="h-6 w-6 text-gray-600" />
-        <span className="text-sm font-medium text-gray-700 hidden sm:block">
+        <UserCircleIcon className="h-6 w-6 text-forvis-gray-600" />
+        <span className="text-sm font-medium text-forvis-gray-700 hidden sm:block">
           {user.name}
         </span>
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
-          <div className="px-4 py-3 border-b border-gray-100">
-            <p className="text-sm font-medium text-gray-900">{user.name}</p>
-            <p className="text-xs text-gray-500 mt-1 truncate">{user.email}</p>
+        <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-corporate-lg border border-forvis-gray-200 py-1 z-50">
+          <div className="px-4 py-3 border-b border-forvis-gray-200">
+            <p className="text-sm font-medium text-forvis-gray-900">{user.name}</p>
+            <p className="text-xs text-forvis-gray-600 mt-1 truncate">{user.email}</p>
           </div>
           
           <button

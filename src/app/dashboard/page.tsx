@@ -295,31 +295,31 @@ export default function DashboardPage() {
       return (
         <div
           key={project.id}
-          className={`group relative rounded-xl shadow-sm hover:shadow-md transition-all duration-200 border overflow-hidden ${
+          className={`group relative card-hover overflow-hidden ${
             project.archived 
-              ? 'bg-gray-50 border-gray-300 opacity-75' 
-              : 'bg-white border-gray-200'
+              ? 'opacity-75 bg-forvis-gray-50' 
+              : ''
           }`}
         >
           <Link href={`/dashboard/projects/${project.id}`} className="block p-6">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center space-x-3">
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                  project.archived ? 'bg-gray-200' : 'bg-blue-100'
+                  project.archived ? 'bg-forvis-gray-200' : 'bg-forvis-blue-100'
                 }`}>
                   <FolderIcon className={`h-5 w-5 ${
-                    project.archived ? 'text-gray-500' : 'text-blue-600'
+                    project.archived ? 'text-forvis-gray-500' : 'text-forvis-blue-500'
                   }`} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center space-x-2">
                     <h3 className={`text-lg font-semibold truncate ${
-                      project.archived ? 'text-gray-600' : 'text-gray-900'
+                      project.archived ? 'text-forvis-gray-600' : 'text-forvis-gray-900'
                     }`}>
                       {project.name}
                     </h3>
                     {project.archived && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-200 text-gray-700">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-forvis-gray-200 text-forvis-gray-700">
                         Archived
                       </span>
                     )}
@@ -329,19 +329,19 @@ export default function DashboardPage() {
             </div>
             
             {project.description && (
-              <p className="text-sm text-gray-600 mb-4 line-clamp-2 min-h-[40px]">
+              <p className="text-sm text-forvis-gray-600 mb-4 line-clamp-2 min-h-[40px]">
                 {project.description}
               </p>
             )}
             
-            <div className="flex items-center justify-between text-xs text-gray-500 pt-4 border-t border-gray-100">
+            <div className="flex items-center justify-between text-xs text-forvis-gray-500 pt-4 border-t border-forvis-gray-200">
               <div className="flex space-x-4">
                 <span>{project._count.mappings} accounts</span>
                 <span>{project._count.taxAdjustments} adjustments</span>
               </div>
             </div>
             
-            <div className="text-xs text-gray-400 mt-2">
+            <div className="text-xs text-forvis-gray-400 mt-2">
               Updated {formatDate(project.updatedAt)}
             </div>
           </Link>
@@ -354,16 +354,16 @@ export default function DashboardPage() {
                 e.stopPropagation();
                 setOpenDropdown(openDropdown === project.id ? null : project.id);
               }}
-              className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
+              className="p-1 rounded-lg hover:bg-forvis-gray-100 transition-colors"
             >
-              <EllipsisVerticalIcon className="h-5 w-5 text-gray-400" />
+              <EllipsisVerticalIcon className="h-5 w-5 text-forvis-gray-400" />
             </button>
             
             {openDropdown === project.id && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-corporate-lg border border-forvis-gray-200 py-1 z-10">
                 <button
                   onClick={(e) => handleEditClick(project, e)}
-                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
+                  className="w-full text-left px-4 py-2 text-sm text-forvis-gray-700 hover:bg-forvis-gray-50 flex items-center space-x-2"
                 >
                   <PencilIcon className="h-4 w-4" />
                   <span>Edit Project</span>
@@ -510,12 +510,12 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-forvis-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 space-y-4 sm:space-y-0">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Projects</h1>
-            <p className="mt-1 text-sm text-gray-500">
+            <h1 className="text-3xl font-bold text-forvis-gray-900">Projects</h1>
+            <p className="mt-1 text-sm text-forvis-gray-700">
               Manage your tax computation projects
             </p>
           </div>
@@ -523,7 +523,7 @@ export default function DashboardPage() {
           <button
             type="button"
             onClick={handleNewProjectClick}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+            className="btn-primary"
           >
             <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
             New Project
@@ -533,36 +533,36 @@ export default function DashboardPage() {
         {/* Search and view controls */}
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0 space-x-0 sm:space-x-4">
           <div className="relative flex-1 max-w-lg">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
             <input
               type="text"
               placeholder="Search projects..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              className="input-field pl-10"
             />
           </div>
           
           <div className="flex items-center space-x-2">
-            <label className="flex items-center space-x-2 text-sm text-gray-600">
+            <label className="flex items-center space-x-2 text-sm text-forvis-gray-700 font-medium">
               <input
                 type="checkbox"
                 checked={showArchivedProjects}
                 onChange={(e) => setShowArchivedProjects(e.target.checked)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="rounded border-forvis-gray-300 text-forvis-blue-500 focus:ring-forvis-blue-500"
               />
               <span>Show archived</span>
             </label>
             
-            <div className="border-l border-gray-300 h-6 mx-2"></div>
+            <div className="border-l border-forvis-gray-300 h-6 mx-2"></div>
             
-            <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
+            <div className="flex space-x-1 bg-forvis-gray-100 rounded-lg p-1">
               <button
                 onClick={() => setViewMode('grid')}
                 className={`p-2 rounded ${
                   viewMode === 'grid'
-                    ? 'bg-white shadow-sm text-gray-900'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-white shadow-corporate text-forvis-gray-900'
+                    : 'text-forvis-gray-600 hover:text-forvis-gray-900'
                 }`}
               >
                 <Squares2X2Icon className="h-5 w-5" />
@@ -571,8 +571,8 @@ export default function DashboardPage() {
                 onClick={() => setViewMode('list')}
                 className={`p-2 rounded ${
                   viewMode === 'list'
-                    ? 'bg-white shadow-sm text-gray-900'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-white shadow-corporate text-forvis-gray-900'
+                    : 'text-forvis-gray-600 hover:text-forvis-gray-900'
                 }`}
               >
                 <ListBulletIcon className="h-5 w-5" />
@@ -584,34 +584,34 @@ export default function DashboardPage() {
         {/* Create Project Modal */}
         {showModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-              <h2 className="text-2xl font-bold mb-6 text-gray-900">Create New Project</h2>
+            <div className="bg-white rounded-xl shadow-corporate-lg p-6 w-full max-w-md">
+              <h2 className="text-2xl font-bold mb-6 text-forvis-gray-900">Create New Project</h2>
               <form onSubmit={handleSubmit}>
                 <div className="mb-5">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
                     Project Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={newProject.name}
                     onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
-                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2 border"
+                    className="input-field"
                     required
                     placeholder="Enter project name"
                   />
                 </div>
                 <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
                     Description
                   </label>
                   <textarea
                     value={newProject.description}
                     onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
-                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2 border"
+                    className="input-field"
                     rows={3}
                     placeholder="Optional project description"
                   />
-                  <p className="mt-1 text-xs text-gray-500">
+                  <p className="mt-1 text-xs text-forvis-gray-500">
                     {newProject.description.length}/200 characters
                   </p>
                 </div>
@@ -619,14 +619,14 @@ export default function DashboardPage() {
                   <button
                     type="button"
                     onClick={() => setShowModal(false)}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors"
+                    className="btn-secondary"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isSubmitting ? 'Creating...' : 'Create Project'}
                   </button>
@@ -782,10 +782,10 @@ export default function DashboardPage() {
 
         {/* Projects list */}
         {filteredProjects.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-xl shadow-sm border border-gray-200">
-            <FolderIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No projects</h3>
-            <p className="mt-1 text-sm text-gray-500">
+          <div className="card text-center py-12">
+            <FolderIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No projects</h3>
+            <p className="mt-1 text-sm text-forvis-gray-600">
               {searchTerm ? 'No projects match your search.' : 'Get started by creating a new project.'}
             </p>
             {!searchTerm && (
@@ -793,7 +793,7 @@ export default function DashboardPage() {
                 <button
                   type="button"
                   onClick={handleNewProjectClick}
-                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700"
+                  className="btn-primary"
                 >
                   <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
                   New Project

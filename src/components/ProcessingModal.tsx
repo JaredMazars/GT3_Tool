@@ -26,13 +26,13 @@ export function ProcessingModal({ isOpen, stages }: ProcessingModalProps) {
         <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" />
         
         {/* Modal Content */}
-        <div className="relative transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all w-full max-w-2xl">
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+        <div className="relative transform overflow-hidden rounded-2xl bg-white shadow-corporate-lg transition-all w-full max-w-2xl">
+          <div className="bg-gradient-to-r from-forvis-blue-500 to-forvis-blue-600 px-6 py-4">
             <h3 className="text-xl font-semibold text-white">
               Processing Trial Balance
             </h3>
             {currentStage && (
-              <p className="mt-1 text-sm text-blue-100">
+              <p className="mt-1 text-sm text-white opacity-90">
                 {currentStage.description}
               </p>
             )}
@@ -146,16 +146,16 @@ export function ProcessingModal({ isOpen, stages }: ProcessingModalProps) {
             </div>
 
             {/* Progress Bar */}
-            <div className="mt-8 pt-6 border-t border-gray-200">
-              <div className="flex justify-between text-sm text-gray-600 mb-2">
+            <div className="mt-8 pt-6 border-t border-forvis-gray-200">
+              <div className="flex justify-between text-sm text-forvis-gray-600 mb-2">
                 <span>Overall Progress</span>
                 <span className="font-medium">
                   {stages.filter(s => s.status === 'complete').length} of {stages.length} steps complete
                 </span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+              <div className="w-full bg-forvis-gray-200 rounded-full h-2.5 overflow-hidden">
                 <div 
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 h-2.5 rounded-full transition-all duration-500 ease-out"
+                  className="bg-gradient-to-r from-forvis-blue-500 to-forvis-blue-600 h-2.5 rounded-full transition-all duration-500 ease-out"
                   style={{ 
                     width: `${(stages.filter(s => s.status === 'complete').length / stages.length) * 100}%` 
                   }}

@@ -1,6 +1,8 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { getCurrentUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
+import DashboardNav from '@/components/DashboardNav';
 import UserMenu from '@/components/UserMenu';
 
 export default async function DashboardLayout({
@@ -16,22 +18,31 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen">
-      {/* Navigation Header */}
-      <header className="bg-white border-b border-gray-200">
+    <div className="bg-forvis-gray-50 min-h-screen">
+      {/* Top Header with Logo and User Menu */}
+      <header className="bg-white border-b border-forvis-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <Link href="/dashboard" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">M</span>
-              </div>
-              <span className="text-xl font-bold text-gray-900">Mapper</span>
+            <Link href="/dashboard" className="flex items-center">
+              <Image 
+                src="/Mazars-logo-intranet.jpg" 
+                alt="Forvis Mazars" 
+                width={160} 
+                height={45}
+                className="h-10 w-auto"
+              />
             </Link>
             
-            <UserMenu user={user} />
+            <div className="flex items-center space-x-4">
+              <span className="text-sm text-forvis-gray-700 font-medium">Welcome</span>
+              <UserMenu user={user} />
+            </div>
           </div>
         </div>
       </header>
+
+      {/* Navigation Bar */}
+      <DashboardNav />
       
       {/* Main Content */}
       <main className="py-6">

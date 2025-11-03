@@ -205,30 +205,30 @@ export function FileUpload({ onFileUpload, projectId }: FileUploadProps) {
       
       <div className="space-y-8">
         {/* Format Guide Section */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl shadow-lg p-6 border border-blue-100">
+        <div className="bg-gradient-to-r from-forvis-blue-50 to-forvis-blue-100 rounded-xl shadow-corporate-lg p-6 border border-forvis-blue-200">
         <div className="flex items-start space-x-4">
-          <DocumentTextIcon className="h-8 w-8 text-blue-500 flex-shrink-0" />
+          <DocumentTextIcon className="h-8 w-8 text-forvis-blue-500 flex-shrink-0" />
           <div className="space-y-4 w-full">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Excel File Format Requirements</h3>
-              <p className="text-sm text-gray-600 mb-4">
+              <h3 className="text-lg font-semibold text-forvis-gray-900 mb-3">Excel File Format Requirements</h3>
+              <p className="text-sm text-forvis-gray-600 mb-4">
                 Please ensure your Trial Balance Excel file includes these columns:
               </p>
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 {['Account Code', 'Account', 'Section', 'Balance', 'Prior Year Balance'].map((column) => (
-                  <div key={column} className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
-                    <p className="text-sm font-medium text-blue-700">{column}</p>
+                  <div key={column} className="bg-white rounded-lg p-3 shadow-corporate border border-forvis-blue-100">
+                    <p className="text-sm font-medium text-forvis-blue-600">{column}</p>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="bg-white rounded-lg p-4 border border-blue-100">
+            <div className="bg-white rounded-lg p-4 border border-forvis-blue-200">
               <div className="flex items-center space-x-2 mb-2">
-                <InformationCircleIcon className="h-5 w-5 text-blue-500" />
-                <h4 className="text-sm font-medium text-gray-900">Important Notes:</h4>
+                <InformationCircleIcon className="h-5 w-5 text-forvis-blue-500" />
+                <h4 className="text-sm font-medium text-forvis-gray-900">Important Notes:</h4>
               </div>
-              <ul className="list-disc list-inside text-sm text-gray-600 space-y-1 ml-1">
+              <ul className="list-disc list-inside text-sm text-forvis-gray-600 space-y-1 ml-1">
                 <li>The <span className="font-medium">Section</span> column must contain either &quot;Balance Sheet&quot; or &quot;Income Statement&quot;</li>
                 <li>The <span className="font-medium">Balance</span> column should contain current year numerical values</li>
                 <li>The <span className="font-medium">Prior Year Balance</span> column should contain prior year numerical values (use 0 if no prior year data)</li>
@@ -274,14 +274,14 @@ export function FileUpload({ onFileUpload, projectId }: FileUploadProps) {
       </div>
 
       {/* Upload Form Section */}
-      <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+      <div className="card-hover p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
             <label className="block">
-              <span className="text-sm font-medium text-gray-700">Upload Trial Balance</span>
+              <span className="text-sm font-medium text-forvis-gray-700">Upload Trial Balance</span>
               <div
-                className={`mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-blue-400 transition-colors duration-200
-                  ${isDragging ? 'border-blue-500 bg-blue-50' : ''}
+                className={`mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-forvis-gray-300 border-dashed rounded-lg hover:border-forvis-blue-400 transition-colors duration-200
+                  ${isDragging ? 'border-forvis-blue-500 bg-forvis-blue-50' : ''}
                   ${selectedFile ? 'border-green-500 bg-green-50' : ''}`}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
@@ -344,12 +344,12 @@ export function FileUpload({ onFileUpload, projectId }: FileUploadProps) {
           <button
             type="submit"
             disabled={isLoading || !selectedFile}
-            className={`w-full flex justify-center items-center px-4 py-3 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white
+            className={`w-full flex justify-center items-center px-4 py-3 border border-transparent rounded-lg shadow-corporate text-sm font-medium text-white
               ${isLoading || !selectedFile
-                ? 'bg-blue-400 cursor-not-allowed' 
-                : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
+                ? 'bg-forvis-blue-300 cursor-not-allowed' 
+                : 'bg-forvis-blue-500 hover:bg-forvis-blue-600'
               } 
-              focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200`}
+              focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-forvis-blue-500 transition-all duration-200`}
           >
             {isLoading ? (
               <>

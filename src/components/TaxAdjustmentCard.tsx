@@ -76,7 +76,7 @@ export default function TaxAdjustmentCard({
   };
 
   return (
-    <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+    <div className="card-hover p-4">
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
@@ -87,29 +87,29 @@ export default function TaxAdjustmentCard({
               {adjustment.status}
             </span>
             {adjustment.confidenceScore && (
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-forvis-gray-500">
                 {Math.round(adjustment.confidenceScore * 100)}% confidence
               </span>
             )}
           </div>
 
-          <h3 className="text-base font-medium text-gray-900 mb-1">
+          <h3 className="text-base font-medium text-forvis-gray-900 mb-1">
             {adjustment.description}
           </h3>
 
-          <div className="flex items-center gap-4 text-sm text-gray-600">
+          <div className="flex items-center gap-4 text-sm text-forvis-gray-600">
             <span className="font-mono font-semibold text-lg">
               {formatAmount(Math.abs(adjustment.amount))}
             </span>
             {adjustment.sarsSection && (
-              <span className="text-xs bg-gray-100 px-2 py-1 rounded">
+              <span className="text-xs bg-forvis-gray-100 px-2 py-1 rounded">
                 {adjustment.sarsSection}
               </span>
             )}
           </div>
 
           {isExpanded && adjustment.notes && (
-            <div className="mt-3 p-3 bg-gray-50 rounded text-sm text-gray-700">
+            <div className="mt-3 p-3 bg-forvis-gray-50 rounded text-sm text-forvis-gray-700">
               <p className="font-semibold mb-1">Reasoning:</p>
               <p>{adjustment.notes}</p>
             </div>
@@ -118,7 +118,7 @@ export default function TaxAdjustmentCard({
 
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="ml-4 text-gray-400 hover:text-gray-600"
+          className="ml-4 text-forvis-gray-400 hover:text-forvis-gray-600"
         >
           <svg
             className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
@@ -137,11 +137,11 @@ export default function TaxAdjustmentCard({
       </div>
 
       {showActions && adjustment.status === 'SUGGESTED' && (
-        <div className="mt-4 flex gap-2 pt-3 border-t border-gray-200">
+        <div className="mt-4 flex gap-2 pt-3 border-t border-forvis-gray-200">
           {onApprove && (
             <button
               onClick={() => onApprove(adjustment.id)}
-              className="px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+              className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-corporate hover:shadow-corporate-md"
             >
               Approve
             </button>
@@ -149,7 +149,7 @@ export default function TaxAdjustmentCard({
           {onModify && (
             <button
               onClick={() => onModify(adjustment.id)}
-              className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              className="px-3 py-1.5 text-sm bg-forvis-blue-500 text-white rounded-lg hover:bg-forvis-blue-600 transition-colors shadow-corporate hover:shadow-corporate-md"
             >
               Modify
             </button>
@@ -157,7 +157,7 @@ export default function TaxAdjustmentCard({
           {onReject && (
             <button
               onClick={() => onReject(adjustment.id)}
-              className="px-3 py-1.5 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+              className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-corporate hover:shadow-corporate-md"
             >
               Reject
             </button>
@@ -166,10 +166,10 @@ export default function TaxAdjustmentCard({
       )}
 
       {showActions && (adjustment.status === 'APPROVED' || adjustment.status === 'MODIFIED') && onDelete && (
-        <div className="mt-4 flex gap-2 pt-3 border-t border-gray-200">
+        <div className="mt-4 flex gap-2 pt-3 border-t border-forvis-gray-200">
           <button
             onClick={() => onDelete(adjustment.id)}
-            className="px-3 py-1.5 text-sm bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
+            className="px-3 py-1.5 text-sm bg-forvis-gray-600 text-white rounded-lg hover:bg-forvis-gray-700 transition-colors shadow-corporate hover:shadow-corporate-md"
           >
             Remove
           </button>
