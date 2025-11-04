@@ -121,18 +121,18 @@ export default function TaxCalculationReport({
           </div>
 
           {/* Debit Adjustments */}
-          <div className="border border-orange-200 rounded-lg overflow-hidden">
-            <div className="bg-gradient-to-r from-orange-100 to-orange-200 p-3">
-              <h2 className="text-sm font-bold text-orange-900 flex items-center gap-2">
+          <div className="border-2 rounded-lg overflow-hidden shadow-sm" style={{ borderColor: '#25488A' }}>
+            <div className="p-3" style={{ background: 'linear-gradient(to right, #5B93D7, #2E5AAC)' }}>
+              <h2 className="text-sm font-bold text-white flex items-center gap-2">
                 Add: Debit Adjustments
-                <span className="text-xs font-normal text-orange-700">(increase taxable income)</span>
+                <span className="text-xs font-normal opacity-90">(increase taxable income)</span>
               </h2>
             </div>
             <div className="bg-white p-3">
               {renderAdjustmentList(debitAdjustments)}
-              <div className="grid grid-cols-12 font-bold border-t border-orange-300 bg-orange-50 rounded-b-lg pt-2 mt-2">
-                <div className="col-span-9 px-2 text-xs text-orange-900">Total Debit Adjustments</div>
-                <div className="col-span-3 text-right px-3 text-xs tabular-nums text-orange-900">
+              <div className="grid grid-cols-12 font-bold border-t-2 rounded-b-lg pt-2 mt-2" style={{ background: 'linear-gradient(to right, #5B93D7, #2E5AAC)', borderColor: '#25488A' }}>
+                <div className="col-span-9 px-2 text-xs text-white">Total Debit Adjustments</div>
+                <div className="col-span-3 text-right px-3 text-xs tabular-nums text-white">
                   {formatAmount(totalDebits)}
                 </div>
               </div>
@@ -140,18 +140,18 @@ export default function TaxCalculationReport({
           </div>
 
           {/* Credit Adjustments */}
-          <div className="border border-green-200 rounded-lg overflow-hidden">
-            <div className="bg-gradient-to-r from-green-100 to-green-200 p-3">
-              <h2 className="text-sm font-bold text-green-900 flex items-center gap-2">
+          <div className="border-2 rounded-lg overflow-hidden shadow-sm" style={{ borderColor: '#25488A' }}>
+            <div className="p-3" style={{ background: 'linear-gradient(to right, #5B93D7, #2E5AAC)' }}>
+              <h2 className="text-sm font-bold text-white flex items-center gap-2">
                 Less: Credit Adjustments
-                <span className="text-xs font-normal text-green-700">(decrease taxable income)</span>
+                <span className="text-xs font-normal opacity-90">(decrease taxable income)</span>
               </h2>
             </div>
             <div className="bg-white p-3">
               {renderAdjustmentList(creditAdjustments)}
-              <div className="grid grid-cols-12 font-bold border-t border-green-300 bg-green-50 rounded-b-lg pt-2 mt-2">
-                <div className="col-span-9 px-2 text-xs text-green-900">Total Credit Adjustments</div>
-                <div className="col-span-3 text-right px-3 text-xs tabular-nums text-red-600">
+              <div className="grid grid-cols-12 font-bold border-t-2 rounded-b-lg pt-2 mt-2" style={{ background: 'linear-gradient(to right, #5B93D7, #2E5AAC)', borderColor: '#25488A' }}>
+                <div className="col-span-9 px-2 text-xs text-white">Total Credit Adjustments</div>
+                <div className="col-span-3 text-right px-3 text-xs tabular-nums text-red-200">
                   ({formatAmount(totalCredits)})
                 </div>
               </div>
@@ -159,18 +159,18 @@ export default function TaxCalculationReport({
           </div>
 
           {/* Allowances */}
-          <div className="border border-blue-200 rounded-lg overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-100 to-blue-200 p-3">
-              <h2 className="text-sm font-bold text-blue-900 flex items-center gap-2">
+          <div className="border-2 rounded-lg overflow-hidden shadow-sm" style={{ borderColor: '#25488A' }}>
+            <div className="p-3" style={{ background: 'linear-gradient(to right, #5B93D7, #2E5AAC)' }}>
+              <h2 className="text-sm font-bold text-white flex items-center gap-2">
                 Less: Allowances
-                <span className="text-xs font-normal text-blue-700">(tax deductions allowed by law)</span>
+                <span className="text-xs font-normal opacity-90">(tax deductions allowed by law)</span>
               </h2>
             </div>
             <div className="bg-white p-3">
               {renderAdjustmentList(allowanceAdjustments)}
-              <div className="grid grid-cols-12 font-bold border-t border-blue-300 bg-blue-50 rounded-b-lg pt-2 mt-2">
-                <div className="col-span-9 px-2 text-xs text-blue-900">Total Allowances</div>
-                <div className="col-span-3 text-right px-3 text-xs tabular-nums text-red-600">
+              <div className="grid grid-cols-12 font-bold border-t-2 rounded-b-lg pt-2 mt-2" style={{ background: 'linear-gradient(to right, #5B93D7, #2E5AAC)', borderColor: '#25488A' }}>
+                <div className="col-span-9 px-2 text-xs text-white">Total Allowances</div>
+                <div className="col-span-3 text-right px-3 text-xs tabular-nums text-red-200">
                   ({formatAmount(totalAllowances)})
                 </div>
               </div>
@@ -178,18 +178,18 @@ export default function TaxCalculationReport({
           </div>
 
           {/* Recoupments */}
-          <div className="border border-purple-200 rounded-lg overflow-hidden">
-            <div className="bg-gradient-to-r from-purple-100 to-purple-200 p-3">
-              <h2 className="text-sm font-bold text-purple-900 flex items-center gap-2">
+          <div className="border-2 rounded-lg overflow-hidden shadow-sm" style={{ borderColor: '#25488A' }}>
+            <div className="p-3" style={{ background: 'linear-gradient(to right, #5B93D7, #2E5AAC)' }}>
+              <h2 className="text-sm font-bold text-white flex items-center gap-2">
                 Add: Recoupments
-                <span className="text-xs font-normal text-purple-700">(previously deducted amounts recovered)</span>
+                <span className="text-xs font-normal opacity-90">(previously deducted amounts recovered)</span>
               </h2>
             </div>
             <div className="bg-white p-3">
               {renderAdjustmentList(recoupmentAdjustments)}
-              <div className="grid grid-cols-12 font-bold border-t border-purple-300 bg-purple-50 rounded-b-lg pt-2 mt-2">
-                <div className="col-span-9 px-2 text-xs text-purple-900">Total Recoupments</div>
-                <div className="col-span-3 text-right px-3 text-xs tabular-nums text-purple-900">
+              <div className="grid grid-cols-12 font-bold border-t-2 rounded-b-lg pt-2 mt-2" style={{ background: 'linear-gradient(to right, #5B93D7, #2E5AAC)', borderColor: '#25488A' }}>
+                <div className="col-span-9 px-2 text-xs text-white">Total Recoupments</div>
+                <div className="col-span-3 text-right px-3 text-xs tabular-nums text-white">
                   {formatAmount(totalRecoupments)}
                 </div>
               </div>
@@ -197,17 +197,18 @@ export default function TaxCalculationReport({
           </div>
 
           {/* Taxable Income */}
-          <div className={`border rounded-lg p-3 ${
+          <div className={`border-2 rounded-lg p-3 shadow-md ${
             taxableIncome >= 0 
-              ? 'bg-gradient-to-r from-purple-100 to-purple-200 border-purple-300' 
-              : 'bg-gradient-to-r from-gray-100 to-gray-200 border-gray-300'
-          }`}>
+              ? '' 
+              : 'bg-forvis-gray-100 border-forvis-gray-300'
+          }`}
+          style={taxableIncome >= 0 ? { background: 'linear-gradient(to right, #2E5AAC, #25488A)', borderColor: '#1C3667' } : undefined}>
             <div className="grid grid-cols-12 font-bold text-base">
-              <div className={`col-span-9 ${taxableIncome >= 0 ? 'text-purple-900' : 'text-gray-900'}`}>
+              <div className={`col-span-9 ${taxableIncome >= 0 ? 'text-white' : 'text-forvis-gray-900'}`}>
                 TAXABLE INCOME
               </div>
               <div className={`col-span-3 text-right px-3 text-sm tabular-nums ${
-                taxableIncome < 0 ? 'text-red-600' : (taxableIncome >= 0 ? 'text-purple-900' : 'text-gray-900')
+                taxableIncome < 0 ? 'text-red-600' : (taxableIncome >= 0 ? 'text-white' : 'text-forvis-gray-900')
               }`}>
                 {taxableIncome < 0 
                   ? `(${formatAmount(Math.abs(taxableIncome))})` 
@@ -217,15 +218,15 @@ export default function TaxCalculationReport({
           </div>
 
           {/* Tax Liability */}
-          <div className="bg-gradient-to-r from-green-100 to-green-200 border border-green-300 rounded-lg p-3 shadow-lg">
+          <div className="border-2 rounded-lg p-3 shadow-lg" style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)', borderColor: '#1C3667' }}>
             <div className="space-y-2">
-              <div className="grid grid-cols-12 text-xs font-medium text-green-800">
+              <div className="grid grid-cols-12 text-xs font-medium text-white">
                 <div className="col-span-9">Tax Rate (Corporate)</div>
                 <div className="col-span-3 text-right px-3">27%</div>
               </div>
-              <div className="grid grid-cols-12 font-bold text-base border-t border-green-400 pt-2">
-                <div className="col-span-9 text-green-900">TAX LIABILITY</div>
-                <div className="col-span-3 text-right px-3 text-sm tabular-nums text-green-900">
+              <div className="grid grid-cols-12 font-bold text-base border-t border-white border-opacity-30 pt-2">
+                <div className="col-span-9 text-white">TAX LIABILITY</div>
+                <div className="col-span-3 text-right px-3 text-sm tabular-nums text-white">
                   {formatAmount(taxLiability)}
                 </div>
               </div>

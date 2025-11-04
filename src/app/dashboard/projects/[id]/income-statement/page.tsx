@@ -5,6 +5,7 @@ import { mappingGuide } from '@/lib/mappingGuide';
 import { formatAmount } from '@/lib/formatters';
 import { MappedData } from '@/types';
 import { ChevronRightIcon } from '@heroicons/react/24/outline';
+import { useMappedAccounts, useUpdateMappedAccount } from '@/hooks/useProjectData';
 
 
 interface SarsItem {
@@ -138,65 +139,42 @@ function CustomSelect({ value, onChange, disabled }: CustomSelectProps) {
 
 
 export default function IncomeStatementPage({ params }: { params: { id: string } }) {
-  const [mappedData, setMappedData] = useState<MappedData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: allMappedData = [], isLoading, error: queryError } = useMappedAccounts(params.id);
+  const updateMappedAccount = useUpdateMappedAccount(params.id);
+  
   const [error, setError] = useState<string | null>(null);
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
   const [updatingAccount, setUpdatingAccount] = useState<number | null>(null);
 
-  // Fetch mapped data
-  useEffect(() => {
-    async function fetchMappedData() {
-      try {
-        const response = await fetch(`/api/projects/${params.id}/mapped-accounts`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch mapped data');
-        }
-        const result = await response.json();
-        // Handle new response format with success wrapper
-        const data = result.success ? result.data : result;
-        // Filter only Income Statement items
-        const incomeStatementItems = Array.isArray(data) ? data.filter((item: { sarsItem: string }) => {
-          return Object.values(mappingGuide.incomeStatement).flat().some(
-            guide => guide.sarsItem === item.sarsItem
-          );
-        }) : [];
-        setMappedData(incomeStatementItems);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
-      } finally {
-        setIsLoading(false);
-      }
-    }
+  // Filter only Income Statement items
+  const mappedData = allMappedData.filter((item: { sarsItem: string }) => {
+    return Object.values(mappingGuide.incomeStatement).flat().some(
+      guide => guide.sarsItem === item.sarsItem
+    );
+  });
 
-    fetchMappedData();
-  }, [params.id]);
+  // Set error from query if it exists
+  useEffect(() => {
+    if (queryError) {
+      setError(queryError instanceof Error ? queryError.message : 'An error occurred');
+    }
+  }, [queryError]);
 
   const handleMappingUpdate = async (accountId: number, newSarsItem: string) => {
     try {
       setUpdatingAccount(accountId);
-      const response = await fetch(`/api/projects/${params.id}/mapped-accounts/${accountId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ sarsItem: newSarsItem }),
+      
+      // Find the current item to get section and subsection
+      const currentItem = allMappedData.find(item => item.id === accountId);
+      const section = currentItem?.section || 'Income Statement';
+      const subsection = currentItem?.subsection || '';
+      
+      await updateMappedAccount.mutateAsync({
+        accountId,
+        sarsItem: newSarsItem,
+        section,
+        subsection,
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to update mapping');
-      }
-
-      // Refresh data
-      const result = await fetch(`/api/projects/${params.id}/mapped-accounts`).then(res => res.json());
-      const updatedData = result.success ? result.data : result;
-      // Filter only Income Statement items
-      const incomeStatementItems = Array.isArray(updatedData) ? updatedData.filter((item: { sarsItem: string }) => {
-        return Object.values(mappingGuide.incomeStatement).flat().some(
-          guide => guide.sarsItem === item.sarsItem
-        );
-      }) : [];
-      setMappedData(incomeStatementItems);
     } catch (error) {
       console.error('Error updating mapping:', error);
       throw error;

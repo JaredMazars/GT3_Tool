@@ -31,7 +31,14 @@ export async function GET(
     const adjustments = await prisma.taxAdjustment.findMany({
       where,
       include: {
-        documents: true,
+        documents: {
+          select: {
+            id: true,
+            fileName: true,
+            fileType: true,
+            extractionStatus: true,
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',

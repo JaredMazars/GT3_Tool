@@ -5,6 +5,7 @@ import { mappingGuide } from '@/lib/mappingGuide';
 import { formatAmount } from '@/lib/formatters';
 import { MappedData } from '@/types';
 import { ChevronRightIcon } from '@heroicons/react/24/outline';
+import { useMappedAccounts, useUpdateMappedAccount } from '@/hooks/useProjectData';
 
 interface BalanceSheetSectionProps {
   title: string;
@@ -294,8 +295,9 @@ function BalanceSheetSection({ title, items, onMappingUpdate }: BalanceSheetSect
 }
 
 export default function BalanceSheetPage({ params }: { params: { id: string } }) {
-  const [mappedData, setMappedData] = useState<MappedData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: mappedData = [], isLoading, error: queryError } = useMappedAccounts(params.id);
+  const updateMappedAccount = useUpdateMappedAccount(params.id);
+  
   const [error, setError] = useState<string | null>(null);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     assets: true,
@@ -303,47 +305,26 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
     liabilities: true
   });
 
-
-  // Fetch mapped data
+  // Set error from query if it exists
   useEffect(() => {
-    async function fetchMappedData() {
-      try {
-        const response = await fetch(`/api/projects/${params.id}/mapped-accounts`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch mapped data');
-        }
-        const result = await response.json();
-        // Handle new response format with success wrapper
-        const data = result.success ? result.data : result;
-        setMappedData(Array.isArray(data) ? data : []);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
-      } finally {
-        setIsLoading(false);
-      }
+    if (queryError) {
+      setError(queryError instanceof Error ? queryError.message : 'An error occurred');
     }
-
-    fetchMappedData();
-  }, [params.id]);
+  }, [queryError]);
 
   const handleMappingUpdate = async (accountId: number, newSarsItem: string) => {
     try {
-      const response = await fetch(`/api/projects/${params.id}/mapped-accounts/${accountId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ sarsItem: newSarsItem }),
+      // Find the current item to get section and subsection
+      const currentItem = mappedData.find(item => item.id === accountId);
+      const section = currentItem?.section || 'Balance Sheet';
+      const subsection = currentItem?.subsection || '';
+      
+      await updateMappedAccount.mutateAsync({
+        accountId,
+        sarsItem: newSarsItem,
+        section,
+        subsection,
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to update mapping');
-      }
-
-      // Refresh data
-      const result = await fetch(`/api/projects/${params.id}/mapped-accounts`).then(res => res.json());
-      const updatedData = result.success ? result.data : result;
-      setMappedData(Array.isArray(updatedData) ? updatedData : []);
     } catch (error) {
       console.error('Error updating mapping:', error);
       throw error;
@@ -449,6 +430,14 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
 
     return balanceSheet;
   }
+
+  // Helper function to calculate section totals
+  const calculateSubsectionTotal = (items: Record<string, { amount: number; priorYearAmount: number }>) => {
+    const entries = Object.entries(items);
+    const currentTotal = entries.reduce((sum, [, data]) => sum + data.amount, 0);
+    const priorTotal = entries.reduce((sum, [, data]) => sum + data.priorYearAmount, 0);
+    return { currentTotal, priorTotal };
+  };
 
   // Calculate totals
   const calculateTotals = () => {
@@ -727,8 +716,12 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
               }}
             >
               <div className="col-span-7 font-bold px-4 py-2 text-sm text-white">Capital and Reserves</div>
-              <div className="col-span-2"></div>
-              <div className="col-span-3"></div>
+              <div className="col-span-2 text-right px-3 py-2 text-sm tabular-nums font-bold text-white">
+                {formatAmount(calculateSubsectionTotal(balanceSheet.capitalAndReservesCreditBalances).currentTotal)}
+              </div>
+              <div className="col-span-3 text-right px-3 py-2 text-sm tabular-nums font-bold text-white">
+                {formatAmount(calculateSubsectionTotal(balanceSheet.capitalAndReservesCreditBalances).priorTotal)}
+              </div>
             </div>
 
             <BalanceSheetSection
@@ -785,8 +778,12 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
               }}
             >
               <div className="col-span-7 font-bold px-4 py-2 text-sm text-white">Debit balances</div>
-              <div className="col-span-2"></div>
-              <div className="col-span-3"></div>
+              <div className="col-span-2 text-right px-3 py-2 text-sm tabular-nums font-bold text-white">
+                {formatAmount(calculateSubsectionTotal(balanceSheet.capitalAndReservesDebitBalances).currentTotal)}
+              </div>
+              <div className="col-span-3 text-right px-3 py-2 text-sm tabular-nums font-bold text-white">
+                {formatAmount(calculateSubsectionTotal(balanceSheet.capitalAndReservesDebitBalances).priorTotal)}
+              </div>
             </div>
 
             <BalanceSheetSection
@@ -838,8 +835,12 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
               }}
             >
               <div className="col-span-7 font-bold px-4 py-2 text-sm text-white">Non-Current Liabilities</div>
-              <div className="col-span-2"></div>
-              <div className="col-span-3"></div>
+              <div className="col-span-2 text-right px-3 py-2 text-sm tabular-nums font-bold text-white">
+                {formatAmount(calculateSubsectionTotal(balanceSheet.nonCurrentLiabilities).currentTotal)}
+              </div>
+              <div className="col-span-3 text-right px-3 py-2 text-sm tabular-nums font-bold text-white">
+                {formatAmount(calculateSubsectionTotal(balanceSheet.nonCurrentLiabilities).priorTotal)}
+              </div>
             </div>
 
             <BalanceSheetSection
@@ -865,8 +866,12 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
               }}
             >
               <div className="col-span-7 font-bold px-4 py-2 text-sm text-white">Current Liabilities</div>
-              <div className="col-span-2"></div>
-              <div className="col-span-3"></div>
+              <div className="col-span-2 text-right px-3 py-2 text-sm tabular-nums font-bold text-white">
+                {formatAmount(calculateSubsectionTotal(balanceSheet.currentLiabilities).currentTotal)}
+              </div>
+              <div className="col-span-3 text-right px-3 py-2 text-sm tabular-nums font-bold text-white">
+                {formatAmount(calculateSubsectionTotal(balanceSheet.currentLiabilities).priorTotal)}
+              </div>
             </div>
 
             <BalanceSheetSection

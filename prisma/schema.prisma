@@ -35,6 +35,10 @@ model MappedAccount {
   updatedAt   DateTime @updatedAt
   projectId   Int
   project     Project  @relation(fields: [projectId], references: [id])
+
+  @@index([projectId])
+  @@index([projectId, accountCode])
+  @@index([projectId, section])
 }
 
 model TaxAdjustment {
@@ -87,11 +91,11 @@ model AdjustmentDocument {
 model AITaxReport {
   id                Int      @id @default(autoincrement())
   projectId         Int
-  executiveSummary  String
-  risks             String   // JSON array of risk objects
-  taxSensitiveItems String   // JSON array of tax-sensitive item objects
-  detailedFindings  String
-  recommendations   String   // JSON array of recommendation strings
+  executiveSummary  String   @db.NVarChar(Max)
+  risks             String   @db.NVarChar(Max) // JSON array of risk objects
+  taxSensitiveItems String   @db.NVarChar(Max) // JSON array of tax-sensitive item objects
+  detailedFindings  String   @db.NVarChar(Max)
+  recommendations   String   @db.NVarChar(Max) // JSON array of recommendation strings
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   project           Project  @relation(fields: [projectId], references: [id])

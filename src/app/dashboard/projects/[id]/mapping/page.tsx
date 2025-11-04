@@ -6,6 +6,8 @@ import { MappedData } from '@/types';
 import * as XLSX from 'xlsx';
 import { mappingGuide } from '@/lib/mappingGuide';
 import { ProcessingModal } from '@/components/ProcessingModal';
+import { useMappedAccounts, useUpdateMappedAccount, useProject } from '@/hooks/useProjectData';
+import { useQueryClient } from '@tanstack/react-query';
 
 // Add type at the top of the file after imports
 interface SarsItem {
@@ -405,10 +407,12 @@ function MappingTable({ mappedData, onMappingUpdate }: MappingTableProps) {
 }
 
 export default function MappingPage({ params }: { params: { id: string } }) {
-  const [mappedData, setMappedData] = useState<MappedData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { data: project } = useProject(params.id);
+  const { data: mappedData = [], isLoading, error: queryError } = useMappedAccounts(params.id);
+  const updateMappedAccount = useUpdateMappedAccount(params.id);
+  
   const [error, setError] = useState<string | null>(null);
-  const [projectName, setProjectName] = useState<string>('');
   const [isUploading, setIsUploading] = useState(false);
   const [processingStages, setProcessingStages] = useState<ProcessingStage[]>([
     {
@@ -436,6 +440,8 @@ export default function MappingPage({ params }: { params: { id: string } }) {
       status: 'pending'
     }
   ]);
+  
+  const projectName = project?.name || '';
 
   // Reset stages to initial state when not uploading
   useEffect(() => {
@@ -468,71 +474,22 @@ export default function MappingPage({ params }: { params: { id: string } }) {
       ]);
     }
   }, [isUploading]);
-
-  // Fetch project name
+  
+  // Set error from query if it exists
   useEffect(() => {
-    async function fetchProjectName() {
-      try {
-        const response = await fetch(`/api/projects/${params.id}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch project details');
-        }
-        const result = await response.json();
-        const data = result.success ? result.data : result;
-        setProjectName(data.name);
-      } catch (err) {
-        console.error('Error fetching project name:', err);
-        setProjectName('Project'); // Fallback name
-      }
+    if (queryError) {
+      setError(queryError instanceof Error ? queryError.message : 'An error occurred');
     }
-
-    fetchProjectName();
-  }, [params.id]);
-
-  // Fetch mapped data
-  useEffect(() => {
-    async function fetchMappedData() {
-      try {
-        const response = await fetch(`/api/projects/${params.id}/mapped-accounts`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch mapped data');
-        }
-        const result = await response.json();
-        // Handle new response format with success wrapper
-        const data = result.success ? result.data : result;
-        setMappedData(Array.isArray(data) ? data : []);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    fetchMappedData();
-  }, [params.id]);
+  }, [queryError]);
 
   const handleMappingUpdate = async (accountId: number, newSarsItem: string, newSection: string, newSubsection: string) => {
     try {
-      const response = await fetch(`/api/projects/${params.id}/mapped-accounts/${accountId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          sarsItem: newSarsItem,
-          section: newSection,
-          subsection: newSubsection
-        }),
+      await updateMappedAccount.mutateAsync({
+        accountId,
+        sarsItem: newSarsItem,
+        section: newSection,
+        subsection: newSubsection,
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to update mapping');
-      }
-
-      // Refresh data
-      const result = await fetch(`/api/projects/${params.id}/mapped-accounts`).then(res => res.json());
-      const updatedData = result.success ? result.data : result;
-      setMappedData(Array.isArray(updatedData) ? updatedData : []);
     } catch (error) {
       console.error('Error updating mapping:', error);
       throw error;
@@ -604,10 +561,8 @@ export default function MappingPage({ params }: { params: { id: string } }) {
         // Brief delay to show completion before closing modal
         await new Promise(resolve => setTimeout(resolve, 800));
 
-        // Refresh data
-        const result = await fetch(`/api/projects/${params.id}/mapped-accounts`).then(res => res.json());
-        const updatedData = result.success ? result.data : result;
-        setMappedData(Array.isArray(updatedData) ? updatedData : []);
+        // Invalidate mapped accounts query to refetch data
+        queryClient.invalidateQueries({ queryKey: ['projects', params.id, 'mapped-accounts'] });
       } else {
         throw new Error('No data received from server');
       }

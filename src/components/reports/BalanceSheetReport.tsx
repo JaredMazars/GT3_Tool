@@ -161,6 +161,13 @@ export default function BalanceSheetReport({ mappedData, printMode = false }: Ba
     ));
   };
 
+  const calculateSectionTotal = (items: [string, { amount: number; priorYearAmount: number }][]) => {
+    const filteredItems = items.filter(([, data]) => data.amount !== 0 || data.priorYearAmount !== 0);
+    const currentTotal = filteredItems.reduce((sum, [, data]) => sum + data.amount, 0);
+    const priorTotal = filteredItems.reduce((sum, [, data]) => sum + data.priorYearAmount, 0);
+    return { currentTotal, priorTotal };
+  };
+
   return (
     <div className={printMode ? 'print-section' : ''}>
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
@@ -175,58 +182,70 @@ export default function BalanceSheetReport({ mappedData, printMode = false }: Ba
           </div>
 
           {/* ASSETS */}
-          <div className="border border-blue-200 rounded-lg overflow-hidden">
-            <div className="grid grid-cols-12 bg-gradient-to-r from-blue-100 to-blue-200 py-2">
-              <div className="col-span-7 px-3 font-bold text-base text-blue-900">ASSETS</div>
-              <div className="col-span-2 text-right px-3 tabular-nums font-bold text-sm text-blue-900">
+          <div className="border-2 rounded-lg overflow-hidden shadow-sm" style={{ borderColor: '#25488A' }}>
+            <div className="grid grid-cols-12 py-2" style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}>
+              <div className="col-span-7 px-3 font-bold text-base text-white">ASSETS</div>
+              <div className="col-span-2 text-right px-3 tabular-nums font-bold text-sm text-white">
                 {formatAmount(totalAssets)}
               </div>
-              <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-blue-700">
+              <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-white">
                 {formatAmount(totalPriorYearAssets)}
               </div>
             </div>
             <div className="bg-white">
-              <div className="grid grid-cols-12 border-b border-gray-300 bg-gray-50">
-                <div className="col-span-7 font-bold px-3 py-1.5 text-sm text-gray-900">Non Current Assets</div>
-                <div className="col-span-2"></div>
-                <div className="col-span-3"></div>
+              <div className="grid grid-cols-12 border-b-2 shadow-sm" style={{ background: 'linear-gradient(to right, #5B93D7, #2E5AAC)', borderColor: '#25488A' }}>
+                <div className="col-span-7 font-bold px-3 py-1.5 text-sm text-white">Non Current Assets</div>
+                <div className="col-span-2 text-right px-3 py-1.5 text-sm tabular-nums font-bold text-white">
+                  {formatAmount(calculateSectionTotal(Object.entries(balanceSheet.nonCurrentAssets)).currentTotal)}
+                </div>
+                <div className="col-span-3 text-right px-3 py-1.5 text-sm tabular-nums font-bold text-white">
+                  {formatAmount(calculateSectionTotal(Object.entries(balanceSheet.nonCurrentAssets)).priorTotal)}
+                </div>
               </div>
               {renderSection(Object.entries(balanceSheet.nonCurrentAssets))}
               
-              <div className="grid grid-cols-12 border-b border-gray-300 bg-gray-50">
-                <div className="col-span-7 font-bold px-3 py-1.5 text-sm text-gray-900">Current Assets</div>
-                <div className="col-span-2"></div>
-                <div className="col-span-3"></div>
+              <div className="grid grid-cols-12 border-b-2 shadow-sm border-t-2" style={{ background: 'linear-gradient(to right, #5B93D7, #2E5AAC)', borderColor: '#25488A' }}>
+                <div className="col-span-7 font-bold px-3 py-1.5 text-sm text-white">Current Assets</div>
+                <div className="col-span-2 text-right px-3 py-1.5 text-sm tabular-nums font-bold text-white">
+                  {formatAmount(calculateSectionTotal(Object.entries(balanceSheet.currentAssets)).currentTotal)}
+                </div>
+                <div className="col-span-3 text-right px-3 py-1.5 text-sm tabular-nums font-bold text-white">
+                  {formatAmount(calculateSectionTotal(Object.entries(balanceSheet.currentAssets)).priorTotal)}
+                </div>
               </div>
               {renderSection(Object.entries(balanceSheet.currentAssets))}
             </div>
           </div>
 
           {/* EQUITY & RESERVES */}
-          <div className="border border-purple-200 rounded-lg overflow-hidden">
-            <div className="grid grid-cols-12 bg-gradient-to-r from-purple-100 to-purple-200 py-2">
-              <div className="col-span-7 px-3 font-bold text-base text-purple-900">EQUITY & RESERVES</div>
-              <div className="col-span-2 text-right px-3 tabular-nums font-bold text-sm text-purple-900">
+          <div className="border-2 rounded-lg overflow-hidden shadow-sm" style={{ borderColor: '#25488A' }}>
+            <div className="grid grid-cols-12 py-2" style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}>
+              <div className="col-span-7 px-3 font-bold text-base text-white">EQUITY & RESERVES</div>
+              <div className="col-span-2 text-right px-3 tabular-nums font-bold text-sm text-white">
                 {formatAmount(totalCapitalAndReserves)}
               </div>
-              <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-purple-700">
+              <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-white">
                 {formatAmount(totalPriorYearCapitalAndReserves)}
               </div>
             </div>
             <div className="bg-white">
-              <div className="grid grid-cols-12 bg-purple-50 border-b border-purple-200">
-                <div className="col-span-7 font-semibold px-4 py-2 text-purple-900">Capital and Reserves</div>
-                <div className="col-span-2"></div>
-                <div className="col-span-3"></div>
+              <div className="grid grid-cols-12 border-b-2 shadow-sm" style={{ background: 'linear-gradient(to right, #5B93D7, #2E5AAC)', borderColor: '#25488A' }}>
+                <div className="col-span-7 font-semibold px-4 py-2 text-white">Capital and Reserves</div>
+                <div className="col-span-2 text-right px-3 py-1.5 text-sm tabular-nums font-bold text-white">
+                  {formatAmount(calculateSectionTotal(Object.entries(balanceSheet.capitalAndReservesCreditBalances)).currentTotal)}
+                </div>
+                <div className="col-span-3 text-right px-3 py-1.5 text-sm tabular-nums font-bold text-white">
+                  {formatAmount(calculateSectionTotal(Object.entries(balanceSheet.capitalAndReservesCreditBalances)).priorTotal)}
+                </div>
               </div>
               {renderSection(Object.entries(balanceSheet.capitalAndReservesCreditBalances))}
               
-              <div className="grid grid-cols-12 bg-purple-50">
-                <div className="col-span-7 pl-8 py-2 text-sm font-medium text-purple-900">Current Year Net Profit</div>
-                <div className="col-span-2 text-right px-4 tabular-nums text-sm font-medium text-purple-900">
+              <div className="grid grid-cols-12 bg-forvis-blue-50">
+                <div className="col-span-7 pl-8 py-2 text-sm font-medium text-forvis-blue-900">Current Year Net Profit</div>
+                <div className="col-span-2 text-right px-4 tabular-nums text-sm font-medium text-forvis-blue-900">
                   {formatAmount(-currentYearProfitLoss)}
                 </div>
-                <div className="col-span-3 text-right px-4 tabular-nums text-sm font-medium text-purple-700">
+                <div className="col-span-3 text-right px-4 tabular-nums text-sm font-medium text-forvis-blue-700">
                   {formatAmount(-priorYearProfitLoss)}
                 </div>
               </div>
@@ -234,58 +253,70 @@ export default function BalanceSheetReport({ mappedData, printMode = false }: Ba
           </div>
 
           {/* LIABILITIES */}
-          <div className="border border-orange-200 rounded-lg overflow-hidden">
-            <div className="grid grid-cols-12 bg-gradient-to-r from-orange-100 to-orange-200 py-2">
-              <div className="col-span-7 px-3 font-bold text-base text-orange-900">LIABILITIES</div>
-              <div className="col-span-2 text-right px-3 tabular-nums font-bold text-sm text-orange-900">
+          <div className="border-2 rounded-lg overflow-hidden shadow-sm" style={{ borderColor: '#25488A' }}>
+            <div className="grid grid-cols-12 py-2" style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}>
+              <div className="col-span-7 px-3 font-bold text-base text-white">LIABILITIES</div>
+              <div className="col-span-2 text-right px-3 tabular-nums font-bold text-sm text-white">
                 {formatAmount(totalLiabilities)}
               </div>
-              <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-orange-700">
+              <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-white">
                 {formatAmount(totalPriorYearLiabilities)}
               </div>
             </div>
             <div className="bg-white">
-              <div className="grid grid-cols-12 bg-orange-50 border-b border-orange-200">
-                <div className="col-span-7 font-semibold px-4 py-2 text-orange-900">Non-Current Liabilities</div>
-                <div className="col-span-2"></div>
-                <div className="col-span-3"></div>
+              <div className="grid grid-cols-12 border-b-2 shadow-sm" style={{ background: 'linear-gradient(to right, #5B93D7, #2E5AAC)', borderColor: '#25488A' }}>
+                <div className="col-span-7 font-semibold px-4 py-2 text-white">Non-Current Liabilities</div>
+                <div className="col-span-2 text-right px-3 py-1.5 text-sm tabular-nums font-bold text-white">
+                  {formatAmount(calculateSectionTotal(Object.entries(balanceSheet.nonCurrentLiabilities)).currentTotal)}
+                </div>
+                <div className="col-span-3 text-right px-3 py-1.5 text-sm tabular-nums font-bold text-white">
+                  {formatAmount(calculateSectionTotal(Object.entries(balanceSheet.nonCurrentLiabilities)).priorTotal)}
+                </div>
               </div>
               {renderSection(Object.entries(balanceSheet.nonCurrentLiabilities))}
               
-              <div className="grid grid-cols-12 bg-orange-50 border-t border-orange-300">
-                <div className="col-span-7 font-semibold px-4 py-2 text-orange-900">Current Liabilities</div>
-                <div className="col-span-2"></div>
-                <div className="col-span-3"></div>
+              <div className="grid grid-cols-12 border-b-2 shadow-sm border-t-2" style={{ background: 'linear-gradient(to right, #5B93D7, #2E5AAC)', borderColor: '#25488A' }}>
+                <div className="col-span-7 font-semibold px-4 py-2 text-white">Current Liabilities</div>
+                <div className="col-span-2 text-right px-3 py-1.5 text-sm tabular-nums font-bold text-white">
+                  {formatAmount(calculateSectionTotal(Object.entries(balanceSheet.currentLiabilities)).currentTotal)}
+                </div>
+                <div className="col-span-3 text-right px-3 py-1.5 text-sm tabular-nums font-bold text-white">
+                  {formatAmount(calculateSectionTotal(Object.entries(balanceSheet.currentLiabilities)).priorTotal)}
+                </div>
               </div>
               {renderSection(Object.entries(balanceSheet.currentLiabilities))}
             </div>
           </div>
 
           {/* TOTAL */}
-          <div className="grid grid-cols-12 border border-gray-400 bg-gray-100 rounded-lg py-2">
-            <div className="col-span-7 font-bold px-3 text-sm text-gray-900">TOTAL EQUITY & LIABILITIES</div>
-            <div className="col-span-2 text-right px-3 tabular-nums font-bold text-sm text-gray-900">
+          <div className="grid grid-cols-12 border-2 rounded-lg py-2 shadow-md" style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)', borderColor: '#1C3667' }}>
+            <div className="col-span-7 font-bold px-3 text-sm text-white">TOTAL EQUITY & LIABILITIES</div>
+            <div className="col-span-2 text-right px-3 tabular-nums font-bold text-sm text-white">
               {formatAmount(totalReservesAndLiabilities)}
             </div>
-            <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-gray-600">
+            <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-white">
               {formatAmount(totalPriorYearReservesAndLiabilities)}
             </div>
           </div>
 
           {/* Balance Check */}
-          <div className={`grid grid-cols-12 rounded-lg py-1.5 ${
+          <div className={`grid grid-cols-12 rounded-lg py-1.5 border ${
             Math.abs(totalAssets - totalReservesAndLiabilities) < 0.01 
-              ? 'bg-green-50 border border-green-300' 
-              : 'bg-red-50 border border-red-300'
+              ? 'bg-forvis-gray-50 border-forvis-gray-300' 
+              : 'bg-red-50 border-red-300'
           }`}>
-            <div className="col-span-7 pl-3 text-xs font-medium text-gray-700">Balance Check (should be zero)</div>
+            <div className={`col-span-7 pl-3 text-xs font-medium ${
+              Math.abs(totalAssets - totalReservesAndLiabilities) < 0.01 
+                ? 'text-forvis-gray-700' 
+                : 'text-red-800'
+            }`}>Balance Check (should be zero)</div>
             <div className={`col-span-2 text-right px-3 text-xs tabular-nums font-semibold ${
-              Math.abs(totalAssets - totalReservesAndLiabilities) < 0.01 ? 'text-green-700' : 'text-red-700'
+              Math.abs(totalAssets - totalReservesAndLiabilities) < 0.01 ? 'text-forvis-gray-700' : 'text-red-700'
             }`}>
               {formatAmount(totalAssets - totalReservesAndLiabilities)}
             </div>
             <div className={`col-span-3 text-right px-3 text-xs tabular-nums font-semibold ${
-              Math.abs(totalPriorYearAssets - totalPriorYearReservesAndLiabilities) < 0.01 ? 'text-green-700' : 'text-red-700'
+              Math.abs(totalPriorYearAssets - totalPriorYearReservesAndLiabilities) < 0.01 ? 'text-forvis-gray-600' : 'text-red-700'
             }`}>
               {formatAmount(totalPriorYearAssets - totalPriorYearReservesAndLiabilities)}
             </div>

@@ -45,94 +45,106 @@ export default function TrialBalanceReport({ accounts }: TrialBalanceReportProps
     <div className="space-y-4">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-          <p className="text-sm text-blue-600 font-medium mb-1">Current Year Debits</p>
-          <p className="text-2xl font-bold text-blue-900">{formatCurrency(currentYearDebits)}</p>
+        <div 
+          className="rounded-lg p-4 shadow-corporate text-white"
+          style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #25488A)' }}
+        >
+          <p className="text-sm font-semibold mb-1 opacity-90">Current Year Debits</p>
+          <p className="text-2xl font-bold">{formatCurrency(currentYearDebits)}</p>
         </div>
-        <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-          <p className="text-sm text-green-600 font-medium mb-1">Current Year Credits</p>
-          <p className="text-2xl font-bold text-green-900">{formatCurrency(currentYearCredits)}</p>
+        <div 
+          className="rounded-lg p-4 shadow-corporate text-white"
+          style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
+        >
+          <p className="text-sm font-semibold mb-1 opacity-90">Current Year Credits</p>
+          <p className="text-2xl font-bold">{formatCurrency(currentYearCredits)}</p>
         </div>
-        <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
-          <p className="text-sm text-purple-600 font-medium mb-1">Prior Year Debits</p>
-          <p className="text-2xl font-bold text-purple-900">{formatCurrency(priorYearDebits)}</p>
+        <div 
+          className="rounded-lg p-4 shadow-corporate text-white"
+          style={{ background: 'linear-gradient(to bottom right, #25488A, #1C3667)' }}
+        >
+          <p className="text-sm font-semibold mb-1 opacity-90">Prior Year Debits</p>
+          <p className="text-2xl font-bold">{formatCurrency(priorYearDebits)}</p>
         </div>
-        <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
-          <p className="text-sm text-amber-600 font-medium mb-1">Prior Year Credits</p>
-          <p className="text-2xl font-bold text-amber-900">{formatCurrency(priorYearCredits)}</p>
+        <div 
+          className="rounded-lg p-4 shadow-corporate text-white"
+          style={{ background: 'linear-gradient(to bottom right, #1C3667, #132445)' }}
+        >
+          <p className="text-sm font-semibold mb-1 opacity-90">Prior Year Credits</p>
+          <p className="text-2xl font-bold">{formatCurrency(priorYearCredits)}</p>
         </div>
       </div>
 
       {/* Trial Balance Table */}
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <div className="overflow-x-auto border-2 rounded-lg shadow-corporate" style={{ borderColor: '#25488A' }}>
+        <table className="min-w-full divide-y divide-forvis-gray-200">
+          <thead style={{ background: 'linear-gradient(to right, #5B93D7, #2E5AAC)' }}>
             <tr>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
                 Account Code
               </th>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
                 Account Name
               </th>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
                 SARS Item
               </th>
-              <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" className="px-4 py-3 text-right text-xs font-semibold text-white uppercase tracking-wider">
                 Current Year Debit
               </th>
-              <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" className="px-4 py-3 text-right text-xs font-semibold text-white uppercase tracking-wider">
                 Current Year Credit
               </th>
-              <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" className="px-4 py-3 text-right text-xs font-semibold text-white uppercase tracking-wider">
                 Prior Year Debit
               </th>
-              <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" className="px-4 py-3 text-right text-xs font-semibold text-white uppercase tracking-wider">
                 Prior Year Credit
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white divide-y divide-forvis-gray-100">
             {accounts.map((account) => (
-              <tr key={account.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+              <tr key={account.id} className="hover:bg-forvis-blue-50 transition-colors">
+                <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-forvis-gray-900">
                   {account.accountCode}
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-900">
+                <td className="px-4 py-3 text-sm text-forvis-gray-900">
                   {account.accountName}
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-600">
+                <td className="px-4 py-3 text-sm text-forvis-gray-700">
                   {account.sarsItem}
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
+                <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-forvis-gray-900 tabular-nums">
                   {account.balance > 0 ? formatCurrency(account.balance) : '-'}
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
+                <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-forvis-gray-900 tabular-nums">
                   {account.balance < 0 ? formatCurrency(Math.abs(account.balance)) : '-'}
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-600">
+                <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-forvis-gray-600 tabular-nums">
                   {account.priorYearBalance > 0 ? formatCurrency(account.priorYearBalance) : '-'}
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-600">
+                <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-forvis-gray-600 tabular-nums">
                   {account.priorYearBalance < 0 ? formatCurrency(Math.abs(account.priorYearBalance)) : '-'}
                 </td>
               </tr>
             ))}
           </tbody>
-          <tfoot className="bg-gray-50 border-t-2 border-gray-300">
+          <tfoot className="border-t-2" style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)', borderColor: '#1C3667' }}>
             <tr className="font-bold">
-              <td colSpan={3} className="px-4 py-3 text-sm text-gray-900">
+              <td colSpan={3} className="px-4 py-3 text-sm text-white">
                 Totals
               </td>
-              <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-white tabular-nums">
                 {formatCurrency(currentYearDebits)}
               </td>
-              <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-white tabular-nums">
                 {formatCurrency(currentYearCredits)}
               </td>
-              <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-600">
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-white tabular-nums">
                 {formatCurrency(priorYearDebits)}
               </td>
-              <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-600">
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-white tabular-nums">
                 {formatCurrency(priorYearCredits)}
               </td>
             </tr>
@@ -141,19 +153,35 @@ export default function TrialBalanceReport({ accounts }: TrialBalanceReportProps
       </div>
 
       {/* Balance Check */}
-      <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+      <div className={`rounded-lg p-4 border-2 shadow-corporate ${
+        Math.abs(currentYearDebits - currentYearCredits) < 0.01
+          ? 'bg-forvis-gray-50 border-forvis-gray-300'
+          : ''
+      }`}
+      style={Math.abs(currentYearDebits - currentYearCredits) >= 0.01 ? { 
+        background: 'linear-gradient(to right, #FEE2E2, #FECACA)', 
+        borderColor: '#DC2626' 
+      } : undefined}>
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-700">Balance Check (Current Year)</p>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className={`text-sm font-semibold ${
+              Math.abs(currentYearDebits - currentYearCredits) < 0.01
+                ? 'text-forvis-gray-700'
+                : 'text-red-800'
+            }`}>Balance Check (Current Year)</p>
+            <p className={`text-xs mt-1 ${
+              Math.abs(currentYearDebits - currentYearCredits) < 0.01
+                ? 'text-forvis-gray-600'
+                : 'text-red-700'
+            }`}>
               Debits should equal credits for a balanced trial balance
             </p>
           </div>
           <div className="text-right">
             <p className={`text-lg font-bold ${
               Math.abs(currentYearDebits - currentYearCredits) < 0.01
-                ? 'text-green-600'
-                : 'text-red-600'
+                ? 'text-forvis-blue-700'
+                : 'text-red-700'
             }`}>
               {Math.abs(currentYearDebits - currentYearCredits) < 0.01
                 ? '✓ Balanced'
@@ -165,7 +193,7 @@ export default function TrialBalanceReport({ accounts }: TrialBalanceReportProps
       </div>
 
       {accounts.length === 0 && (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-forvis-gray-500">
           <p>No trial balance accounts found.</p>
           <p className="text-sm mt-2">Upload a trial balance to see the report.</p>
         </div>

@@ -28,7 +28,14 @@ export async function GET(
 
     const project = await prisma.project.findUnique({
       where: { id: projectId },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        createdAt: true,
+        updatedAt: true,
+        status: true,
+        archived: true,
         _count: {
           select: {
             mappings: true,
@@ -36,7 +43,9 @@ export async function GET(
           },
         },
         users: {
-          include: {
+          select: {
+            id: true,
+            role: true,
             user: {
               select: {
                 id: true,

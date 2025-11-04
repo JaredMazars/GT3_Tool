@@ -10,6 +10,7 @@ import AITaxReport from '@/components/reports/AITaxReport';
 import { generateReportingPackPDF } from '@/lib/pdfExporter';
 import { MappedData } from '@/types';
 import { AITaxReportData } from '@/lib/aiTaxReportGenerator';
+import { useProject, useMappedAccounts, useTaxAdjustments, useTaxCalculation, useTrialBalance } from '@/hooks/useProjectData';
 
 interface ReportingPageProps {
   params: { id: string };
@@ -48,16 +49,21 @@ interface Tab {
 
 export default function ReportingPage({ params }: ReportingPageProps) {
   const [activeTab, setActiveTab] = useState('trialBalance');
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   
-  // Data states
-  const [trialBalanceData, setTrialBalanceData] = useState<TrialBalanceData | null>(null);
-  const [mappedData, setMappedData] = useState<MappedData[]>([]);
-  const [accountingProfit, setAccountingProfit] = useState(0);
-  const [adjustments, setAdjustments] = useState<TaxAdjustment[]>([]);
-  const [projectName, setProjectName] = useState('');
+  // Fetch all data using React Query
+  const { data: project } = useProject(params.id);
+  const { data: trialBalanceData, isLoading: isLoadingTrialBalance, error: trialBalanceError } = useTrialBalance(params.id);
+  const { data: mappedData = [], isLoading: isLoadingMapped, error: mappedError } = useMappedAccounts(params.id);
+  const { data: taxCalcData, isLoading: isLoadingTaxCalc, error: taxCalcError } = useTaxCalculation(params.id);
+  const { data: adjustments = [], isLoading: isLoadingAdjustments, error: adjustmentsError } = useTaxAdjustments(params.id);
+
+  const projectName = project?.name || '';
+  const accountingProfit = taxCalcData?.netProfit || 0;
+
+  // Determine overall loading and error states
+  const isLoading = isLoadingTrialBalance || isLoadingMapped || isLoadingTaxCalc || isLoadingAdjustments;
+  const error = trialBalanceError || mappedError || taxCalcError || adjustmentsError;
 
   // Selected reports for PDF export
   const [selectedReports, setSelectedReports] = useState({
@@ -74,64 +80,6 @@ export default function ReportingPage({ params }: ReportingPageProps) {
   // Callback to receive AI report data from the component
   const handleAIReportLoaded = (report: AITaxReportData | null) => {
     setAiReportData(report);
-  };
-
-  useEffect(() => {
-    fetchAllData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.id]);
-
-  const fetchAllData = async () => {
-    try {
-      setIsLoading(true);
-
-      // Fetch project details
-      const projectResponse = await fetch(`/api/projects/${params.id}`);
-      if (projectResponse.ok) {
-        const result = await projectResponse.json();
-        const projectData = result.success ? result.data : result;
-        setProjectName(projectData.name);
-      }
-
-      // Fetch trial balance
-      const trialBalanceResponse = await fetch(`/api/projects/${params.id}/trial-balance`);
-      if (trialBalanceResponse.ok) {
-        const result = await trialBalanceResponse.json();
-        // Handle new response format with success wrapper
-        const data = result.success ? result.data : result;
-        setTrialBalanceData(data);
-      }
-
-      // Fetch mapped accounts for balance sheet and income statement
-      const mappedResponse = await fetch(`/api/projects/${params.id}/mapped-accounts`);
-      if (mappedResponse.ok) {
-        const result = await mappedResponse.json();
-        const data = result.success ? result.data : result;
-        setMappedData(Array.isArray(data) ? data : []);
-      }
-
-      // Fetch tax calculation data
-      const taxCalcResponse = await fetch(`/api/projects/${params.id}/tax-calculation`);
-      if (taxCalcResponse.ok) {
-        const response = await taxCalcResponse.json();
-        const data = response.data || response;
-        setAccountingProfit(data.netProfit || 0);
-      }
-
-      // Fetch tax adjustments
-      const adjustmentsResponse = await fetch(`/api/projects/${params.id}/tax-adjustments`);
-      if (adjustmentsResponse.ok) {
-        const result = await adjustmentsResponse.json();
-        const data = result.success ? result.data : result;
-        setAdjustments(Array.isArray(data) ? data : []);
-      }
-
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load reporting data');
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const handleSelectAll = () => {
@@ -207,7 +155,9 @@ export default function ReportingPage({ params }: ReportingPageProps) {
   if (error) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-        <p className="text-sm text-red-600">{error}</p>
+        <p className="text-sm text-red-600">
+          {error instanceof Error ? error.message : 'Failed to load reporting data'}
+        </p>
       </div>
     );
   }

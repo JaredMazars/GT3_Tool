@@ -7,6 +7,9 @@ WORKDIR /app
 # Copy package files
 COPY package.json package-lock.json ./
 
+# Copy prisma schema (needed for postinstall)
+COPY prisma ./prisma
+
 # Install all dependencies
 RUN npm ci
 
@@ -40,7 +43,8 @@ RUN addgroup --system --gid 1001 nodejs && \
 
 # Copy package files and install production dependencies
 COPY package.json package-lock.json ./
-RUN npm ci --only=production
+# Skip postinstall since we copy the generated Prisma client from builder
+RUN npm ci --only=production --ignore-scripts
 
 # Copy necessary files from builder
 COPY --from=builder /app/public ./public

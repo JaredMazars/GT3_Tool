@@ -24,7 +24,8 @@ A Next.js application for South African corporate income tax computation with AI
 ## Technology Stack
 
 - **Framework**: Next.js 14 (App Router)
-- **Database**: Prisma ORM with SQLite (dev) / PostgreSQL (production)
+- **Database**: Prisma ORM with Azure SQL Server
+- **State Management**: React Query (TanStack Query) for client-side caching
 - **AI**: OpenAI GPT-4/GPT-5 for tax analysis
 - **UI**: TailwindCSS + Headless UI
 - **Validation**: Zod for schema validation
@@ -64,7 +65,9 @@ cp .env.example .env
 4. Initialize the database:
 ```bash
 npx prisma generate
-npx prisma migrate dev
+npx prisma db push  # For Azure SQL Server
+# OR
+npx prisma migrate dev  # For local development with migrations
 ```
 
 5. Run the development server:
@@ -80,7 +83,7 @@ npm run dev
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `DATABASE_URL` | Database connection string | `file:./prisma/dev.db` |
+| `DATABASE_URL` | Azure SQL Server connection string | `sqlserver://server.database.windows.net:1433;database=db;user=user;password=pass;encrypt=true` |
 | `OPENAI_API_KEY` | OpenAI API key for AI features | `sk-...` |
 
 ### Optional
@@ -251,14 +254,19 @@ The application implements tax adjustments according to:
 
 ## Production Deployment
 
-### PostgreSQL Setup
+### Azure SQL Server Setup
 
 1. Update `DATABASE_URL` in `.env`:
 ```
-DATABASE_URL="postgresql://user:password@host:5432/database"
+DATABASE_URL="sqlserver://your-server.database.windows.net:1433;database=your-database;user=your-user;password=your-password;encrypt=true"
 ```
 
-2. Run migrations:
+2. Push schema to database:
+```bash
+npx prisma db push
+```
+
+Or if using migrations:
 ```bash
 npx prisma migrate deploy
 ```
@@ -334,6 +342,8 @@ For issues or questions:
 - [ ] Dashboard analytics
 
 ### Recent Updates
+- ✅ React Query integration for client-side caching (5-10x faster tab switching)
+- ✅ Azure SQL Server migration with optimized indexes
 - ✅ Centralized error handling
 - ✅ Input validation with Zod
 - ✅ Rate limiting
@@ -342,6 +352,13 @@ For issues or questions:
 - ✅ Health monitoring endpoint
 - ✅ Type safety improvements
 - ✅ Database indexing optimizations
+
+### Performance Optimizations
+See `PERFORMANCE_OPTIMIZATIONS.md` for detailed information about:
+- React Query caching implementation
+- Database query optimizations
+- Composite indexes for faster queries
+- Expected performance improvements (50ms vs 500-2000ms for tab switches)
 
 ---
 

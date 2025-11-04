@@ -19,6 +19,7 @@ import IncomeStatementPage from './income-statement/page';
 import MappingPage from './mapping/page';
 import TaxCalculationPage from './tax-calculation/page';
 import ReportingPage from './reporting/page';
+import { useProject } from '@/hooks/useProjectData';
 
 interface TabProps {
   selected: boolean;
@@ -285,26 +286,7 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
 export default function ProjectPage({ params }: { params: { id: string } }) {
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState('mapping');
-  const [project, setProject] = useState<ProjectData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const fetchProject = async () => {
-    try {
-      const response = await fetch(`/api/projects/${params.id}`);
-      if (!response.ok) throw new Error('Failed to fetch project');
-      const result = await response.json();
-      const data = result.success ? result.data : result;
-      setProject(data);
-    } catch (error) {
-      console.error('Error fetching project:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchProject();
-  }, [params.id]);
+  const { data: project, isLoading, refetch: fetchProject } = useProject(params.id);
 
   // Handle tab query parameter
   useEffect(() => {

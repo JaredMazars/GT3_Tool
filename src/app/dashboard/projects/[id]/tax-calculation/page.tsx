@@ -6,6 +6,7 @@ import { formatAmount } from '@/lib/formatters';
 import TaxAdjustmentCard from '@/components/TaxAdjustmentCard';
 import ExportMenu from '@/components/ExportMenu';
 import AddAdjustmentModal from '@/components/AddAdjustmentModal';
+import { useTaxAdjustments, useTaxCalculation, useUpdateTaxAdjustment, useGenerateTaxSuggestions } from '@/hooks/useProjectData';
 
 interface TaxCalculationProps {
   params: { id: string };
@@ -24,83 +25,36 @@ interface TaxAdjustment {
 
 export default function TaxCalculationPage({ params }: TaxCalculationProps) {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: taxCalcData, isLoading: isLoadingCalc } = useTaxCalculation(params.id);
+  const { data: adjustments = [], isLoading: isLoadingAdjustments, error: queryError } = useTaxAdjustments(params.id);
+  const updateAdjustment = useUpdateTaxAdjustment(params.id);
+  const generateSuggestions = useGenerateTaxSuggestions(params.id);
+  
   const [error, setError] = useState<string | null>(null);
-  const [adjustments, setAdjustments] = useState<TaxAdjustment[]>([]);
-  const [accountingProfit, setAccountingProfit] = useState(0);
   const [showSuggestions, setShowSuggestions] = useState(true);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [showAddModal, setShowAddModal] = useState<'DEBIT' | 'CREDIT' | 'ALLOWANCE' | 'RECOUPMENT' | null>(null);
 
+  const isLoading = isLoadingCalc || isLoadingAdjustments;
+  const accountingProfit = taxCalcData?.netProfit || 0;
+  
+  // Set error from query if it exists
   useEffect(() => {
-    fetchData();
-  }, [params.id]);
-
-  const fetchData = async () => {
-    try {
-      setIsLoading(true);
-
-      // Fetch accounting profit from income statement
-      const incomeResponse = await fetch(`/api/projects/${params.id}/tax-calculation`);
-      if (incomeResponse.ok) {
-        const response = await incomeResponse.json();
-        const incomeData = response.data || response;
-        setAccountingProfit(incomeData.netProfit || 0);
-      }
-
-      // Fetch tax adjustments
-      const adjustmentsResponse = await fetch(`/api/projects/${params.id}/tax-adjustments`);
-      if (adjustmentsResponse.ok) {
-        const adjustmentsData = await adjustmentsResponse.json();
-        setAdjustments(adjustmentsData.data || adjustmentsData);
-      }
-
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setIsLoading(false);
+    if (queryError) {
+      setError(queryError instanceof Error ? queryError.message : 'An error occurred');
     }
-  };
+  }, [queryError]);
 
   const handleGenerateSuggestions = async () => {
     try {
-      setIsGenerating(true);
-      const response = await fetch(
-        `/api/projects/${params.id}/tax-adjustments/suggestions`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ useAI: true, autoSave: true }),
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate suggestions');
-      }
-
-      await fetchData();
+      await generateSuggestions.mutateAsync();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate suggestions');
-    } finally {
-      setIsGenerating(false);
     }
   };
 
   const handleApprove = async (id: number) => {
     try {
-      const response = await fetch(
-        `/api/projects/${params.id}/tax-adjustments/${id}`,
-        {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: 'APPROVED' }),
-        }
-      );
-
-      if (!response.ok) throw new Error('Failed to approve adjustment');
-      await fetchData();
+      await updateAdjustment.mutateAsync({ adjustmentId: id, status: 'APPROVED' });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to approve');
     }
@@ -108,17 +62,7 @@ export default function TaxCalculationPage({ params }: TaxCalculationProps) {
 
   const handleReject = async (id: number) => {
     try {
-      const response = await fetch(
-        `/api/projects/${params.id}/tax-adjustments/${id}`,
-        {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: 'REJECTED' }),
-        }
-      );
-
-      if (!response.ok) throw new Error('Failed to reject adjustment');
-      await fetchData();
+      await updateAdjustment.mutateAsync({ adjustmentId: id, status: 'REJECTED' });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to reject');
     }
@@ -129,7 +73,7 @@ export default function TaxCalculationPage({ params }: TaxCalculationProps) {
   };
 
   const handleModalSuccess = async () => {
-    await fetchData();
+    // No need to do anything - mutations handle cache invalidation
   };
 
   // Calculate totals
@@ -301,14 +245,14 @@ export default function TaxCalculationPage({ params }: TaxCalculationProps) {
           </button>
           <button
             onClick={handleGenerateSuggestions}
-            disabled={isGenerating}
+            disabled={generateSuggestions.isPending}
             className="px-5 py-2.5 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all shadow-corporate-md hover:shadow-corporate-lg disabled:cursor-not-allowed whitespace-nowrap"
             style={{ 
-              backgroundColor: isGenerating ? '#9CA3AF' : '#2E5AAC',
+              backgroundColor: generateSuggestions.isPending ? '#9CA3AF' : '#2E5AAC',
               color: 'white'
             }}
           >
-            {isGenerating ? (
+            {generateSuggestions.isPending ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                 <span style={{ color: 'white', fontWeight: '600' }}>Generating...</span>

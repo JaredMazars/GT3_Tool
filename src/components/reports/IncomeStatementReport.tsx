@@ -99,13 +99,13 @@ export default function IncomeStatementReport({ mappedData, printMode = false }:
           </div>
 
           {/* REVENUE SECTION */}
-          <div className="border border-green-200 rounded-lg overflow-hidden">
-            <div className="grid grid-cols-12 font-bold bg-gradient-to-r from-green-100 to-green-200 py-1.5">
-              <div className="col-span-7 px-3 text-sm text-green-900">REVENUE & SALES</div>
-              <div className="col-span-2 text-right px-3 text-xs tabular-nums text-green-900">
+          <div className="border-2 rounded-lg overflow-hidden shadow-sm" style={{ borderColor: '#25488A' }}>
+            <div className="grid grid-cols-12 font-bold py-1.5" style={{ background: 'linear-gradient(to right, #5B93D7, #2E5AAC)' }}>
+              <div className="col-span-7 px-3 text-sm text-white">REVENUE & SALES</div>
+              <div className="col-span-2 text-right px-3 text-xs tabular-nums text-white">
                 {formatAmount(totalIncome)}
               </div>
-              <div className="col-span-3 text-right px-3 text-xs tabular-nums text-green-700">
+              <div className="col-span-3 text-right px-3 text-xs tabular-nums text-white">
                 {formatAmount(totalIncomePrior)}
               </div>
             </div>
@@ -119,13 +119,13 @@ export default function IncomeStatementReport({ mappedData, printMode = false }:
           </div>
 
           {/* COST OF SALES SECTION */}
-          <div className="border border-red-200 rounded-lg overflow-hidden">
-            <div className="grid grid-cols-12 font-bold bg-gradient-to-r from-red-100 to-red-200 py-1.5">
-              <div className="col-span-7 px-3 text-sm text-red-900">COST OF SALES</div>
-              <div className="col-span-2 text-right px-3 text-xs tabular-nums text-red-900">
+          <div className="border-2 rounded-lg overflow-hidden shadow-sm" style={{ borderColor: '#25488A' }}>
+            <div className="grid grid-cols-12 font-bold py-1.5" style={{ background: 'linear-gradient(to bottom right, #25488A, #1C3667)' }}>
+              <div className="col-span-7 px-3 text-sm text-white">COST OF SALES</div>
+              <div className="col-span-2 text-right px-3 text-xs tabular-nums text-white">
                 {formatAmount(costOfSales)}
               </div>
-              <div className="col-span-3 text-right px-3 text-xs tabular-nums text-red-700">
+              <div className="col-span-3 text-right px-3 text-xs tabular-nums text-white">
                 {formatAmount(costOfSalesPrior)}
               </div>
             </div>
@@ -137,30 +137,31 @@ export default function IncomeStatementReport({ mappedData, printMode = false }:
           </div>
 
           {/* GROSS PROFIT */}
-          <div className={`grid grid-cols-12 font-bold border rounded-lg py-2 ${
+          <div className={`grid grid-cols-12 font-bold border-2 rounded-lg py-2 shadow-sm ${
             grossProfit >= 0 
-              ? 'bg-gradient-to-r from-blue-100 to-blue-200 border-blue-300' 
-              : 'bg-gradient-to-r from-gray-100 to-gray-200 border-gray-300'
-          }`}>
-            <div className={`col-span-7 px-3 text-sm ${grossProfit >= 0 ? 'text-blue-900' : 'text-gray-900'}`}>
+              ? '' 
+              : 'bg-forvis-gray-100 border-forvis-gray-300'
+          }`}
+          style={grossProfit >= 0 ? { background: 'linear-gradient(to right, #5B93D7, #2E5AAC)', borderColor: '#25488A' } : undefined}>
+            <div className={`col-span-7 px-3 text-sm ${grossProfit >= 0 ? 'text-white' : 'text-forvis-gray-900'}`}>
               GROSS PROFIT / (LOSS)
             </div>
-            <div className={`col-span-2 text-right px-3 text-xs tabular-nums ${grossProfit >= 0 ? 'text-blue-900' : 'text-gray-900'}`}>
+            <div className={`col-span-2 text-right px-3 text-xs tabular-nums ${grossProfit >= 0 ? 'text-white' : 'text-forvis-gray-900'}`}>
               {formatAmount(grossProfit)}
             </div>
-            <div className={`col-span-3 text-right px-3 text-xs tabular-nums ${grossProfitPrior >= 0 ? 'text-blue-700' : 'text-gray-700'}`}>
+            <div className={`col-span-3 text-right px-3 text-xs tabular-nums ${grossProfit >= 0 ? 'text-white' : 'text-forvis-gray-700'}`}>
               {formatAmount(grossProfitPrior)}
             </div>
           </div>
 
           {/* OTHER INCOME */}
-          <div className="border border-green-200 rounded-lg overflow-hidden">
-            <div className="grid grid-cols-12 font-bold bg-gradient-to-r from-green-50 to-green-100 py-1.5">
-              <div className="col-span-7 px-3 text-sm text-green-900">OTHER INCOME</div>
-              <div className="col-span-2 text-right px-3 text-xs tabular-nums text-green-900">
+          <div className="border-2 rounded-lg overflow-hidden shadow-sm" style={{ borderColor: '#25488A' }}>
+            <div className="grid grid-cols-12 font-bold py-1.5" style={{ background: 'linear-gradient(to right, #5B93D7, #2E5AAC)' }}>
+              <div className="col-span-7 px-3 text-sm text-white">OTHER INCOME</div>
+              <div className="col-span-2 text-right px-3 text-xs tabular-nums text-white">
                 {formatAmount(otherIncome)}
               </div>
-              <div className="col-span-3 text-right px-3 text-xs tabular-nums text-green-700">
+              <div className="col-span-3 text-right px-3 text-xs tabular-nums text-white">
                 {formatAmount(otherIncomePrior)}
               </div>
             </div>
@@ -173,13 +174,13 @@ export default function IncomeStatementReport({ mappedData, printMode = false }:
           </div>
 
           {/* EXPENSES */}
-          <div className="border border-red-200 rounded-lg overflow-hidden">
-            <div className="grid grid-cols-12 font-bold bg-gradient-to-r from-red-100 to-red-200 py-1.5">
-              <div className="col-span-7 px-3 text-sm text-red-900">OPERATING EXPENSES</div>
-              <div className="col-span-2 text-right px-3 text-xs tabular-nums text-red-900">
+          <div className="border-2 rounded-lg overflow-hidden shadow-sm" style={{ borderColor: '#25488A' }}>
+            <div className="grid grid-cols-12 font-bold py-1.5" style={{ background: 'linear-gradient(to bottom right, #25488A, #1C3667)' }}>
+              <div className="col-span-7 px-3 text-sm text-white">OPERATING EXPENSES</div>
+              <div className="col-span-2 text-right px-3 text-xs tabular-nums text-white">
                 {formatAmount(expenses)}
               </div>
-              <div className="col-span-3 text-right px-3 text-xs tabular-nums text-red-700">
+              <div className="col-span-3 text-right px-3 text-xs tabular-nums text-white">
                 {formatAmount(expensesPrior)}
               </div>
             </div>
@@ -191,18 +192,19 @@ export default function IncomeStatementReport({ mappedData, printMode = false }:
           </div>
 
           {/* NET PROFIT */}
-          <div className={`grid grid-cols-12 font-bold border rounded-lg py-2 ${
+          <div className={`grid grid-cols-12 font-bold border-2 rounded-lg py-2 shadow-md ${
             netProfitBeforeTax >= 0 
-              ? 'bg-gradient-to-r from-purple-100 to-purple-200 border-purple-300' 
-              : 'bg-gradient-to-r from-gray-100 to-gray-200 border-gray-300'
-          }`}>
-            <div className={`col-span-7 px-3 text-base ${netProfitBeforeTax >= 0 ? 'text-purple-900' : 'text-gray-900'}`}>
+              ? '' 
+              : 'bg-forvis-gray-100 border-forvis-gray-300'
+          }`}
+          style={netProfitBeforeTax >= 0 ? { background: 'linear-gradient(to right, #2E5AAC, #25488A)', borderColor: '#1C3667' } : undefined}>
+            <div className={`col-span-7 px-3 text-base ${netProfitBeforeTax >= 0 ? 'text-white' : 'text-forvis-gray-900'}`}>
               NET PROFIT / (LOSS) BEFORE TAX
             </div>
-            <div className={`col-span-2 text-right px-3 text-sm tabular-nums ${netProfitBeforeTax >= 0 ? 'text-purple-900' : 'text-gray-900'}`}>
+            <div className={`col-span-2 text-right px-3 text-sm tabular-nums ${netProfitBeforeTax >= 0 ? 'text-white' : 'text-forvis-gray-900'}`}>
               {formatAmount(netProfitBeforeTax)}
             </div>
-            <div className={`col-span-3 text-right px-3 text-sm tabular-nums ${netProfitBeforeTaxPrior >= 0 ? 'text-purple-700' : 'text-gray-700'}`}>
+            <div className={`col-span-3 text-right px-3 text-sm tabular-nums ${netProfitBeforeTaxPrior >= 0 ? 'text-white' : 'text-forvis-gray-700'}`}>
               {formatAmount(netProfitBeforeTaxPrior)}
             </div>
           </div>
