@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUrl } from '@/lib/auth';
+import { logError } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
     
     return response;
   } catch (error) {
-    console.error('Login error:', error);
+    logError('Login error', error);
     return NextResponse.redirect(new URL('/auth/error', request.url));
   }
 }

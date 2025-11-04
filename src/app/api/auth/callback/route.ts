@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { handleCallback, createSession } from '@/lib/auth';
+import { logError } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      // No maxAge = session cookie (expires when browser closes)
     });
     
     // Clear callback URL cookie
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
     
     return response;
   } catch (error) {
-    console.error('Callback error:', error);
+    logError('Callback error', error);
     return NextResponse.redirect(new URL('/auth/error', request.url));
   }
 }
