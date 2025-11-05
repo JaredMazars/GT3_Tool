@@ -84,34 +84,61 @@ export async function POST(
       { totalCurrentYear: 0, totalPriorYear: 0 }
     );
 
-    // Calculate balance sheet totals
+    // Calculate balance sheet totals (subsections are stored in camelCase)
     const assets = mappedAccounts
-      .filter(a => a.section === 'Balance Sheet' && a.subsection === 'Assets')
+      .filter(a => a.section === 'Balance Sheet' && 
+        ['noncurrentassets', 'currentassets'].includes(a.subsection.toLowerCase().replace(/\s/g, '')))
       .reduce((sum, a) => sum + a.balance, 0);
     
     const equity = mappedAccounts
-      .filter(a => a.section === 'Balance Sheet' && a.subsection === 'Equity & Reserves')
+      .filter(a => a.section === 'Balance Sheet' && 
+        ['capitalandreservescreditbalances', 'capitalandreservesdebitbalances'].includes(a.subsection.toLowerCase().replace(/\s/g, '')))
       .reduce((sum, a) => sum + a.balance, 0);
     
     const liabilities = mappedAccounts
-      .filter(a => a.section === 'Balance Sheet' && a.subsection === 'Liabilities')
+      .filter(a => a.section === 'Balance Sheet' && 
+        ['noncurrentliabilities', 'currentliabilities'].includes(a.subsection.toLowerCase().replace(/\s/g, '')))
       .reduce((sum, a) => sum + a.balance, 0);
 
-    // Calculate income statement totals
-    const revenue = mappedAccounts
-      .filter(a => a.section === 'Income Statement' && a.subsection === 'Revenue')
-      .reduce((sum, a) => sum + a.balance, 0);
+    // Calculate income statement totals (subsections are stored in camelCase)
+    // In the system: income items have negative balances, expense items have positive balances
+    const incomeStatementAccounts = mappedAccounts.filter(a => a.section === 'Income Statement');
     
-    const expenses = mappedAccounts
-      .filter(a => a.section === 'Income Statement' && 
-        ['Cost of Sales', 'Operating Expenses', 'Other Expenses'].includes(a.subsection))
+    // Group by subsection
+    const grossProfitLossItems = incomeStatementAccounts.filter(a => 
+      a.subsection.toLowerCase().replace(/\s/g, '') === 'grossprofitorloss');
+    
+    const incomeItemsCreditItems = incomeStatementAccounts.filter(a => 
+      a.subsection.toLowerCase().replace(/\s/g, '') === 'incomeitemscreditamounts');
+    
+    const incomeItemsOnlyItems = incomeStatementAccounts.filter(a => 
+      a.subsection.toLowerCase().replace(/\s/g, '') === 'incomeitemsonlycreditamounts');
+    
+    const expenseItemsDebitItems = incomeStatementAccounts.filter(a => 
+      a.subsection.toLowerCase().replace(/\s/g, '') === 'expenseitemsdebitamounts');
+    
+    // Calculate Gross Profit (from sales and cost of sales)
+    const grossProfitLossTotal = grossProfitLossItems.reduce((sum, a) => sum + a.balance, 0);
+    const grossProfit = -grossProfitLossTotal; // Negate because sales are negative (credits)
+    
+    // Calculate Other Income
+    const otherIncome = [...incomeItemsCreditItems, ...incomeItemsOnlyItems]
       .reduce((sum, a) => sum + Math.abs(a.balance), 0);
     
-    const otherIncome = mappedAccounts
-      .filter(a => a.section === 'Income Statement' && a.subsection === 'Other Income')
-      .reduce((sum, a) => sum + a.balance, 0);
+    // Calculate Expenses
+    const expenses = expenseItemsDebitItems.reduce((sum, a) => sum + Math.abs(a.balance), 0);
     
-    const netProfit = revenue - expenses + otherIncome;
+    // Calculate Net Profit BEFORE TAX (accounting profit)
+    // This excludes any tax expense that might be in the accounts
+    const accountingProfit = grossProfit + otherIncome - expenses;
+    
+    // For display purposes: calculate revenue and net profit
+    const salesRevenue = grossProfitLossItems
+      .filter(a => a.sarsItem.includes('Sales') && !a.sarsItem.includes('Credit notes'))
+      .reduce((sum, a) => sum + Math.abs(a.balance), 0);
+    
+    const revenue = salesRevenue + otherIncome;
+    const netProfit = accountingProfit; // This is profit BEFORE tax
 
     // Calculate tax adjustments
     const debitAdjustments = adjustments.filter(a => a.type === 'DEBIT');
@@ -124,7 +151,7 @@ export async function POST(
     const totalAllowances = allowanceAdjustments.reduce((sum, a) => sum + Math.abs(a.amount), 0);
     const totalRecoupments = recoupmentAdjustments.reduce((sum, a) => sum + Math.abs(a.amount), 0);
 
-    const accountingProfit = netProfit;
+    // Calculate taxable income from accounting profit (before tax)
     const taxableIncome = accountingProfit + totalDebits - totalCredits - totalAllowances + totalRecoupments;
     const taxLiability = Math.max(0, taxableIncome) * 0.27;
 
@@ -168,7 +195,14 @@ export async function POST(
     // Generate AI report
     const report = await AITaxReportGenerator.generateTaxReport(projectData);
 
-    // Save report to database
+    // Delete any existing AI tax reports for this project to keep only the latest
+    await prisma.aITaxReport.deleteMany({
+      where: {
+        projectId,
+      },
+    });
+
+    // Save new report to database
     const savedReport = await prisma.aITaxReport.create({
       data: {
         projectId,

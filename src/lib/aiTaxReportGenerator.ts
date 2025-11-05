@@ -67,19 +67,19 @@ export class AITaxReportGenerator {
       const prompt = this.buildPrompt(projectData);
       
       const completion = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: 'gpt-5-mini',
         messages: [
           {
             role: 'system',
-            content: `You are an expert South African tax consultant with deep knowledge of the Income Tax Act and SARS regulations. You provide comprehensive, professional tax analysis reports that identify risks, highlight tax-sensitive items, and offer actionable recommendations. Your analysis should be thorough, detailed, and reference specific SARS sections where applicable.`
+            content: `You are an expert South African tax consultant with deep knowledge of the Income Tax Act and SARS regulations. You provide comprehensive, professional tax analysis reports that identify risks, highlight tax-sensitive items, and offer actionable recommendations. Your analysis should be thorough, detailed, and reference specific SARS sections where applicable.
+
+CRITICAL: You MUST use ONLY the exact figures provided in the data - NEVER recalculate or generate different amounts. All financial calculations have been pre-calculated and verified. Your role is to analyze the provided figures, not to recalculate them. When citing any amount in your analysis, use the exact numbers from the provided data.`
           },
           {
             role: 'user',
             content: prompt
           }
         ],
-        temperature: 0.3,
-        max_tokens: 8000,
         response_format: { type: 'json_object' }
       });
 
@@ -108,46 +108,115 @@ export class AITaxReportGenerator {
    * Build comprehensive prompt for AI analysis
    */
   private static buildPrompt(data: ProjectTaxData): string {
+    // Group adjustments by type
+    const debitAdjustments = data.taxCalculation.adjustments.filter(a => a.type === 'DEBIT');
+    const creditAdjustments = data.taxCalculation.adjustments.filter(a => a.type === 'CREDIT');
+    const allowanceAdjustments = data.taxCalculation.adjustments.filter(a => a.type === 'ALLOWANCE');
+    const recoupmentAdjustments = data.taxCalculation.adjustments.filter(a => a.type === 'RECOUPMENT');
+
     return `Analyze the following South African corporate tax data and provide a comprehensive tax report in JSON format.
 
 PROJECT: ${data.projectName}
 
-FINANCIAL SUMMARY:
-- Total Assets: R${this.formatAmount(data.balanceSheet.totalAssets)}
-- Total Equity: R${this.formatAmount(data.balanceSheet.totalEquity)}
-- Total Liabilities: R${this.formatAmount(data.balanceSheet.totalLiabilities)}
-- Revenue: R${this.formatAmount(data.incomeStatement.totalRevenue)}
-- Expenses: R${this.formatAmount(data.incomeStatement.totalExpenses)}
-- Net Profit (Accounting): R${this.formatAmount(data.incomeStatement.netProfit)}
+=================================================================================
+KEY FIGURES REFERENCE - USE THESE EXACT AMOUNTS IN YOUR ANALYSIS
+=================================================================================
 
-TAX COMPUTATION:
-- Accounting Profit: R${this.formatAmount(data.taxCalculation.accountingProfit)}
-- Debit Adjustments: R${this.formatAmount(data.taxCalculation.totalDebitAdjustments)}
-- Credit Adjustments: R${this.formatAmount(data.taxCalculation.totalCreditAdjustments)}
-- Allowances: R${this.formatAmount(data.taxCalculation.totalAllowances)}
-- Recoupments: R${this.formatAmount(data.taxCalculation.totalRecoupments)}
-- Taxable Income: R${this.formatAmount(data.taxCalculation.taxableIncome)}
-- Tax Liability (27%): R${this.formatAmount(data.taxCalculation.taxLiability)}
+FINANCIAL POSITION:
+- Total Assets: R${this.formatAmount(data.balanceSheet.totalAssets)} (${data.balanceSheet.totalAssets})
+- Total Equity: R${this.formatAmount(data.balanceSheet.totalEquity)} (${data.balanceSheet.totalEquity})
+- Total Liabilities: R${this.formatAmount(data.balanceSheet.totalLiabilities)} (${data.balanceSheet.totalLiabilities})
 
-DETAILED ADJUSTMENTS (${data.taxCalculation.adjustments.length} total):
-${data.taxCalculation.adjustments.map((adj, idx) => `
-${idx + 1}. [${adj.type}] ${adj.description}
-   Amount: R${this.formatAmount(Math.abs(adj.amount))}
+INCOME STATEMENT:
+- Revenue: R${this.formatAmount(data.incomeStatement.totalRevenue)} (${data.incomeStatement.totalRevenue})
+- Expenses: R${this.formatAmount(data.incomeStatement.totalExpenses)} (${data.incomeStatement.totalExpenses})
+- Net Profit (Accounting): R${this.formatAmount(data.incomeStatement.netProfit)} (${data.incomeStatement.netProfit})
+
+TAX COMPUTATION SUMMARY:
+- Accounting Profit: R${this.formatAmount(data.taxCalculation.accountingProfit)} (${data.taxCalculation.accountingProfit})
+- Total Debit Adjustments: R${this.formatAmount(data.taxCalculation.totalDebitAdjustments)} (${data.taxCalculation.totalDebitAdjustments})
+- Total Credit Adjustments: R${this.formatAmount(data.taxCalculation.totalCreditAdjustments)} (${data.taxCalculation.totalCreditAdjustments})
+- Total Allowances: R${this.formatAmount(data.taxCalculation.totalAllowances)} (${data.taxCalculation.totalAllowances})
+- Total Recoupments: R${this.formatAmount(data.taxCalculation.totalRecoupments)} (${data.taxCalculation.totalRecoupments})
+- TAXABLE INCOME: R${this.formatAmount(data.taxCalculation.taxableIncome)} (${data.taxCalculation.taxableIncome})
+- TAX LIABILITY (27%): R${this.formatAmount(data.taxCalculation.taxLiability)} (${data.taxCalculation.taxLiability})
+
+=================================================================================
+TAX CALCULATION VERIFICATION TABLE
+=================================================================================
+Accounting Profit:                R${this.formatAmount(data.taxCalculation.accountingProfit)}
+Add: Debit Adjustments:          R${this.formatAmount(data.taxCalculation.totalDebitAdjustments)}
+Less: Credit Adjustments:        (R${this.formatAmount(data.taxCalculation.totalCreditAdjustments)})
+Less: Allowances:                (R${this.formatAmount(data.taxCalculation.totalAllowances)})
+Add: Recoupments:                 R${this.formatAmount(data.taxCalculation.totalRecoupments)}
+                                  ─────────────────────
+TAXABLE INCOME:                   R${this.formatAmount(data.taxCalculation.taxableIncome)}
+                                  ═════════════════════
+Tax @ 27%:                        R${this.formatAmount(data.taxCalculation.taxLiability)}
+
+=================================================================================
+ADJUSTMENTS BY CATEGORY
+=================================================================================
+
+DEBIT ADJUSTMENTS (${debitAdjustments.length} items, Total: R${this.formatAmount(data.taxCalculation.totalDebitAdjustments)}):
+${debitAdjustments.length > 0 ? debitAdjustments.map((adj, idx) => `
+${idx + 1}. ${adj.description}
+   Amount: R${this.formatAmount(Math.abs(adj.amount))} (${Math.abs(adj.amount)})
    ${adj.sarsSection ? `SARS Section: ${adj.sarsSection}` : ''}
    ${adj.notes ? `Notes: ${adj.notes}` : ''}
    ${adj.confidenceScore ? `AI Confidence: ${Math.round(adj.confidenceScore * 100)}%` : ''}
-`).join('\n')}
+`).join('\n') : '(No debit adjustments)'}
+
+CREDIT ADJUSTMENTS (${creditAdjustments.length} items, Total: R${this.formatAmount(data.taxCalculation.totalCreditAdjustments)}):
+${creditAdjustments.length > 0 ? creditAdjustments.map((adj, idx) => `
+${idx + 1}. ${adj.description}
+   Amount: R${this.formatAmount(Math.abs(adj.amount))} (${Math.abs(adj.amount)})
+   ${adj.sarsSection ? `SARS Section: ${adj.sarsSection}` : ''}
+   ${adj.notes ? `Notes: ${adj.notes}` : ''}
+   ${adj.confidenceScore ? `AI Confidence: ${Math.round(adj.confidenceScore * 100)}%` : ''}
+`).join('\n') : '(No credit adjustments)'}
+
+ALLOWANCES (${allowanceAdjustments.length} items, Total: R${this.formatAmount(data.taxCalculation.totalAllowances)}):
+${allowanceAdjustments.length > 0 ? allowanceAdjustments.map((adj, idx) => `
+${idx + 1}. ${adj.description}
+   Amount: R${this.formatAmount(Math.abs(adj.amount))} (${Math.abs(adj.amount)})
+   ${adj.sarsSection ? `SARS Section: ${adj.sarsSection}` : ''}
+   ${adj.notes ? `Notes: ${adj.notes}` : ''}
+   ${adj.confidenceScore ? `AI Confidence: ${Math.round(adj.confidenceScore * 100)}%` : ''}
+`).join('\n') : '(No allowances)'}
+
+RECOUPMENTS (${recoupmentAdjustments.length} items, Total: R${this.formatAmount(data.taxCalculation.totalRecoupments)}):
+${recoupmentAdjustments.length > 0 ? recoupmentAdjustments.map((adj, idx) => `
+${idx + 1}. ${adj.description}
+   Amount: R${this.formatAmount(Math.abs(adj.amount))} (${Math.abs(adj.amount)})
+   ${adj.sarsSection ? `SARS Section: ${adj.sarsSection}` : ''}
+   ${adj.notes ? `Notes: ${adj.notes}` : ''}
+   ${adj.confidenceScore ? `AI Confidence: ${Math.round(adj.confidenceScore * 100)}%` : ''}
+`).join('\n') : '(No recoupments)'}
+
+=================================================================================
+CRITICAL INSTRUCTIONS
+=================================================================================
+⚠️  YOU MUST USE THE EXACT FIGURES PROVIDED ABOVE - DO NOT RECALCULATE ANY AMOUNTS
+⚠️  When citing amounts in your analysis, use the exact numbers from the KEY FIGURES REFERENCE
+⚠️  All calculations have been verified and are correct
+⚠️  Your role is to ANALYZE the provided data, not to recalculate or generate different numbers
+⚠️  Do not perform mathematical operations - cite the pre-calculated totals shown above
+
+=================================================================================
+REQUIRED OUTPUT FORMAT
+=================================================================================
 
 Please provide a comprehensive tax analysis report in the following JSON format:
 
 {
-  "executiveSummary": "2-3 paragraph executive summary covering: overall tax position, key adjustments, effective tax rate analysis, and major findings",
+  "executiveSummary": "2-3 paragraph executive summary covering: overall tax position, key adjustments, effective tax rate analysis, and major findings. MUST cite the exact figures from the KEY FIGURES REFERENCE above.",
   
   "risks": [
     {
       "title": "Brief risk title",
       "severity": "high|medium|low",
-      "description": "Detailed description of the tax risk, including potential exposure and SARS scrutiny areas",
+      "description": "Detailed description of the tax risk, including potential exposure and SARS scrutiny areas. When referencing amounts, use exact figures from above.",
       "recommendation": "Specific action to mitigate this risk"
     }
   ],
@@ -160,7 +229,7 @@ Please provide a comprehensive tax analysis report in the following JSON format:
     }
   ],
   
-  "detailedFindings": "Comprehensive 4-6 paragraph analysis covering: reconciliation from accounting profit to taxable income, analysis of each adjustment category (debits, credits, allowances, recoupments), assessment of adjustment appropriateness, identification of missing adjustments or potential errors, comparison of effective tax rate to statutory rate, and any red flags or unusual items",
+  "detailedFindings": "Comprehensive 4-6 paragraph analysis covering: reconciliation from accounting profit to taxable income (using EXACT amounts from the TAX CALCULATION VERIFICATION TABLE), analysis of each adjustment category (citing the exact totals provided for debits, credits, allowances, recoupments), assessment of adjustment appropriateness, identification of missing adjustments or potential errors, comparison of effective tax rate to statutory rate, and any red flags or unusual items. Reference the exact revenue, expenses, and net profit figures provided.",
   
   "recommendations": [
     "Specific, actionable recommendation 1",
@@ -169,15 +238,19 @@ Please provide a comprehensive tax analysis report in the following JSON format:
   ]
 }
 
-IMPORTANT: 
+IMPORTANT REQUIREMENTS:
+- You MUST use the EXACT figures provided in the KEY FIGURES REFERENCE section
+- When citing amounts, always use the exact numbers from the data provided - DO NOT recalculate
+- All calculations have been verified - your role is to analyze, not recalculate
 - Identify at least 5-10 risks across different severity levels
 - Highlight 8-15 tax-sensitive items that require attention
-- Provide detailed, line-by-line analysis in detailedFindings
+- Provide detailed, line-by-line analysis in detailedFindings using the exact amounts shown
 - Include 8-12 actionable recommendations
 - Reference specific SARS sections (e.g., s11(a), s23, s8C) where relevant
 - Consider South African tax law, including allowances (s11-13), recoupments (s8), and general deductions
 - Flag any adjustments with low confidence scores or missing documentation
-- Consider timing issues, provisional tax implications, and SARS audit risks`;
+- Consider timing issues, provisional tax implications, and SARS audit risks
+- The taxable income of R${this.formatAmount(data.taxCalculation.taxableIncome)} and tax liability of R${this.formatAmount(data.taxCalculation.taxLiability)} are pre-calculated and must be used as-is`;
   }
 
   /**
