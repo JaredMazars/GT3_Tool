@@ -23,6 +23,7 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
   const [error, setError] = useState<string | null>(null);
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
   const [isRemappingModalOpen, setIsRemappingModalOpen] = useState(false);
+  const [updatingAccount, setUpdatingAccount] = useState<number | null>(null);
 
   // Filter only Income Statement items
   const mappedData = allMappedData.filter((item: { sarsItem: string }) => {
