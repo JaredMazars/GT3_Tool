@@ -6,6 +6,7 @@ import { formatAmount } from '@/lib/formatters';
 import { MappedData } from '@/types';
 import { ChevronRightIcon } from '@heroicons/react/24/outline';
 import { useMappedAccounts, useUpdateMappedAccount } from '@/hooks/useProjectData';
+import RemappingModal from '@/components/RemappingModal';
 
 
 interface SarsItem {
@@ -145,6 +146,7 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
   const [error, setError] = useState<string | null>(null);
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
   const [updatingAccount, setUpdatingAccount] = useState<number | null>(null);
+  const [isRemappingModalOpen, setIsRemappingModalOpen] = useState(false);
 
   // Filter only Income Statement items
   const mappedData = allMappedData.filter((item: { sarsItem: string }) => {
@@ -160,14 +162,14 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
     }
   }, [queryError]);
 
-  const handleMappingUpdate = async (accountId: number, newSarsItem: string) => {
+  const handleMappingUpdate = async (accountId: number, newSarsItem: string, newSection?: string, newSubsection?: string) => {
     try {
       setUpdatingAccount(accountId);
       
       // Find the current item to get section and subsection
       const currentItem = allMappedData.find(item => item.id === accountId);
-      const section = currentItem?.section || 'Income Statement';
-      const subsection = currentItem?.subsection || '';
+      const section = newSection || currentItem?.section || 'Income Statement';
+      const subsection = newSubsection || currentItem?.subsection || '';
       
       await updateMappedAccount.mutateAsync({
         accountId,
@@ -376,9 +378,17 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
   const totalOfAllItemsPrior = Object.values(aggregatedData).reduce((sum, data) => sum + data.prior, 0);
 
   return (
-    <div className="space-y-4">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+    <>
+      <RemappingModal
+        isOpen={isRemappingModalOpen}
+        onClose={() => setIsRemappingModalOpen(false)}
+        mappedData={allMappedData}
+        onMappingUpdate={handleMappingUpdate}
+      />
+      
+      <div className="space-y-4">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <div 
           className="rounded-lg shadow-corporate p-3 text-white"
           style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #25488A)' }}
@@ -460,18 +470,30 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
         }}
       >
         <div className="text-white">
-          <h3 className="text-base font-bold">Tax Calculation</h3>
-          <p className="text-xs opacity-90 mt-0.5">Generate tax adjustments based on income statement</p>
+          <h3 className="text-base font-bold">Income Statement Actions</h3>
+          <p className="text-xs opacity-90 mt-0.5">Generate tax adjustments or bulk remap accounts</p>
         </div>
-        <a
-          href={`/dashboard/projects/${params.id}/tax-calculation`}
-          className="px-5 py-2.5 bg-white text-forvis-blue-900 rounded-lg hover:bg-forvis-blue-50 transition-colors flex items-center gap-2 text-sm font-bold shadow-lg"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-          </svg>
-          Generate Tax Adjustments
-        </a>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setIsRemappingModalOpen(true)}
+            disabled={allMappedData.length === 0}
+            className="px-4 py-2.5 bg-white text-forvis-blue-900 rounded-lg hover:bg-forvis-blue-50 transition-colors flex items-center gap-2 text-sm font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Bulk Remap
+          </button>
+          <a
+            href={`/dashboard/projects/${params.id}/tax-calculation`}
+            className="px-5 py-2.5 bg-white text-forvis-blue-900 rounded-lg hover:bg-forvis-blue-50 transition-colors flex items-center gap-2 text-sm font-bold shadow-lg"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
+            Tax Adjustments
+          </a>
+        </div>
       </div>
 
       {/* Main Income Statement Card */}
@@ -658,5 +680,6 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
         </div>
       </div>
     </div>
+    </>
   );
 } 

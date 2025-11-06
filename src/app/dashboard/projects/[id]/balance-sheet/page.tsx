@@ -6,6 +6,7 @@ import { formatAmount } from '@/lib/formatters';
 import { MappedData } from '@/types';
 import { ChevronRightIcon } from '@heroicons/react/24/outline';
 import { useMappedAccounts, useUpdateMappedAccount } from '@/hooks/useProjectData';
+import RemappingModal from '@/components/RemappingModal';
 
 interface BalanceSheetSectionProps {
   title: string;
@@ -304,6 +305,7 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
     capitalReserves: true,
     liabilities: true
   });
+  const [isRemappingModalOpen, setIsRemappingModalOpen] = useState(false);
 
   // Set error from query if it exists
   useEffect(() => {
@@ -312,12 +314,12 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
     }
   }, [queryError]);
 
-  const handleMappingUpdate = async (accountId: number, newSarsItem: string) => {
+  const handleMappingUpdate = async (accountId: number, newSarsItem: string, newSection?: string, newSubsection?: string) => {
     try {
       // Find the current item to get section and subsection
       const currentItem = mappedData.find(item => item.id === accountId);
-      const section = currentItem?.section || 'Balance Sheet';
-      const subsection = currentItem?.subsection || '';
+      const section = newSection || currentItem?.section || 'Balance Sheet';
+      const subsection = newSubsection || currentItem?.subsection || '';
       
       await updateMappedAccount.mutateAsync({
         accountId,
@@ -524,9 +526,17 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
   };
 
   return (
-    <div className="space-y-4">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+    <>
+      <RemappingModal
+        isOpen={isRemappingModalOpen}
+        onClose={() => setIsRemappingModalOpen(false)}
+        mappedData={mappedData}
+        onMappingUpdate={handleMappingUpdate}
+      />
+      
+      <div className="space-y-4">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div 
           className="rounded-lg shadow-corporate p-3 text-white"
           style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #25488A)' }}
@@ -577,6 +587,30 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Action Bar */}
+      <div 
+        className="flex items-center justify-between rounded-lg shadow-md border-2 p-4"
+        style={{ 
+          background: 'linear-gradient(to right, #5B93D7, #2E5AAC)',
+          borderColor: '#25488A'
+        }}
+      >
+        <div className="text-white">
+          <h3 className="text-base font-bold">Balance Sheet Actions</h3>
+          <p className="text-xs opacity-90 mt-0.5">Bulk remap accounts to SARS items</p>
+        </div>
+        <button
+          onClick={() => setIsRemappingModalOpen(true)}
+          disabled={mappedData.length === 0}
+          className="px-5 py-2.5 bg-white text-forvis-blue-900 rounded-lg hover:bg-forvis-blue-50 transition-colors flex items-center gap-2 text-sm font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Bulk Remap
+        </button>
       </div>
 
       {/* Main Balance Sheet Card */}
@@ -941,5 +975,6 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
         </div>
       </div>
     </div>
+    </>
   );
 } 

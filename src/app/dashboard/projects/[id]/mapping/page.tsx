@@ -6,6 +6,7 @@ import { MappedData } from '@/types';
 import * as XLSX from 'xlsx';
 import { mappingGuide } from '@/lib/mappingGuide';
 import { ProcessingModal } from '@/components/ProcessingModal';
+import RemappingModal from '@/components/RemappingModal';
 import { useMappedAccounts, useUpdateMappedAccount, useProject } from '@/hooks/useProjectData';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -202,7 +203,7 @@ interface MappingTableProps {
   onMappingUpdate: (accountId: number, newSarsItem: string, newSection: string, newSubsection: string) => Promise<void>;
 }
 
-function MappingTable({ mappedData, onMappingUpdate }: MappingTableProps) {
+function MappingTable({ mappedData, onMappingUpdate, onRowClick }: MappingTableProps & { onRowClick?: () => void }) {
   const [updatingRow, setUpdatingRow] = useState<number | null>(null);
   const [columnWidths, setColumnWidths] = useState({
     code: 6,
@@ -350,7 +351,8 @@ function MappingTable({ mappedData, onMappingUpdate }: MappingTableProps) {
           {mappedData.map((item, index) => (
             <tr 
               key={item.id} 
-              className={`transition-colors duration-150 ${
+              onClick={onRowClick}
+              className={`transition-colors duration-150 cursor-pointer ${
                 index % 2 === 0 ? 'bg-white hover:bg-forvis-blue-50' : 'bg-forvis-gray-50 hover:bg-forvis-blue-50'
               }`}
             >
@@ -414,6 +416,7 @@ export default function MappingPage({ params }: { params: { id: string } }) {
   
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isRemappingModalOpen, setIsRemappingModalOpen] = useState(false);
   const [processingStages, setProcessingStages] = useState<ProcessingStage[]>([
     {
       id: 1,
@@ -631,6 +634,12 @@ export default function MappingPage({ params }: { params: { id: string } }) {
   return (
     <>
       <ProcessingModal isOpen={isUploading} stages={processingStages} />
+      <RemappingModal
+        isOpen={isRemappingModalOpen}
+        onClose={() => setIsRemappingModalOpen(false)}
+        mappedData={mappedData}
+        onMappingUpdate={handleMappingUpdate}
+      />
       
       <div className="space-y-4">
         {/* Stats Dashboard */}
@@ -716,15 +725,27 @@ export default function MappingPage({ params }: { params: { id: string } }) {
           {/* Action Bar */}
           <div className="flex justify-between items-center pb-2 border-b border-forvis-gray-200">
             <h2 className="text-base font-semibold text-forvis-gray-900">Account Mapping</h2>
-            <a
-              href={`/dashboard/projects/${params.id}/tax-calculation/adjustments`}
-              className="btn-primary text-xs px-3 py-1.5 flex items-center gap-2"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              AI Tax Adjustments
-            </a>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setIsRemappingModalOpen(true)}
+                disabled={mappedData.length === 0}
+                className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Bulk Remap
+              </button>
+              <a
+                href={`/dashboard/projects/${params.id}/tax-calculation/adjustments`}
+                className="btn-primary text-xs px-3 py-1.5 flex items-center gap-2"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                AI Tax Adjustments
+              </a>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -881,7 +902,11 @@ export default function MappingPage({ params }: { params: { id: string } }) {
             <div className="pt-3">
               <h3 className="text-sm font-semibold text-forvis-gray-900 mb-2">Account Details</h3>
               <div className="rounded-lg border border-forvis-gray-200 overflow-hidden shadow-sm">
-                <MappingTable mappedData={mappedData} onMappingUpdate={handleMappingUpdate} />
+                <MappingTable 
+                  mappedData={mappedData} 
+                  onMappingUpdate={handleMappingUpdate}
+                  onRowClick={() => setIsRemappingModalOpen(true)}
+                />
               </div>
             </div>
           ) : (
