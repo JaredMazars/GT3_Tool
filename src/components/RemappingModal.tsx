@@ -149,6 +149,24 @@ export default function RemappingModal({ isOpen, onClose, mappedData, onMappingU
     setSelectedAccountIds([]);
   };
 
+  // Collapse all groups
+  const handleCollapseAllGroups = () => {
+    const allCollapsed = Object.keys(groupedAccounts).reduce((acc, key) => {
+      acc[key] = false;
+      return acc;
+    }, {} as Record<string, boolean>);
+    setExpandedGroups(allCollapsed);
+  };
+
+  // Expand all groups
+  const handleExpandAllGroups = () => {
+    const allExpanded = Object.keys(groupedAccounts).reduce((acc, key) => {
+      acc[key] = true;
+      return acc;
+    }, {} as Record<string, boolean>);
+    setExpandedGroups(allExpanded);
+  };
+
   // Toggle group expansion
   const toggleGroup = (groupKey: string) => {
     setExpandedGroups(prev => ({ ...prev, [groupKey]: !prev[groupKey] }));
@@ -162,6 +180,28 @@ export default function RemappingModal({ isOpen, onClose, mappedData, onMappingU
   // Toggle subsection expansion
   const toggleSubsection = (key: string) => {
     setExpandedSubsections(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  // Collapse all SARS sections
+  const handleCollapseAllSars = () => {
+    setExpandedSections({});
+    setExpandedSubsections({});
+  };
+
+  // Expand all SARS sections
+  const handleExpandAllSars = () => {
+    const allSections: Record<string, boolean> = {};
+    const allSubsections: Record<string, boolean> = {};
+    
+    Object.entries(filteredSarsItems).forEach(([mainSection, sectionData]) => {
+      allSections[mainSection] = true;
+      Object.keys(sectionData).forEach((subsection) => {
+        allSubsections[`${mainSection}-${subsection}`] = true;
+      });
+    });
+    
+    setExpandedSections(allSections);
+    setExpandedSubsections(allSubsections);
   };
 
   // Handle SARS item selection
@@ -247,6 +287,30 @@ export default function RemappingModal({ isOpen, onClose, mappedData, onMappingU
                 <h3 className="text-sm font-semibold text-forvis-gray-900">
                   Trial Balance Accounts ({totalAccounts})
                 </h3>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleExpandAllGroups}
+                    disabled={isRemapping}
+                    className="text-xs px-2 py-1 text-forvis-blue-600 hover:text-forvis-blue-700 hover:bg-forvis-blue-50 rounded transition-colors disabled:opacity-50 flex items-center gap-1"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Expand All
+                  </button>
+                  <button
+                    onClick={handleCollapseAllGroups}
+                    disabled={isRemapping}
+                    className="text-xs px-2 py-1 text-forvis-gray-600 hover:text-forvis-gray-700 hover:bg-forvis-gray-100 rounded transition-colors disabled:opacity-50 flex items-center gap-1"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                    </svg>
+                    Collapse All
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex gap-2">
                   <button
                     onClick={handleSelectAll}
@@ -390,9 +454,33 @@ export default function RemappingModal({ isOpen, onClose, mappedData, onMappingU
           <div className="w-1/2 flex flex-col">
             {/* Right Panel Header */}
             <div className="px-4 py-3 border-b border-forvis-gray-200 bg-forvis-gray-50">
-              <h3 className="text-sm font-semibold text-forvis-gray-900 mb-3">
-                SARS Items Hierarchy
-              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-forvis-gray-900">
+                  SARS Items Hierarchy
+                </h3>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleExpandAllSars}
+                    disabled={isRemapping}
+                    className="text-xs px-2 py-1 text-forvis-blue-600 hover:text-forvis-blue-700 hover:bg-forvis-blue-50 rounded transition-colors disabled:opacity-50 flex items-center gap-1"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Expand All
+                  </button>
+                  <button
+                    onClick={handleCollapseAllSars}
+                    disabled={isRemapping}
+                    className="text-xs px-2 py-1 text-forvis-gray-600 hover:text-forvis-gray-700 hover:bg-forvis-gray-100 rounded transition-colors disabled:opacity-50 flex items-center gap-1"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                    </svg>
+                    Collapse All
+                  </button>
+                </div>
+              </div>
               {/* Search */}
               <div className="relative">
                 <input

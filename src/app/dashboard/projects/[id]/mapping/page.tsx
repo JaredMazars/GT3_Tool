@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { formatAmount } from '@/lib/formatters';
 import { MappedData } from '@/types';
 import * as XLSX from 'xlsx';
@@ -41,14 +41,8 @@ const subsectionDisplayNames: Record<string, string> = {
   incomeItemsOnlyCreditAmounts: 'Income Items (Credit Only)'
 };
 
-interface CustomSelectProps {
-  value: string;
-  onChange: (value: string, section: string, subsection: string) => void;
-  disabled?: boolean;
-  section: string;
-}
-
-function CustomSelect({ value, onChange, disabled }: CustomSelectProps) {
+/* Removed CustomSelect component - now using RemappingModal for all mapping operations */
+/*function CustomSelect({ value, onChange, disabled }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -196,7 +190,7 @@ function CustomSelect({ value, onChange, disabled }: CustomSelectProps) {
       )}
     </div>
   );
-}
+}*/
 
 interface MappingTableProps {
   mappedData: MappedData[];
@@ -204,7 +198,6 @@ interface MappingTableProps {
 }
 
 function MappingTable({ mappedData, onMappingUpdate, onRowClick }: MappingTableProps & { onRowClick?: () => void }) {
-  const [updatingRow, setUpdatingRow] = useState<number | null>(null);
   const [columnWidths, setColumnWidths] = useState({
     code: 6,
     accountName: 14,
@@ -217,15 +210,6 @@ function MappingTable({ mappedData, onMappingUpdate, onRowClick }: MappingTableP
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
   const [startX, setStartX] = useState(0);
   const [startWidth, setStartWidth] = useState(0);
-
-  const handleMappingChange = async (accountId: number, newSarsItem: string, newSection: string, newSubsection: string) => {
-    try {
-      setUpdatingRow(accountId);
-      await onMappingUpdate(accountId, newSarsItem, newSection, newSubsection);
-    } finally {
-      setUpdatingRow(null);
-    }
-  };
 
   const handleMouseDown = (e: React.MouseEvent, columnKey: string) => {
     e.preventDefault();
@@ -384,21 +368,10 @@ function MappingTable({ mappedData, onMappingUpdate, onRowClick }: MappingTableP
               }`}>
                 {item.priorYearBalance < 0 ? `(${formatAmount(Math.abs(item.priorYearBalance))})` : formatAmount(item.priorYearBalance)}
               </td>
-              <td className="px-2 py-1 whitespace-nowrap text-xs text-forvis-gray-900">
-                {updatingRow === item.id ? (
-                  <div className="flex items-center gap-2 text-forvis-blue-600">
-                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-forvis-blue-600"></div>
-                    <span>Updating...</span>
-                  </div>
-                ) : (
-                  <CustomSelect
-                    value={item.sarsItem}
-                    onChange={(newSarsItem, newSection, newSubsection) => 
-                      handleMappingChange(item.id, newSarsItem, newSection, newSubsection)
-                    }
-                    section={item.section}
-                  />
-                )}
+              <td className="px-2 py-1 text-xs text-forvis-gray-900">
+                <div className="truncate" title={item.sarsItem}>
+                  {item.sarsItem}
+                </div>
               </td>
             </tr>
           ))}

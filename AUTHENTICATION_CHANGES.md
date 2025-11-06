@@ -91,3 +91,5 @@ POST /api/auth/logout-all
 - [x] Multiple logins from different devices create separate DB sessions
 - [x] Logout from one device doesn't affect other devices (unless using logout-all)
 
+
+

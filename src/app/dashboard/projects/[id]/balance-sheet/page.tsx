@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { mappingGuide } from '@/lib/mappingGuide';
 import { formatAmount } from '@/lib/formatters';
 import { MappedData } from '@/types';
@@ -29,142 +29,11 @@ interface BalanceSheetSectionProps {
   mappedData: MappedData[];
   projectId: string;
   onMappingUpdate: (accountId: number, newSarsItem: string) => Promise<void>;
+  onOpenModal: () => void;
 }
 
-interface SarsItem {
-  sarsItem: string;
-}
-
-interface CustomSelectProps {
-  value: string;
-  onChange: (value: string, section: string, subsection: string) => void;
-  disabled?: boolean;
-  section: string;
-}
-
-const subsectionDisplayNames: Record<string, string> = {
-  nonCurrentAssets: 'Non-Current Assets',
-  currentAssets: 'Current Assets',
-  capitalAndReservesCreditBalances: 'Capital & Reserves (Credit)',
-  capitalAndReservesDebitBalances: 'Capital & Reserves (Debit)',
-  nonCurrentLiabilities: 'Non-Current Liabilities',
-  currentLiabilities: 'Current Liabilities'
-};
-
-function CustomSelect({ value, onChange, disabled }: CustomSelectProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-        setSearchTerm('');
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    if (isOpen && searchInputRef.current) {
-      searchInputRef.current.focus();
-    }
-  }, [isOpen]);
-
-  const selectedLabel = value || 'Select SARS Item';
-
-  // Filter items based on search term and section
-  const filteredItems = Object.entries(mappingGuide.balanceSheet).reduce((acc, [subsection, items]) => {
-    const filteredItems = items.filter(item =>
-      item.sarsItem.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    if (filteredItems.length > 0) {
-      acc[subsection] = filteredItems;
-    }
-    return acc;
-  }, {} as Record<string, SarsItem[]>);
-
-  return (
-    <div className="relative" ref={dropdownRef}>
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        disabled={disabled}
-        className="w-full rounded-md border-0 py-1 pl-2 pr-8 text-left text-xs text-forvis-gray-900 shadow-sm ring-1 ring-inset ring-forvis-gray-300 focus:ring-2 focus:ring-inset focus:ring-forvis-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <span className="block truncate">{selectedLabel}</span>
-        <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-1.5">
-          <svg className="h-4 w-4 text-forvis-gray-400" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L10 5.414 7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3zm-3.707 9.293a1 1 0 011.414 0L10 14.586l2.293-2.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-          </svg>
-        </span>
-      </button>
-      {isOpen && (
-        <div className="absolute left-0 z-10 mt-1 w-[400px] bg-white shadow-lg ring-1 ring-black ring-opacity-5 rounded-md focus:outline-none">
-          <div className="sticky top-0 z-30 bg-white border-b border-forvis-gray-200">
-            <div className="p-2">
-              <div className="text-sm font-medium text-forvis-gray-900">Select SARS Item</div>
-              <div className="text-xs text-forvis-gray-600 mt-0.5">Balance Sheet Items</div>
-              <div className="mt-2 relative">
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search items..."
-                  className="w-full rounded-md border-0 py-1 pl-7 pr-2 text-xs text-forvis-gray-900 ring-1 ring-inset ring-forvis-gray-300 placeholder:text-forvis-gray-400 focus:ring-2 focus:ring-inset focus:ring-forvis-blue-600"
-                />
-                <svg className="absolute left-2 top-1.5 h-3.5 w-3.5 text-forvis-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-          
-          <div className="overflow-y-auto max-h-[300px]">
-            {Object.entries(filteredItems).map(([subsection, items]) => (
-              <div key={subsection}>
-                <div className="sticky top-0 z-10 bg-gray-50 px-2 py-1 border-b border-gray-200">
-                  <div className="text-xs font-medium text-gray-900">
-                    {subsectionDisplayNames[subsection] || subsection}
-                  </div>
-                </div>
-                <div className="divide-y divide-gray-100">
-                  {items.map((item) => (
-                    <button
-                      key={item.sarsItem}
-                      type="button"
-                      onClick={() => {
-                        onChange(item.sarsItem, 'Balance Sheet', subsection);
-                        setIsOpen(false);
-                        setSearchTerm('');
-                      }}
-                      className={`w-full px-2 py-1.5 text-left text-xs hover:bg-gray-50 focus:bg-gray-50 focus:outline-none ${
-                        value === item.sarsItem
-                          ? 'bg-blue-50 text-blue-900 font-medium'
-                          : 'text-gray-700'
-                      }`}
-                    >
-                      {item.sarsItem}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function BalanceSheetSection({ title, items, onMappingUpdate }: BalanceSheetSectionProps) {
+function BalanceSheetSection({ title, items, onMappingUpdate, onOpenModal }: BalanceSheetSectionProps) {
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
-  const [updatingAccount, setUpdatingAccount] = useState<number | null>(null);
 
   // Filter out items with zero amount (in either year)
   const nonZeroItems = items.filter(item => item.amount !== 0 || item.priorYearAmount !== 0);
@@ -177,15 +46,6 @@ function BalanceSheetSection({ title, items, onMappingUpdate }: BalanceSheetSect
       ...prev,
       [sarsItem]: !prev[sarsItem]
     }));
-  };
-
-  const handleMappingChange = async (accountId: number, newSarsItem: string) => {
-    try {
-      setUpdatingAccount(accountId);
-      await onMappingUpdate(accountId, newSarsItem);
-    } finally {
-      setUpdatingAccount(null);
-    }
   };
 
   if (nonZeroItems.length === 0) return null;
@@ -250,29 +110,16 @@ function BalanceSheetSection({ title, items, onMappingUpdate }: BalanceSheetSect
                 {item.mappedAccounts.map((account, accIndex) => (
                   <div 
                     key={account.id} 
-                    className={`grid grid-cols-12 px-6 py-1.5 text-xs hover:bg-forvis-blue-100 border-b border-forvis-blue-100 last:border-b-0 transition-colors duration-150 ${
+                    className={`grid grid-cols-12 px-6 py-1.5 text-xs hover:bg-forvis-blue-100 border-b border-forvis-blue-100 last:border-b-0 transition-colors duration-150 cursor-pointer group/account ${
                       accIndex % 2 === 0 ? 'bg-white bg-opacity-40' : 'bg-forvis-blue-50 bg-opacity-60'
                     }`}
+                    onClick={onOpenModal}
                   >
-                    <div className="col-span-1 text-forvis-gray-600 font-medium">{account.accountCode}</div>
-                    <div className="col-span-3">
-                      <div className="text-forvis-gray-900 font-medium">{account.accountName}</div>
+                    <div className="col-span-1 text-forvis-gray-600 font-medium">
+                      {account.accountCode}
                     </div>
-                    <div className="col-span-3">
-                      {updatingAccount === account.id ? (
-                        <div className="flex items-center gap-2 text-forvis-blue-600">
-                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-forvis-blue-600"></div>
-                          <span className="text-xs">Updating...</span>
-                        </div>
-                      ) : (
-                        <CustomSelect
-                          value={account.sarsItem}
-                          onChange={(newSarsItem) => 
-                            handleMappingChange(account.id, newSarsItem)
-                          }
-                          section="Balance Sheet"
-                        />
-                      )}
+                    <div className="col-span-6">
+                      <div className="text-forvis-gray-900 font-medium">{account.accountName}</div>
                     </div>
                     <div className={`col-span-2 text-right tabular-nums font-semibold ${account.balance < 0 ? 'text-red-600' : 'text-forvis-gray-900'}`}>
                       {account.balance < 0 
@@ -681,6 +528,7 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
               mappedData={mappedData}
               projectId={params.id}
               onMappingUpdate={handleMappingUpdate}
+              onOpenModal={() => setIsRemappingModalOpen(true)}
             />
 
             {/* Current Assets */}
@@ -696,6 +544,7 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
               mappedData={mappedData}
               projectId={params.id}
               onMappingUpdate={handleMappingUpdate}
+              onOpenModal={() => setIsRemappingModalOpen(true)}
             />
 
             {/* Total Assets */}
@@ -770,6 +619,7 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
               mappedData={mappedData}
               projectId={params.id}
               onMappingUpdate={handleMappingUpdate}
+              onOpenModal={() => setIsRemappingModalOpen(true)}
             />
 
             {/* Current Year Net Profit */}
@@ -832,6 +682,7 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
               mappedData={mappedData}
               projectId={params.id}
               onMappingUpdate={handleMappingUpdate}
+              onOpenModal={() => setIsRemappingModalOpen(true)}
             />
           </div>
         )}
@@ -889,6 +740,7 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
               mappedData={mappedData}
               projectId={params.id}
               onMappingUpdate={handleMappingUpdate}
+              onOpenModal={() => setIsRemappingModalOpen(true)}
             />
 
             {/* Current Liabilities */}
@@ -920,6 +772,7 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
               mappedData={mappedData}
               projectId={params.id}
               onMappingUpdate={handleMappingUpdate}
+              onOpenModal={() => setIsRemappingModalOpen(true)}
             />
           </div>
         )}
