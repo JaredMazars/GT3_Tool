@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { verifySession } from '@/lib/auth';
+import { verifySessionJWTOnly } from '@/lib/auth';
 
 export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
@@ -22,7 +22,8 @@ export async function middleware(req: NextRequest) {
 
   // Check authentication for protected routes
   const sessionToken = req.cookies.get('session')?.value;
-  const session = sessionToken ? await verifySession(sessionToken) : null;
+  // Use JWT-only verification in middleware (Edge runtime doesn't support Prisma)
+  const session = sessionToken ? await verifySessionJWTOnly(sessionToken) : null;
   const isLoggedIn = !!session;
 
   // Dashboard routes

@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUrl } from '@/lib/auth';
 import { logError } from '@/lib/logger';
+import { enforceRateLimit, RateLimitPresets } from '@/lib/rateLimit';
 
 export async function GET(request: NextRequest) {
   try {
+    // Apply lenient rate limiting for auth endpoints
+    enforceRateLimit(request, RateLimitPresets.AUTH_ENDPOINTS);
+    
     const url = new URL(request.url);
     const callbackUrl = url.searchParams.get('callbackUrl') || '/dashboard';
     

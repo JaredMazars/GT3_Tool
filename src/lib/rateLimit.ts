@@ -56,6 +56,13 @@ export const RateLimitPresets = {
     windowMs: 60000, // 1 minute
     keyPrefix: 'read',
   },
+  
+  // Lenient limit for authentication endpoints
+  AUTH_ENDPOINTS: {
+    maxRequests: 10,
+    windowMs: 60000, // 1 minute
+    keyPrefix: 'auth',
+  },
 } as const;
 
 /**
@@ -63,7 +70,7 @@ export const RateLimitPresets = {
  * @param request - Next.js request object
  * @returns Client identifier (IP address or 'unknown')
  */
-function getClientIdentifier(request: NextRequest): string {
+export function getClientIdentifier(request: NextRequest): string {
   // Try to get IP from various headers (considering proxies/load balancers)
   const forwarded = request.headers.get('x-forwarded-for');
   const realIp = request.headers.get('x-real-ip');
@@ -271,6 +278,23 @@ export function getRateLimitStatus(
 export function clearAllRateLimits(): void {
   rateLimitStore.clear();
 }
+
+/**
+ * Clear all rate limit entries for a specific identifier (IP address)
+ * Useful when a user logs out to reset their rate limits
+ * 
+ * @param identifier - Client identifier (IP address)
+ */
+export function clearRateLimitsForIdentifier(identifier: string): void {
+  for (const [key] of rateLimitStore.entries()) {
+    if (key.includes(identifier)) {
+      rateLimitStore.delete(key);
+    }
+  }
+}
+
+
+
 
 
 

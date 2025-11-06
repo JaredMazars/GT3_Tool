@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { handleCallback, createSession } from '@/lib/auth';
 import { logError } from '@/lib/logger';
+import { enforceRateLimit, RateLimitPresets } from '@/lib/rateLimit';
 
 export async function GET(request: NextRequest) {
   try {
+    // Apply lenient rate limiting for auth endpoints
+    enforceRateLimit(request, RateLimitPresets.AUTH_ENDPOINTS);
+    
     const url = new URL(request.url);
     const code = url.searchParams.get('code');
     
@@ -32,6 +36,7 @@ export async function GET(request: NextRequest) {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
+      path: '/',
       // No maxAge = session cookie (expires when browser closes)
     });
     

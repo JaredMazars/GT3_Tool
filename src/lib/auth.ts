@@ -90,7 +90,7 @@ export async function handleCallback(code: string, redirectUri: string) {
 }
 
 /**
- * Create a session token (JWT)
+ * Create a session token (JWT) and store in database
  */
 export async function createSession(user: SessionUser): Promise<string> {
   const token = await new SignJWT({ user })
@@ -99,15 +99,75 @@ export async function createSession(user: SessionUser): Promise<string> {
     .setExpirationTime('1d')
     .sign(JWT_SECRET);
 
+  // Store session in database
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 1 day
+  await prisma.session.create({
+    data: {
+      sessionToken: token,
+      userId: user.id,
+      expires: expiresAt,
+    },
+  });
+
   return token;
 }
 
 /**
+ * Get session from database
+ */
+export async function getSessionFromDatabase(token: string): Promise<any | null> {
+  try {
+    const session = await prisma.session.findUnique({
+      where: { sessionToken: token },
+      include: { user: true },
+    });
+
+    // Check if session exists and hasn't expired
+    if (!session || session.expires < new Date()) {
+      // Clean up expired session if it exists
+      if (session) {
+        await prisma.session.delete({
+          where: { sessionToken: token },
+        });
+      }
+      return null;
+    }
+
+    return session;
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * Verify JWT token only (no database check)
+ * Use this in middleware/edge runtime where Prisma is not available
+ */
+export async function verifySessionJWTOnly(token: string): Promise<Session | null> {
+  try {
+    const verified = await jwtVerify(token, JWT_SECRET);
+    return verified.payload as unknown as Session;
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
  * Verify and decode session token
+ * Also checks if session exists in database
+ * Use this in API routes where Prisma is available
  */
 export async function verifySession(token: string): Promise<Session | null> {
   try {
+    // First verify JWT signature and expiration
     const verified = await jwtVerify(token, JWT_SECRET);
+    
+    // Then check if session exists in database
+    const dbSession = await getSessionFromDatabase(token);
+    if (!dbSession) {
+      return null;
+    }
+
     return verified.payload as unknown as Session;
   } catch (error) {
     return null;
@@ -155,6 +215,28 @@ export async function checkProjectAccess(
 export async function requireAdmin(): Promise<boolean> {
   // TODO: Implement actual admin check with database
   return true;
+}
+
+/**
+ * Delete a specific session from database
+ */
+export async function deleteSession(token: string): Promise<void> {
+  try {
+    await prisma.session.delete({
+      where: { sessionToken: token },
+    });
+  } catch (error) {
+    // Session might not exist, which is fine
+  }
+}
+
+/**
+ * Delete all sessions for a user (logout from all devices)
+ */
+export async function deleteAllUserSessions(userId: string): Promise<void> {
+  await prisma.session.deleteMany({
+    where: { userId },
+  });
 }
 
 /**
