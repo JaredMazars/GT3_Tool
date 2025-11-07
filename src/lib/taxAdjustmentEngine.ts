@@ -1,10 +1,8 @@
-import OpenAI from 'openai';
+import { generateObject } from 'ai';
+import { models } from './ai/config';
+import { TaxAdjustmentSuggestionsSchema } from './ai/schemas';
 import { taxAdjustmentsGuide, type TaxAdjustmentDefinition } from './taxAdjustmentsGuide';
 import { withRetryAndCircuitBreaker, RetryPresets } from './retryUtils';
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
 
 export interface MappedAccountData {
   accountCode: string;
@@ -292,15 +290,14 @@ Return a JSON object with the following structure:
 }
 </output_format>`;
 
-    // Use retry logic with circuit breaker for OpenAI API calls
-    const completion = await withRetryAndCircuitBreaker(
+    // Use retry logic with circuit breaker for AI API calls
+    const result = await withRetryAndCircuitBreaker(
       'openai-tax-suggestions',
-      () => openai.chat.completions.create({
-        model: 'gpt-5-mini',
-        messages: [
-          {
-            role: 'system',
-            content: `You are an expert South African tax consultant specializing in corporate income tax and IT14 computations.
+      async () => {
+        const { object } = await generateObject({
+          model: models.mini,
+          schema: TaxAdjustmentSuggestionsSchema,
+          system: `You are an expert South African tax consultant specializing in corporate income tax and IT14 computations.
 
 <instructions>
 - CRITICAL: Review the existing_adjustments list and DO NOT create duplicates
@@ -325,20 +322,15 @@ Return a JSON object with the following structure:
 - Flag any areas requiring additional professional judgment (requiresManualReview in guide)
 - Return valid JSON in the specified format only
 </instructions>`,
-          },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        response_format: { type: 'json_object' }
-      }),
+          prompt,
+        });
+        return object;
+      },
       RetryPresets.AI_API,
       undefined,
       'Tax Adjustment AI Enhancement'
     );
 
-    const result = JSON.parse(completion.choices[0].message.content || '{}');
     return result.suggestions || ruleSuggestions;
   }
 

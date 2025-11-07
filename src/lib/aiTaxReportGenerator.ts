@@ -1,8 +1,6 @@
-import OpenAI from 'openai';
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+import { generateObject } from 'ai';
+import { models } from './ai/config';
+import { AITaxReportSchema } from './ai/schemas';
 
 export interface AITaxReportData {
   executiveSummary: string;
@@ -66,36 +64,17 @@ export class AITaxReportGenerator {
     try {
       const prompt = this.buildPrompt(projectData);
       
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-5-mini',
-        messages: [
-          {
-            role: 'system',
-            content: `You are an expert South African tax consultant with deep knowledge of the Income Tax Act and SARS regulations. You provide comprehensive, professional tax analysis reports that identify risks, highlight tax-sensitive items, and offer actionable recommendations. Your analysis should be thorough, detailed, and reference specific SARS sections where applicable.
+      const { object } = await generateObject({
+        model: models.mini,
+        schema: AITaxReportSchema,
+        system: `You are an expert South African tax consultant with deep knowledge of the Income Tax Act and SARS regulations. You provide comprehensive, professional tax analysis reports that identify risks, highlight tax-sensitive items, and offer actionable recommendations. Your analysis should be thorough, detailed, and reference specific SARS sections where applicable.
 
-CRITICAL: You MUST use ONLY the exact figures provided in the data - NEVER recalculate or generate different amounts. All financial calculations have been pre-calculated and verified. Your role is to analyze the provided figures, not to recalculate them. When citing any amount in your analysis, use the exact numbers from the provided data.`
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        response_format: { type: 'json_object' }
+CRITICAL: You MUST use ONLY the exact figures provided in the data - NEVER recalculate or generate different amounts. All financial calculations have been pre-calculated and verified. Your role is to analyze the provided figures, not to recalculate them. When citing any amount in your analysis, use the exact numbers from the provided data.`,
+        prompt,
       });
-
-      const responseContent = completion.choices[0].message.content;
-      if (!responseContent) {
-        throw new Error('No response from OpenAI');
-      }
-
-      const parsedResponse = JSON.parse(responseContent);
       
       return {
-        executiveSummary: parsedResponse.executiveSummary || '',
-        risks: parsedResponse.risks || [],
-        taxSensitiveItems: parsedResponse.taxSensitiveItems || [],
-        detailedFindings: parsedResponse.detailedFindings || '',
-        recommendations: parsedResponse.recommendations || [],
+        ...object,
         generatedAt: new Date().toISOString(),
       };
     } catch (error) {

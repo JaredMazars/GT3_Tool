@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { read, utils } from 'xlsx';
-import OpenAI from 'openai';
+import { generateObject } from 'ai';
+import { models } from '@/lib/ai/config';
+import { AccountMappingSchema } from '@/lib/ai/schemas';
 import { mappingGuide } from '@/lib/mappingGuide';
 import { prisma } from '@/lib/prisma';
 import { logInfo, logError } from '@/lib/logger';
 import { determineSectionAndSubsection } from '@/lib/sectionMapper';
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
 
 async function handleStreamingRequest(trialBalanceFile: File, projectId: number) {
   const encoder = new TextEncoder();
@@ -47,11 +45,10 @@ async function handleStreamingRequest(trialBalanceFile: File, projectId: number)
         // Stage 2: Map Income Statement
         sendProgress(2, 'in-progress', 'Mapping Income Statement accounts with AI...');
         const incomeStatementPrompt = generatePrompt(incomeStatementData as Record<string, unknown>[], mappingGuide.incomeStatement, 'Income Statement');
-        const incomeStatementCompletion = await openai.chat.completions.create({
-          messages: [
-            {
-              role: "system",
-              content: `You are an expert accounting assistant specializing in mapping trial balance accounts to SARS tax categories.
+        const { object: incomeStatementResult } = await generateObject({
+          model: models.mini,
+          schema: AccountMappingSchema,
+          system: `You are an expert accounting assistant specializing in mapping trial balance accounts to SARS tax categories.
 
 <task>
 Your task is to analyze trial balance data and map each account to the appropriate SARS category (sarsItem) based on the provided mapping guide.
@@ -75,27 +72,19 @@ Do not include any explanation, commentary, or text outside the JSON array.
 - Preserve original account details exactly as provided, including both Balance and Prior Year Balance
 - Ensure all balance values are numbers, not strings
 - If Prior Year Balance column is missing, set priorYearBalance to 0
-</instructions>`
-            },
-            {
-              role: "user",
-              content: incomeStatementPrompt
-            }
-          ],
-          model: "gpt-5-mini",
-          response_format: { type: "json_object" }
+</instructions>`,
+          prompt: incomeStatementPrompt,
         });
-        const incomeStatementMapped = parseLLMResponse(incomeStatementCompletion.choices[0].message.content);
+        const incomeStatementMapped = incomeStatementResult.accounts;
         sendProgress(2, 'complete', 'Income Statement mapped successfully');
 
         // Stage 3: Map Balance Sheet
         sendProgress(3, 'in-progress', 'Mapping Balance Sheet accounts with AI...');
         const balanceSheetPrompt = generatePrompt(balanceSheetData as Record<string, unknown>[], mappingGuide.balanceSheet, 'Balance Sheet');
-        const balanceSheetCompletion = await openai.chat.completions.create({
-          messages: [
-            {
-              role: "system",
-              content: `You are an expert accounting assistant specializing in mapping trial balance accounts to SARS tax categories.
+        const { object: balanceSheetResult } = await generateObject({
+          model: models.mini,
+          schema: AccountMappingSchema,
+          system: `You are an expert accounting assistant specializing in mapping trial balance accounts to SARS tax categories.
 
 <task>
 Your task is to analyze trial balance data and map each account to the appropriate SARS category (sarsItem) based on the provided mapping guide.
@@ -119,17 +108,10 @@ Do not include any explanation, commentary, or text outside the JSON array.
 - Preserve original account details exactly as provided, including both Balance and Prior Year Balance
 - Ensure all balance values are numbers, not strings
 - If Prior Year Balance column is missing, set priorYearBalance to 0
-</instructions>`
-            },
-            {
-              role: "user",
-              content: balanceSheetPrompt
-            }
-          ],
-          model: "gpt-5-mini",
-          response_format: { type: "json_object" }
+</instructions>`,
+          prompt: balanceSheetPrompt,
         });
-        const balanceSheetMapped = parseLLMResponse(balanceSheetCompletion.choices[0].message.content);
+        const balanceSheetMapped = balanceSheetResult.accounts;
         sendProgress(3, 'complete', 'Balance Sheet mapped successfully');
 
         // Stage 4: Save to database
@@ -270,14 +252,13 @@ export async function POST(request: NextRequest) {
     // Process Income Statement first
     logInfo('Processing Income Statement', { rowCount: incomeStatementData.length });
     const incomeStatementPrompt = generatePrompt(incomeStatementData as Record<string, unknown>[], mappingGuide.incomeStatement, 'Income Statement');
-    logInfo('Calling OpenAI API for Income Statement');
-    let incomeStatementCompletion;
+    logInfo('Calling AI SDK for Income Statement');
+    let incomeStatementResult;
     try {
-      incomeStatementCompletion = await openai.chat.completions.create({
-        messages: [
-          {
-            role: "system",
-            content: `You are an expert accounting assistant specializing in mapping trial balance accounts to SARS tax categories.
+      const result = await generateObject({
+        model: models.mini,
+        schema: AccountMappingSchema,
+        system: `You are an expert accounting assistant specializing in mapping trial balance accounts to SARS tax categories.
 
 <task>
 Your task is to analyze trial balance data and map each account to the appropriate SARS category (sarsItem) based on the provided mapping guide.
@@ -301,39 +282,32 @@ Do not include any explanation, commentary, or text outside the JSON array.
 - Preserve original account details exactly as provided, including both Balance and Prior Year Balance
 - Ensure all balance values are numbers, not strings
 - If Prior Year Balance column is missing, set priorYearBalance to 0
-</instructions>`
-          },
-          {
-            role: "user",
-            content: incomeStatementPrompt
-          }
-        ],
-        model: "gpt-5-mini",
-        response_format: { type: "json_object" }
+</instructions>`,
+        prompt: incomeStatementPrompt,
       });
+      incomeStatementResult = result.object;
     } catch (apiError: any) {
-      logError('OpenAI API Error for Income Statement', apiError, {
+      logError('AI SDK Error for Income Statement', apiError, {
         message: apiError.message,
         status: apiError.status,
         code: apiError.code,
         type: apiError.type
       });
-      throw new Error(`OpenAI API Error: ${apiError.message || apiError}`);
+      throw new Error(`AI SDK Error: ${apiError.message || apiError}`);
     }
 
-    logInfo('Income Statement mapping completed', { accountCount: incomeStatementCompletion.choices[0].message.content?.length || 0 });
-    const incomeStatementMapped = parseLLMResponse(incomeStatementCompletion.choices[0].message.content);
+    logInfo('Income Statement mapping completed');
+    const incomeStatementMapped = incomeStatementResult.accounts;
     logInfo('Income Statement accounts mapped', { count: incomeStatementMapped.length });
 
     // Process Balance Sheet
     logInfo('Processing Balance Sheet', { rowCount: balanceSheetData.length });
     const balanceSheetPrompt = generatePrompt(balanceSheetData as Record<string, unknown>[], mappingGuide.balanceSheet, 'Balance Sheet');
-    logInfo('Calling OpenAI API for Balance Sheet');
-    const balanceSheetCompletion = await openai.chat.completions.create({
-      messages: [
-        {
-          role: "system",
-          content: `You are an expert accounting assistant specializing in mapping trial balance accounts to SARS tax categories.
+    logInfo('Calling AI SDK for Balance Sheet');
+    const { object: balanceSheetResult } = await generateObject({
+      model: models.mini,
+      schema: AccountMappingSchema,
+      system: `You are an expert accounting assistant specializing in mapping trial balance accounts to SARS tax categories.
 
 <task>
 Your task is to analyze trial balance data and map each account to the appropriate SARS category (sarsItem) based on the provided mapping guide.
@@ -357,19 +331,12 @@ Do not include any explanation, commentary, or text outside the JSON array.
 - Preserve original account details exactly as provided, including both Balance and Prior Year Balance
 - Ensure all balance values are numbers, not strings
 - If Prior Year Balance column is missing, set priorYearBalance to 0
-</instructions>`
-        },
-        {
-          role: "user",
-          content: balanceSheetPrompt
-        }
-      ],
-      model: "gpt-5-mini",
-      response_format: { type: "json_object" }
+</instructions>`,
+      prompt: balanceSheetPrompt,
     });
 
-    logInfo('Balance Sheet mapping completed', { accountCount: balanceSheetCompletion.choices[0].message.content?.length || 0 });
-    const balanceSheetMapped = parseLLMResponse(balanceSheetCompletion.choices[0].message.content);
+    logInfo('Balance Sheet mapping completed');
+    const balanceSheetMapped = balanceSheetResult.accounts;
     logInfo('Balance Sheet accounts mapped', { count: balanceSheetMapped.length });
 
     // Combine results
@@ -475,36 +442,3 @@ Return a JSON object with a single "accounts" key containing an array of mapped 
 }
 </output_format>`;
 }
-
-function parseLLMResponse(llmResponse: string | null) {
-  try {
-    if (!llmResponse) throw new Error('Empty response from LLM');
-    
-    // Parse the JSON object response
-    const parsed = JSON.parse(llmResponse.trim());
-    
-    // Extract the accounts array from the response
-    const accounts = parsed.accounts || parsed;
-    
-    // Validate the structure
-    if (!Array.isArray(accounts)) {
-      throw new Error('Response does not contain an array of accounts');
-    }
-
-    // Validate each object in the array
-    accounts.forEach((item, index) => {
-      if (!item.accountCode || !item.accountName || typeof item.balance !== 'number' || !item.sarsItem) {
-        throw new Error(`Invalid object structure at index ${index}: ${JSON.stringify(item)}`);
-      }
-      // Ensure priorYearBalance is a number, default to 0 if missing
-      if (typeof item.priorYearBalance !== 'number') {
-        item.priorYearBalance = 0;
-      }
-    });
-
-    return accounts;
-  } catch (error) {
-    logError('Error parsing LLM response', error, { rawResponse: llmResponse?.substring(0, 500) });
-    throw new Error('Failed to parse the mapping result: ' + (error as Error).message);
-  }
-} 

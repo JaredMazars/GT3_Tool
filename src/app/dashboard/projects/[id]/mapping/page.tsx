@@ -198,185 +198,80 @@ interface MappingTableProps {
 }
 
 function MappingTable({ mappedData, onMappingUpdate, onRowClick }: MappingTableProps & { onRowClick?: () => void }) {
-  const [columnWidths, setColumnWidths] = useState({
-    code: 6,
-    accountName: 14,
-    section: 11,
-    subsection: 13,
-    currentYear: 9,
-    priorYear: 9,
-    sarsItem: 38
-  });
-  const [resizingColumn, setResizingColumn] = useState<string | null>(null);
-  const [startX, setStartX] = useState(0);
-  const [startWidth, setStartWidth] = useState(0);
-
-  const handleMouseDown = (e: React.MouseEvent, columnKey: string) => {
-    e.preventDefault();
-    setResizingColumn(columnKey);
-    setStartX(e.clientX);
-    setStartWidth(columnWidths[columnKey as keyof typeof columnWidths]);
-  };
-
-  useEffect(() => {
-    if (!resizingColumn) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const diff = e.clientX - startX;
-      const tableWidth = document.querySelector('table')?.offsetWidth || 1000;
-      const diffPercent = (diff / tableWidth) * 100;
-      const newWidth = Math.max(5, startWidth + diffPercent); // Minimum 5%
-      
-      setColumnWidths(prev => ({
-        ...prev,
-        [resizingColumn]: newWidth
-      }));
-    };
-
-    const handleMouseUp = () => {
-      setResizingColumn(null);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-    
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
-  }, [resizingColumn, startX, startWidth]);
-
-
   return (
     <div className="overflow-x-auto">
-      <table className="w-full divide-y divide-forvis-gray-200 table-fixed">
-        <thead className="bg-forvis-gray-50 sticky top-0">
-          <tr>
-            <th 
-              scope="col" 
-              style={{ width: `${columnWidths.code}%` }}
-              className="relative px-2 py-1.5 text-left text-xs font-semibold text-forvis-gray-700 uppercase tracking-wider border-b border-forvis-gray-300"
-            >
-              Code
-              <div 
-                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-forvis-blue-500 active:bg-forvis-blue-600"
-                onMouseDown={(e) => handleMouseDown(e, 'code')}
-              />
-            </th>
-            <th 
-              scope="col" 
-              style={{ width: `${columnWidths.accountName}%` }}
-              className="relative px-2 py-1.5 text-left text-xs font-semibold text-forvis-gray-700 uppercase tracking-wider border-b border-forvis-gray-300"
-            >
-              Account Name
-              <div 
-                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-forvis-blue-500 active:bg-forvis-blue-600"
-                onMouseDown={(e) => handleMouseDown(e, 'accountName')}
-              />
-            </th>
-            <th 
-              scope="col" 
-              style={{ width: `${columnWidths.section}%` }}
-              className="relative px-2 py-1.5 text-left text-xs font-semibold text-forvis-gray-700 uppercase tracking-wider border-b border-forvis-gray-300"
-            >
-              Section
-              <div 
-                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-forvis-blue-500 active:bg-forvis-blue-600"
-                onMouseDown={(e) => handleMouseDown(e, 'section')}
-              />
-            </th>
-            <th 
-              scope="col" 
-              style={{ width: `${columnWidths.subsection}%` }}
-              className="relative px-2 py-1.5 text-left text-xs font-semibold text-forvis-gray-700 uppercase tracking-wider border-b border-forvis-gray-300"
-            >
-              Subsection
-              <div 
-                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-forvis-blue-500 active:bg-forvis-blue-600"
-                onMouseDown={(e) => handleMouseDown(e, 'subsection')}
-              />
-            </th>
-            <th 
-              scope="col" 
-              style={{ width: `${columnWidths.currentYear}%` }}
-              className="relative px-2 py-1.5 text-right text-xs font-semibold text-forvis-gray-700 uppercase tracking-wider border-b border-forvis-gray-300"
-            >
-              Current Year
-              <div 
-                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-forvis-blue-500 active:bg-forvis-blue-600"
-                onMouseDown={(e) => handleMouseDown(e, 'currentYear')}
-              />
-            </th>
-            <th 
-              scope="col" 
-              style={{ width: `${columnWidths.priorYear}%` }}
-              className="relative px-2 py-1.5 text-right text-xs font-semibold text-forvis-gray-700 uppercase tracking-wider border-b border-forvis-gray-300"
-            >
-              Prior Year
-              <div 
-                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-forvis-blue-500 active:bg-forvis-blue-600"
-                onMouseDown={(e) => handleMouseDown(e, 'priorYear')}
-              />
-            </th>
-            <th 
-              scope="col" 
-              style={{ width: `${columnWidths.sarsItem}%` }}
-              className="px-2 py-1.5 text-left text-xs font-semibold text-forvis-gray-700 uppercase tracking-wider border-b border-forvis-gray-300"
-            >
-              SARS Item
-            </th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-forvis-gray-200">
-          {mappedData.map((item, index) => (
-            <tr 
-              key={item.id} 
-              onClick={onRowClick}
-              className={`transition-colors duration-150 cursor-pointer ${
-                index % 2 === 0 ? 'bg-white hover:bg-forvis-blue-50' : 'bg-forvis-gray-50 hover:bg-forvis-blue-50'
-              }`}
-            >
-              <td className="px-2 py-1 whitespace-nowrap text-xs font-medium text-forvis-gray-900">
-                {item.accountCode}
-              </td>
-              <td className="px-2 py-1 text-xs text-forvis-gray-900 truncate" title={item.accountName}>
-                {item.accountName}
-              </td>
-              <td className="px-2 py-1 whitespace-nowrap text-xs text-forvis-gray-700">
-                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
-                  item.section.toLowerCase() === 'balance sheet' 
-                    ? 'bg-forvis-blue-100 text-forvis-blue-800' 
-                    : 'bg-forvis-blue-100 text-forvis-blue-800'
-                }`}>
-                  {item.section}
-                </span>
-              </td>
-              <td className="px-2 py-1 whitespace-nowrap text-xs text-forvis-gray-700 truncate" title={subsectionDisplayNames[item.subsection] || item.subsection}>
-                {subsectionDisplayNames[item.subsection] || item.subsection}
-              </td>
-              <td className={`px-2 py-1 whitespace-nowrap text-xs text-right tabular-nums font-medium ${
-                item.balance < 0 ? 'text-red-600' : 'text-forvis-gray-900'
-              }`}>
-                {item.balance < 0 ? `(${formatAmount(Math.abs(item.balance))})` : formatAmount(item.balance)}
-              </td>
-              <td className={`px-2 py-1 whitespace-nowrap text-xs text-right tabular-nums font-medium ${
-                item.priorYearBalance < 0 ? 'text-red-600' : 'text-forvis-gray-600'
-              }`}>
-                {item.priorYearBalance < 0 ? `(${formatAmount(Math.abs(item.priorYearBalance))})` : formatAmount(item.priorYearBalance)}
-              </td>
-              <td className="px-2 py-1 text-xs text-forvis-gray-900">
-                <div className="truncate" title={item.sarsItem}>
-                  {item.sarsItem}
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {/* Header Row - matching balance sheet style exactly */}
+      <div 
+        className="grid py-2 shadow-sm"
+        style={{ 
+          background: 'linear-gradient(to right, #2E5AAC, #25488A)',
+          gridTemplateColumns: '80px 200px 120px 150px 120px 120px 1fr'
+        }}
+      >
+        <div className="px-3 text-left text-xs font-bold text-white uppercase tracking-wider">
+          Code
+        </div>
+        <div className="px-3 text-left text-xs font-bold text-white uppercase tracking-wider">
+          Account Name
+        </div>
+        <div className="px-3 text-left text-xs font-bold text-white uppercase tracking-wider">
+          Section
+        </div>
+        <div className="px-3 text-left text-xs font-bold text-white uppercase tracking-wider">
+          Subsection
+        </div>
+        <div className="px-3 text-right text-xs font-bold text-white uppercase tracking-wider">
+          Current Year (R)
+        </div>
+        <div className="px-3 text-right text-xs font-bold text-white uppercase tracking-wider">
+          Prior Year (R)
+        </div>
+        <div className="px-3 text-left text-xs font-bold text-white uppercase tracking-wider">
+          SARS Item
+        </div>
+      </div>
+
+      {/* Data Rows - matching balance sheet style exactly */}
+      <div className="divide-y divide-forvis-gray-100">
+        {mappedData.map((item, index) => (
+          <div 
+            key={item.id}
+            onClick={onRowClick}
+            className={`grid cursor-pointer hover:bg-forvis-blue-50 transition-colors duration-150 ${
+              index % 2 === 0 ? 'bg-white' : 'bg-forvis-gray-50'
+            }`}
+            style={{ gridTemplateColumns: '80px 200px 120px 150px 120px 120px 1fr' }}
+          >
+            <div className="px-3 py-1.5 text-xs font-medium text-forvis-gray-900">
+              {item.accountCode}
+            </div>
+            <div className="px-3 py-1.5 text-xs text-forvis-gray-900 truncate" title={item.accountName}>
+              {item.accountName}
+            </div>
+            <div className="px-3 py-1.5 text-xs">
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-forvis-blue-100 text-forvis-blue-800">
+                {item.section}
+              </span>
+            </div>
+            <div className="px-3 py-1.5 text-xs text-forvis-gray-700 truncate" title={subsectionDisplayNames[item.subsection] || item.subsection}>
+              {subsectionDisplayNames[item.subsection] || item.subsection}
+            </div>
+            <div className={`px-3 py-1.5 text-xs text-right tabular-nums font-medium ${
+              item.balance < 0 ? 'text-red-600' : 'text-forvis-gray-900'
+            }`}>
+              {item.balance < 0 ? `(${formatAmount(Math.abs(item.balance))})` : formatAmount(item.balance)}
+            </div>
+            <div className={`px-3 py-1.5 text-xs text-right tabular-nums font-medium ${
+              item.priorYearBalance < 0 ? 'text-red-600' : 'text-forvis-gray-600'
+            }`}>
+              {item.priorYearBalance < 0 ? `(${formatAmount(Math.abs(item.priorYearBalance))})` : formatAmount(item.priorYearBalance)}
+            </div>
+            <div className="px-3 py-1.5 text-xs text-forvis-gray-900 truncate" title={item.sarsItem}>
+              {item.sarsItem}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -693,27 +588,27 @@ export default function MappingPage({ params }: { params: { id: string } }) {
       </div>
 
       {/* Actions and Upload Section */}
-      <div className="bg-white rounded-lg shadow-sm border border-forvis-gray-200 overflow-hidden">
-        <div className="p-4 space-y-4">
+      <div className="bg-white rounded-lg shadow-corporate border-2 overflow-hidden" style={{ borderColor: '#2E5AAC' }}>
+        <div className="space-y-4">
           {/* Action Bar */}
-          <div className="flex justify-between items-center pb-2 border-b border-forvis-gray-200">
-            <h2 className="text-base font-semibold text-forvis-gray-900">Account Mapping</h2>
-            <div className="flex gap-2">
+          <div className="flex justify-between items-center p-4" style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)' }}>
+            <h2 className="text-lg font-bold text-white">Account Mapping</h2>
+            <div className="flex gap-3">
               <button
                 onClick={() => setIsRemappingModalOpen(true)}
                 disabled={mappedData.length === 0}
-                className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-white/20 hover:bg-white/30 disabled:bg-white/10 rounded-lg border-2 border-white/40 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
               >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
                 Bulk Remap
               </button>
               <a
                 href={`/dashboard/projects/${params.id}/tax-calculation/adjustments`}
-                className="btn-primary text-xs px-3 py-1.5 flex items-center gap-2"
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-white/20 hover:bg-white/30 rounded-lg border-2 border-white/40 transition-all duration-200 shadow-lg"
               >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
                 AI Tax Adjustments
@@ -721,20 +616,21 @@ export default function MappingPage({ params }: { params: { id: string } }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 px-4 pb-4">
             {/* Upload Section */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 justify-between">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 justify-between px-3 py-2 rounded-lg" style={{ background: 'linear-gradient(135deg, #E0EDFB 0%, #C7DDEF 100%)', borderLeft: '4px solid #2E5AAC' }}>
                 <div className="flex items-center gap-2">
-                  <svg className="w-4 h-4 text-forvis-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5" style={{ color: '#2E5AAC' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                   </svg>
-                  <h3 className="text-sm font-semibold text-forvis-gray-900">Upload Trial Balance</h3>
+                  <h3 className="text-sm font-bold" style={{ color: '#1C3667' }}>Upload Trial Balance</h3>
                 </div>
                 <a
                   href="/trial-balance-template.xlsx"
                   download="trial-balance-template.xlsx"
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-forvis-blue-600 bg-forvis-blue-50 rounded-md hover:bg-forvis-blue-100 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white rounded-lg shadow-lg hover:shadow-xl transition-all"
+                  style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
                 >
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -745,33 +641,33 @@ export default function MappingPage({ params }: { params: { id: string } }) {
               
               {/* File Format Guidance */}
               <details className="group">
-                <summary className="cursor-pointer text-xs text-forvis-blue-600 hover:text-forvis-blue-700 font-medium flex items-center gap-1">
-                  <svg className="w-3.5 h-3.5 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <summary className="cursor-pointer text-xs font-bold flex items-center gap-1 px-2 py-1" style={{ color: '#2E5AAC' }}>
+                  <svg className="w-4 h-4 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                   File Format Requirements
                 </summary>
-                <div className="mt-2 p-3 bg-forvis-blue-50 rounded-md border border-forvis-blue-200 text-xs space-y-2">
+                <div className="mt-2 p-4 rounded-lg border-2 text-xs space-y-3" style={{ background: 'linear-gradient(135deg, #F8FBFE 0%, #EEF6FC 100%)', borderColor: '#2E5AAC' }}>
                   <div>
-                    <p className="font-semibold text-forvis-gray-900 mb-1">Required Columns:</p>
-                    <ul className="list-disc list-inside text-forvis-gray-700 space-y-0.5 ml-2">
-                      <li><span className="font-medium">Account Code</span> (e.g., &quot;1000&quot;, &quot;2000&quot;)</li>
-                      <li><span className="font-medium">Account Name</span> (e.g., &quot;Cash at Bank&quot;)</li>
-                      <li><span className="font-medium">Section</span> (must be &quot;Balance Sheet&quot; or &quot;Income Statement&quot;)</li>
-                      <li><span className="font-medium">Balance</span> (current year numeric values)</li>
-                      <li><span className="font-medium">Prior Year Balance</span> (prior year numeric values for comparative reporting)</li>
+                    <p className="font-bold mb-2" style={{ color: '#1C3667' }}>Required Columns:</p>
+                    <ul className="list-disc list-inside text-forvis-gray-700 space-y-1 ml-2">
+                      <li><span className="font-semibold">Account Code</span> (e.g., &quot;1000&quot;, &quot;2000&quot;)</li>
+                      <li><span className="font-semibold">Account Name</span> (e.g., &quot;Cash at Bank&quot;)</li>
+                      <li><span className="font-semibold">Section</span> (must be &quot;Balance Sheet&quot; or &quot;Income Statement&quot;)</li>
+                      <li><span className="font-semibold">Balance</span> (current year numeric values)</li>
+                      <li><span className="font-semibold">Prior Year Balance</span> (prior year numeric values for comparative reporting)</li>
                     </ul>
                   </div>
                   <div>
-                    <p className="font-semibold text-forvis-gray-900 mb-1">Balance Conventions:</p>
-                    <ul className="list-disc list-inside text-forvis-gray-700 space-y-0.5 ml-2">
-                      <li><span className="font-medium">Income Statement:</span> Negative = income, Positive = expenses</li>
-                      <li><span className="font-medium">Balance Sheet:</span> Negative = liabilities/equity, Positive = assets</li>
+                    <p className="font-bold mb-2" style={{ color: '#1C3667' }}>Balance Conventions:</p>
+                    <ul className="list-disc list-inside text-forvis-gray-700 space-y-1 ml-2">
+                      <li><span className="font-semibold">Income Statement:</span> Negative = income, Positive = expenses</li>
+                      <li><span className="font-semibold">Balance Sheet:</span> Negative = liabilities/equity, Positive = assets</li>
                     </ul>
                   </div>
                   <div>
-                    <p className="font-semibold text-forvis-gray-900 mb-1">File Requirements:</p>
-                    <ul className="list-disc list-inside text-forvis-gray-700 space-y-0.5 ml-2">
+                    <p className="font-bold mb-2" style={{ color: '#1C3667' }}>File Requirements:</p>
+                    <ul className="list-disc list-inside text-forvis-gray-700 space-y-1 ml-2">
                       <li>Formats: Excel (.xlsx, .xls) or CSV (.csv)</li>
                       <li>System reads the first sheet only</li>
                       <li>Headers must be in the first row</li>
@@ -780,14 +676,14 @@ export default function MappingPage({ params }: { params: { id: string } }) {
                 </div>
               </details>
 
-              <div className="flex justify-center px-4 pt-3 pb-4 border-2 border-forvis-blue-300 border-dashed rounded-lg bg-forvis-blue-50 transition-all duration-200 ease-in-out hover:bg-forvis-blue-100 hover:border-forvis-blue-400">
-                <div className="space-y-1 text-center">
-                  <svg className="mx-auto h-8 w-8 text-forvis-blue-500" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+              <div className="flex justify-center px-6 pt-5 pb-6 border-3 border-dashed rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl" style={{ borderColor: '#2E5AAC', borderWidth: '3px', background: 'linear-gradient(135deg, #F0F7FD 0%, #E5F1FB 100%)' }}>
+                <div className="space-y-2 text-center">
+                  <svg className="mx-auto h-10 w-10" style={{ color: '#2E5AAC' }} stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
                     <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                  <div className="flex text-xs text-forvis-gray-700 justify-center">
-                    <label htmlFor="file-upload" className="relative cursor-pointer rounded-md font-semibold text-forvis-blue-600 hover:text-forvis-blue-700 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-forvis-blue-500">
-                      <span>{isUploading ? 'Uploading...' : 'Upload a file'}</span>
+                  <div className="flex text-sm justify-center" style={{ color: '#1C3667' }}>
+                    <label htmlFor="file-upload" className="relative cursor-pointer rounded-md font-bold transition-all" style={{ color: '#2E5AAC' }}>
+                      <span className="hover:underline">{isUploading ? 'Uploading...' : 'Upload a file'}</span>
                       <input 
                         id="file-upload" 
                         name="file-upload" 
@@ -798,36 +694,38 @@ export default function MappingPage({ params }: { params: { id: string } }) {
                         disabled={isUploading}
                       />
                     </label>
-                    <p className="pl-1">or drag and drop</p>
+                    <p className="pl-1 font-medium">or drag and drop</p>
                   </div>
-                  <p className="text-xs text-forvis-gray-600 font-medium">Excel or CSV files</p>
+                  <p className="text-xs font-bold" style={{ color: '#2E5AAC' }}>Excel or CSV files</p>
                 </div>
               </div>
             </div>
 
             {/* Download Section */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-forvis-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: 'linear-gradient(135deg, #E0EDFB 0%, #C7DDEF 100%)', borderLeft: '4px solid #2E5AAC' }}>
+                <svg className="w-5 h-5" style={{ color: '#2E5AAC' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                <h3 className="text-sm font-semibold text-forvis-gray-900">Download Data</h3>
+                <h3 className="text-sm font-bold" style={{ color: '#1C3667' }}>Download Data</h3>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <button
                   onClick={downloadJson}
-                  className="inline-flex items-center justify-center gap-2 px-3 py-2 border border-forvis-gray-300 shadow-sm text-xs font-medium rounded-lg text-forvis-gray-700 bg-white hover:bg-forvis-gray-50 hover:border-forvis-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-forvis-blue-500 transition-all duration-200 ease-in-out"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-bold text-white rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
+                  style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                   </svg>
                   JSON
                 </button>
                 <button
                   onClick={downloadExcel}
-                  className="inline-flex items-center justify-center gap-2 px-3 py-2 border border-forvis-gray-300 shadow-sm text-xs font-medium rounded-lg text-forvis-gray-700 bg-white hover:bg-forvis-gray-50 hover:border-forvis-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-forvis-blue-500 transition-all duration-200 ease-in-out"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-bold text-white rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
+                  style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                   Excel
@@ -837,32 +735,32 @@ export default function MappingPage({ params }: { params: { id: string } }) {
           </div>
 
           {/* Financial Totals */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-forvis-gray-200">
-            <div className="bg-forvis-blue-50 rounded-lg p-3 border border-forvis-blue-200 shadow-sm">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 px-4 pb-4 pt-5 border-t-2" style={{ borderColor: '#2E5AAC' }}>
+            <div className="rounded-xl p-4 border-2 shadow-corporate" style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)', borderColor: '#2E5AAC' }}>
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-xs font-medium text-forvis-gray-700 mb-1">Balance Sheet Total</h3>
-                  <p className={`text-xl font-bold tabular-nums ${totals.balanceSheet < 0 ? 'text-red-600' : 'text-forvis-blue-700'}`}>
+                  <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: '#1C3667' }}>Balance Sheet Total</h3>
+                  <p className={`text-2xl font-bold tabular-nums ${totals.balanceSheet < 0 ? 'text-red-600' : ''}`} style={{ color: totals.balanceSheet < 0 ? undefined : '#2E5AAC' }}>
                     {totals.balanceSheet < 0 ? `(${formatAmount(Math.abs(totals.balanceSheet))})` : formatAmount(totals.balanceSheet)}
                   </p>
                 </div>
-                <div className="bg-forvis-blue-100 rounded-full p-2">
-                  <svg className="w-5 h-5 text-forvis-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="rounded-full p-3 shadow-lg" style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}>
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                   </svg>
                 </div>
               </div>
             </div>
-            <div className="bg-forvis-blue-50 rounded-lg p-3 border border-forvis-blue-200 shadow-sm">
+            <div className="rounded-xl p-4 border-2 shadow-corporate" style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)', borderColor: '#2E5AAC' }}>
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-xs font-medium text-forvis-gray-700 mb-1">Income Statement Total</h3>
-                  <p className={`text-xl font-bold tabular-nums ${totals.incomeStatement < 0 ? 'text-red-600' : 'text-forvis-blue-700'}`}>
+                  <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: '#1C3667' }}>Income Statement Total</h3>
+                  <p className={`text-2xl font-bold tabular-nums ${totals.incomeStatement < 0 ? 'text-red-600' : ''}`} style={{ color: totals.incomeStatement < 0 ? undefined : '#2E5AAC' }}>
                     {totals.incomeStatement < 0 ? `(${formatAmount(Math.abs(totals.incomeStatement))})` : formatAmount(totals.incomeStatement)}
                   </p>
                 </div>
-                <div className="bg-forvis-blue-100 rounded-full p-2">
-                  <svg className="w-5 h-5 text-forvis-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="rounded-full p-3 shadow-lg" style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}>
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
@@ -872,23 +770,30 @@ export default function MappingPage({ params }: { params: { id: string } }) {
 
           {/* Mapping Table */}
           {mappedData.length > 0 ? (
-            <div className="pt-3">
-              <h3 className="text-sm font-semibold text-forvis-gray-900 mb-2">Account Details</h3>
-              <div className="rounded-lg border border-forvis-gray-200 overflow-hidden shadow-sm">
-                <MappingTable 
-                  mappedData={mappedData} 
-                  onMappingUpdate={handleMappingUpdate}
-                  onRowClick={() => setIsRemappingModalOpen(true)}
-                />
+            <div className="px-4 pb-4 pt-4">
+              <div className="border-2 rounded-lg overflow-hidden shadow-sm" style={{ borderColor: '#25488A' }}>
+                <div 
+                  className="px-3 py-2 shadow-sm"
+                  style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
+                >
+                  <h3 className="text-sm font-bold text-white">Account Details</h3>
+                </div>
+                <div className="bg-white">
+                  <MappingTable 
+                    mappedData={mappedData} 
+                    onMappingUpdate={handleMappingUpdate}
+                    onRowClick={() => setIsRemappingModalOpen(true)}
+                  />
+                </div>
               </div>
             </div>
           ) : (
-            <div className="text-center py-12 bg-forvis-gray-50 rounded-lg border-2 border-dashed border-forvis-gray-300">
-              <svg className="mx-auto h-12 w-12 text-forvis-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="mx-4 mb-4 text-center py-16 rounded-xl border-3 border-dashed shadow-lg" style={{ borderColor: '#2E5AAC', borderWidth: '3px', background: 'linear-gradient(135deg, #F8FBFE 0%, #EEF6FC 100%)' }}>
+              <svg className="mx-auto h-16 w-16" style={{ color: '#2E5AAC' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              <h3 className="mt-3 text-base font-medium text-forvis-gray-900">No data available</h3>
-              <p className="mt-1 text-xs text-forvis-gray-600">Get started by uploading a trial balance file.</p>
+              <h3 className="mt-4 text-lg font-bold" style={{ color: '#1C3667' }}>No data available</h3>
+              <p className="mt-2 text-sm font-medium" style={{ color: '#2E5AAC' }}>Get started by uploading a trial balance file above.</p>
             </div>
           )}
         </div>

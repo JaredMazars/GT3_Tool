@@ -1,4 +1,18 @@
 /**
+ * Re-export AI types from schemas for consistency
+ */
+export type {
+  AITaxReport,
+  TaxReportRisk,
+  ExtractedData,
+  TaxAdjustmentSuggestion,
+  TaxAdjustmentSuggestions,
+  CalculationDetails,
+  MappedAccount,
+  AccountMapping,
+} from '@/lib/ai/schemas';
+
+/**
  * Standard API response types
  */
 
@@ -41,20 +55,12 @@ export interface TaxAdjustmentExport {
 }
 
 /**
- * Document extraction types
+ * Document extraction context
  */
 export interface ExtractionContext {
   adjustmentType: string;
   adjustmentDescription: string;
   projectId: number;
-}
-
-export interface ExtractedData {
-  type: string;
-  confidence: number;
-  data: Record<string, any>;
-  warnings?: string[];
-  extractedAt: string;
 }
 
 /**
@@ -75,27 +81,10 @@ export interface FileValidationResult {
   size?: number;
 }
 
-/**
- * Tax adjustment suggestion types
- */
-export interface TaxAdjustmentSuggestion {
-  type: 'DEBIT' | 'CREDIT' | 'ALLOWANCE' | 'RECOUPMENT';
-  description: string;
-  amount: number;
-  sarsSection: string;
-  confidenceScore: number;
-  reasoning: string;
-  calculationDetails: CalculationDetails;
-}
-
-export interface CalculationDetails {
-  method: string;
-  inputs: Record<string, any>;
-  formula?: string;
-}
 
 /**
- * AI Report types
+ * Legacy AI Report type - use AITaxReport from schemas instead
+ * @deprecated Use AITaxReport from @/lib/ai/schemas
  */
 export interface AITaxReportData {
   executiveSummary: string;
@@ -103,21 +92,29 @@ export interface AITaxReportData {
   taxSensitiveItems: TaxSensitiveItem[];
   detailedFindings: string;
   recommendations: string[];
+  generatedAt?: string;
 }
 
+/**
+ * @deprecated Use TaxReportRisk from @/lib/ai/schemas
+ */
 export interface RiskItem {
-  category: string;
+  category?: string;
+  title?: string;
   severity: 'low' | 'medium' | 'high' | 'critical';
   description: string;
   impact?: string;
   mitigation?: string;
+  recommendation?: string;
 }
 
+/**
+ * @deprecated Use TaxSensitiveItem from @/lib/ai/schemas
+ */
 export interface TaxSensitiveItem {
   item: string;
-  amount: number;
-  concern: string;
-  sarsSection?: string;
+  reason: string;
+  action: string;
 }
 
 /**
@@ -138,6 +135,7 @@ export interface ServiceStatus {
   latency?: number;
   message?: string;
 }
+
 
 
 

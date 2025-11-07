@@ -1,4 +1,6 @@
-import OpenAI from 'openai';
+import { generateObject } from 'ai';
+import { models } from './ai/config';
+import { AIExtractionSchema, PDFExtractionSchema } from './ai/schemas';
 import * as XLSX from 'xlsx';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -8,10 +10,6 @@ import {
   deleteFile as deleteFromBlob,
   isBlobStorageConfigured,
 } from './blobStorage';
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
 
 export interface ExtractedData {
   documentType: string;
@@ -193,12 +191,10 @@ Return a JSON object with the following structure:
 }
 </output_format>`;
 
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-5-nano-2025-08-07',
-        messages: [
-          {
-            role: 'system',
-            content: `You are an expert tax document analyzer specializing in South African tax documents.
+      const { object } = await generateObject({
+        model: models.nano,
+        schema: PDFExtractionSchema,
+        system: `You are an expert tax document analyzer specializing in South African tax documents.
 
 <instructions>
 - Extract all relevant financial and tax information accurately
@@ -207,24 +203,10 @@ Return a JSON object with the following structure:
 - Provide confidence scores based on data clarity
 - Always return valid JSON in the specified format
 </instructions>`,
-          },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        response_format: { type: 'json_object' }
+        prompt,
       });
-
-      const result = JSON.parse(completion.choices[0].message.content || '{}');
       
-      return {
-        documentType: result.documentType || 'Unknown',
-        summary: result.summary || 'Unable to extract summary',
-        structuredData: result.structuredData || {},
-        confidence: result.confidence || 0.5,
-        warnings: result.warnings || ['PDF extraction has limitations - manual review recommended'],
-      };
+      return object;
     } catch (error) {
       console.error('PDF extraction error:', error);
       throw new Error(`Failed to extract data from PDF: ${error}`);
@@ -335,12 +317,10 @@ Return JSON with:
 </output_format>`;
 
     try {
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-5-nano-2025-08-07',
-        messages: [
-          {
-            role: 'system',
-            content: `You are an expert at extracting structured data from financial and tax documents.
+      const { object } = await generateObject({
+        model: models.nano,
+        schema: AIExtractionSchema,
+        system: `You are an expert at extracting structured data from financial and tax documents.
 
 <instructions>
 - Identify the document type accurately
@@ -350,23 +330,10 @@ Return JSON with:
 - Always return valid JSON in the specified format
 - Never include explanatory text outside the JSON structure
 </instructions>`,
-          },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        response_format: { type: 'json_object' }
+        prompt,
       });
-
-      const result = JSON.parse(completion.choices[0].message.content || '{}');
       
-      return {
-        summary: result.summary || 'Data extracted',
-        structuredData: result.structuredData || {},
-        confidence: result.confidence || 0.7,
-        warnings: result.warnings || [],
-      };
+      return object;
     } catch (error) {
       console.error('AI extraction error:', error);
       return {
