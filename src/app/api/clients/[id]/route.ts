@@ -103,6 +103,20 @@ export async function PUT(
       );
     }
 
+    // Check for duplicate client code if provided and different from current
+    if (validatedData.clientCode && validatedData.clientCode !== existingClient.clientCode) {
+      const duplicateClient = await prisma.client.findUnique({
+        where: { clientCode: validatedData.clientCode },
+      });
+
+      if (duplicateClient) {
+        return handleApiError(
+          new AppError(400, `Client code '${validatedData.clientCode}' is already in use`, ErrorCodes.VALIDATION_ERROR),
+          'Update Client'
+        );
+      }
+    }
+
     // Update client
     const client = await prisma.client.update({
       where: { id: clientId },
@@ -118,6 +132,17 @@ export async function PUT(
         new AppError(400, message, ErrorCodes.VALIDATION_ERROR),
         'Update Client'
       );
+    }
+    
+    // Handle Prisma unique constraint violations
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+      const target = (error as any).meta?.target;
+      if (target && target.includes('clientCode')) {
+        return handleApiError(
+          new AppError(400, 'Client code is already in use', ErrorCodes.VALIDATION_ERROR),
+          'Update Client'
+        );
+      }
     }
     
     return handleApiError(error, 'Update Client');

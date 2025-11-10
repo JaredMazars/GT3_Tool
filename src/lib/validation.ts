@@ -56,10 +56,10 @@ export const createClientSchema = z.object({
     .optional()
     .nullable(),
   email: z.string()
+    .min(1, 'Email is required')
     .email('Invalid email address')
     .max(200, 'Email must be less than 200 characters')
-    .optional()
-    .nullable(),
+    .trim(),
   phone: z.string()
     .max(50, 'Phone must be less than 50 characters')
     .optional()

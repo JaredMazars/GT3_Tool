@@ -79,6 +79,20 @@ export async function POST(request: NextRequest) {
     // Validate request body
     const validatedData = createClientSchema.parse(body);
 
+    // Check for duplicate client code if provided
+    if (validatedData.clientCode) {
+      const existingClient = await prisma.client.findUnique({
+        where: { clientCode: validatedData.clientCode },
+      });
+
+      if (existingClient) {
+        return handleApiError(
+          new AppError(400, `Client code '${validatedData.clientCode}' is already in use`, ErrorCodes.VALIDATION_ERROR),
+          'Create Client'
+        );
+      }
+    }
+
     // Create client
     const client = await prisma.client.create({
       data: validatedData,
@@ -93,6 +107,17 @@ export async function POST(request: NextRequest) {
         new AppError(400, message, ErrorCodes.VALIDATION_ERROR),
         'Create Client'
       );
+    }
+    
+    // Handle Prisma unique constraint violations
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+      const target = (error as any).meta?.target;
+      if (target && target.includes('clientCode')) {
+        return handleApiError(
+          new AppError(400, 'Client code is already in use', ErrorCodes.VALIDATION_ERROR),
+          'Create Client'
+        );
+      }
     }
     
     return handleApiError(error, 'Create Client');

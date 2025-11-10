@@ -37,6 +37,7 @@ export default function ClientsPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string>('');
   
   const [formData, setFormData] = useState({
     name: '',
@@ -86,6 +87,7 @@ export default function ClientsPage() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setError('');
 
     try {
       const response = await fetch('/api/clients', {
@@ -94,13 +96,18 @@ export default function ClientsPage() {
         body: JSON.stringify(formData),
       });
 
-      if (!response.ok) throw new Error('Failed to create client');
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error?.message || data.error || 'Failed to create client');
+      }
 
       resetForm();
       setShowModal(false);
       await fetchClients();
     } catch (error) {
       console.error('Error creating client:', error);
+      setError(error instanceof Error ? error.message : 'Failed to create client');
     } finally {
       setIsSubmitting(false);
     }
@@ -111,6 +118,7 @@ export default function ClientsPage() {
     if (!selectedClient) return;
 
     setIsSubmitting(true);
+    setError('');
 
     try {
       const response = await fetch(`/api/clients/${selectedClient.id}`, {
@@ -119,7 +127,11 @@ export default function ClientsPage() {
         body: JSON.stringify(formData),
       });
 
-      if (!response.ok) throw new Error('Failed to update client');
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error?.message || data.error || 'Failed to update client');
+      }
 
       resetForm();
       setShowEditModal(false);
@@ -127,6 +139,7 @@ export default function ClientsPage() {
       await fetchClients();
     } catch (error) {
       console.error('Error updating client:', error);
+      setError(error instanceof Error ? error.message : 'Failed to update client');
     } finally {
       setIsSubmitting(false);
     }
@@ -175,6 +188,7 @@ export default function ClientsPage() {
 
   const openEditModal = (client: Client) => {
     setSelectedClient(client);
+    setError('');
     // Fetch full client details
     fetch(`/api/clients/${client.id}`)
       .then(res => res.json())
@@ -234,6 +248,7 @@ export default function ClientsPage() {
           <button
             onClick={() => {
               resetForm();
+              setError('');
               setShowModal(true);
             }}
             className="ml-4 btn-primary"
@@ -353,6 +368,16 @@ export default function ClientsPage() {
               </div>
 
               <form onSubmit={showModal ? handleCreate : handleUpdate} className="p-6 space-y-4">
+                <p className="text-sm text-gray-600 mb-4">
+                  Fields marked with <span className="text-red-500">*</span> are required.
+                </p>
+
+                {error && (
+                  <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+                    {error}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -378,7 +403,7 @@ export default function ClientsPage() {
                       placeholder="e.g., CLI001"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
-                    <p className="mt-1 text-xs text-gray-500">For integration with existing client database</p>
+                    <p className="mt-1 text-xs text-gray-500">Must be unique. For integration with existing client database.</p>
                   </div>
 
                   <div>
@@ -492,10 +517,11 @@ export default function ClientsPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Email
+                      Email <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="email"
+                      required
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -534,6 +560,7 @@ export default function ClientsPage() {
                       setShowModal(false);
                       setShowEditModal(false);
                       setSelectedClient(null);
+                      setError('');
                       resetForm();
                     }}
                     className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"

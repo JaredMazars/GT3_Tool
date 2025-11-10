@@ -15,6 +15,7 @@ interface CreateProjectModalProps {
 export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProjectModalProps) {
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const [error, setError] = useState('');
   
   const [formData, setFormData] = useState({
@@ -33,8 +34,35 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleNextStep = () => {
+    if (isTransitioning) return;
+    
+    setIsTransitioning(true);
+    setStep(prev => prev + 1);
+    
+    // Reset transition state after a short delay
+    setTimeout(() => setIsTransitioning(false), 300);
+  };
+
+  const handlePrevStep = () => {
+    if (isTransitioning) return;
+    
+    setIsTransitioning(true);
+    setStep(prev => prev - 1);
+    
+    // Reset transition state after a short delay
+    setTimeout(() => setIsTransitioning(false), 300);
+  };
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+    
+    // Only allow submission on step 3
+    if (step !== 3) {
+      return;
+    }
     
     if (!formData.name.trim()) {
       setError('Project name is required');
@@ -72,6 +100,7 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
         submissionDeadline: null,
       });
       setStep(1);
+      setIsTransitioning(false);
       
       onSuccess(createdProject);
     } catch (err) {
@@ -95,6 +124,7 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
     });
     setStep(1);
     setError('');
+    setIsTransitioning(false);
     onClose();
   };
 
@@ -120,7 +150,7 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6">
+        <div className="p-6">
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg">
               {error}
@@ -164,7 +194,7 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
                 <ClientSelector
                   value={formData.clientId}
                   onChange={(clientId) => handleFieldChange('clientId', clientId)}
-                  allowCreate={true}
+                  allowCreate={false}
                 />
                 <p className="mt-1 text-xs text-gray-500">
                   Optional: Associate this project with a client
@@ -208,8 +238,9 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
               {step > 1 && (
                 <button
                   type="button"
-                  onClick={() => setStep(step - 1)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                  onClick={handlePrevStep}
+                  disabled={isTransitioning}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
                 >
                   Back
                 </button>
@@ -228,15 +259,16 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
               {step < 3 ? (
                 <button
                   type="button"
-                  onClick={() => setStep(step + 1)}
-                  disabled={step === 1 && !formData.name.trim()}
+                  onClick={handleNextStep}
+                  disabled={isTransitioning || (step === 1 && !formData.name.trim())}
                   className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-400"
                 >
                   Next
                 </button>
               ) : (
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={() => handleSubmit()}
                   disabled={isSubmitting}
                   className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-400"
                 >
@@ -245,7 +277,7 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
               )}
             </div>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
