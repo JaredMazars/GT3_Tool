@@ -32,7 +32,7 @@ export async function GET(
       include: {
         Project: {
           where: { archived: false },
-          orderBy: { createdAt: 'desc' },
+          orderBy: { updatedAt: 'desc' },
           select: {
             id: true,
             name: true,
@@ -42,6 +42,12 @@ export async function GET(
             status: true,
             createdAt: true,
             updatedAt: true,
+            _count: {
+              select: {
+                MappedAccount: true,
+                TaxAdjustment: true,
+              },
+            },
           },
         },
         _count: {
@@ -59,7 +65,20 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(successResponse(client));
+    // Transform Project to projects for frontend compatibility
+    const { Project, ...clientWithoutProject } = client;
+    const responseData = {
+      ...clientWithoutProject,
+      projects: Project.map(project => ({
+        ...project,
+        _count: {
+          mappings: project._count.MappedAccount,
+          taxAdjustments: project._count.TaxAdjustment,
+        },
+      })),
+    };
+
+    return NextResponse.json(successResponse(responseData));
   } catch (error) {
     return handleApiError(error, 'Get Client');
   }

@@ -52,7 +52,12 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
       const response = await fetch(`/api/clients/${params.id}`);
       if (!response.ok) throw new Error('Failed to fetch client');
       const data = await response.json();
-      setClient(data.success ? data.data : data);
+      const clientData = data.success ? data.data : data;
+      // Ensure projects is always an array
+      setClient({
+        ...clientData,
+        projects: clientData.projects || [],
+      });
     } catch (error) {
       console.error('Error fetching client:', error);
     } finally {
