@@ -24,29 +24,40 @@ export function UserSearchModal({ projectId, isOpen, onClose, onUserAdded }: Use
       setSearchResults([]);
       setSelectedUser(null);
       setError('');
+      // Load initial users when modal opens
+      loadUsers('');
     }
   }, [isOpen]);
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
-
+  const loadUsers = async (query: string) => {
     setLoading(true);
     setError('');
 
     try {
-      const response = await fetch(`/api/users/search?q=${encodeURIComponent(searchQuery)}`);
+      const url = query.trim() 
+        ? `/api/users/search?q=${encodeURIComponent(query)}&projectId=${projectId}`
+        : `/api/users/search?projectId=${projectId}`;
+      
+      const response = await fetch(url);
       const data = await response.json();
 
       if (data.success) {
         setSearchResults(data.data);
       } else {
-        setError('Failed to search users');
+        setError('Failed to load users');
       }
     } catch (err) {
-      setError('An error occurred while searching');
+      setError('An error occurred while loading users');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearch = async () => {
+    setLoading(true);
+    setError('');
+
+    await loadUsers(searchQuery);
   };
 
   const handleAddUser = async () => {
@@ -83,7 +94,7 @@ export function UserSearchModal({ projectId, isOpen, onClose, onUserAdded }: Use
         <div className="px-6 py-4 border-b-2 border-forvis-gray-200 flex justify-between items-center" style={{ background: 'linear-gradient(to right, #EBF2FA, #D6E4F5)' }}>
           <div>
             <h2 className="text-xl font-bold text-forvis-blue-900">Add User to Project</h2>
-            <p className="text-sm text-forvis-blue-800 mt-1">Search for users in your organization</p>
+            <p className="text-sm text-forvis-blue-800 mt-1">Search for users in the system</p>
           </div>
           <button 
             onClick={onClose} 
@@ -109,7 +120,7 @@ export function UserSearchModal({ projectId, isOpen, onClose, onUserAdded }: Use
 
           <div>
             <label className="block text-sm font-bold text-forvis-gray-900 mb-2">
-              Search Active Directory
+              Search Users
             </label>
             <div className="flex gap-2">
               <div className="flex-1 relative">

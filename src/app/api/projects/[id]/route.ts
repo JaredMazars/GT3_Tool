@@ -24,7 +24,10 @@ export async function GET(
     const projectId = parseProjectId(params?.id);
 
     // Check project access (any role can view)
-    await checkProjectAccess(user.id, projectId);
+    const hasAccess = await checkProjectAccess(user.id, projectId);
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const project = await prisma.project.findUnique({
       where: { id: projectId },
@@ -101,7 +104,10 @@ export async function PUT(
     const projectId = parseProjectId(params?.id);
 
     // Check project access (requires EDITOR role or higher)
-    await checkProjectAccess(user.id, projectId, 'EDITOR');
+    const hasAccess = await checkProjectAccess(user.id, projectId, 'EDITOR');
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const body = await request.json();
 
@@ -184,7 +190,10 @@ export async function PATCH(
     const projectId = parseProjectId(params?.id);
 
     // Check project access (requires ADMIN role)
-    await checkProjectAccess(user.id, projectId, 'ADMIN');
+    const hasAccess = await checkProjectAccess(user.id, projectId, 'ADMIN');
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const body = await request.json();
     const { action } = body;
@@ -231,7 +240,10 @@ export async function DELETE(
     const projectId = parseProjectId(params?.id);
 
     // Check project access (requires ADMIN role)
-    await checkProjectAccess(user.id, projectId, 'ADMIN');
+    const hasAccess = await checkProjectAccess(user.id, projectId, 'ADMIN');
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     // Archive the project instead of deleting
     const project = await prisma.project.update({
