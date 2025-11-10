@@ -14,7 +14,15 @@ import {
   ArchiveBoxIcon,
   ArrowDownTrayIcon,
   ClipboardDocumentListIcon,
-  UsersIcon
+  UsersIcon,
+  BookOpenIcon,
+  LightBulbIcon,
+  ScaleIcon,
+  CheckCircleIcon,
+  EnvelopeIcon,
+  FolderIcon,
+  ClipboardDocumentCheckIcon,
+  DocumentCheckIcon
 } from '@heroicons/react/24/outline';
 import BalanceSheetPage from './balance-sheet/page';
 import IncomeStatementPage from './income-statement/page';
@@ -352,8 +360,24 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
 
 export default function ProjectPage({ params }: { params: { id: string } }) {
   const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState('mapping');
   const { data: project, isLoading, refetch: fetchProject } = useProject(params.id);
+  
+  // Set default active tab based on project type
+  const getDefaultTab = () => {
+    if (!project) return 'team';
+    switch (project.projectType) {
+      case 'TAX_CALCULATION':
+        return 'mapping';
+      case 'TAX_OPINION':
+        return 'opinion-drafting';
+      case 'TAX_ADMINISTRATION':
+        return 'sars-responses';
+      default:
+        return 'team';
+    }
+  };
+  
+  const [activeTab, setActiveTab] = useState(getDefaultTab());
   
   // Team management state
   const [projectUsers, setProjectUsers] = useState<ProjectUser[]>([]);
@@ -362,13 +386,16 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
   const [currentUserId, setCurrentUserId] = useState('');
   const [currentUserRole, setCurrentUserRole] = useState<ProjectRole>('VIEWER' as ProjectRole);
 
-  // Handle tab query parameter
+  // Handle tab query parameter and update default tab when project loads
   useEffect(() => {
     const tab = searchParams.get('tab');
     if (tab) {
       setActiveTab(tab);
+    } else if (project) {
+      // Set default tab based on project type when project loads
+      setActiveTab(getDefaultTab());
     }
-  }, [searchParams]);
+  }, [searchParams, project]);
 
   // Fetch users when team tab is active
   useEffect(() => {
@@ -416,6 +443,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
 
   const renderContent = () => {
     switch (activeTab) {
+      // Tax Calculation tabs
       case 'mapping':
         return <MappingPage params={params} />;
       case 'balance-sheet':
@@ -426,6 +454,27 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         return <TaxCalculationPage params={params} />;
       case 'reporting':
         return <ReportingPage params={params} />;
+      
+      // Tax Opinion tabs (placeholder components - will be created)
+      case 'opinion-drafting':
+        return <div className="p-6">Opinion Drafting Page (Coming Soon)</div>;
+      case 'research-notes':
+        return <div className="p-6">Research Notes Page (Coming Soon)</div>;
+      case 'legal-precedents':
+        return <div className="p-6">Legal Precedents Page (Coming Soon)</div>;
+      case 'final-opinion':
+        return <div className="p-6">Final Opinion Page (Coming Soon)</div>;
+      
+      // Tax Administration tabs (placeholder components - will be created)
+      case 'sars-responses':
+        return <div className="p-6">SARS Responses Page (Coming Soon)</div>;
+      case 'document-management':
+        return <div className="p-6">Document Management Page (Coming Soon)</div>;
+      case 'compliance-checklist':
+        return <div className="p-6">Compliance Checklist Page (Coming Soon)</div>;
+      case 'filing-status':
+        return <div className="p-6">Filing Status Page (Coming Soon)</div>;
+      
       case 'team':
         return (
           <div className="p-6">
@@ -575,42 +624,117 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
 
           {/* Tabs */}
           <div className="border-t border-forvis-gray-200">
-            <nav className="flex space-x-6 px-4" aria-label="Tabs">
-              <Tab
-                onClick={() => setActiveTab('mapping')}
-                selected={activeTab === 'mapping'}
-                icon={TableCellsIcon}
-              >
-                Mapping
-              </Tab>
-              <Tab
-                onClick={() => setActiveTab('balance-sheet')}
-                selected={activeTab === 'balance-sheet'}
-                icon={DocumentTextIcon}
-              >
-                Balance Sheet
-              </Tab>
-              <Tab
-                onClick={() => setActiveTab('income-statement')}
-                selected={activeTab === 'income-statement'}
-                icon={DocumentTextIcon}
-              >
-                Income Statement
-              </Tab>
-              <Tab
-                onClick={() => setActiveTab('tax-calculation')}
-                selected={activeTab === 'tax-calculation'}
-                icon={CalculatorIcon}
-              >
-                Tax Calculation
-              </Tab>
-              <Tab
-                onClick={() => setActiveTab('reporting')}
-                selected={activeTab === 'reporting'}
-                icon={ClipboardDocumentListIcon}
-              >
-                Reporting
-              </Tab>
+            <nav className="flex space-x-6 px-4 overflow-x-auto" aria-label="Tabs">
+              {/* Tax Calculation Tabs */}
+              {project?.projectType === 'TAX_CALCULATION' && (
+                <>
+                  <Tab
+                    onClick={() => setActiveTab('mapping')}
+                    selected={activeTab === 'mapping'}
+                    icon={TableCellsIcon}
+                  >
+                    Mapping
+                  </Tab>
+                  <Tab
+                    onClick={() => setActiveTab('balance-sheet')}
+                    selected={activeTab === 'balance-sheet'}
+                    icon={DocumentTextIcon}
+                  >
+                    Balance Sheet
+                  </Tab>
+                  <Tab
+                    onClick={() => setActiveTab('income-statement')}
+                    selected={activeTab === 'income-statement'}
+                    icon={DocumentTextIcon}
+                  >
+                    Income Statement
+                  </Tab>
+                  <Tab
+                    onClick={() => setActiveTab('tax-calculation')}
+                    selected={activeTab === 'tax-calculation'}
+                    icon={CalculatorIcon}
+                  >
+                    Tax Calculation
+                  </Tab>
+                  <Tab
+                    onClick={() => setActiveTab('reporting')}
+                    selected={activeTab === 'reporting'}
+                    icon={ClipboardDocumentListIcon}
+                  >
+                    Reporting
+                  </Tab>
+                </>
+              )}
+              
+              {/* Tax Opinion Tabs */}
+              {project?.projectType === 'TAX_OPINION' && (
+                <>
+                  <Tab
+                    onClick={() => setActiveTab('opinion-drafting')}
+                    selected={activeTab === 'opinion-drafting'}
+                    icon={BookOpenIcon}
+                  >
+                    Opinion Drafting
+                  </Tab>
+                  <Tab
+                    onClick={() => setActiveTab('research-notes')}
+                    selected={activeTab === 'research-notes'}
+                    icon={LightBulbIcon}
+                  >
+                    Research Notes
+                  </Tab>
+                  <Tab
+                    onClick={() => setActiveTab('legal-precedents')}
+                    selected={activeTab === 'legal-precedents'}
+                    icon={ScaleIcon}
+                  >
+                    Legal Precedents
+                  </Tab>
+                  <Tab
+                    onClick={() => setActiveTab('final-opinion')}
+                    selected={activeTab === 'final-opinion'}
+                    icon={CheckCircleIcon}
+                  >
+                    Final Opinion
+                  </Tab>
+                </>
+              )}
+              
+              {/* Tax Administration Tabs */}
+              {project?.projectType === 'TAX_ADMINISTRATION' && (
+                <>
+                  <Tab
+                    onClick={() => setActiveTab('sars-responses')}
+                    selected={activeTab === 'sars-responses'}
+                    icon={EnvelopeIcon}
+                  >
+                    SARS Responses
+                  </Tab>
+                  <Tab
+                    onClick={() => setActiveTab('document-management')}
+                    selected={activeTab === 'document-management'}
+                    icon={FolderIcon}
+                  >
+                    Document Management
+                  </Tab>
+                  <Tab
+                    onClick={() => setActiveTab('compliance-checklist')}
+                    selected={activeTab === 'compliance-checklist'}
+                    icon={ClipboardDocumentCheckIcon}
+                  >
+                    Compliance Checklist
+                  </Tab>
+                  <Tab
+                    onClick={() => setActiveTab('filing-status')}
+                    selected={activeTab === 'filing-status'}
+                    icon={DocumentCheckIcon}
+                  >
+                    Filing Status
+                  </Tab>
+                </>
+              )}
+              
+              {/* Common Tabs for all project types */}
               <Tab
                 onClick={() => setActiveTab('team')}
                 selected={activeTab === 'team'}

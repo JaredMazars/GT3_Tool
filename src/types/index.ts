@@ -79,6 +79,14 @@ export interface ProjectUser {
     id: string;
     name: string | null;
     email: string;
+    image?: string | null;
+  };
+  // API returns User with capital U from Prisma
+  User?: {
+    id: string;
+    name: string | null;
+    email: string;
+    image?: string | null;
   };
 }
 
@@ -89,4 +97,109 @@ export interface ADUser {
   displayName: string;
   jobTitle?: string | null;
   department?: string | null;
+}
+
+// Tax Opinion Models
+export interface OpinionDraft {
+  id: number;
+  projectId: number;
+  version: number;
+  title: string;
+  content: string;
+  status: string;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ResearchNote {
+  id: number;
+  projectId: number;
+  title: string;
+  content: string;
+  tags?: string | null;
+  category?: string | null;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface LegalPrecedent {
+  id: number;
+  projectId: number;
+  caseName: string;
+  citation: string;
+  court?: string | null;
+  year?: number | null;
+  summary: string;
+  relevance?: string | null;
+  link?: string | null;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Tax Administration Models
+export interface SarsResponse {
+  id: number;
+  projectId: number;
+  referenceNumber: string;
+  subject: string;
+  content: string;
+  status: string;
+  responseType: string;
+  deadline?: Date | null;
+  sentDate?: Date | null;
+  receivedDate?: Date | null;
+  documentPath?: string | null;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AdministrationDocument {
+  id: number;
+  projectId: number;
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+  filePath: string;
+  category: string;
+  description?: string | null;
+  version: number;
+  uploadedBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ComplianceChecklistItem {
+  id: number;
+  projectId: number;
+  title: string;
+  description?: string | null;
+  dueDate?: Date | null;
+  priority: string;
+  status: string;
+  assignedTo?: string | null;
+  completedAt?: Date | null;
+  completedBy?: string | null;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface FilingStatus {
+  id: number;
+  projectId: number;
+  filingType: string;
+  description?: string | null;
+  status: string;
+  deadline?: Date | null;
+  submittedDate?: Date | null;
+  approvedDate?: Date | null;
+  referenceNumber?: string | null;
+  notes?: string | null;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
 } 

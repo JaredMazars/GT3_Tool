@@ -367,3 +367,4 @@ All planned features have been successfully implemented. The application now sup
 
 The system is ready for testing once the database migration is applied.
 
+

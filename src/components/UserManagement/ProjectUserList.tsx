@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { ProjectUser, ProjectRole } from '@/types';
 import { RoleSelector } from './RoleSelector';
+import { UserCircleIcon, EnvelopeIcon, BriefcaseIcon, BuildingOfficeIcon, CalendarIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 interface ProjectUserListProps {
   projectId: number;
@@ -22,6 +23,7 @@ export function ProjectUserList({
   onRoleChanged,
 }: ProjectUserListProps) {
   const [removingUserId, setRemovingUserId] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<ProjectUser | null>(null);
 
   const handleRemoveUser = async (userId: string) => {
     if (!confirm('Are you sure you want to remove this user from the project?')) {
@@ -39,6 +41,9 @@ export function ProjectUserList({
 
       if (data.success) {
         onUserRemoved();
+        if (selectedUser?.userId === userId) {
+          setSelectedUser(null);
+        }
       } else {
         alert(data.error || 'Failed to remove user');
       }
@@ -54,63 +59,221 @@ export function ProjectUserList({
   const getRoleBadgeColor = (role: ProjectRole) => {
     switch (role) {
       case 'ADMIN':
-        return 'bg-purple-100 text-purple-800';
+        return 'bg-purple-100 text-purple-800 border-purple-300';
       case 'REVIEWER':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-blue-100 text-blue-800 border-blue-300';
       case 'EDITOR':
-        return 'bg-green-100 text-green-800';
+        return 'bg-green-100 text-green-800 border-green-300';
       case 'VIEWER':
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 text-gray-800 border-gray-300';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 text-gray-800 border-gray-300';
     }
   };
 
+  const getRoleDescription = (role: ProjectRole) => {
+    switch (role) {
+      case 'ADMIN':
+        return 'Full project control, can manage team members';
+      case 'REVIEWER':
+        return 'Can review and approve/reject adjustments';
+      case 'EDITOR':
+        return 'Can create and edit project data';
+      case 'VIEWER':
+        return 'Read-only access to project data';
+      default:
+        return '';
+    }
+  };
+
+  const getInitials = (name: string | null | undefined, email: string | undefined) => {
+    if (name) {
+      return name
+        .split(' ')
+        .map(n => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2);
+    }
+    return email ? email.slice(0, 2).toUpperCase() : '??';
+  };
+
   return (
-    <div className="space-y-2">
-      {users.map((projectUser) => (
-        <div
-          key={projectUser.id}
-          className="flex items-center justify-between p-4 border border-gray-200 rounded-lg"
-        >
-          <div className="flex-1">
-            <div className="font-medium">{projectUser.user?.name || projectUser.user?.email}</div>
-            <div className="text-sm text-gray-600">{projectUser.user?.email}</div>
-          </div>
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {users.map((projectUser) => {
+          const user = (projectUser as any).User || (projectUser as any).user;
+          return (
+            <div
+              key={projectUser.id}
+              onClick={() => setSelectedUser(projectUser)}
+              className="bg-white border-2 border-forvis-gray-200 rounded-lg p-4 hover:border-forvis-blue-500 hover:shadow-md transition-all cursor-pointer"
+            >
+              <div className="flex items-start gap-3">
+                {/* Avatar */}
+                <div className="flex-shrink-0">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-forvis-blue-500 to-forvis-blue-700 flex items-center justify-center text-white font-bold text-lg shadow-md">
+                    {getInitials(user?.name, user?.email)}
+                  </div>
+                </div>
 
-          <div className="flex items-center gap-3">
-            {canManageUsers && projectUser.userId !== currentUserId ? (
-              <RoleSelector
-                projectId={projectId}
-                userId={projectUser.userId}
-                currentRole={projectUser.role}
-                onChange={onRoleChanged}
-              />
-            ) : (
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${getRoleBadgeColor(projectUser.role)}`}>
-                {projectUser.role}
-              </span>
-            )}
-
-            {canManageUsers && projectUser.userId !== currentUserId && (
-              <button
-                onClick={() => handleRemoveUser(projectUser.userId)}
-                disabled={removingUserId === projectUser.userId}
-                className="px-3 py-1 text-sm text-red-600 hover:text-red-700 disabled:text-gray-400"
-              >
-                {removingUserId === projectUser.userId ? 'Removing...' : 'Remove'}
-              </button>
-            )}
-          </div>
-        </div>
-      ))}
+                {/* User Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-semibold text-forvis-gray-900 truncate">
+                      {user?.name || user?.email || 'Unknown User'}
+                    </h3>
+                    {projectUser.userId === currentUserId && (
+                      <span className="text-xs px-2 py-0.5 bg-forvis-blue-100 text-forvis-blue-800 rounded-full font-medium">
+                        You
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 text-sm text-forvis-gray-600 mb-2">
+                    <EnvelopeIcon className="w-4 h-4" />
+                    <span className="truncate">{user?.email || 'No email'}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium border ${getRoleBadgeColor(projectUser.role)}`}>
+                      {projectUser.role}
+                    </span>
+                    <span className="text-xs text-forvis-gray-500">
+                      Added {new Date(projectUser.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
       {users.length === 0 && (
-        <div className="text-center py-8 text-gray-500">
-          No users assigned to this project
+        <div className="text-center py-12 bg-forvis-gray-50 rounded-lg border-2 border-dashed border-forvis-gray-300">
+          <UserCircleIcon className="w-16 h-16 mx-auto text-forvis-gray-400 mb-3" />
+          <p className="text-forvis-gray-600 font-medium">No team members yet</p>
+          <p className="text-sm text-forvis-gray-500 mt-1">Add users to start collaborating on this project</p>
         </div>
       )}
-    </div>
+
+      {/* User Detail Modal */}
+      {selectedUser && (() => {
+        const user = (selectedUser as any).User || (selectedUser as any).user;
+        return (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full">
+              {/* Header */}
+              <div className="px-6 py-4 border-b border-forvis-gray-200 flex items-center justify-between">
+                <h2 className="text-xl font-bold text-forvis-gray-900">Team Member Details</h2>
+                <button
+                  onClick={() => setSelectedUser(null)}
+                  className="text-forvis-gray-400 hover:text-forvis-gray-600 transition-colors"
+                >
+                  <XMarkIcon className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="p-6 space-y-6">
+                {/* User Header */}
+                <div className="flex items-center gap-4">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-forvis-blue-500 to-forvis-blue-700 flex items-center justify-center text-white font-bold text-3xl shadow-lg">
+                    {getInitials(user?.name, user?.email)}
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold text-forvis-gray-900">
+                      {user?.name || user?.email || 'Unknown User'}
+                    </h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={`text-sm px-3 py-1 rounded-full font-medium border ${getRoleBadgeColor(selectedUser.role)}`}>
+                        {selectedUser.role}
+                      </span>
+                      {selectedUser.userId === currentUserId && (
+                        <span className="text-sm px-3 py-1 bg-forvis-blue-100 text-forvis-blue-800 rounded-full font-medium">
+                          You
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Details Grid */}
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="bg-forvis-gray-50 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <EnvelopeIcon className="w-5 h-5 text-forvis-blue-600 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-forvis-gray-700">Email</p>
+                        <p className="text-sm text-forvis-gray-900 mt-0.5">{user?.email || 'No email'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                <div className="bg-forvis-gray-50 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <CalendarIcon className="w-5 h-5 text-forvis-blue-600 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-forvis-gray-700">Added to Project</p>
+                      <p className="text-sm text-forvis-gray-900 mt-0.5">
+                        {new Date(selectedUser.createdAt).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-forvis-blue-50 rounded-lg p-4 border border-forvis-blue-200">
+                  <p className="text-sm font-medium text-forvis-blue-900 mb-2">Role Permissions</p>
+                  <p className="text-sm text-forvis-blue-800">{getRoleDescription(selectedUser.role)}</p>
+                </div>
+              </div>
+
+              {/* Role Management */}
+              {canManageUsers && selectedUser.userId !== currentUserId && (
+                <div className="border-t border-forvis-gray-200 pt-6">
+                  <h4 className="text-sm font-semibold text-forvis-gray-900 mb-3">Manage Access</h4>
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <RoleSelector
+                        projectId={projectId}
+                        userId={selectedUser.userId}
+                        currentRole={selectedUser.role}
+                        onChange={() => {
+                          onRoleChanged();
+                          setSelectedUser(null);
+                        }}
+                      />
+                    </div>
+                    <button
+                      onClick={() => handleRemoveUser(selectedUser.userId)}
+                      disabled={removingUserId === selectedUser.userId}
+                      className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:bg-gray-400 transition-colors"
+                    >
+                      {removingUserId === selectedUser.userId ? 'Removing...' : 'Remove from Project'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+              {/* Footer */}
+              <div className="px-6 py-4 bg-forvis-gray-50 border-t border-forvis-gray-200 flex justify-end">
+                <button
+                  onClick={() => setSelectedUser(null)}
+                  className="px-4 py-2 text-sm font-semibold text-forvis-gray-700 bg-white border border-forvis-gray-300 rounded-lg hover:bg-forvis-gray-50 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+    </>
   );
 }
+
 

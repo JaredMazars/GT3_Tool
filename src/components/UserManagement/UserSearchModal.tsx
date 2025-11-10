@@ -78,111 +78,164 @@ export function UserSearchModal({ projectId, isOpen, onClose, onUserAdded }: Use
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Add User to Project</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            ✕
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="px-6 py-4 border-b border-forvis-gray-200 flex justify-between items-center">
+          <div>
+            <h2 className="text-xl font-bold text-forvis-gray-900">Add User to Project</h2>
+            <p className="text-sm text-forvis-gray-600 mt-1">Search for users in your organization</p>
+          </div>
+          <button 
+            onClick={onClose} 
+            className="text-forvis-gray-400 hover:text-forvis-gray-600 transition-colors"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
 
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded">
-            {error}
-          </div>
-        )}
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+          {error && (
+            <div className="p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded">
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+                <span className="font-medium">{error}</span>
+              </div>
+            </div>
+          )}
 
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Search Active Directory
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleSearch();
-                }
-              }}
-              placeholder="Search by name or email..."
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              onClick={handleSearch}
-              disabled={loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
-            >
-              {loading ? 'Searching...' : 'Search'}
-            </button>
-          </div>
-        </div>
-
-        {searchResults.length > 0 && (
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select User
+          <div>
+            <label className="block text-sm font-semibold text-forvis-gray-900 mb-2">
+              Search Active Directory
             </label>
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-              {searchResults.map((user) => (
-                <div
-                  key={user.id}
-                  onClick={() => setSelectedUser(user)}
-                  className={`p-3 border rounded-md cursor-pointer transition-colors ${
-                    selectedUser?.id === user.id
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-300 hover:border-gray-400'
-                  }`}
-                >
-                  <div className="font-medium">{user.displayName}</div>
-                  <div className="text-sm text-gray-600">{user.email}</div>
-                  {user.jobTitle && (
-                    <div className="text-xs text-gray-500">{user.jobTitle}</div>
-                  )}
-                </div>
-              ))}
+            <div className="flex gap-2">
+              <div className="flex-1 relative">
+                <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-forvis-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleSearch();
+                    }
+                  }}
+                  placeholder="Search by name or email..."
+                  className="w-full pl-10 pr-4 py-2 border-2 border-forvis-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent"
+                />
+              </div>
+              <button
+                onClick={handleSearch}
+                disabled={loading}
+                className="px-6 py-2 bg-gradient-to-r from-forvis-blue-600 to-forvis-blue-700 text-white font-semibold rounded-lg hover:from-forvis-blue-700 hover:to-forvis-blue-800 disabled:from-gray-400 disabled:to-gray-500 transition-all shadow-md"
+              >
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Searching...
+                  </span>
+                ) : 'Search'}
+              </button>
             </div>
           </div>
-        )}
 
-        {selectedUser && (
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Assign Role
-            </label>
-            <select
-              value={selectedRole}
-              onChange={(e) => setSelectedRole(e.target.value as ProjectRole)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="VIEWER">Viewer - Read-only access</option>
-              <option value="EDITOR">Editor - Can edit data</option>
-              <option value="REVIEWER">Reviewer - Can approve/reject adjustments</option>
-              <option value="ADMIN">Admin - Full project control</option>
-            </select>
-          </div>
-        )}
+          {searchResults.length > 0 && (
+            <div>
+              <label className="block text-sm font-semibold text-forvis-gray-900 mb-3">
+                Select User ({searchResults.length} found)
+              </label>
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {searchResults.map((user) => {
+                  const initials = user.displayName
+                    .split(' ')
+                    .map(n => n[0])
+                    .join('')
+                    .toUpperCase()
+                    .slice(0, 2);
+                  
+                  return (
+                    <div
+                      key={user.id}
+                      onClick={() => setSelectedUser(user)}
+                      className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                        selectedUser?.id === user.id
+                          ? 'border-forvis-blue-500 bg-forvis-blue-50 shadow-md'
+                          : 'border-forvis-gray-300 hover:border-forvis-gray-400 hover:bg-forvis-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-forvis-blue-500 to-forvis-blue-700 flex items-center justify-center text-white font-bold text-sm shadow-md">
+                          {initials}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-forvis-gray-900">{user.displayName}</div>
+                          <div className="text-sm text-forvis-gray-600 truncate">{user.email}</div>
+                          {user.jobTitle && (
+                            <div className="text-xs text-forvis-gray-500 mt-1">{user.jobTitle}</div>
+                          )}
+                        </div>
+                        {selectedUser?.id === user.id && (
+                          <svg className="w-6 h-6 text-forvis-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
-        <div className="flex justify-end gap-2">
+          {selectedUser && (
+            <div className="bg-forvis-blue-50 rounded-lg p-4 border-2 border-forvis-blue-200">
+              <label className="block text-sm font-semibold text-forvis-blue-900 mb-3">
+                Assign Role
+              </label>
+              <select
+                value={selectedRole}
+                onChange={(e) => setSelectedRole(e.target.value as ProjectRole)}
+                className="w-full px-4 py-3 border-2 border-forvis-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent bg-white font-medium"
+              >
+                <option value="VIEWER">👁️ Viewer - Read-only access</option>
+                <option value="EDITOR">✏️ Editor - Can edit data</option>
+                <option value="REVIEWER">✅ Reviewer - Can approve/reject adjustments</option>
+                <option value="ADMIN">⚙️ Admin - Full project control</option>
+              </select>
+              <p className="mt-2 text-xs text-forvis-blue-800">
+                Choose the appropriate access level for this user
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 py-4 bg-forvis-gray-50 border-t border-forvis-gray-200 flex justify-end gap-3">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+            className="px-6 py-2 bg-white text-forvis-gray-700 font-semibold rounded-lg border-2 border-forvis-gray-300 hover:bg-forvis-gray-50 transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleAddUser}
             disabled={!selectedUser}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+            className="px-6 py-2 bg-gradient-to-r from-forvis-blue-600 to-forvis-blue-700 text-white font-semibold rounded-lg hover:from-forvis-blue-700 hover:to-forvis-blue-800 disabled:from-gray-400 disabled:to-gray-500 transition-all shadow-md disabled:shadow-none"
           >
-            Add User
+            Add User to Project
           </button>
         </div>
       </div>
     </div>
   );
 }
+
 
