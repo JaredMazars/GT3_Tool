@@ -110,6 +110,47 @@ export interface OpinionDraft {
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
+  documents?: OpinionDocument[];
+  sections?: OpinionSection[];
+  chatMessages?: OpinionChatMessage[];
+}
+
+export interface OpinionDocument {
+  id: number;
+  opinionDraftId: number;
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+  filePath: string;
+  category: string;
+  extractedText?: string | null;
+  vectorized: boolean;
+  uploadedBy: string;
+  createdAt: Date;
+}
+
+export interface OpinionSection {
+  id: number;
+  opinionDraftId: number;
+  sectionType: string;
+  title: string;
+  content: string;
+  aiGenerated: boolean;
+  reviewed: boolean;
+  reviewedBy?: string | null;
+  reviewedAt?: Date | null;
+  order: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface OpinionChatMessage {
+  id: number;
+  opinionDraftId: number;
+  role: string;
+  content: string;
+  metadata?: string | null;
+  createdAt: Date;
 }
 
 export interface ResearchNote {

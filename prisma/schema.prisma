@@ -205,20 +205,71 @@ model User {
 }
 
 model OpinionDraft {
-  id        Int      @id @default(autoincrement())
-  projectId Int
-  version   Int      @default(1)
-  title     String
-  content   String   @db.NVarChar(Max)
-  status    String   @default("DRAFT")
-  createdBy String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  Project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  id           Int                   @id @default(autoincrement())
+  projectId    Int
+  version      Int                   @default(1)
+  title        String
+  content      String                @db.NVarChar(Max)
+  status       String                @default("DRAFT")
+  createdBy    String
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  Project      Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  documents    OpinionDocument[]
+  sections     OpinionSection[]
+  chatMessages OpinionChatMessage[]
 
   @@index([projectId])
   @@index([status])
   @@index([projectId, version])
+}
+
+model OpinionDocument {
+  id             Int          @id @default(autoincrement())
+  opinionDraftId Int
+  fileName       String
+  fileType       String
+  fileSize       Int
+  filePath       String
+  category       String
+  extractedText  String?      @db.NVarChar(Max)
+  vectorized     Boolean      @default(false)
+  uploadedBy     String
+  createdAt      DateTime     @default(now())
+  OpinionDraft   OpinionDraft @relation(fields: [opinionDraftId], references: [id], onDelete: Cascade)
+
+  @@index([opinionDraftId])
+  @@index([category])
+}
+
+model OpinionSection {
+  id             Int          @id @default(autoincrement())
+  opinionDraftId Int
+  sectionType    String
+  title          String
+  content        String       @db.NVarChar(Max)
+  aiGenerated    Boolean      @default(false)
+  reviewed       Boolean      @default(false)
+  reviewedBy     String?
+  reviewedAt     DateTime?
+  order          Int
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  OpinionDraft   OpinionDraft @relation(fields: [opinionDraftId], references: [id], onDelete: Cascade)
+
+  @@index([opinionDraftId, order])
+}
+
+model OpinionChatMessage {
+  id             Int          @id @default(autoincrement())
+  opinionDraftId Int
+  role           String
+  content        String       @db.NVarChar(Max)
+  metadata       String?      @db.NVarChar(Max)
+  createdAt      DateTime     @default(now())
+  OpinionDraft   OpinionDraft @relation(fields: [opinionDraftId], references: [id], onDelete: Cascade)
+
+  @@index([opinionDraftId, createdAt])
 }
 
 model ResearchNote {

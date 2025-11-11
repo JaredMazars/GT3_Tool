@@ -110,6 +110,84 @@ export const PDFExtractionSchema = z.object({
   warnings: z.array(z.string()),
 });
 
+/**
+ * Schema for Opinion Section Content
+ */
+export const OpinionSectionContentSchema = z.object({
+  title: z.string(),
+  content: z.string(),
+  citations: z.array(z.string()),
+});
+
+/**
+ * Schema for Tax Analysis
+ */
+export const TaxAnalysisSchema = z.object({
+  mainIssues: z.array(z.string()),
+  legalAnalysis: z.string(),
+  alternativePositions: z.array(
+    z.object({
+      position: z.string(),
+      strengths: z.array(z.string()),
+      weaknesses: z.array(z.string()),
+      likelihood: z.enum(['high', 'medium', 'low']),
+    })
+  ),
+  risks: z.array(
+    z.object({
+      risk: z.string(),
+      severity: z.enum(['high', 'medium', 'low']),
+      mitigation: z.string(),
+    })
+  ),
+  conclusion: z.string(),
+});
+
+/**
+ * Schema for Research Findings
+ */
+export const ResearchFindingsSchema = z.object({
+  relevantLaw: z.array(z.string()),
+  documentFindings: z.string(),
+  precedents: z.array(z.string()),
+  additionalResearchNeeded: z.array(z.string()),
+});
+
+/**
+ * Schema for Interview Completeness Assessment
+ */
+export const CompletenessAssessmentSchema = z.object({
+  completeness: z.number().min(0).max(100),
+  missingCritical: z.array(z.string()),
+  missingDesirable: z.array(z.string()),
+  readyToProceed: z.boolean(),
+});
+
+/**
+ * Schema for Review Feedback
+ */
+export const ReviewFeedbackSchema = z.object({
+  overallScore: z.number().min(0).max(100),
+  completeness: z.object({
+    score: z.number().min(0).max(100),
+    missingElements: z.array(z.string()),
+  }),
+  coherence: z.object({
+    score: z.number().min(0).max(100),
+    issues: z.array(z.string()),
+  }),
+  citations: z.object({
+    score: z.number().min(0).max(100),
+    issues: z.array(z.string()),
+  }),
+  logic: z.object({
+    score: z.number().min(0).max(100),
+    gaps: z.array(z.string()),
+  }),
+  recommendations: z.array(z.string()),
+  readyForClient: z.boolean(),
+});
+
 // Type exports for use in the application
 export type AITaxReport = z.infer<typeof AITaxReportSchema>;
 export type TaxReportRisk = z.infer<typeof TaxReportRiskSchema>;
@@ -122,6 +200,11 @@ export type MappedAccount = z.infer<typeof MappedAccountSchema>;
 export type AccountMapping = z.infer<typeof AccountMappingSchema>;
 export type PDFExtraction = z.infer<typeof PDFExtractionSchema>;
 export type CalculationDetails = z.infer<typeof CalculationDetailsSchema>;
+export type OpinionSectionContent = z.infer<typeof OpinionSectionContentSchema>;
+export type TaxAnalysis = z.infer<typeof TaxAnalysisSchema>;
+export type ResearchFindings = z.infer<typeof ResearchFindingsSchema>;
+export type CompletenessAssessment = z.infer<typeof CompletenessAssessmentSchema>;
+export type ReviewFeedback = z.infer<typeof ReviewFeedbackSchema>;
 
 
 

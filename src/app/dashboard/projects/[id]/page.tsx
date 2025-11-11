@@ -29,6 +29,7 @@ import IncomeStatementPage from './income-statement/page';
 import MappingPage from './mapping/page';
 import TaxCalculationPage from './tax-calculation/page';
 import ReportingPage from './reporting/page';
+import OpinionDraftingPage from './opinion-drafting/page';
 import { useProject } from '@/hooks/useProjectData';
 import { getProjectTypeColor, formatProjectType, formatDate } from '@/lib/projectUtils';
 import { ClientSelector } from '@/components/ClientSelector';
@@ -464,9 +465,9 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
       case 'reporting':
         return <ReportingPage params={params} />;
       
-      // Tax Opinion tabs (placeholder components - will be created)
+      // Tax Opinion tabs
       case 'opinion-drafting':
-        return <div className="p-6">Opinion Drafting Page (Coming Soon)</div>;
+        return <OpinionDraftingPage params={params} />;
       case 'research-notes':
         return <div className="p-6">Research Notes Page (Coming Soon)</div>;
       case 'legal-precedents':
