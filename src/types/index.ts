@@ -150,6 +150,8 @@ export interface OpinionChatMessage {
   role: string;
   content: string;
   metadata?: string | null;
+  sectionGenerationId?: string | null;
+  sectionType?: string | null;
   createdAt: Date;
 }
 

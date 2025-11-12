@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { AgentOrchestrator, WorkflowPhase } from '@/lib/agents/agentOrchestrator';
+import { ResearchAgent } from '@/lib/agents/researchAgent';
+import { generateText } from 'ai';
+import { models, getModelParams } from '@/lib/ai/config';
 import { logger } from '@/lib/logger';
 
 /**
@@ -21,7 +23,10 @@ export async function GET(
     const draftId = parseInt(params.draftId);
 
     const messages = await prisma.opinionChatMessage.findMany({
-      where: { opinionDraftId: draftId },
+      where: { 
+        opinionDraftId: draftId,
+        sectionGenerationId: null, // Only get chat messages, not section generation Q&A
+      },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -37,7 +42,7 @@ export async function GET(
 
 /**
  * POST /api/projects/[id]/opinion-drafts/[draftId]/chat
- * Send a message and get AI response
+ * Send a message and get AI response (simple Q&A/discussion, no agent orchestration)
  */
 export async function POST(
   request: NextRequest,
@@ -52,7 +57,7 @@ export async function POST(
     const draftId = parseInt(params.draftId);
     const projectId = parseInt(params.id);
     const body = await request.json();
-    const { message, phase } = body;
+    const { message } = body;
 
     if (!message) {
       return NextResponse.json({ error: 'Message required' }, { status: 400 });
@@ -73,10 +78,14 @@ export async function POST(
       );
     }
 
-    // Get conversation history
+    // Get conversation history (exclude section generation messages)
     const history = await prisma.opinionChatMessage.findMany({
-      where: { opinionDraftId: draftId },
+      where: { 
+        opinionDraftId: draftId,
+        sectionGenerationId: null,
+      },
       orderBy: { createdAt: 'asc' },
+      take: 20, // Limit context to recent messages
     });
 
     // Save user message
@@ -89,48 +98,88 @@ export async function POST(
       },
     });
 
-    // Process message with agent orchestrator
-    const response = await AgentOrchestrator.handleMessage(
-      message,
-      [...history, userMessage],
-      draftId,
-      phase as WorkflowPhase | undefined
-    );
+    // Determine if this is a document query or general discussion
+    const isDocumentQuery = detectDocumentQuery(message);
+
+    let responseText: string;
+    let sources: Array<{ documentId: number; fileName: string; category: string }> = [];
+
+    if (isDocumentQuery) {
+      // Use RAG to search documents
+      logger.info(`📄 Document query detected: "${message.substring(0, 50)}..."`);
+      
+      const searchResult = await ResearchAgent.searchDocuments(draftId, message);
+      
+      if (searchResult.sources.length > 0) {
+        responseText = searchResult.results;
+        sources = searchResult.sources.map((s, idx) => ({
+          documentId: idx,
+          fileName: s.fileName,
+          category: s.category,
+        }));
+      } else {
+        responseText = `I couldn't find specific information about that in the uploaded documents. Please ensure:
+
+1. Documents are uploaded in the Documents tab
+2. Documents show "Ready for AI search" status
+3. Your question relates to content in the documents
+
+You can also ask me general questions about tax law or discuss your case.`;
+      }
+    } else {
+      // General discussion - use AI for case discussion and guidance
+      logger.info(`💬 General discussion query: "${message.substring(0, 50)}..."`);
+      
+      const conversationContext = history
+        .slice(-10) // Last 10 messages
+        .map(m => `${m.role}: ${m.content}`)
+        .join('\n');
+
+      const { text } = await generateText({
+        model: models.mini,
+        ...getModelParams({ temperature: 0.7 }),
+        system: `You are an expert South African tax consultant helping draft a tax opinion. 
+        
+Your role is to:
+- Answer questions about South African tax law
+- Discuss tax positions and interpretations
+- Provide guidance on structuring tax opinions
+- Help think through tax issues and arguments
+- Suggest relevant sections or precedents to consider
+
+Be professional, technically accurate, and reference the Income Tax Act when relevant.
+Do not make up case law or sections - acknowledge if you're uncertain.`,
+        prompt: `Conversation so far:
+${conversationContext}
+
+User: ${message}
+
+Provide a helpful, professional response:`,
+      });
+
+      responseText = text;
+    }
 
     // Save assistant response
     const assistantMessage = await prisma.opinionChatMessage.create({
       data: {
         opinionDraftId: draftId,
         role: 'assistant',
-        content: response.message,
+        content: responseText,
         metadata: JSON.stringify({
-          phase: response.phase,
-          workflowState: response.workflowState,
-          sources: response.sources || [],
-          suggestions: response.suggestions || [],
+          sources: sources || [],
+          isDocumentQuery,
           timestamp: new Date().toISOString(),
         }),
       },
     });
-
-    // Handle specific actions based on metadata
-    if (response.metadata?.action === 'start_drafting') {
-      // Trigger drafting process
-      await handleDraftingAction(draftId, history);
-    } else if (response.metadata?.action === 'start_review') {
-      // Trigger review process
-      await handleReviewAction(draftId);
-    }
 
     return NextResponse.json({
       success: true,
       data: {
         userMessage,
         assistantMessage,
-        phase: response.phase,
-        suggestions: response.suggestions,
-        sources: response.sources,
-        workflowState: response.workflowState,
+        sources,
       },
     });
   } catch (error) {
@@ -143,73 +192,29 @@ export async function POST(
 }
 
 /**
- * Handle drafting action
+ * Helper: Detect if message is a document query
  */
-async function handleDraftingAction(
-  draftId: number,
-  history: any[]
-): Promise<void> {
-  try {
-    // This would trigger the drafting workflow
-    // For now, just log the action
-    logger.info(`Drafting action triggered for draft ${draftId}`);
-    
-    // In a complete implementation, this would:
-    // 1. Extract facts, research, and analysis from history
-    // 2. Call DraftingAgent to generate sections
-    // 3. Save sections to database
-    // This can be implemented as a separate endpoint or background job
-  } catch (error) {
-    logger.error('Error handling drafting action:', error);
-  }
+function detectDocumentQuery(message: string): boolean {
+  const lower = message.toLowerCase();
+  const documentKeywords = [
+    'document',
+    'assessment',
+    'uploaded',
+    'file',
+    'pdf',
+    'in the',
+    'from the',
+    'according to',
+    'what does the',
+    'what is in',
+    'show me',
+    'tell me about the',
+    'explain the',
+    'summarize',
+    'find',
+    'search',
+    'look for',
+  ];
+
+  return documentKeywords.some(keyword => lower.includes(keyword));
 }
-
-/**
- * Handle review action
- */
-async function handleReviewAction(draftId: number): Promise<void> {
-  try {
-    logger.info(`Review action triggered for draft ${draftId}`);
-    
-    // In a complete implementation, this would:
-    // 1. Fetch all sections
-    // 2. Call ReviewAgent to review
-    // 3. Save review feedback
-  } catch (error) {
-    logger.error('Error handling review action:', error);
-  }
-}
-
-/**
- * DELETE /api/projects/[id]/opinion-drafts/[draftId]/chat
- * Clear chat history (optional feature)
- */
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string; draftId: string } }
-) {
-  try {
-    const session = await getSession();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const draftId = parseInt(params.draftId);
-
-    await prisma.opinionChatMessage.deleteMany({
-      where: { opinionDraftId: draftId },
-    });
-
-    return NextResponse.json({
-      success: true,
-      message: 'Chat history cleared',
-    });
-  } catch (error) {
-    logger.error('Error clearing chat history:', error);
-    return NextResponse.json(
-      { error: 'Failed to clear chat history' },
-      { status: 500 }
-    );
-  }
-}
-

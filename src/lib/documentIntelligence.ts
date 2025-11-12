@@ -54,7 +54,7 @@ export class DocumentIntelligence {
           'Content-Type': 'application/pdf',
           'Ocp-Apim-Subscription-Key': this.apiKey,
         },
-        body: buffer,
+        body: new Uint8Array(buffer),
       });
 
       if (!analyzeResponse.ok) {

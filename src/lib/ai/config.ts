@@ -1,5 +1,4 @@
 import { createAzure } from '@ai-sdk/azure';
-import type { EmbeddingModelV1 } from 'ai';
 
 /**
  * Initialize Azure OpenAI provider with API key

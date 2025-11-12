@@ -261,15 +261,18 @@ model OpinionSection {
 }
 
 model OpinionChatMessage {
-  id             Int          @id @default(autoincrement())
-  opinionDraftId Int
-  role           String
-  content        String       @db.NVarChar(Max)
-  metadata       String?      @db.NVarChar(Max)
-  createdAt      DateTime     @default(now())
-  OpinionDraft   OpinionDraft @relation(fields: [opinionDraftId], references: [id], onDelete: Cascade)
+  id                  Int          @id @default(autoincrement())
+  opinionDraftId      Int
+  role                String
+  content             String       @db.NVarChar(Max)
+  metadata            String?      @db.NVarChar(Max)
+  sectionGenerationId String?
+  sectionType         String?
+  createdAt           DateTime     @default(now())
+  OpinionDraft        OpinionDraft @relation(fields: [opinionDraftId], references: [id], onDelete: Cascade)
 
   @@index([opinionDraftId, createdAt])
+  @@index([sectionGenerationId])
 }
 
 model ResearchNote {

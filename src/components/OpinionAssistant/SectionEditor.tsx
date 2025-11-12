@@ -1,13 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   PlusIcon,
   SparklesIcon,
   CheckCircleIcon,
   PencilIcon,
   TrashIcon,
-  ArrowsUpDownIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
+  XMarkIcon,
+  DocumentArrowUpIcon,
+  DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 import { OpinionSection } from '@/types';
 
@@ -16,7 +20,32 @@ interface SectionEditorProps {
   draftId: number;
 }
 
-const SECTION_TYPES = ['Facts', 'Issue', 'Law', 'Application', 'Conclusion', 'Custom'];
+interface DocumentFinding {
+  content: string;
+  fileName: string;
+  category: string;
+  score: number;
+}
+
+interface SectionGenerationState {
+  sectionType: string;
+  customTitle?: string;
+  questions: Array<{ question: string; answer?: string }>;
+  currentQuestionIndex: number;
+  isComplete: boolean;
+  generationId: string;
+  documentFindings: DocumentFinding[];
+}
+
+const SECTION_TYPES = [
+  { value: 'Facts', label: 'Facts' },
+  { value: 'Issue', label: 'Issue' },
+  { value: 'Law', label: 'Law' },
+  { value: 'Analysis', label: 'Analysis' },
+  { value: 'Application', label: 'Application (Law + Facts)' },
+  { value: 'Conclusion', label: 'Conclusion' },
+  { value: 'Custom', label: 'Custom Section' },
+];
 
 export default function SectionEditor({ projectId, draftId }: SectionEditorProps) {
   const [sections, setSections] = useState<OpinionSection[]>([]);
@@ -25,8 +54,23 @@ export default function SectionEditor({ projectId, draftId }: SectionEditorProps
   const [editingSection, setEditingSection] = useState<number | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editContent, setEditContent] = useState('');
-  const [generatingAll, setGeneratingAll] = useState(false);
-  const [generatingSection, setGeneratingSection] = useState<string | null>(null);
+  
+  // Section creation modal state
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [selectedType, setSelectedType] = useState('');
+  const [customTitle, setCustomTitle] = useState('');
+  
+  // Q&A dialogue state
+  const [generationState, setGenerationState] = useState<SectionGenerationState | null>(null);
+  const [currentQuestion, setCurrentQuestion] = useState('');
+  const [userAnswer, setUserAnswer] = useState('');
+  const [isAnswering, setIsAnswering] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  
+  // Document upload state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState('');
 
   useEffect(() => {
     fetchSections();
@@ -49,43 +93,18 @@ export default function SectionEditor({ projectId, draftId }: SectionEditorProps
     }
   };
 
-  const generateAllSections = async () => {
-    if (
-      !confirm(
-        'This will generate all opinion sections using AI. Any existing sections will be preserved. Continue?'
-      )
-    )
+  const handleStartSection = async () => {
+    if (!selectedType) {
+      setError('Please select a section type');
       return;
-
-    setGeneratingAll(true);
-    setError(null);
-
-    try {
-      const response = await fetch(
-        `/api/projects/${projectId}/opinion-drafts/${draftId}/sections`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'generate_all' }),
-        }
-      );
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to generate sections');
-      }
-
-      await fetchSections();
-    } catch (error: any) {
-      console.error('Error generating sections:', error);
-      setError(error.message || 'Failed to generate sections');
-    } finally {
-      setGeneratingAll(false);
     }
-  };
 
-  const generateSection = async (sectionType: string) => {
-    setGeneratingSection(sectionType);
+    if (selectedType === 'Custom' && !customTitle.trim()) {
+      setError('Please enter a custom section title');
+      return;
+    }
+
+    setIsAnswering(true);
     setError(null);
 
     try {
@@ -95,8 +114,89 @@ export default function SectionEditor({ projectId, draftId }: SectionEditorProps
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            action: 'generate_section',
-            sectionType,
+            action: 'start_section',
+            sectionType: selectedType,
+            customTitle: selectedType === 'Custom' ? customTitle : undefined,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to start section');
+      }
+
+      const data = await response.json();
+      setGenerationState(data.state);
+      setCurrentQuestion(data.question);
+      setIsAnswering(false); // Enable the textarea for user input
+    } catch (error: any) {
+      console.error('Error starting section:', error);
+      setError(error.message || 'Failed to start section');
+      setIsAnswering(false);
+    }
+  };
+
+  const handleSubmitAnswer = async () => {
+    if (!userAnswer.trim() || !generationState) return;
+
+    setIsAnswering(true);
+    setError(null);
+
+    try {
+      const response = await fetch(
+        `/api/projects/${projectId}/opinion-drafts/${draftId}/sections`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'answer_question',
+            state: generationState,
+            answer: userAnswer,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to submit answer');
+      }
+
+      const data = await response.json();
+      setGenerationState(data.state);
+      
+      if (data.complete) {
+        // Questions complete, ready to generate
+        setCurrentQuestion('');
+        setIsAnswering(false);
+      } else {
+        // Show next question
+        setCurrentQuestion(data.question);
+        setUserAnswer('');
+      }
+    } catch (error: any) {
+      console.error('Error submitting answer:', error);
+      setError(error.message || 'Failed to submit answer');
+    } finally {
+      setIsAnswering(false);
+    }
+  };
+
+  const handleGenerateContent = async () => {
+    if (!generationState) return;
+
+    setIsGenerating(true);
+    setError(null);
+
+    try {
+      const response = await fetch(
+        `/api/projects/${projectId}/opinion-drafts/${draftId}/sections`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'generate_content',
+            state: generationState,
           }),
         }
       );
@@ -107,27 +207,149 @@ export default function SectionEditor({ projectId, draftId }: SectionEditorProps
       }
 
       await fetchSections();
+      
+      // Reset modal state
+      setShowCreateModal(false);
+      setSelectedType('');
+      setCustomTitle('');
+      setGenerationState(null);
+      setCurrentQuestion('');
+      setUserAnswer('');
     } catch (error: any) {
-      console.error(`Error generating ${sectionType} section:`, error);
-      setError(error.message || `Failed to generate ${sectionType} section`);
+      console.error('Error generating content:', error);
+      setError(error.message || 'Failed to generate section');
     } finally {
-      setGeneratingSection(null);
+      setIsGenerating(false);
     }
   };
 
-  const startEdit = (section: OpinionSection) => {
+  const handleUploadDocument = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !generationState) return;
+
+    setIsUploadingDoc(true);
+    setUploadProgress('Uploading document...');
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('generationId', generationState.generationId);
+      formData.append('category', 'Supporting Document');
+
+      // Upload document with immediate indexing
+      const response = await fetch(
+        `/api/projects/${projectId}/opinion-drafts/${draftId}/documents`,
+        {
+          method: 'POST',
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to upload document');
+      }
+
+      const data = await response.json();
+      setUploadProgress(`✅ ${file.name} uploaded successfully! Refreshing context...`);
+      
+      // Wait for document to be indexed (give it a moment)
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Refresh document context immediately
+      try {
+        const refreshResponse = await fetch(
+          `/api/projects/${projectId}/opinion-drafts/${draftId}/sections`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'refresh_context',
+              state: generationState,
+            }),
+          }
+        );
+
+        if (refreshResponse.ok) {
+          const refreshData = await refreshResponse.json();
+          if (refreshData.state) {
+            setGenerationState(refreshData.state);
+            setUploadProgress(`✅ ${file.name} is now available to the AI!`);
+          }
+        }
+      } catch (error) {
+        console.error('Error refreshing context:', error);
+        // Non-fatal error, document will be available on next answer
+      }
+      
+      // Clear progress after showing success
+      setTimeout(() => {
+        setUploadProgress('');
+        setIsUploadingDoc(false);
+      }, 2000);
+
+    } catch (error: any) {
+      console.error('Error uploading document:', error);
+      setError(error.message || 'Failed to upload document');
+      setIsUploadingDoc(false);
+      setUploadProgress('');
+    }
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRegenerate = async (sectionId: number) => {
+    if (!confirm('Regenerate this section with AI? The current content will be replaced.')) {
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(
+        `/api/projects/${projectId}/opinion-drafts/${draftId}/sections`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'regenerate',
+            sectionId,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to regenerate section');
+      }
+
+      await fetchSections();
+    } catch (error: any) {
+      console.error('Error regenerating section:', error);
+      setError(error.message || 'Failed to regenerate section');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEditSection = (section: OpinionSection) => {
     setEditingSection(section.id);
     setEditTitle(section.title);
     setEditContent(section.content);
   };
 
-  const cancelEdit = () => {
-    setEditingSection(null);
-    setEditTitle('');
-    setEditContent('');
-  };
+  const handleSaveEdit = async () => {
+    if (!editingSection) return;
 
-  const saveSection = async (sectionId: number) => {
     try {
       const response = await fetch(
         `/api/projects/${projectId}/opinion-drafts/${draftId}/sections`,
@@ -135,48 +357,25 @@ export default function SectionEditor({ projectId, draftId }: SectionEditorProps
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            sectionId,
+            sectionId: editingSection,
             title: editTitle,
             content: editContent,
           }),
         }
       );
 
-      if (!response.ok) throw new Error('Failed to save section');
+      if (!response.ok) throw new Error('Failed to update section');
 
       await fetchSections();
-      cancelEdit();
+      setEditingSection(null);
     } catch (error) {
-      console.error('Error saving section:', error);
-      setError('Failed to save section');
+      console.error('Error updating section:', error);
+      setError('Failed to update section');
     }
   };
 
-  const toggleReviewed = async (section: OpinionSection) => {
-    try {
-      const response = await fetch(
-        `/api/projects/${projectId}/opinion-drafts/${draftId}/sections`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sectionId: section.id,
-            reviewed: !section.reviewed,
-          }),
-        }
-      );
-
-      if (!response.ok) throw new Error('Failed to update review status');
-
-      await fetchSections();
-    } catch (error) {
-      console.error('Error updating review status:', error);
-      setError('Failed to update review status');
-    }
-  };
-
-  const deleteSection = async (sectionId: number) => {
-    if (!confirm('Are you sure you want to delete this section?')) return;
+  const handleDeleteSection = async (sectionId: number) => {
+    if (!confirm('Delete this section? This cannot be undone.')) return;
 
     try {
       const response = await fetch(
@@ -193,26 +392,21 @@ export default function SectionEditor({ projectId, draftId }: SectionEditorProps
     }
   };
 
-  const moveSection = async (sectionId: number, direction: 'up' | 'down') => {
-    const currentIndex = sections.findIndex((s) => s.id === sectionId);
-    if (
-      (direction === 'up' && currentIndex === 0) ||
-      (direction === 'down' && currentIndex === sections.length - 1)
-    ) {
-      return;
-    }
+  const handleMoveSection = async (sectionId: number, direction: 'up' | 'down') => {
+    const sectionIndex = sections.findIndex(s => s.id === sectionId);
+    if (sectionIndex === -1) return;
+    
+    const newIndex = direction === 'up' ? sectionIndex - 1 : sectionIndex + 1;
+    if (newIndex < 0 || newIndex >= sections.length) return;
 
-    const newSections = [...sections];
-    const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    [newSections[currentIndex], newSections[swapIndex]] = [
-      newSections[swapIndex],
-      newSections[currentIndex],
-    ];
-
-    // Update orders
-    const reorderData = newSections.map((section, index) => ({
+    // Create reorder data
+    const reorderData = [...sections];
+    const [moved] = reorderData.splice(sectionIndex, 1);
+    reorderData.splice(newIndex, 0, moved);
+    
+    const updates = reorderData.map((section, idx) => ({
       id: section.id,
-      order: index + 1,
+      order: idx + 1,
     }));
 
     try {
@@ -221,200 +415,384 @@ export default function SectionEditor({ projectId, draftId }: SectionEditorProps
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ reorderData }),
+          body: JSON.stringify({ reorderData: updates }),
         }
       );
 
       if (!response.ok) throw new Error('Failed to reorder sections');
 
-      setSections(newSections.map((s, i) => ({ ...s, order: i + 1 })));
+      await fetchSections();
     } catch (error) {
       console.error('Error reordering sections:', error);
       setError('Failed to reorder sections');
     }
   };
 
-  return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="bg-white border-b-2 border-forvis-blue-600 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-bold text-forvis-gray-900">Opinion Sections</h3>
-            <p className="text-sm text-forvis-gray-600">
-              Structure and edit your tax opinion ({sections.length} sections)
-            </p>
-          </div>
-          <button
-            onClick={generateAllSections}
-            disabled={generatingAll}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-forvis-blue-500 to-forvis-blue-700 text-white rounded-lg hover:from-forvis-blue-600 hover:to-forvis-blue-800 transition-all disabled:opacity-50 text-sm font-semibold"
-          >
-            <SparklesIcon className="w-5 h-5" />
-            {generatingAll ? 'Generating...' : 'Generate All Sections'}
-          </button>
-        </div>
-      </div>
+  const closeModal = () => {
+    setShowCreateModal(false);
+    setSelectedType('');
+    setCustomTitle('');
+    setGenerationState(null);
+    setCurrentQuestion('');
+    setUserAnswer('');
+    setError(null);
+  };
 
-      {/* Error Message */}
+  if (isLoading && sections.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-gray-500">Loading sections...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Error display */}
       {error && (
-        <div className="px-6 py-3 bg-red-50 border-b border-red-200">
-          <p className="text-sm text-red-600">{error}</p>
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          {error}
         </div>
       )}
 
+      {/* Add Section Button */}
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-semibold text-gray-900">Opinion Sections</h3>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          <PlusIcon className="w-5 h-5" />
+          Add Section
+        </button>
+      </div>
+
       {/* Sections List */}
-      <div className="flex-1 overflow-y-auto px-6 py-4">
-        {isLoading ? (
-          <div className="flex justify-center items-center h-32">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-600"></div>
-          </div>
-        ) : sections.length === 0 ? (
-          <div className="text-center py-12">
-            <SparklesIcon className="w-16 h-16 mx-auto text-forvis-gray-400 mb-4" />
-            <h4 className="text-lg font-semibold text-forvis-gray-900 mb-2">
-              No Sections Yet
-            </h4>
-            <p className="text-sm text-forvis-gray-600 mb-6">
-              Generate opinion sections with AI or create them manually
-            </p>
-            <div className="flex flex-wrap gap-2 justify-center">
-              {SECTION_TYPES.slice(0, 5).map((type) => (
-                <button
-                  key={type}
-                  onClick={() => generateSection(type)}
-                  disabled={generatingSection === type}
-                  className="px-3 py-2 text-sm font-medium bg-white border border-forvis-gray-300 text-forvis-gray-700 rounded-lg hover:bg-forvis-gray-50 transition-colors disabled:opacity-50"
-                >
-                  {generatingSection === type ? 'Generating...' : `Generate ${type}`}
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {sections.map((section, index) => (
-              <div
-                key={section.id}
-                className="bg-white border-2 border-forvis-gray-200 rounded-lg overflow-hidden"
-              >
-                {/* Section Header */}
-                <div className="bg-forvis-gray-50 px-4 py-3 border-b border-forvis-gray-200">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-bold text-forvis-gray-500">
-                        {section.order}
-                      </span>
-                      <h4 className="text-sm font-bold text-forvis-gray-900">
-                        {section.title}
-                      </h4>
-                      {section.aiGenerated && (
-                        <span className="px-2 py-0.5 text-xs font-semibold bg-purple-100 text-purple-800 rounded-full">
-                          AI Generated
-                        </span>
-                      )}
-                      {section.reviewed && (
-                        <span className="px-2 py-0.5 text-xs font-semibold bg-green-100 text-green-800 rounded-full flex items-center gap-1">
-                          <CheckCircleIcon className="w-3 h-3" />
-                          Reviewed
-                        </span>
-                      )}
+      {sections.length === 0 ? (
+        <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+          <SparklesIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+          <p className="text-gray-600 mb-2">No sections yet</p>
+          <p className="text-sm text-gray-500">
+            Click "Add Section" to start building your tax opinion
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {sections.map((section, index) => (
+            <div
+              key={section.id}
+              className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm"
+            >
+              {editingSection === section.id ? (
+                // Edit mode
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                  <textarea
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    rows={10}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono text-sm"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleSaveEdit}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => setEditingSection(null)}
+                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                // View mode
+                <>
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-lg font-semibold text-gray-900">
+                          {section.title}
+                        </h4>
+                        {section.aiGenerated && (
+                          <SparklesIcon className="w-4 h-4 text-blue-500" title="AI Generated" />
+                        )}
+                        {section.reviewed && (
+                          <CheckCircleIcon className="w-4 h-4 text-green-500" title="Reviewed" />
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-500">{section.sectionType}</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => moveSection(section.id, 'up')}
-                        disabled={index === 0}
-                        className="p-1 hover:bg-forvis-gray-200 rounded disabled:opacity-30"
-                        title="Move up"
-                      >
-                        <ArrowsUpDownIcon className="w-4 h-4 text-forvis-gray-600 rotate-180" />
-                      </button>
-                      <button
-                        onClick={() => moveSection(section.id, 'down')}
-                        disabled={index === sections.length - 1}
-                        className="p-1 hover:bg-forvis-gray-200 rounded disabled:opacity-30"
-                        title="Move down"
-                      >
-                        <ArrowsUpDownIcon className="w-4 h-4 text-forvis-gray-600" />
-                      </button>
-                      <button
-                        onClick={() => toggleReviewed(section)}
-                        className="p-1 hover:bg-forvis-gray-200 rounded"
-                        title={section.reviewed ? 'Mark as unreviewed' : 'Mark as reviewed'}
-                      >
-                        <CheckCircleIcon
-                          className={`w-5 h-5 ${
-                            section.reviewed ? 'text-green-600' : 'text-forvis-gray-400'
-                          }`}
-                        />
-                      </button>
-                      {editingSection !== section.id ? (
+                    
+                    {/* Section Actions */}
+                    <div className="flex items-center gap-1">
+                      {/* Reorder buttons */}
+                      {index > 0 && (
                         <button
-                          onClick={() => startEdit(section)}
-                          className="p-1 hover:bg-forvis-gray-200 rounded"
-                          title="Edit"
+                          onClick={() => handleMoveSection(section.id, 'up')}
+                          className="p-1 text-gray-400 hover:text-gray-600"
+                          title="Move up"
                         >
-                          <PencilIcon className="w-5 h-5 text-forvis-gray-600" />
+                          <ArrowUpIcon className="w-4 h-4" />
                         </button>
-                      ) : null}
+                      )}
+                      {index < sections.length - 1 && (
+                        <button
+                          onClick={() => handleMoveSection(section.id, 'down')}
+                          className="p-1 text-gray-400 hover:text-gray-600"
+                          title="Move down"
+                        >
+                          <ArrowDownIcon className="w-4 h-4" />
+                        </button>
+                      )}
+                      
+                      {/* Edit button */}
                       <button
-                        onClick={() => deleteSection(section.id)}
-                        className="p-1 hover:bg-red-50 rounded group"
+                        onClick={() => handleEditSection(section)}
+                        className="p-1 text-gray-400 hover:text-blue-600"
+                        title="Edit"
+                      >
+                        <PencilIcon className="w-4 h-4" />
+                      </button>
+                      
+                      {/* Regenerate button (only for AI sections) */}
+                      {section.aiGenerated && (
+                        <button
+                          onClick={() => handleRegenerate(section.id)}
+                          className="p-1 text-gray-400 hover:text-blue-600"
+                          title="Regenerate with AI"
+                        >
+                          <SparklesIcon className="w-4 h-4" />
+                        </button>
+                      )}
+                      
+                      {/* Delete button */}
+                      <button
+                        onClick={() => handleDeleteSection(section.id)}
+                        className="p-1 text-gray-400 hover:text-red-600"
                         title="Delete"
                       >
-                        <TrashIcon className="w-5 h-5 text-forvis-gray-400 group-hover:text-red-600" />
+                        <TrashIcon className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
-                </div>
+                  
+                  <div className="prose prose-sm max-w-none">
+                    <div className="whitespace-pre-wrap text-gray-700">
+                      {section.content}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
-                {/* Section Content */}
-                <div className="p-4">
-                  {editingSection === section.id ? (
-                    <div className="space-y-3">
+      {/* Section Creation Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto m-4">
+            <div className="p-6">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-semibold text-gray-900">
+                  {generationState ? 'Section Q&A' : 'Create New Section'}
+                </h3>
+                <button
+                  onClick={closeModal}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XMarkIcon className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* Step 1: Select Type (if not started) */}
+              {!generationState && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Section Type
+                    </label>
+                    <select
+                      value={selectedType}
+                      onChange={(e) => setSelectedType(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    >
+                      <option value="">Select a section type...</option>
+                      {SECTION_TYPES.map((type) => (
+                        <option key={type.value} value={type.value}>
+                          {type.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {selectedType === 'Custom' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Custom Section Title
+                      </label>
                       <input
                         type="text"
-                        value={editTitle}
-                        onChange={(e) => setEditTitle(e.target.value)}
-                        className="w-full px-3 py-2 border border-forvis-gray-300 rounded-lg focus:ring-2 focus:ring-forvis-blue-600 focus:border-transparent text-sm font-medium"
-                        placeholder="Section title"
+                        value={customTitle}
+                        onChange={(e) => setCustomTitle(e.target.value)}
+                        placeholder="e.g., Executive Summary, Recommendations"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                       />
-                      <textarea
-                        value={editContent}
-                        onChange={(e) => setEditContent(e.target.value)}
-                        rows={12}
-                        className="w-full px-3 py-2 border border-forvis-gray-300 rounded-lg focus:ring-2 focus:ring-forvis-blue-600 focus:border-transparent text-sm font-mono"
-                        placeholder="Section content"
-                      />
-                      <div className="flex gap-2 justify-end">
-                        <button
-                          onClick={cancelEdit}
-                          className="px-4 py-2 text-sm font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 rounded-lg hover:bg-forvis-gray-50"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={() => saveSection(section.id)}
-                          className="px-4 py-2 text-sm font-medium text-white bg-forvis-blue-600 rounded-lg hover:bg-forvis-blue-700"
-                        >
-                          Save Changes
-                        </button>
-                      </div>
                     </div>
-                  ) : (
-                    <div className="prose prose-sm max-w-none">
-                      <div className="whitespace-pre-wrap text-sm text-forvis-gray-800">
-                        {section.content}
+                  )}
+
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      onClick={handleStartSection}
+                      disabled={!selectedType || (selectedType === 'Custom' && !customTitle.trim())}
+                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                    >
+                      Start Section
+                    </button>
+                    <button
+                      onClick={closeModal}
+                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 2: Q&A (if started) */}
+              {generationState && currentQuestion && (
+                <div className="space-y-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm font-medium text-blue-900 mb-2">AI Question:</p>
+                    <p className="text-gray-700">{currentQuestion}</p>
+                  </div>
+
+                  {/* Document Context Display */}
+                  {generationState.documentFindings && generationState.documentFindings.length > 0 && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                      <p className="text-xs font-semibold text-gray-800 mb-2 flex items-center gap-2">
+                        <DocumentTextIcon className="w-4 h-4" />
+                        Referenced Documents ({generationState.documentFindings.length}):
+                      </p>
+                      <div className="space-y-2">
+                        {[...new Set(generationState.documentFindings.map(d => d.fileName))].slice(0, 3).map((fileName, idx) => {
+                          const doc = generationState.documentFindings.find(d => d.fileName === fileName);
+                          return (
+                            <div key={idx} className="text-xs text-gray-700">
+                              <strong>{fileName}</strong> ({doc?.category})
+                              {doc?.content && (
+                                <p className="text-gray-600 mt-1 line-clamp-2">{doc.content.substring(0, 150)}...</p>
+                              )}
+                            </div>
+                          );
+                        })}
+                        {generationState.documentFindings.length > 3 && (
+                          <p className="text-xs text-gray-500 italic">
+                            +{generationState.documentFindings.length - 3} more documents referenced
+                          </p>
+                        )}
                       </div>
                     </div>
                   )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Your Answer
+                    </label>
+                    <textarea
+                      value={userAnswer}
+                      onChange={(e) => setUserAnswer(e.target.value)}
+                      rows={6}
+                      placeholder="Type your answer here..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      disabled={isAnswering}
+                    />
+                    
+                    {/* Document Upload Button */}
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        onChange={handleFileSelect}
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.csv"
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleUploadDocument}
+                        disabled={isUploadingDoc}
+                        className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 disabled:text-gray-400"
+                      >
+                        <DocumentArrowUpIcon className="w-4 h-4" />
+                        {isUploadingDoc ? 'Uploading...' : 'Upload Additional Document'}
+                      </button>
+                      {uploadProgress && (
+                        <p className="text-xs text-green-600 mt-1">{uploadProgress}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleSubmitAnswer}
+                      disabled={!userAnswer.trim() || isAnswering}
+                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                    >
+                      {isAnswering ? 'Processing...' : 'Submit Answer'}
+                    </button>
+                    <button
+                      onClick={closeModal}
+                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              )}
+
+              {/* Step 3: Generate (if Q&A complete) */}
+              {generationState && !currentQuestion && (
+                <div className="space-y-4">
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <p className="text-green-900 font-medium mb-2">
+                      ✓ Questions Complete
+                    </p>
+                    <p className="text-gray-700">
+                      The AI has gathered enough information. Click "Generate Section" to create the content.
+                    </p>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleGenerateContent}
+                      disabled={isGenerating}
+                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                    >
+                      {isGenerating ? 'Generating...' : 'Generate Section'}
+                    </button>
+                    <button
+                      onClick={closeModal}
+                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
-

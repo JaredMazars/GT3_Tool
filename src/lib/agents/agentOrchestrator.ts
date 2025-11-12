@@ -127,8 +127,7 @@ export class AgentOrchestrator {
       if (this.isExplicitRequest(userMessage, 'draft')) {
         return await this.handleDraftRequest(
           userMessage,
-          conversationHistory,
-          draftId
+          conversationHistory
         );
       }
 

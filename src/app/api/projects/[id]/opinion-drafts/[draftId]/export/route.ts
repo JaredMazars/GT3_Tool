@@ -55,7 +55,7 @@ export async function POST(
     const project = await prisma.project.findUnique({
       where: { id: projectId },
       include: {
-        client: true,
+        Client: true,
       },
     });
 
@@ -63,10 +63,10 @@ export async function POST(
       // Export as Word document
       const buffer = await WordExporter.exportOpinion(draft.title, sections, {
         projectName: project?.name,
-        clientName: project?.client?.name,
+        clientName: project?.Client?.name,
       });
 
-      return new NextResponse(buffer, {
+      return new NextResponse(new Uint8Array(buffer), {
         headers: {
           'Content-Type':
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -83,11 +83,11 @@ export async function POST(
         sections,
         {
           projectName: project?.name,
-          clientName: project?.client?.name,
+          clientName: project?.Client?.name,
         }
       );
 
-      return new NextResponse(pdfDoc, {
+      return new NextResponse(new Uint8Array(pdfDoc), {
         headers: {
           'Content-Type': 'application/pdf',
           'Content-Disposition': `attachment; filename="${draft.title.replace(

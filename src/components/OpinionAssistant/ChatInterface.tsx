@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   PaperAirplaneIcon,
-  UserIcon,
   SparklesIcon,
   DocumentTextIcon,
   ArrowPathIcon,
@@ -18,14 +17,11 @@ interface ChatInterfaceProps {
 interface ChatResponse {
   userMessage: OpinionChatMessage;
   assistantMessage: OpinionChatMessage;
-  phase: string;
-  suggestions?: string[];
   sources?: Array<{
     documentId: number;
     fileName: string;
     category: string;
   }>;
-  workflowState: any;
 }
 
 export default function ChatInterface({ projectId, draftId }: ChatInterfaceProps) {
@@ -33,7 +29,6 @@ export default function ChatInterface({ projectId, draftId }: ChatInterfaceProps
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentPhase, setCurrentPhase] = useState<string>('interview');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Load chat history
@@ -54,19 +49,6 @@ export default function ChatInterface({ projectId, draftId }: ChatInterfaceProps
       if (!response.ok) throw new Error('Failed to fetch messages');
       const data = await response.json();
       setMessages(data.data || []);
-      
-      // Set phase from last message
-      if (data.data && data.data.length > 0) {
-        const lastMsg = data.data[data.data.length - 1];
-        if (lastMsg.metadata) {
-          try {
-            const metadata = JSON.parse(lastMsg.metadata);
-            if (metadata.phase) setCurrentPhase(metadata.phase);
-          } catch (e) {
-            // Ignore parse errors
-          }
-        }
-      }
     } catch (error) {
       console.error('Error fetching messages:', error);
       setError('Failed to load chat history');
@@ -89,7 +71,6 @@ export default function ChatInterface({ projectId, draftId }: ChatInterfaceProps
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             message: textToSend,
-            phase: currentPhase,
           }),
         }
       );
@@ -104,11 +85,6 @@ export default function ChatInterface({ projectId, draftId }: ChatInterfaceProps
         data.data.userMessage,
         data.data.assistantMessage,
       ]);
-      
-      // Update phase
-      if (data.data.phase) {
-        setCurrentPhase(data.data.phase);
-      }
     } catch (error) {
       console.error('Error sending message:', error);
       setError('Failed to send message. Please try again.');
@@ -124,24 +100,6 @@ export default function ChatInterface({ projectId, draftId }: ChatInterfaceProps
     }
   };
 
-  const getPhaseDisplay = (phase: string) => {
-    const phases: Record<string, { label: string; color: string }> = {
-      interview: { label: 'Gathering Facts', color: 'bg-blue-100 text-blue-800' },
-      research: { label: 'Researching', color: 'bg-purple-100 text-purple-800' },
-      analysis: { label: 'Analyzing', color: 'bg-yellow-100 text-yellow-800' },
-      drafting: { label: 'Drafting', color: 'bg-green-100 text-green-800' },
-      review: { label: 'Review', color: 'bg-orange-100 text-orange-800' },
-      complete: { label: 'Complete', color: 'bg-gray-100 text-gray-800' },
-    };
-
-    const phaseInfo = phases[phase] || phases.interview;
-    return (
-      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${phaseInfo.color}`}>
-        {phaseInfo.label}
-      </span>
-    );
-  };
-
   const parseSources = (metadata: string | null) => {
     if (!metadata) return [];
     try {
@@ -152,62 +110,61 @@ export default function ChatInterface({ projectId, draftId }: ChatInterfaceProps
     }
   };
 
-  const parseSuggestions = (metadata: string | null) => {
-    if (!metadata) return [];
-    try {
-      const parsed = JSON.parse(metadata);
-      return parsed.suggestions || [];
-    } catch {
-      return [];
-    }
-  };
-
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="bg-white border-b-2 border-forvis-blue-600 px-6 py-4">
+      <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-bold text-forvis-gray-900">AI Tax Assistant</h3>
-            <p className="text-sm text-forvis-gray-600">
-              Get guidance on building your tax opinion
+            <h3 className="text-lg font-semibold text-gray-900">AI Tax Assistant</h3>
+            <p className="text-sm text-gray-600">
+              Ask questions about documents or discuss your tax case
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            {getPhaseDisplay(currentPhase)}
-            <button
-              onClick={fetchMessages}
-              className="p-2 hover:bg-forvis-gray-100 rounded-lg transition-colors"
-              title="Refresh"
-            >
-              <ArrowPathIcon className="w-5 h-5 text-forvis-gray-600" />
-            </button>
-          </div>
+          <button
+            onClick={fetchMessages}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Refresh"
+          >
+            <ArrowPathIcon className="w-5 h-5 text-gray-600" />
+          </button>
         </div>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 bg-gray-50">
         {messages.length === 0 && !isLoading && (
           <div className="text-center py-12">
-            <SparklesIcon className="w-16 h-16 mx-auto text-forvis-gray-400 mb-4" />
-            <h4 className="text-lg font-semibold text-forvis-gray-900 mb-2">
+            <SparklesIcon className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+            <h4 className="text-lg font-semibold text-gray-900 mb-2">
               Welcome to the Tax Opinion Assistant
             </h4>
-            <p className="text-sm text-forvis-gray-600 max-w-md mx-auto">
-              I'll help you develop a comprehensive tax opinion by asking relevant questions,
-              researching documents, and guiding you through the analysis.
+            <p className="text-sm text-gray-600 max-w-md mx-auto mb-4">
+              I can help you in two ways:
             </p>
-            <p className="text-sm text-forvis-gray-600 mt-4">
-              Let's start by understanding the tax scenario. What tax issue are you working on?
+            <div className="max-w-md mx-auto text-left space-y-2 mb-6">
+              <div className="flex items-start gap-3 text-sm text-gray-600">
+                <DocumentTextIcon className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <strong>Search Documents:</strong> Ask questions about uploaded documents like "What does the assessment say about penalties?"
+                </div>
+              </div>
+              <div className="flex items-start gap-3 text-sm text-gray-600">
+                <SparklesIcon className="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <strong>Discuss Tax Issues:</strong> Get guidance on tax law, positions, and structuring your opinion
+                </div>
+              </div>
+            </div>
+            <p className="text-sm text-gray-500">
+              Start by uploading documents in the Documents tab, or ask me a question!
             </p>
           </div>
         )}
 
         {messages.map((message) => {
           const isUser = message.role === 'user';
-          const sources = parseSources(message.metadata);
-          const suggestions = parseSuggestions(message.metadata);
+          const sources = parseSources(message.metadata ?? null);
 
           return (
             <div
@@ -216,7 +173,7 @@ export default function ChatInterface({ projectId, draftId }: ChatInterfaceProps
             >
               {!isUser && (
                 <div className="flex-shrink-0">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-forvis-blue-500 to-forvis-blue-700 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
                     <SparklesIcon className="w-5 h-5 text-white" />
                   </div>
                 </div>
@@ -226,51 +183,28 @@ export default function ChatInterface({ projectId, draftId }: ChatInterfaceProps
                 <div
                   className={`rounded-lg px-4 py-3 ${
                     isUser
-                      ? 'bg-forvis-blue-600 text-white'
-                      : 'bg-white border border-forvis-gray-200'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white border border-gray-200 shadow-sm'
                   }`}
                 >
                   <p className="text-sm whitespace-pre-wrap">{message.content}</p>
 
                   {/* Sources */}
                   {sources.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-forvis-gray-200">
-                      <p className="text-xs font-semibold text-forvis-gray-700 mb-2">
-                        Sources Referenced:
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <p className="text-xs font-semibold text-gray-700 mb-2">
+                        📄 Sources Referenced:
                       </p>
                       <div className="space-y-1">
                         {sources.map((source: any, idx: number) => (
                           <div
                             key={idx}
-                            className="flex items-center gap-2 text-xs text-forvis-gray-600"
+                            className="flex items-center gap-2 text-xs text-gray-600"
                           >
                             <DocumentTextIcon className="w-4 h-4" />
                             <span className="font-medium">{source.fileName}</span>
-                            <span className="text-forvis-gray-500">
-                              ({source.category})
-                            </span>
+                            <span className="text-gray-500">({source.category})</span>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Quick Suggestions */}
-                  {suggestions.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-forvis-gray-200">
-                      <p className="text-xs font-semibold text-forvis-gray-700 mb-2">
-                        Quick Actions:
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {suggestions.map((suggestion: string, idx: number) => (
-                          <button
-                            key={idx}
-                            onClick={() => sendMessage(suggestion)}
-                            disabled={isLoading}
-                            className="px-3 py-1 text-xs font-medium bg-forvis-blue-50 text-forvis-blue-700 rounded-md hover:bg-forvis-blue-100 transition-colors disabled:opacity-50"
-                          >
-                            {suggestion}
-                          </button>
                         ))}
                       </div>
                     </div>
@@ -280,8 +214,8 @@ export default function ChatInterface({ projectId, draftId }: ChatInterfaceProps
 
               {isUser && (
                 <div className="flex-shrink-0">
-                  <div className="w-8 h-8 rounded-full bg-forvis-gray-200 flex items-center justify-center">
-                    <UserIcon className="w-5 h-5 text-forvis-gray-600" />
+                  <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
+                    <span className="text-sm font-medium text-gray-700">You</span>
                   </div>
                 </div>
               )}
@@ -290,23 +224,20 @@ export default function ChatInterface({ projectId, draftId }: ChatInterfaceProps
         })}
 
         {isLoading && (
-          <div className="flex gap-3">
+          <div className="flex gap-3 justify-start">
             <div className="flex-shrink-0">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-forvis-blue-500 to-forvis-blue-700 flex items-center justify-center">
-                <SparklesIcon className="w-5 h-5 text-white animate-pulse" />
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
+                <SparklesIcon className="w-5 h-5 text-white" />
               </div>
             </div>
-            <div className="bg-white border border-forvis-gray-200 rounded-lg px-4 py-3">
-              <div className="flex gap-1">
-                <div className="w-2 h-2 bg-forvis-gray-400 rounded-full animate-bounce"></div>
-                <div
-                  className="w-2 h-2 bg-forvis-gray-400 rounded-full animate-bounce"
-                  style={{ animationDelay: '0.2s' }}
-                ></div>
-                <div
-                  className="w-2 h-2 bg-forvis-gray-400 rounded-full animate-bounce"
-                  style={{ animationDelay: '0.4s' }}
-                ></div>
+            <div className="bg-white border border-gray-200 rounded-lg px-4 py-3 shadow-sm">
+              <div className="flex items-center gap-2">
+                <div className="animate-pulse flex gap-1">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animation-delay-200"></div>
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animation-delay-400"></div>
+                </div>
+                <span className="text-sm text-gray-600">Thinking...</span>
               </div>
             </div>
           </div>
@@ -315,36 +246,41 @@ export default function ChatInterface({ projectId, draftId }: ChatInterfaceProps
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Error Message */}
+      {/* Error Display */}
       {error && (
         <div className="px-6 py-3 bg-red-50 border-t border-red-200">
-          <p className="text-sm text-red-600">{error}</p>
+          <p className="text-sm text-red-700">{error}</p>
         </div>
       )}
 
       {/* Input */}
-      <div className="border-t-2 border-forvis-gray-200 px-6 py-4 bg-white">
+      <div className="bg-white border-t border-gray-200 px-6 py-4">
         <div className="flex gap-3">
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Type your message... (Press Enter to send, Shift+Enter for new line)"
-            disabled={isLoading}
+            onKeyDown={handleKeyPress}
+            placeholder="Ask a question about your documents or discuss the tax issue..."
             rows={2}
-            className="flex-1 px-4 py-2 border border-forvis-gray-300 rounded-lg focus:ring-2 focus:ring-forvis-blue-600 focus:border-transparent resize-none disabled:opacity-50"
+            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            disabled={isLoading}
           />
           <button
             onClick={() => sendMessage()}
-            disabled={isLoading || !input.trim()}
-            className="px-6 py-2 bg-gradient-to-r from-forvis-blue-500 to-forvis-blue-700 text-white rounded-lg hover:from-forvis-blue-600 hover:to-forvis-blue-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            disabled={!input.trim() || isLoading}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
           >
             <PaperAirplaneIcon className="w-5 h-5" />
-            <span className="font-semibold">Send</span>
+            <span>Send</span>
           </button>
         </div>
+        <p className="text-xs text-gray-500 mt-2">
+          Press Enter to send, Shift+Enter for new line
+        </p>
       </div>
     </div>
   );
 }
+
+
 
