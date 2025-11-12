@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
-import { uploadFile, deleteFile } from '@/lib/blobStorage';
-import { ragEngine } from '@/lib/ragEngine';
-import { logger } from '@/lib/logger';
+import { getSession } from '@/lib/services/auth/auth';
+import { prisma } from '@/lib/db/prisma';
+import { uploadFile, deleteFile } from '@/lib/services/documents/blobStorage';
+import { ragEngine } from '@/lib/services/opinions/ragEngine';
+import { logger } from '@/lib/utils/logger';
 
 /**
  * GET /api/projects/[id]/opinion-drafts/[draftId]/documents

@@ -2,16 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { formatAmount } from '@/lib/formatters';
-import DocumentUploader from '@/components/DocumentUploader';
-import ExtractionResults from '@/components/ExtractionResults';
-import CalculationBreakdown from '@/components/CalculationBreakdown';
+import { formatAmount } from '@/lib/utils/formatters';
+import DocumentUploader from '@/components/shared/DocumentUploader';
+import ExtractionResults from '@/components/shared/ExtractionResults';
+import CalculationBreakdown from '@/components/shared/CalculationBreakdown';
 import { 
   useTaxAdjustment, 
   useUpdateTaxAdjustment, 
   useUpdateAdjustmentDetails,
   useDeleteTaxAdjustment 
-} from '@/hooks/useProjectData';
+} from '@/hooks/projects/useProjectData';
 
 interface AdjustmentDetailProps {
   params: { id: string; adjustmentId: string };

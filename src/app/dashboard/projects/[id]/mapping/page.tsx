@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { formatAmount } from '@/lib/formatters';
+import { formatAmount } from '@/lib/utils/formatters';
 import { MappedData } from '@/types';
 import * as XLSX from 'xlsx';
-import { mappingGuide } from '@/lib/mappingGuide';
-import { ProcessingModal } from '@/components/ProcessingModal';
-import RemappingModal from '@/components/RemappingModal';
-import { useMappedAccounts, useUpdateMappedAccount, useProject } from '@/hooks/useProjectData';
+import { mappingGuide } from '@/lib/services/projects/mappingGuide';
+import { ProcessingModal } from '@/components/shared/ProcessingModal';
+import RemappingModal from '@/components/features/tax-adjustments/RemappingModal';
+import { useMappedAccounts, useUpdateMappedAccount, useProject } from '@/hooks/projects/useProjectData';
 import { useQueryClient } from '@tanstack/react-query';
 
 // Add type at the top of the file after imports

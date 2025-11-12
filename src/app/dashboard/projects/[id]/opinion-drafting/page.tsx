@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useProject } from '@/hooks/useProjectData';
+import { useProject } from '@/hooks/projects/useProjectData';
 import { OpinionDraft } from '@/types';
 import {
   PlusIcon,
@@ -11,10 +11,10 @@ import {
   EyeIcon,
   ClockIcon,
 } from '@heroicons/react/24/outline';
-import ChatInterface from '@/components/OpinionAssistant/ChatInterface';
-import DocumentManager from '@/components/OpinionAssistant/DocumentManager';
-import SectionEditor from '@/components/OpinionAssistant/SectionEditor';
-import OpinionPreview from '@/components/OpinionAssistant/OpinionPreview';
+import ChatInterface from '@/components/features/opinions/OpinionAssistant/ChatInterface';
+import DocumentManager from '@/components/features/opinions/OpinionAssistant/DocumentManager';
+import SectionEditor from '@/components/features/opinions/OpinionAssistant/SectionEditor';
+import OpinionPreview from '@/components/features/opinions/OpinionAssistant/OpinionPreview';
 
 interface OpinionDraftingPageProps {
   params: { id: string };

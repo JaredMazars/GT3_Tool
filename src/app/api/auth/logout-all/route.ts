@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { deleteAllUserSessions, verifySession } from '@/lib/auth';
-import { clearRateLimitsForIdentifier, getClientIdentifier } from '@/lib/rateLimit';
+import { deleteAllUserSessions, verifySession } from '@/lib/services/auth/auth';
+import { clearRateLimitsForIdentifier, getClientIdentifier } from '@/lib/utils/rateLimit';
 
 /**
  * Handle logout from all devices
@@ -105,6 +105,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/auth/error', request.url));
   }
 }
+
 
 
 

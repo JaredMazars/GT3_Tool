@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { mappingGuide } from '@/lib/mappingGuide';
-import { formatAmount } from '@/lib/formatters';
+import { mappingGuide } from '@/lib/services/projects/mappingGuide';
+import { formatAmount } from '@/lib/utils/formatters';
 import { MappedData } from '@/types';
 import { ChevronRightIcon } from '@heroicons/react/24/outline';
-import { useMappedAccounts, useUpdateMappedAccount } from '@/hooks/useProjectData';
-import RemappingModal from '@/components/RemappingModal';
+import { useMappedAccounts, useUpdateMappedAccount } from '@/hooks/projects/useProjectData';
+import RemappingModal from '@/components/features/tax-adjustments/RemappingModal';
 
 
 const subsectionDisplayNames: Record<string, string> = {

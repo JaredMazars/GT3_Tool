@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { getSession } from '@/lib/services/auth/auth';
+import { prisma } from '@/lib/db/prisma';
 import { ResearchAgent } from '@/lib/agents/researchAgent';
 import { generateText } from 'ai';
 import { models, getModelParams } from '@/lib/ai/config';
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/utils/logger';
 
 /**
  * GET /api/projects/[id]/opinion-drafts/[draftId]/chat

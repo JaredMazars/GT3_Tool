@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { formatAmount } from '@/lib/formatters';
-import TaxAdjustmentCard from '@/components/TaxAdjustmentCard';
-import ExportMenu from '@/components/ExportMenu';
-import AddAdjustmentModal from '@/components/AddAdjustmentModal';
-import { useTaxAdjustments, useTaxCalculation, useUpdateTaxAdjustment, useGenerateTaxSuggestions } from '@/hooks/useProjectData';
+import { formatAmount } from '@/lib/utils/formatters';
+import TaxAdjustmentCard from '@/components/features/tax-adjustments/TaxAdjustmentCard';
+import ExportMenu from '@/components/shared/ExportMenu';
+import AddAdjustmentModal from '@/components/features/tax-adjustments/AddAdjustmentModal';
+import { useTaxAdjustments, useTaxCalculation, useUpdateTaxAdjustment, useGenerateTaxSuggestions } from '@/hooks/projects/useProjectData';
 
 interface TaxCalculationProps {
   params: { id: string };

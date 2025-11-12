@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, isSystemAdmin } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
-import { handleApiError } from '@/lib/errorHandler';
+import { getCurrentUser, isSystemAdmin } from '@/lib/services/auth/auth';
+import { prisma } from '@/lib/db/prisma';
+import { handleApiError } from '@/lib/utils/errorHandler';
 
 /**
  * POST /api/admin/users/[userId]/projects

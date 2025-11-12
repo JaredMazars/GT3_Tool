@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { ProjectUser, ProjectRole } from '@/types';
-import { ProjectUserList } from '@/components/UserManagement/ProjectUserList';
-import { UserSearchModal } from '@/components/UserManagement/UserSearchModal';
+import { ProjectUserList } from '@/components/features/projects/UserManagement/ProjectUserList';
+import { UserSearchModal } from '@/components/features/projects/UserManagement/UserSearchModal';
 
 export default function ProjectUsersPage() {
   const params = useParams();
@@ -102,6 +102,7 @@ export default function ProjectUsersPage() {
     </div>
   );
 }
+
 
 
 

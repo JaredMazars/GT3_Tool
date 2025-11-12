@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { handleApiError, AppError, ErrorCodes } from '@/lib/errorHandler';
-import { updateProjectUserSchema } from '@/lib/validation';
-import { parseProjectId, successResponse } from '@/lib/apiUtils';
-import { getCurrentUser, checkProjectAccess } from '@/lib/auth';
+import { prisma } from '@/lib/db/prisma';
+import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+import { updateProjectUserSchema } from '@/lib/utils/validation';
+import { parseProjectId, successResponse } from '@/lib/utils/apiUtils';
+import { getCurrentUser, checkProjectAccess } from '@/lib/services/auth/auth';
 import { z } from 'zod';
 
 export async function GET(

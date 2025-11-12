@@ -1,7 +1,7 @@
 import { generateText } from 'ai';
 import { models, getModelParams } from '../ai/config';
-import { logger } from '../logger';
-import { ragEngine } from '../ragEngine';
+import { logger } from '../utils/logger';
+import { ragEngine } from '../services/opinions/ragEngine';
 
 export interface ResearchFindings {
   relevantLaw: string[];

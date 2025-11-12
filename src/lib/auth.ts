@@ -117,9 +117,25 @@ export async function createSession(user: SessionUser): Promise<string> {
 }
 
 /**
+ * Database session with user
+ */
+interface DatabaseSession {
+  id: string;
+  sessionToken: string;
+  userId: string;
+  expires: Date;
+  User: {
+    id: string;
+    email: string;
+    name: string | null;
+    role: string;
+  };
+}
+
+/**
  * Get session from database
  */
-export async function getSessionFromDatabase(token: string): Promise<any | null> {
+export async function getSessionFromDatabase(token: string): Promise<DatabaseSession | null> {
   try {
     const session = await prisma.session.findUnique({
       where: { sessionToken: token },
@@ -351,7 +367,18 @@ export async function deleteAllUserSessions(userId: string): Promise<void> {
 /**
  * Get user projects - get all projects the user has access to
  */
-export async function getUserProjects(userId: string): Promise<any[]> {
+export async function getUserProjects(userId: string): Promise<Array<{
+  id: number;
+  name: string;
+  description: string | null;
+  projectType: string;
+  status: string;
+  archived: boolean;
+  clientId: number | null;
+  taxYear: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+}>> {
   const projectUsers = await prisma.projectUser.findMany({
     where: { userId },
     include: {

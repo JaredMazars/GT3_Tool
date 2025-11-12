@@ -3,10 +3,10 @@ import { read, utils } from 'xlsx';
 import { generateObject } from 'ai';
 import { models } from '@/lib/ai/config';
 import { AccountMappingSchema } from '@/lib/ai/schemas';
-import { mappingGuide } from '@/lib/mappingGuide';
-import { prisma } from '@/lib/prisma';
-import { logInfo, logError } from '@/lib/logger';
-import { determineSectionAndSubsection } from '@/lib/sectionMapper';
+import { mappingGuide } from '@/lib/services/projects/mappingGuide';
+import { prisma } from '@/lib/db/prisma';
+import { logInfo, logError } from '@/lib/utils/logger';
+import { determineSectionAndSubsection } from '@/lib/services/opinions/sectionMapper';
 
 async function handleStreamingRequest(trialBalanceFile: File, projectId: number) {
   const encoder = new TextEncoder();
@@ -24,7 +24,14 @@ async function handleStreamingRequest(trialBalanceFile: File, projectId: number)
         sendProgress(1, 'in-progress', 'Parsing trial balance file...');
         const trialBalanceBuffer = await trialBalanceFile.arrayBuffer();
         const trialBalanceWorkbook = read(trialBalanceBuffer);
-        const trialBalanceSheet = trialBalanceWorkbook.Sheets[trialBalanceWorkbook.SheetNames[0]];
+        const firstSheetName = trialBalanceWorkbook.SheetNames[0];
+        if (!firstSheetName) {
+          throw new Error('No sheets found in the trial balance file');
+        }
+        const trialBalanceSheet = trialBalanceWorkbook.Sheets[firstSheetName];
+        if (!trialBalanceSheet) {
+          throw new Error('Could not read the trial balance sheet');
+        }
         const trialBalanceData = utils.sheet_to_json(trialBalanceSheet);
         
         // Split trial balance data
@@ -232,7 +239,14 @@ export async function POST(request: NextRequest) {
     // Parse Trial Balance
     const trialBalanceBuffer = await trialBalanceFile.arrayBuffer();
     const trialBalanceWorkbook = read(trialBalanceBuffer);
-    const trialBalanceSheet = trialBalanceWorkbook.Sheets[trialBalanceWorkbook.SheetNames[0]];
+    const firstSheetName = trialBalanceWorkbook.SheetNames[0];
+    if (!firstSheetName) {
+      throw new Error('No sheets found in the trial balance file');
+    }
+    const trialBalanceSheet = trialBalanceWorkbook.Sheets[firstSheetName];
+    if (!trialBalanceSheet) {
+      throw new Error('Could not read the trial balance sheet');
+    }
     const trialBalanceData = utils.sheet_to_json(trialBalanceSheet);
 
     // Split trial balance data

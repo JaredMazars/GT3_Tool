@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { handleApiError } from '@/lib/errorHandler';
-import { parseProjectId, getProjectOrThrow, successResponse } from '@/lib/apiUtils';
+import { prisma } from '@/lib/db/prisma';
+import { handleApiError } from '@/lib/utils/errorHandler';
+import { parseProjectId, getProjectOrThrow, successResponse } from '@/lib/utils/apiUtils';
 
 /**
  * GET /api/projects/[id]/trial-balance

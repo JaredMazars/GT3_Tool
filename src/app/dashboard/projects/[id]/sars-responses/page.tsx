@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useProject } from '@/hooks/useProjectData';
+import { useProject } from '@/hooks/projects/useProjectData';
 import { SarsResponse } from '@/types';
 import { PlusIcon, EnvelopeIcon, CalendarIcon, ClockIcon } from '@heroicons/react/24/outline';
 

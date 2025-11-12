@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { DocumentExtractor } from '@/lib/documentExtractor';
+import { DocumentExtractor } from '@/lib/services/documents/documentExtractor';
 
 const prisma = new PrismaClient();
 

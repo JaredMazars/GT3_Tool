@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { formatAmount } from '@/lib/formatters';
+import { formatAmount } from '@/lib/utils/formatters';
 
 interface AdjustmentsListProps {
   params: { id: string };

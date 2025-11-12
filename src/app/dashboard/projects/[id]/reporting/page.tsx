@@ -2,15 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { DocumentArrowDownIcon } from '@heroicons/react/24/outline';
-import TrialBalanceReport from '@/components/reports/TrialBalanceReport';
-import BalanceSheetReport from '@/components/reports/BalanceSheetReport';
-import IncomeStatementReport from '@/components/reports/IncomeStatementReport';
-import TaxCalculationReport from '@/components/reports/TaxCalculationReport';
-import AITaxReport from '@/components/reports/AITaxReport';
-import { generateReportingPackPDF } from '@/lib/pdfExporter';
+import TrialBalanceReport from '@/components/features/reports/TrialBalanceReport';
+import BalanceSheetReport from '@/components/features/reports/BalanceSheetReport';
+import IncomeStatementReport from '@/components/features/reports/IncomeStatementReport';
+import TaxCalculationReport from '@/components/features/reports/TaxCalculationReport';
+import AITaxReport from '@/components/features/reports/AITaxReport';
+import { generateReportingPackPDF } from '@/lib/services/export/pdfExporter';
 import { MappedData } from '@/types';
-import { AITaxReportData } from '@/lib/aiTaxReportGenerator';
-import { useProject, useMappedAccounts, useTaxAdjustments, useTaxCalculation, useTrialBalance } from '@/hooks/useProjectData';
+import { AITaxReportData } from '@/lib/services/opinions/aiTaxReportGenerator';
+import { useProject, useMappedAccounts, useTaxAdjustments, useTaxCalculation, useTrialBalance } from '@/hooks/projects/useProjectData';
 
 interface ReportingPageProps {
   params: { id: string };

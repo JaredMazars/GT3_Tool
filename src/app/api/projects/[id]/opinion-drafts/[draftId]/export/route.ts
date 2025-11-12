@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
-import { WordExporter } from '@/lib/exporters/wordExporter';
-import { logger } from '@/lib/logger';
+import { getSession } from '@/lib/services/auth/auth';
+import { prisma } from '@/lib/db/prisma';
+import { WordExporter } from '@/lib/services/export/wordExporter';
+import { logger } from '@/lib/utils/logger';
 
 /**
  * POST /api/projects/[id]/opinion-drafts/[draftId]/export

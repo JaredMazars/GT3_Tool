@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useProject } from '@/hooks/useProjectData';
+import { useProject } from '@/hooks/projects/useProjectData';
 import { OpinionDraft } from '@/types';
 import { CheckCircleIcon, ArrowDownTrayIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
 

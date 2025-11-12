@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { determineSectionAndSubsection } from '@/lib/sectionMapper';
-import { handleApiError } from '@/lib/errorHandler';
-import { parseProjectId, successResponse } from '@/lib/apiUtils';
-import { getCurrentUser, checkProjectAccess } from '@/lib/auth';
+import { prisma } from '@/lib/db/prisma';
+import { determineSectionAndSubsection } from '@/lib/services/opinions/sectionMapper';
+import { handleApiError } from '@/lib/utils/errorHandler';
+import { parseProjectId, successResponse } from '@/lib/utils/apiUtils';
+import { getCurrentUser, checkProjectAccess } from '@/lib/services/auth/auth';
 
 export async function GET(
   request: NextRequest,

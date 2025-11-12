@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useProject } from '@/hooks/useProjectData';
+import { useProject } from '@/hooks/projects/useProjectData';
 import { FilingStatus } from '@/types';
 import { PlusIcon, DocumentCheckIcon, CalendarIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 

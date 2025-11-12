@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { getSession } from '@/lib/services/auth/auth';
+import { prisma } from '@/lib/db/prisma';
 import { SectionGenerator, SectionGenerationState } from '@/lib/agents/sectionGenerator';
-import { logger } from '@/lib/logger';
-import { uploadFile } from '@/lib/blobStorage';
-import { ragEngine } from '@/lib/ragEngine';
+import { logger } from '@/lib/utils/logger';
+import { uploadFile } from '@/lib/services/documents/blobStorage';
+import { ragEngine } from '@/lib/services/opinions/ragEngine';
 
 /**
  * GET /api/projects/[id]/opinion-drafts/[draftId]/sections

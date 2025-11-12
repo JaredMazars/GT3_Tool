@@ -105,6 +105,7 @@ model MappedAccount {
   @@index([projectId, accountCode])
   @@index([projectId])
   @@index([projectId, section])
+  @@index([projectId, section, subsection])
 }
 
 model Project {
@@ -140,6 +141,9 @@ model Project {
   @@index([projectType])
   @@index([status])
   @@index([taxYear])
+  @@index([clientId, status, archived])
+  @@index([projectType, taxYear])
+  @@index([createdAt(sort: Desc)])
 }
 
 model ProjectUser {
@@ -188,6 +192,7 @@ model TaxAdjustment {
   @@index([projectId])
   @@index([status])
   @@index([status, projectId])
+  @@index([projectId, status, createdAt(sort: Desc)])
 }
 
 model User {

@@ -8,7 +8,7 @@ import {
   FolderIcon,
   PencilIcon
 } from '@heroicons/react/24/outline';
-import { getProjectTypeColor, formatProjectType, formatDate } from '@/lib/projectUtils';
+import { getProjectTypeColor, formatProjectType, formatDate } from '@/lib/utils/projectUtils';
 
 interface Client {
   id: number;

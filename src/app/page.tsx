@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRightIcon, DocumentCheckIcon, ChartBarIcon, SparklesIcon, ClockIcon } from '@heroicons/react/24/outline';
-import { getSession } from '@/lib/auth';
+import { getSession } from '@/lib/services/auth/auth';
 
 export default async function LandingPage() {
   const session = await getSession();

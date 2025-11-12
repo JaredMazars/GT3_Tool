@@ -1,7 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { parseProjectId, successResponse, getProjectOrThrow } from '@/lib/apiUtils';
-import { handleApiError } from '@/lib/errorHandler';
+import { prisma } from '@/lib/db/prisma';
+import { parseProjectId, successResponse, getProjectOrThrow } from '@/lib/utils/apiUtils';
+import { handleApiError } from '@/lib/utils/errorHandler';
 
 interface TaxAdjustment {
   type: string;

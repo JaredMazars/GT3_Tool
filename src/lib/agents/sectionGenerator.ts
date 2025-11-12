@@ -3,8 +3,8 @@ import { InterviewAgent } from './interviewAgent';
 import { ResearchAgent } from './researchAgent';
 import { AnalysisAgent } from './analysisAgent';
 import { DraftingAgent } from './draftingAgent';
-import { logger } from '../logger';
-import { prisma } from '../prisma';
+import { logger } from '../utils/logger';
+import { prisma } from '../db/prisma';
 
 export interface DocumentFinding {
   content: string;

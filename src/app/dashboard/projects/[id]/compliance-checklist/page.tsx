@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useProject } from '@/hooks/useProjectData';
+import { useProject } from '@/hooks/projects/useProjectData';
 import { ComplianceChecklistItem } from '@/types';
 import { PlusIcon, CheckCircleIcon, ClockIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
 

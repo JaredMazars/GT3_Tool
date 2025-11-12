@@ -10,8 +10,8 @@ import {
   UserPlusIcon,
   FolderIcon
 } from '@heroicons/react/24/outline';
-import { getRoleBadgeColor, formatRole, formatDate } from '@/lib/projectUtils';
-import { UserSearchModal } from '@/components/UserManagement/UserSearchModal';
+import { getRoleBadgeColor, formatRole, formatDate } from '@/lib/utils/projectUtils';
+import { UserSearchModal } from '@/components/features/projects/UserManagement/UserSearchModal';
 import { ADUser } from '@/types';
 
 interface SystemUser {

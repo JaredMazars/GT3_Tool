@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { deleteSession, deleteAllUserSessions, verifySession } from '@/lib/auth';
-import { clearRateLimitsForIdentifier, getClientIdentifier } from '@/lib/rateLimit';
+import { deleteSession, deleteAllUserSessions, verifySession } from '@/lib/services/auth/auth';
+import { clearRateLimitsForIdentifier, getClientIdentifier } from '@/lib/utils/rateLimit';
 
 /**
  * Handle logout - clear session cookie and redirect

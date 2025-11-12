@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthUrl } from '@/lib/auth';
-import { logError } from '@/lib/logger';
-import { enforceRateLimit, RateLimitPresets } from '@/lib/rateLimit';
+import { getAuthUrl } from '@/lib/services/auth/auth';
+import { logError } from '@/lib/utils/logger';
+import { enforceRateLimit, RateLimitPresets } from '@/lib/utils/rateLimit';
 
 export async function GET(request: NextRequest) {
   try {

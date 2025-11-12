@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { parseProjectId, successResponse } from '@/lib/apiUtils';
-import { handleApiError } from '@/lib/errorHandler';
-import { getCurrentUser, checkProjectAccess } from '@/lib/auth';
+import { prisma } from '@/lib/db/prisma';
+import { parseProjectId, successResponse } from '@/lib/utils/apiUtils';
+import { handleApiError } from '@/lib/utils/errorHandler';
+import { getCurrentUser, checkProjectAccess } from '@/lib/services/auth/auth';
+import { Prisma } from '@prisma/client';
 
 export async function GET(
   request: NextRequest,
@@ -112,7 +113,7 @@ export async function PUT(
     const body = await request.json();
 
     // Build update data object
-    const updateData: any = {};
+    const updateData: Prisma.ProjectUpdateInput = {};
     
     if (body.name !== undefined) {
       if (!body.name || !body.name.trim()) {
@@ -153,7 +154,11 @@ export async function PUT(
     }
     
     if (body.clientId !== undefined) {
-      updateData.clientId = body.clientId;
+      if (body.clientId === null) {
+        updateData.Client = { disconnect: true };
+      } else {
+        updateData.Client = { connect: { id: body.clientId } };
+      }
     }
 
     const project = await prisma.project.update({

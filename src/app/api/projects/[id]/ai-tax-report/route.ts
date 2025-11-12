@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { AITaxReportGenerator, ProjectTaxData } from '@/lib/aiTaxReportGenerator';
+import { prisma } from '@/lib/db/prisma';
+import { AITaxReportGenerator, ProjectTaxData } from '@/lib/services/opinions/aiTaxReportGenerator';
 
 export const maxDuration = 90; // 90 seconds timeout for AI generation
 

@@ -30,13 +30,13 @@ import MappingPage from './mapping/page';
 import TaxCalculationPage from './tax-calculation/page';
 import ReportingPage from './reporting/page';
 import OpinionDraftingPage from './opinion-drafting/page';
-import { useProject } from '@/hooks/useProjectData';
-import { getProjectTypeColor, formatProjectType, formatDate } from '@/lib/projectUtils';
-import { ClientSelector } from '@/components/ClientSelector';
-import { ProjectTypeSelector } from '@/components/ProjectTypeSelector';
-import { TaxYearInput } from '@/components/TaxYearInput';
-import { ProjectUserList } from '@/components/UserManagement/ProjectUserList';
-import { UserSearchModal } from '@/components/UserManagement/UserSearchModal';
+import { useProject } from '@/hooks/projects/useProjectData';
+import { getProjectTypeColor, formatProjectType, formatDate } from '@/lib/utils/projectUtils';
+import { ClientSelector } from '@/components/features/clients/ClientSelector';
+import { ProjectTypeSelector } from '@/components/features/projects/ProjectTypeSelector';
+import { TaxYearInput } from '@/components/shared/TaxYearInput';
+import { ProjectUserList } from '@/components/features/projects/UserManagement/ProjectUserList';
+import { UserSearchModal } from '@/components/features/projects/UserManagement/UserSearchModal';
 import { ProjectUser, ProjectRole } from '@/types';
 
 interface TabProps {

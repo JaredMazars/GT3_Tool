@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db/prisma';
 import type { HealthCheckResult } from '@/types/api';
-import { logError } from '@/lib/logger';
+import { logError } from '@/lib/utils/logger';
 
 /**
  * GET /api/health

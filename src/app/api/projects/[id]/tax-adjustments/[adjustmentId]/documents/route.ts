@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { DocumentExtractor } from '@/lib/documentExtractor';
+import { prisma } from '@/lib/db/prisma';
+import { DocumentExtractor } from '@/lib/services/documents/documentExtractor';
 
 const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_UPLOAD_SIZE || '10485760'); // 10MB default
 

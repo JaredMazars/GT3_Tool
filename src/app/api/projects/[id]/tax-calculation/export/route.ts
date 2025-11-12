@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ExcelExporter } from '@/lib/exporters/excelExporter';
-import { prisma } from '@/lib/prisma';
-import { handleApiError, AppError, ErrorCodes } from '@/lib/errorHandler';
-import { parseProjectId } from '@/lib/apiUtils';
+import { ExcelExporter } from '@/lib/services/export/excelExporter';
+import { prisma } from '@/lib/db/prisma';
+import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+import { parseProjectId } from '@/lib/utils/apiUtils';
 import type { TaxExportData } from '@/types/api';
 
 /**

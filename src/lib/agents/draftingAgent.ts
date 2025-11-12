@@ -1,6 +1,6 @@
 import { generateText } from 'ai';
 import { models, getModelParams } from '../ai/config';
-import { logger } from '../logger';
+import { logger } from '../utils/logger';
 
 export interface OpinionSectionContent {
   title: string;

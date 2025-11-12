@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { parseAdjustmentId, parseProjectId, getTaxAdjustmentOrThrow, successResponse } from '@/lib/apiUtils';
-import { handleApiError, AppError, ErrorCodes } from '@/lib/errorHandler';
-import { getCurrentUser, checkProjectAccess } from '@/lib/auth';
+import { prisma } from '@/lib/db/prisma';
+import { parseAdjustmentId, parseProjectId, getTaxAdjustmentOrThrow, successResponse } from '@/lib/utils/apiUtils';
+import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+import { getCurrentUser, checkProjectAccess } from '@/lib/services/auth/auth';
 
 /**
  * GET /api/projects/[id]/tax-adjustments/[adjustmentId]

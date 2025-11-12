@@ -4,7 +4,7 @@ import { AnalysisAgent, TaxAnalysis } from './analysisAgent';
 import { DraftingAgent } from './draftingAgent';
 import { ReviewAgent, ReviewFeedback } from './reviewAgent';
 import { OpinionChatMessage } from '@/types';
-import { logger } from '../logger';
+import { logger } from '../utils/logger';
 
 export type WorkflowPhase =
   | 'interview'

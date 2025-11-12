@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useProject } from '@/hooks/useProjectData';
+import { useProject } from '@/hooks/projects/useProjectData';
 import { AdministrationDocument } from '@/types';
 import { PlusIcon, FolderIcon, DocumentTextIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 
@@ -44,7 +44,7 @@ export default function DocumentManagementPage({ params }: DocumentManagementPag
     if (!acc[doc.category]) {
       acc[doc.category] = [];
     }
-    acc[doc.category].push(doc);
+    acc[doc.category]!.push(doc);
     return acc;
   }, {} as Record<string, AdministrationDocument[]>);
 

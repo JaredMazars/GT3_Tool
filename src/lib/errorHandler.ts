@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
-import { logError, logWarn } from './logger';
+import { logError, logWarn } from './utils/logger';
 
 /**
  * Custom application error class for structured error handling
@@ -88,9 +88,25 @@ function handlePrismaError(error: Prisma.PrismaClientKnownRequestError): AppErro
 }
 
 /**
+ * Type guard for OpenAI-like errors
+ */
+interface OpenAILikeError {
+  status?: number;
+  message?: string;
+}
+
+function isOpenAILikeError(error: unknown): error is OpenAILikeError {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    ('status' in error || 'message' in error)
+  );
+}
+
+/**
  * Handle OpenAI API errors
  */
-function handleOpenAIError(error: any): AppError {
+function handleOpenAIError(error: OpenAILikeError): AppError {
   if (error.status === 429) {
     return new AppError(
       429,
@@ -172,7 +188,7 @@ export function handleApiError(error: unknown, context?: string): NextResponse {
   }
   
   // Handle OpenAI errors (check for error.status property)
-  if (error && typeof error === 'object' && 'status' in error && 'message' in error) {
+  if (isOpenAILikeError(error)) {
     const appError = handleOpenAIError(error);
     return NextResponse.json(
       {

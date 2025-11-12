@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { TaxAdjustmentEngine } from '@/lib/taxAdjustmentEngine';
+import { TaxAdjustmentEngine } from '@/lib/services/tax/taxAdjustmentEngine';
 
 const prisma = new PrismaClient();
 

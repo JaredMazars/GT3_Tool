@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useProject } from '@/hooks/useProjectData';
+import { useProject } from '@/hooks/projects/useProjectData';
 import { ResearchNote } from '@/types';
 import { PlusIcon, TagIcon, FolderIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 

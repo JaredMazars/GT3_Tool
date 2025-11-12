@@ -1,9 +1,9 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentUser } from '@/lib/services/auth/auth';
 import { redirect } from 'next/navigation';
-import DashboardNav from '@/components/DashboardNav';
-import UserMenu from '@/components/UserMenu';
+import DashboardNav from '@/components/layout/DashboardNav';
+import UserMenu from '@/components/layout/UserMenu';
 
 export default async function DashboardLayout({
   children,

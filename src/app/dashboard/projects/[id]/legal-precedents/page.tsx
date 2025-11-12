@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useProject } from '@/hooks/useProjectData';
+import { useProject } from '@/hooks/projects/useProjectData';
 import { LegalPrecedent } from '@/types';
 import { PlusIcon, ScaleIcon, LinkIcon } from '@heroicons/react/24/outline';
 

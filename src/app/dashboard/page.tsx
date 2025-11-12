@@ -13,8 +13,8 @@ import {
   TrashIcon
 } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
-import { CreateProjectModal } from '@/components/CreateProjectModal';
-import { getProjectTypeColor, formatProjectType, getProjectTypeBorderColor } from '@/lib/projectUtils';
+import { CreateProjectModal } from '@/components/features/projects/CreateProjectModal';
+import { getProjectTypeColor, formatProjectType, getProjectTypeBorderColor } from '@/lib/utils/projectUtils';
 
 interface Project {
   id: number;
@@ -75,6 +75,8 @@ export default function DashboardPage() {
       document.addEventListener('click', handleClickOutside);
       return () => document.removeEventListener('click', handleClickOutside);
     }
+    
+    return undefined;
   }, [openDropdown]);
 
   useEffect(() => {
