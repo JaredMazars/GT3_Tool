@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { ProjectUser, ProjectRole } from '@/types';
 import { RoleSelector } from './RoleSelector';
-import { UserCircleIcon, EnvelopeIcon, BriefcaseIcon, BuildingOfficeIcon, CalendarIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { SendMessageModal } from '@/components/features/notifications/SendMessageModal';
+import { UserCircleIcon, EnvelopeIcon, BriefcaseIcon, BuildingOfficeIcon, CalendarIcon, XMarkIcon, ChatBubbleLeftIcon } from '@heroicons/react/24/outline';
 
 interface ProjectUserListProps {
   projectId: number;
@@ -24,6 +25,8 @@ export function ProjectUserList({
 }: ProjectUserListProps) {
   const [removingUserId, setRemovingUserId] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<ProjectUser | null>(null);
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [messageRecipient, setMessageRecipient] = useState<{ userId: string; name: string; projectId: number; projectName?: string } | null>(null);
 
   const handleRemoveUser = async (userId: string) => {
     if (!confirm('Are you sure you want to remove this user from the project?')) {
@@ -269,10 +272,27 @@ export function ProjectUserList({
             </div>
 
               {/* Footer */}
-              <div className="px-6 py-4 bg-forvis-gray-50 border-t-2 border-forvis-gray-200 flex justify-end">
+              <div className="px-6 py-4 bg-forvis-gray-50 border-t-2 border-forvis-gray-200 flex justify-between">
+                {selectedUser.userId !== currentUserId && (
+                  <button
+                    onClick={() => {
+                      setMessageRecipient({
+                        userId: selectedUser.userId,
+                        name: user?.name || user?.email || 'User',
+                        projectId,
+                      });
+                      setShowMessageModal(true);
+                    }}
+                    className="px-4 py-2 text-sm font-semibold text-white rounded-lg transition-colors shadow-corporate hover:shadow-corporate-md"
+                    style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+                  >
+                    <ChatBubbleLeftIcon className="w-4 h-4 inline mr-2" />
+                    Send Message
+                  </button>
+                )}
                 <button
                   onClick={() => setSelectedUser(null)}
-                  className="px-4 py-2 text-sm font-semibold text-forvis-gray-700 bg-white border-2 border-forvis-gray-300 rounded-lg hover:bg-forvis-gray-100 transition-colors shadow-corporate"
+                  className="px-4 py-2 text-sm font-semibold text-forvis-gray-700 bg-white border-2 border-forvis-gray-300 rounded-lg hover:bg-forvis-gray-100 transition-colors shadow-corporate ml-auto"
                 >
                   Close
                 </button>
@@ -281,6 +301,20 @@ export function ProjectUserList({
           </div>
         );
       })()}
+
+      {/* Send Message Modal */}
+      {messageRecipient && (
+        <SendMessageModal
+          isOpen={showMessageModal}
+          onClose={() => {
+            setShowMessageModal(false);
+            setMessageRecipient(null);
+          }}
+          recipientUserId={messageRecipient.userId}
+          recipientName={messageRecipient.name}
+          projectId={messageRecipient.projectId}
+        />
+      )}
     </>
   );
 }

@@ -9,6 +9,7 @@ import {
   UserGroupIcon,
   Cog6ToothIcon
 } from '@heroicons/react/24/outline';
+import { NotificationBell } from '@/components/features/notifications/NotificationBell';
 
 interface NavItem {
   label: string;
@@ -73,7 +74,8 @@ export default function DashboardNav() {
       ref={menuRef}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center h-12 space-x-1">
+        <div className="flex items-center justify-between h-12">
+          <div className="flex items-center space-x-1">
           {navItems.map((item) => {
             const isActive = item.href === pathname;
             
@@ -137,6 +139,10 @@ export default function DashboardNav() {
               </div>
             );
           })}
+          </div>
+          
+          {/* Notification Bell */}
+          <NotificationBell />
         </div>
       </div>
     </nav>
