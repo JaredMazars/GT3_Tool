@@ -57,6 +57,32 @@ export const RetryPresets = {
       return error?.code === 'P2034' || error?.code === 'P1001';
     },
   },
+  
+  // For Azure SQL Database (handles cold-start scenarios)
+  AZURE_SQL_COLD_START: {
+    maxRetries: 3,
+    initialDelayMs: 5000, // Longer initial delay for cold start
+    maxDelayMs: 30000, // Allow up to 30s for cold start
+    backoffMultiplier: 2,
+    retryableErrors: (error: any) => {
+      // P1001: Can't reach database server
+      // P1017: Server closed connection
+      // P2024: Timed out fetching from data source
+      // P1008: Operations timed out
+      if (error?.code) {
+        return ['P1001', 'P1017', 'P2024', 'P1008'].includes(error.code);
+      }
+      // Also retry on connection-related error messages
+      if (error?.message) {
+        const message = error.message.toLowerCase();
+        return message.includes('timeout') || 
+               message.includes('connect') ||
+               message.includes('connection') ||
+               message.includes('econnreset');
+      }
+      return false;
+    },
+  },
 } as const;
 
 /**

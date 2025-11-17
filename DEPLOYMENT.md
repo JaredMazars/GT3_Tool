@@ -178,6 +178,39 @@ az containerapp secret set \
   --secrets "secret-name=secret-value"
 ```
 
+#### Critical Environment Variables
+
+**NEXTAUTH_URL** (REQUIRED)
+
+⚠️ **CRITICAL:** This must be set to your production URL, NOT localhost!
+
+```bash
+# Correct for production
+NEXTAUTH_URL=https://mapper-tax-app.greenpebble-86483b9f.westeurope.azurecontainerapps.io
+
+# WRONG - will cause redirect to localhost after login
+NEXTAUTH_URL=http://localhost:3000
+```
+
+**Common mistake:** Using localhost URL in production causes auth callbacks to redirect users back to localhost instead of your deployed application.
+
+**Verification:** After deployment, check the environment variable:
+```bash
+az containerapp show \
+  --name mapper-tax-app \
+  --resource-group walter_sandbox \
+  --query "properties.configuration.secrets[?name=='nextauth-url'].value"
+```
+
+**Azure SQL Database Configuration**
+
+The application is configured to handle Azure SQL Database serverless tier cold-start scenarios:
+- Database operations include automatic retry logic with exponential backoff
+- Auth callback has a 45-second timeout to allow for database wake-up
+- Initial connections may take 10-30 seconds if database is paused
+
+If users experience login timeouts on first access after idle period, they should simply retry the login - the database will be warm on the second attempt.
+
 ### Scaling
 
 The app is configured with:
@@ -227,6 +260,50 @@ Wait 30-60 seconds for the new revision to fully activate.
 2. Verify environment variables are set correctly
 3. Ensure database connection string is valid
 4. Check if the health endpoint is responding
+
+### Issue: Auth Callback Redirects to Localhost
+
+**Symptoms:** After logging in, users are redirected to `http://localhost:3000` instead of the production URL.
+
+**Root Cause:** `NEXTAUTH_URL` environment variable is set to localhost instead of the production URL.
+
+**Solution:**
+1. Update the environment variable in Azure Container App:
+```bash
+az containerapp update \
+  --name mapper-tax-app \
+  --resource-group walter_sandbox \
+  --set-env-vars "NEXTAUTH_URL=https://mapper-tax-app.greenpebble-86483b9f.westeurope.azurecontainerapps.io"
+```
+
+2. Verify the change:
+```bash
+az containerapp show \
+  --name mapper-tax-app \
+  --resource-group walter_sandbox \
+  --query "properties.configuration.activeRevisionsMode"
+```
+
+3. Restart the application to pick up the new environment variable
+
+### Issue: Login Times Out or Fails on First Access
+
+**Symptoms:** 
+- Login fails with timeout error on first access after idle period
+- Works fine on second attempt
+- Browser closes and reopens, then login works
+
+**Root Cause:** Azure SQL Database serverless tier auto-pauses after inactivity and takes 10-30 seconds to resume on first connection.
+
+**Solution (Already Implemented):**
+The application now includes:
+- Automatic retry logic with exponential backoff for database operations
+- 45-second timeout for auth callback to allow database wake-up
+- Proper connection pooling for Azure SQL
+
+**User Workaround:** If login times out on first access, simply retry the login. The database will be warm on the second attempt.
+
+**Long-term Solution:** Consider upgrading to Azure SQL Database provisioned tier to eliminate cold-start delays, or keep the database warm with periodic health checks.
 
 ## Version History
 

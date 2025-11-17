@@ -2,6 +2,19 @@ import { ConfidentialClientApplication, CryptoProvider } from '@azure/msal-node'
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { prisma } from '../../db/prisma';
+import { withRetry, RetryPresets } from '../../utils/retryUtils';
+
+// Helper for conditional logging (avoid importing logger to prevent Edge Runtime issues)
+const log = {
+  info: (message: string, meta?: any) => {
+    if (typeof process !== 'undefined' && process.env.NODE_ENV !== 'production') {
+      console.log(`[INFO] ${message}`, meta || '');
+    }
+  },
+  error: (message: string, error?: any) => {
+    console.error(`[ERROR] ${message}`, error?.message || error || '');
+  },
+};
 
 const msalConfig = {
   auth: {
@@ -65,21 +78,37 @@ export async function handleCallback(code: string, redirectUri: string) {
   const name = response.account.name || response.account.username;
   const userId = response.account.homeAccountId || response.account.localAccountId;
 
-  // Find or create user in database
-  let dbUser = await prisma.user.findUnique({
-    where: { email },
-  });
+  // Find or create user in database with retry logic for Azure SQL cold-start
+  log.info('Looking up user in database', { email });
+  
+  let dbUser = await withRetry(
+    async () => {
+      return await prisma.user.findUnique({
+        where: { email },
+      });
+    },
+    RetryPresets.AZURE_SQL_COLD_START,
+    'Auth callback - find user'
+  );
 
   if (!dbUser) {
-    // Create new user in database
-    dbUser = await prisma.user.create({
-      data: {
-        id: userId,
-        email,
-        name,
-        role: 'USER', // Default role
+    log.info('Creating new user in database', { email, userId });
+    
+    // Create new user in database with retry logic
+    dbUser = await withRetry(
+      async () => {
+        return await prisma.user.create({
+          data: {
+            id: userId,
+            email,
+            name,
+            role: 'USER', // Default role
+          },
+        });
       },
-    });
+      RetryPresets.AZURE_SQL_COLD_START,
+      'Auth callback - create user'
+    );
   }
 
   const user: SessionUser = {
@@ -88,6 +117,8 @@ export async function handleCallback(code: string, redirectUri: string) {
     name: dbUser.name || dbUser.email,
   };
 
+  log.info('User authenticated successfully', { userId: user.id, email: user.email });
+  
   return user;
 }
 
@@ -101,17 +132,28 @@ export async function createSession(user: SessionUser): Promise<string> {
     .setExpirationTime('1d')
     .sign(JWT_SECRET);
 
-  // Store session in database
+  // Store session in database with retry logic for Azure SQL cold-start
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 1 day
   const sessionId = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
-  await prisma.session.create({
-    data: {
-      id: sessionId,
-      sessionToken: token,
-      userId: user.id,
-      expires: expiresAt,
+  
+  log.info('Creating session in database', { userId: user.id, sessionId });
+  
+  await withRetry(
+    async () => {
+      return await prisma.session.create({
+        data: {
+          id: sessionId,
+          sessionToken: token,
+          userId: user.id,
+          expires: expiresAt,
+        },
+      });
     },
-  });
+    RetryPresets.AZURE_SQL_COLD_START,
+    'Create session'
+  );
+
+  log.info('Session created successfully', { userId: user.id, sessionId });
 
   return token;
 }
@@ -137,24 +179,38 @@ interface DatabaseSession {
  */
 export async function getSessionFromDatabase(token: string): Promise<DatabaseSession | null> {
   try {
-    const session = await prisma.session.findUnique({
-      where: { sessionToken: token },
-      include: { User: true },
-    });
+    // Use retry logic for session lookup to handle Azure SQL cold-start
+    const session = await withRetry(
+      async () => {
+        return await prisma.session.findUnique({
+          where: { sessionToken: token },
+          include: { User: true },
+        });
+      },
+      RetryPresets.AZURE_SQL_COLD_START,
+      'Get session from database'
+    );
 
     // Check if session exists and hasn't expired
     if (!session || session.expires < new Date()) {
       // Clean up expired session if it exists
       if (session) {
-        await prisma.session.delete({
-          where: { sessionToken: token },
-        });
+        await withRetry(
+          async () => {
+            return await prisma.session.delete({
+              where: { sessionToken: token },
+            });
+          },
+          RetryPresets.AZURE_SQL_COLD_START,
+          'Delete expired session'
+        );
       }
       return null;
     }
 
     return session;
   } catch (error) {
+    log.error('Failed to get session from database', error);
     return null;
   }
 }
