@@ -3,6 +3,9 @@ import { handleCallback, createSession } from '@/lib/services/auth/auth';
 import { logError, logWarn, logInfo } from '@/lib/utils/logger';
 import { enforceRateLimit, RateLimitPresets } from '@/lib/utils/rateLimit';
 
+// Force dynamic rendering (uses cookies and headers)
+export const dynamic = 'force-dynamic';
+
 /**
  * Timeout wrapper for async operations
  * Prevents callback from hanging indefinitely if database is unresponsive

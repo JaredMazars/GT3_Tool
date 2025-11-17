@@ -4,6 +4,9 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { notificationService } from '@/lib/services/notifications/notificationService';
 
+// Force dynamic rendering (uses cookies)
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/notifications/unread-count
  * Get count of unread notifications (fast endpoint for polling/badges)

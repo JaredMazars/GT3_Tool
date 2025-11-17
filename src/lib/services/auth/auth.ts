@@ -3,6 +3,7 @@ import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { prisma } from '../../db/prisma';
 import { withRetry, RetryPresets } from '../../utils/retryUtils';
+import type { Session, SessionUser } from './types';
 
 // Helper for conditional logging (avoid importing logger to prevent Edge Runtime issues)
 const log = {
@@ -34,16 +35,8 @@ if (!process.env.NEXTAUTH_SECRET) {
 
 const JWT_SECRET = new TextEncoder().encode(process.env.NEXTAUTH_SECRET);
 
-export interface SessionUser {
-  id: string;
-  email: string;
-  name: string;
-}
-
-export interface Session {
-  user: SessionUser;
-  exp: number;
-}
+// Import types from shared types file
+export type { SessionUser, Session } from './types';
 
 /**
  * Generate authorization URL for Azure AD login

@@ -3,6 +3,9 @@ import { getCurrentUser, isSystemAdmin } from '@/lib/services/auth/auth';
 import { prisma } from '@/lib/db/prisma';
 import { handleApiError } from '@/lib/utils/errorHandler';
 
+// Force dynamic rendering (uses cookies)
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/admin/users/[userId]
  * Get detailed user information

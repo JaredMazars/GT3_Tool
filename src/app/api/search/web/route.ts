@@ -6,6 +6,9 @@ import { bingSearchService } from '@/lib/services/search/bingSearchService';
 import { logger } from '@/lib/utils/logger';
 import { enforceRateLimit, RateLimitPresets } from '@/lib/utils/rateLimit';
 
+// Force dynamic rendering (uses cookies and headers)
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/search/web
  * Perform general web search using Bing

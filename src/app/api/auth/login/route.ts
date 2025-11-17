@@ -3,6 +3,9 @@ import { getAuthUrl } from '@/lib/services/auth/auth';
 import { logError } from '@/lib/utils/logger';
 import { enforceRateLimit, RateLimitPresets } from '@/lib/utils/rateLimit';
 
+// Force dynamic rendering (uses cookies and headers)
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     // Apply lenient rate limiting for auth endpoints

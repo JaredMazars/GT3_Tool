@@ -4,6 +4,9 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { prisma } from '@/lib/db/prisma';
 
+// Force dynamic rendering (uses cookies)
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     // Require authentication
