@@ -7,7 +7,7 @@ import BalanceSheetReport from '@/components/features/reports/BalanceSheetReport
 import IncomeStatementReport from '@/components/features/reports/IncomeStatementReport';
 import TaxCalculationReport from '@/components/features/reports/TaxCalculationReport';
 import AITaxReport from '@/components/features/reports/AITaxReport';
-import { generateReportingPackPDF } from '@/lib/services/export/pdfExporter';
+
 import { MappedData } from '@/types';
 import { AITaxReportData } from '@/lib/services/opinions/aiTaxReportGenerator';
 import { useProject, useMappedAccounts, useTaxAdjustments, useTaxCalculation, useTrialBalance } from '@/hooks/projects/useProjectData';
@@ -50,7 +50,7 @@ interface Tab {
 export default function ReportingPage({ params }: ReportingPageProps) {
   const [activeTab, setActiveTab] = useState('trialBalance');
   const [isExporting, setIsExporting] = useState(false);
-  
+
   // Fetch all data using React Query
   const { data: project } = useProject(params.id);
   const { data: trialBalanceData, isLoading: isLoadingTrialBalance, error: trialBalanceError } = useTrialBalance(params.id);
@@ -125,10 +125,23 @@ export default function ReportingPage({ params }: ReportingPageProps) {
         return;
       }
 
-      const pdfBlob = await generateReportingPackPDF(reportData, selectedReportsList);
+      const response = await fetch(`/api/projects/${params.id}/reporting/export`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reportData,
+          selectedReports: selectedReportsList,
+        }),
+      });
 
-      // Download the PDF
-      const url = URL.createObjectURL(pdfBlob);
+      if (!response.ok) {
+        throw new Error('Failed to generate PDF');
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.download = `${projectName}-reporting-pack-${new Date().toISOString().split('T')[0]}.pdf`;
@@ -137,6 +150,7 @@ export default function ReportingPage({ params }: ReportingPageProps) {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     } catch (err) {
+      console.error(err);
       alert('Failed to export PDF. Please try again.');
     } finally {
       setIsExporting(false);
@@ -321,11 +335,10 @@ export default function ReportingPage({ params }: ReportingPageProps) {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-3 py-3 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === tab.id
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                className={`px-3 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.id
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
               >
                 {tab.name}
               </button>

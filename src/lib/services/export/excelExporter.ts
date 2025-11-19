@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 interface TaxAdjustment {
   id: number;
@@ -22,8 +22,12 @@ export class ExcelExporter {
   /**
    * Export tax computation to Excel workbook
    */
-  static exportTaxComputation(data: ExportData): Buffer {
-    const workbook = XLSX.utils.book_new();
+  static async exportTaxComputation(data: ExportData): Promise<Buffer> {
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Tax Mapper';
+    workbook.lastModifiedBy = 'Tax Mapper';
+    workbook.created = new Date();
+    workbook.modified = new Date();
 
     // Sheet 1: Tax Computation
     this.addTaxComputationSheet(workbook, data);
@@ -35,14 +39,18 @@ export class ExcelExporter {
     this.addReconciliationSheet(workbook, data);
 
     // Write workbook to buffer
-    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-    return buffer;
+    // Cast to unknown then to Buffer because exceljs returns generic Buffer which might conflict with node's Buffer types in some setups,
+    // but usually it's fine. However, writeBuffer returns Promise<Buffer>.
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(buffer);
   }
 
   /**
    * Create Tax Computation sheet
    */
-  private static addTaxComputationSheet(workbook: XLSX.WorkBook, data: ExportData) {
+  private static addTaxComputationSheet(workbook: ExcelJS.Workbook, data: ExportData) {
+    const worksheet = workbook.addWorksheet('Tax Computation');
+
     const approvedAdjustments = data.adjustments.filter(
       a => a.status === 'APPROVED' || a.status === 'MODIFIED'
     );
@@ -55,70 +63,62 @@ export class ExcelExporter {
     const totalCredits = creditAdjustments.reduce((sum, a) => sum + Math.abs(a.amount), 0);
     const totalAllowances = allowanceAdjustments.reduce((sum, a) => sum + Math.abs(a.amount), 0);
 
-    const rows: any[][] = [
-      ['TAX COMPUTATION - IT14', ''],
-      ['Project:', data.projectName],
-      ['Date:', new Date().toLocaleDateString()],
-      ['', ''],
-      ['Description', 'Amount (R)'],
-      ['', ''],
-      ['Accounting Profit / (Loss)', data.accountingProfit],
-      ['', ''],
-      ['ADD: DEBIT ADJUSTMENTS', ''],
-    ];
+    worksheet.addRow(['TAX COMPUTATION - IT14', '']);
+    worksheet.addRow(['Project:', data.projectName]);
+    worksheet.addRow(['Date:', new Date().toLocaleDateString()]);
+    worksheet.addRow(['', '']);
+    worksheet.addRow(['Description', 'Amount (R)']);
+    worksheet.addRow(['', '']);
+    worksheet.addRow(['Accounting Profit / (Loss)', data.accountingProfit]);
+    worksheet.addRow(['', '']);
+    worksheet.addRow(['ADD: DEBIT ADJUSTMENTS', '']);
 
     // Add debit adjustments
     debitAdjustments.forEach(adj => {
-      rows.push([`  ${adj.description}`, Math.abs(adj.amount)]);
+      worksheet.addRow([`  ${adj.description}`, Math.abs(adj.amount)]);
     });
-    rows.push(['Total Debit Adjustments', totalDebits]);
-    rows.push(['', '']);
+    worksheet.addRow(['Total Debit Adjustments', totalDebits]);
+    worksheet.addRow(['', '']);
 
-    rows.push(['LESS: CREDIT ADJUSTMENTS', '']);
+    worksheet.addRow(['LESS: CREDIT ADJUSTMENTS', '']);
     // Add credit adjustments
     creditAdjustments.forEach(adj => {
-      rows.push([`  ${adj.description}`, -Math.abs(adj.amount)]);
+      worksheet.addRow([`  ${adj.description}`, -Math.abs(adj.amount)]);
     });
-    rows.push(['Total Credit Adjustments', -totalCredits]);
-    rows.push(['', '']);
+    worksheet.addRow(['Total Credit Adjustments', -totalCredits]);
+    worksheet.addRow(['', '']);
 
     if (allowanceAdjustments.length > 0) {
-      rows.push(['ADD: ALLOWANCES / RECOUPMENTS', '']);
+      worksheet.addRow(['ADD: ALLOWANCES / RECOUPMENTS', '']);
       allowanceAdjustments.forEach(adj => {
-        rows.push([`  ${adj.description}`, Math.abs(adj.amount)]);
+        worksheet.addRow([`  ${adj.description}`, Math.abs(adj.amount)]);
       });
-      rows.push(['Total Allowances', totalAllowances]);
-      rows.push(['', '']);
+      worksheet.addRow(['Total Allowances', totalAllowances]);
+      worksheet.addRow(['', '']);
     }
 
-    rows.push(['TAXABLE INCOME', data.taxableIncome]);
-    rows.push(['', '']);
-    rows.push(['Tax Rate (Corporate)', '27%']);
-    rows.push(['TAX LIABILITY', data.taxLiability]);
-
-    const worksheet = XLSX.utils.aoa_to_sheet(rows);
+    worksheet.addRow(['TAXABLE INCOME', data.taxableIncome]);
+    worksheet.addRow(['', '']);
+    worksheet.addRow(['Tax Rate (Corporate)', '27%']);
+    worksheet.addRow(['TAX LIABILITY', data.taxLiability]);
 
     // Set column widths
-    worksheet['!cols'] = [
-      { wch: 60 },
-      { wch: 20 },
-    ];
-
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Tax Computation');
+    worksheet.getColumn(1).width = 60;
+    worksheet.getColumn(2).width = 20;
   }
 
   /**
    * Create Adjustments Detail sheet
    */
-  private static addAdjustmentsDetailSheet(workbook: XLSX.WorkBook, data: ExportData) {
-    const rows: any[][] = [
-      ['ADJUSTMENTS DETAIL', '', '', '', '', ''],
-      ['', '', '', '', '', ''],
-      ['ID', 'Type', 'Description', 'Amount (R)', 'SARS Section', 'Status', 'Notes'],
-    ];
+  private static addAdjustmentsDetailSheet(workbook: ExcelJS.Workbook, data: ExportData) {
+    const worksheet = workbook.addWorksheet('Adjustments Detail');
+
+    worksheet.addRow(['ADJUSTMENTS DETAIL', '', '', '', '', '']);
+    worksheet.addRow(['', '', '', '', '', '']);
+    worksheet.addRow(['ID', 'Type', 'Description', 'Amount (R)', 'SARS Section', 'Status', 'Notes']);
 
     data.adjustments.forEach(adj => {
-      rows.push([
+      worksheet.addRow([
         adj.id,
         adj.type,
         adj.description,
@@ -129,26 +129,22 @@ export class ExcelExporter {
       ]);
     });
 
-    const worksheet = XLSX.utils.aoa_to_sheet(rows);
-
     // Set column widths
-    worksheet['!cols'] = [
-      { wch: 8 },
-      { wch: 12 },
-      { wch: 50 },
-      { wch: 15 },
-      { wch: 15 },
-      { wch: 12 },
-      { wch: 60 },
-    ];
-
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Adjustments Detail');
+    worksheet.getColumn(1).width = 8;
+    worksheet.getColumn(2).width = 12;
+    worksheet.getColumn(3).width = 50;
+    worksheet.getColumn(4).width = 15;
+    worksheet.getColumn(5).width = 15;
+    worksheet.getColumn(6).width = 12;
+    worksheet.getColumn(7).width = 60;
   }
 
   /**
    * Create Reconciliation sheet
    */
-  private static addReconciliationSheet(workbook: XLSX.WorkBook, data: ExportData) {
+  private static addReconciliationSheet(workbook: ExcelJS.Workbook, data: ExportData) {
+    const worksheet = workbook.addWorksheet('Reconciliation');
+
     const approvedAdjustments = data.adjustments.filter(
       a => a.status === 'APPROVED' || a.status === 'MODIFIED'
     );
@@ -161,30 +157,22 @@ export class ExcelExporter {
       }
     }, 0);
 
-    const rows: any[][] = [
-      ['RECONCILIATION', ''],
-      ['Accounting vs Tax Income', ''],
-      ['', ''],
-      ['Description', 'Amount (R)'],
-      ['', ''],
-      ['Accounting Profit (per IFRS)', data.accountingProfit],
-      ['Tax Adjustments (net)', totalAdjustments],
-      ['Taxable Income (per Tax Act)', data.taxableIncome],
-      ['', ''],
-      ['Verification:', ''],
-      ['Calculated Taxable Income', `=${data.accountingProfit} + ${totalAdjustments}`],
-      ['Should Equal', data.taxableIncome],
-      ['Difference', data.taxableIncome - (data.accountingProfit + totalAdjustments)],
-    ];
+    worksheet.addRow(['RECONCILIATION', '']);
+    worksheet.addRow(['Accounting vs Tax Income', '']);
+    worksheet.addRow(['', '']);
+    worksheet.addRow(['Description', 'Amount (R)']);
+    worksheet.addRow(['', '']);
+    worksheet.addRow(['Accounting Profit (per IFRS)', data.accountingProfit]);
+    worksheet.addRow(['Tax Adjustments (net)', totalAdjustments]);
+    worksheet.addRow(['Taxable Income (per Tax Act)', data.taxableIncome]);
+    worksheet.addRow(['', '']);
+    worksheet.addRow(['Verification:', '']);
+    worksheet.addRow(['Calculated Taxable Income', { formula: `${data.accountingProfit} + ${totalAdjustments}` }]);
+    worksheet.addRow(['Should Equal', data.taxableIncome]);
+    worksheet.addRow(['Difference', data.taxableIncome - (data.accountingProfit + totalAdjustments)]);
 
-    const worksheet = XLSX.utils.aoa_to_sheet(rows);
-
-    worksheet['!cols'] = [
-      { wch: 40 },
-      { wch: 20 },
-    ];
-
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Reconciliation');
+    worksheet.getColumn(1).width = 40;
+    worksheet.getColumn(2).width = 20;
   }
 
   /**
@@ -196,5 +184,3 @@ export class ExcelExporter {
     return `Tax_Computation_${sanitizedName}_${date}.xlsx`;
   }
 }
-
-

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { read, utils } from 'xlsx';
+import ExcelJS from 'exceljs';
 import { generateObject } from 'ai';
 import { models } from '@/lib/ai/config';
 import { AccountMappingSchema } from '@/lib/ai/schemas';
@@ -8,9 +8,35 @@ import { prisma } from '@/lib/db/prisma';
 import { logInfo, logError } from '@/lib/utils/logger';
 import { determineSectionAndSubsection } from '@/lib/services/opinions/sectionMapper';
 
+// Helper to convert worksheet to JSON
+function sheetToJson(worksheet: ExcelJS.Worksheet): any[] {
+  const data: any[] = [];
+  const headers: string[] = [];
+
+  worksheet.getRow(1).eachCell((cell, colNumber) => {
+    headers[colNumber] = cell.text;
+  });
+
+  worksheet.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return;
+    const rowData: Record<string, any> = {};
+    row.eachCell((cell, colNumber) => {
+      const header = headers[colNumber];
+      if (header) {
+        // Handle rich text or other cell types if necessary, but .value usually works
+        // For simple values, .value is fine. For formulas, .result might be needed but usually .value contains the result if cached
+        // Or .text for string representation
+        rowData[header] = cell.value;
+      }
+    });
+    data.push(rowData);
+  });
+  return data;
+}
+
 async function handleStreamingRequest(trialBalanceFile: File, projectId: number) {
   const encoder = new TextEncoder();
-  
+
   const stream = new ReadableStream({
     async start(controller) {
       try {
@@ -23,35 +49,32 @@ async function handleStreamingRequest(trialBalanceFile: File, projectId: number)
         // Stage 1: Parse Trial Balance
         sendProgress(1, 'in-progress', 'Parsing trial balance file...');
         const trialBalanceBuffer = await trialBalanceFile.arrayBuffer();
-        const trialBalanceWorkbook = read(trialBalanceBuffer);
-        const firstSheetName = trialBalanceWorkbook.SheetNames[0];
-        if (!firstSheetName) {
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(trialBalanceBuffer);
+
+        const worksheet = workbook.worksheets[0];
+        if (!worksheet) {
           throw new Error('No sheets found in the trial balance file');
         }
-        const trialBalanceSheet = trialBalanceWorkbook.Sheets[firstSheetName];
-        if (!trialBalanceSheet) {
-          throw new Error('Could not read the trial balance sheet');
-        }
-        const trialBalanceData = utils.sheet_to_json(trialBalanceSheet);
-        
+
+        const trialBalanceData = sheetToJson(worksheet);
+
         // Split trial balance data
         const incomeStatementData = trialBalanceData.filter(
-          (row: unknown) => {
-            const typedRow = row as Record<string, unknown>;
-            return typedRow['Section']?.toString().toLowerCase() === 'income statement';
+          (row: any) => {
+            return row['Section']?.toString().toLowerCase() === 'income statement';
           }
         );
         const balanceSheetData = trialBalanceData.filter(
-          (row: unknown) => {
-            const typedRow = row as Record<string, unknown>;
-            return typedRow['Section']?.toString().toLowerCase() === 'balance sheet';
+          (row: any) => {
+            return row['Section']?.toString().toLowerCase() === 'balance sheet';
           }
         );
         sendProgress(1, 'complete', 'Trial balance parsed successfully');
 
         // Stage 2: Map Income Statement
         sendProgress(2, 'in-progress', 'Mapping Income Statement accounts with AI...');
-        const incomeStatementPrompt = generatePrompt(incomeStatementData as Record<string, unknown>[], mappingGuide.incomeStatement, 'Income Statement');
+        const incomeStatementPrompt = generatePrompt(incomeStatementData, mappingGuide.incomeStatement, 'Income Statement');
         const { object: incomeStatementResult } = await generateObject({
           model: models.mini,
           schema: AccountMappingSchema,
@@ -87,7 +110,7 @@ Do not include any explanation, commentary, or text outside the JSON array.
 
         // Stage 3: Map Balance Sheet
         sendProgress(3, 'in-progress', 'Mapping Balance Sheet accounts with AI...');
-        const balanceSheetPrompt = generatePrompt(balanceSheetData as Record<string, unknown>[], mappingGuide.balanceSheet, 'Balance Sheet');
+        const balanceSheetPrompt = generatePrompt(balanceSheetData, mappingGuide.balanceSheet, 'Balance Sheet');
         const { object: balanceSheetResult } = await generateObject({
           model: models.mini,
           schema: AccountMappingSchema,
@@ -124,7 +147,7 @@ Do not include any explanation, commentary, or text outside the JSON array.
         // Stage 4: Save to database
         sendProgress(4, 'in-progress', 'Saving mapped accounts to database...');
         const combinedResults = [...incomeStatementMapped, ...balanceSheetMapped];
-        
+
         // Add section and subsection programmatically
         const enrichedResults = combinedResults.map(item => {
           const { section, subsection } = determineSectionAndSubsection(item.sarsItem, item.balance);
@@ -134,7 +157,7 @@ Do not include any explanation, commentary, or text outside the JSON array.
             subsection
           };
         });
-        
+
         await prisma.$transaction(async (tx) => {
           // Delete existing mapped accounts for this project
           await tx.mappedAccount.deleteMany({
@@ -165,12 +188,12 @@ Do not include any explanation, commentary, or text outside the JSON array.
         // Send final result
         const resultData = JSON.stringify({ type: 'complete', data: enrichedResults });
         controller.enqueue(encoder.encode(`data: ${resultData}\n\n`));
-        
+
         controller.close();
       } catch (error) {
-        const errorData = JSON.stringify({ 
-          type: 'error', 
-          message: error instanceof Error ? error.message : 'Unknown error' 
+        const errorData = JSON.stringify({
+          type: 'error',
+          message: error instanceof Error ? error.message : 'Unknown error'
         });
         controller.enqueue(encoder.encode(`data: ${errorData}\n\n`));
         controller.close();
@@ -238,34 +261,31 @@ export async function POST(request: NextRequest) {
 
     // Parse Trial Balance
     const trialBalanceBuffer = await trialBalanceFile.arrayBuffer();
-    const trialBalanceWorkbook = read(trialBalanceBuffer);
-    const firstSheetName = trialBalanceWorkbook.SheetNames[0];
-    if (!firstSheetName) {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(trialBalanceBuffer);
+
+    const worksheet = workbook.worksheets[0];
+    if (!worksheet) {
       throw new Error('No sheets found in the trial balance file');
     }
-    const trialBalanceSheet = trialBalanceWorkbook.Sheets[firstSheetName];
-    if (!trialBalanceSheet) {
-      throw new Error('Could not read the trial balance sheet');
-    }
-    const trialBalanceData = utils.sheet_to_json(trialBalanceSheet);
+
+    const trialBalanceData = sheetToJson(worksheet);
 
     // Split trial balance data
     const incomeStatementData = trialBalanceData.filter(
-      (row: unknown) => {
-        const typedRow = row as Record<string, unknown>;
-        return typedRow['Section']?.toString().toLowerCase() === 'income statement';
+      (row: any) => {
+        return row['Section']?.toString().toLowerCase() === 'income statement';
       }
     );
     const balanceSheetData = trialBalanceData.filter(
-      (row: unknown) => {
-        const typedRow = row as Record<string, unknown>;
-        return typedRow['Section']?.toString().toLowerCase() === 'balance sheet';
+      (row: any) => {
+        return row['Section']?.toString().toLowerCase() === 'balance sheet';
       }
     );
 
     // Process Income Statement first
     logInfo('Processing Income Statement', { rowCount: incomeStatementData.length });
-    const incomeStatementPrompt = generatePrompt(incomeStatementData as Record<string, unknown>[], mappingGuide.incomeStatement, 'Income Statement');
+    const incomeStatementPrompt = generatePrompt(incomeStatementData, mappingGuide.incomeStatement, 'Income Statement');
     logInfo('Calling AI SDK for Income Statement');
     let incomeStatementResult;
     try {
@@ -316,7 +336,7 @@ Do not include any explanation, commentary, or text outside the JSON array.
 
     // Process Balance Sheet
     logInfo('Processing Balance Sheet', { rowCount: balanceSheetData.length });
-    const balanceSheetPrompt = generatePrompt(balanceSheetData as Record<string, unknown>[], mappingGuide.balanceSheet, 'Balance Sheet');
+    const balanceSheetPrompt = generatePrompt(balanceSheetData, mappingGuide.balanceSheet, 'Balance Sheet');
     logInfo('Calling AI SDK for Balance Sheet');
     const { object: balanceSheetResult } = await generateObject({
       model: models.mini,
@@ -374,9 +394,9 @@ Do not include any explanation, commentary, or text outside the JSON array.
       });
 
       // Log the data we're about to insert
-      logInfo('Inserting mapped accounts to database', { 
-        projectId, 
-        accountCount: enrichedResults.length 
+      logInfo('Inserting mapped accounts to database', {
+        projectId,
+        accountCount: enrichedResults.length
       });
 
       // Use createMany for better performance and to avoid transaction timeout

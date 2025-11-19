@@ -1,7 +1,7 @@
 import { generateObject } from 'ai';
 import { models } from '../../ai/config';
 import { AIExtractionSchema, PDFExtractionSchema } from '../../ai/schemas';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { logger } from '../../utils/logger';
@@ -97,13 +97,13 @@ export class DocumentExtractor {
       case 'xls':
       case 'excel':
         return await this.extractFromExcel(filePath, context);
-      
+
       case 'pdf':
         return await this.extractFromPDF(filePath, context);
-      
+
       case 'csv':
         return await this.extractFromCSV(filePath, context);
-      
+
       default:
         throw new Error(`Unsupported file type: ${fileType}`);
     }
@@ -118,16 +118,29 @@ export class DocumentExtractor {
   ): Promise<ExtractedData> {
     try {
       const fileBuffer = await this.getFileBuffer(filePath);
-      const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
-      
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(fileBuffer as any);
+
       // Extract all sheets
       const sheets: Record<string, any[][]> = {};
-      for (const sheetName of workbook.SheetNames) {
-        const worksheet = workbook.Sheets[sheetName];
-        if (worksheet) {
-          sheets[sheetName] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-        }
-      }
+      workbook.eachSheet((worksheet) => {
+        const sheetData: any[][] = [];
+        worksheet.eachRow({ includeEmpty: false }, (row) => {
+          // row.values is [empty, cell1, cell2, ...] because exceljs is 1-indexed
+          // we need to slice(1) or map properly. row.values can be an object if columns are defined, but here likely array-like
+          if (Array.isArray(row.values)) {
+            // ExcelJS row.values[0] is undefined/empty, actual data starts at index 1
+            // But we want 0-indexed array for consistency with previous implementation
+            // Filter out empty/undefined items if needed, or just slice(1)
+            const values = row.values.slice(1);
+            sheetData.push(values);
+          } else if (typeof row.values === 'object') {
+            // If it's an object (rare without columns def), convert to array
+            sheetData.push(Object.values(row.values));
+          }
+        });
+        sheets[worksheet.name] = sheetData;
+      });
 
       // Use AI to interpret the Excel data
       const aiExtraction = await this.extractWithAI(
@@ -208,7 +221,7 @@ Return a JSON object with the following structure:
 </instructions>`,
         prompt,
       });
-      
+
       return object;
     } catch (error) {
       logger.error('PDF extraction error', error);
@@ -227,10 +240,10 @@ Return a JSON object with the following structure:
       const fileBuffer = await this.getFileBuffer(filePath);
       const fileContent = fileBuffer.toString('utf-8');
       const lines = fileContent.split('\n');
-      
+
       // Parse CSV (simple implementation)
       const rows = lines.map(line => line.split(','));
-      
+
       const aiExtraction = await this.extractWithAI(
         JSON.stringify(rows, null, 2),
         'csv',
@@ -335,7 +348,7 @@ Return JSON with:
 </instructions>`,
         prompt,
       });
-      
+
       return object;
     } catch (error) {
       logger.error('AI extraction error', error);
@@ -355,26 +368,26 @@ Return JSON with:
     const sheetNames = Object.keys(sheets).map(s => s.toLowerCase());
     const firstSheetKey = Object.keys(sheets)[0];
     const firstSheetData = firstSheetKey ? sheets[firstSheetKey] || [] : [];
-    
+
     // Check for common patterns
     if (sheetNames.some(name => name.includes('depreciation') || name.includes('asset'))) {
       return 'Depreciation Schedule';
     }
-    
+
     if (sheetNames.some(name => name.includes('interest') || name.includes('loan'))) {
       return 'Interest Calculation';
     }
-    
+
     if (sheetNames.some(name => name.includes('donation'))) {
       return 'Donation Documentation';
     }
-    
+
     // Check first sheet content
     const contentStr = JSON.stringify(firstSheetData).toLowerCase();
     if (contentStr.includes('asset') && contentStr.includes('depreciation')) {
       return 'Depreciation Schedule';
     }
-    
+
     return 'Financial Document';
   }
 
@@ -414,5 +427,3 @@ Return JSON with:
     };
   }
 }
-
-

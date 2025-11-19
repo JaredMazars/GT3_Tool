@@ -18,7 +18,7 @@ export async function GET(
     if (!context || !context.params) {
       throw new Error('Invalid route context');
     }
-    
+
     const params = await context.params;
     const projectId = parseProjectId(params?.id);
     const { searchParams } = new URL(request.url);
@@ -87,14 +87,14 @@ export async function GET(
     // Export based on format
     switch (format.toLowerCase()) {
       case 'excel':
-        return exportToExcel(exportData);
-      
+        return await exportToExcel(exportData);
+
       case 'pdf':
         throw new AppError(501, 'PDF export not yet implemented', ErrorCodes.VALIDATION_ERROR);
-      
+
       case 'xml':
         throw new AppError(501, 'XML export not yet implemented', ErrorCodes.VALIDATION_ERROR);
-      
+
       default:
         throw new AppError(400, `Unsupported format: ${format}`, ErrorCodes.VALIDATION_ERROR);
     }
@@ -106,8 +106,8 @@ export async function GET(
 /**
  * Export to Excel format
  */
-function exportToExcel(data: TaxExportData): NextResponse {
-  const buffer = ExcelExporter.exportTaxComputation(data);
+async function exportToExcel(data: TaxExportData): Promise<NextResponse> {
+  const buffer = await ExcelExporter.exportTaxComputation(data);
   const fileName = ExcelExporter.generateFileName(data.projectName);
 
   return new NextResponse(new Uint8Array(buffer), {
