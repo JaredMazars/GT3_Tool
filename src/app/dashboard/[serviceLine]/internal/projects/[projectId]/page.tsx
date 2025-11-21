@@ -358,13 +358,12 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
   );
 }
 
-export default function ClientProjectPage() {
+export default function InternalProjectPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
   
   const serviceLine = (params.serviceLine as string)?.toUpperCase();
-  const clientId = params.id as string;
   const projectId = params.projectId as string;
   
   const { data: project, isLoading, refetch: fetchProject } = useProject(projectId);
@@ -581,23 +580,11 @@ export default function ClientProjectPage() {
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
           
-          {isSharedService(serviceLine) && (
-            <>
-              <Link 
-                href={`/dashboard/${serviceLine.toLowerCase()}/clients`} 
-                className="hover:text-forvis-gray-900 transition-colors"
-              >
-                Client Projects
-              </Link>
-              <ChevronRightIcon className="h-4 w-4" />
-            </>
-          )}
-          
           <Link 
-            href={`/dashboard/${serviceLine.toLowerCase()}/clients/${clientId}`} 
+            href={`/dashboard/${serviceLine.toLowerCase()}/internal`} 
             className="hover:text-forvis-gray-900 transition-colors"
           >
-            {project?.client?.clientNameFull || project?.client?.clientCode || 'Client'}
+            Internal Projects
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
           
@@ -617,15 +604,6 @@ export default function ClientProjectPage() {
                     </span>
                   )}
                 </div>
-                
-                {project?.client && (
-                  <Link 
-                    href={`/dashboard/${serviceLine.toLowerCase()}/clients/${clientId}`}
-                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    {project.client.clientNameFull || project.client.clientCode}
-                  </Link>
-                )}
                 
                 {project?.description && (
                   <p className="mt-1 text-sm text-forvis-gray-700">{project.description}</p>

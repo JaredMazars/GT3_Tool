@@ -269,7 +269,7 @@ export default function InternalProjectsPage() {
                         </td>
                         <td className="px-6 py-4 text-center">
                           <Link
-                            href={`/dashboard/projects/${project.id}`}
+                            href={`/dashboard/${serviceLine.toLowerCase()}/internal/projects/${project.id}`}
                             className="text-forvis-blue-600 hover:text-forvis-blue-900 text-sm font-medium"
                           >
                             View
