@@ -413,8 +413,13 @@ export async function deleteAllUserSessions(userId: string): Promise<void> {
 
 /**
  * Get user projects - get all projects the user has access to
+ * @param userId - The user ID to fetch projects for
+ * @param includeCounts - Whether to include MappedAccount and TaxAdjustment counts (default: false for backward compatibility)
  */
-export async function getUserProjects(userId: string): Promise<Array<{
+export async function getUserProjects(
+  userId: string,
+  includeCounts = false
+): Promise<Array<{
   id: number;
   name: string;
   description: string | null;
@@ -426,13 +431,39 @@ export async function getUserProjects(userId: string): Promise<Array<{
   taxYear: number | null;
   createdAt: Date;
   updatedAt: Date;
+  _count?: {
+    MappedAccount: number;
+    TaxAdjustment: number;
+  };
 }>> {
-  const projectUsers = await prisma.projectUser.findMany({
-    where: { userId },
-    include: {
-      Project: true,
-    },
-  });
+  if (includeCounts) {
+    // Optimized query with counts in single query
+    const projectUsers = await prisma.projectUser.findMany({
+      where: { userId },
+      include: {
+        Project: {
+          include: {
+            _count: {
+              select: {
+                MappedAccount: true,
+                TaxAdjustment: true,
+              },
+            },
+          },
+        },
+      },
+    });
 
-  return projectUsers.map(pu => pu.Project);
+    return projectUsers.map(pu => pu.Project);
+  } else {
+    // Backward compatible - no counts
+    const projectUsers = await prisma.projectUser.findMany({
+      where: { userId },
+      include: {
+        Project: true,
+      },
+    });
+
+    return projectUsers.map(pu => pu.Project);
+  }
 }

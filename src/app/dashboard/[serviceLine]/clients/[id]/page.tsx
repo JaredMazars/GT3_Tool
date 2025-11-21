@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { 
@@ -17,26 +17,10 @@ import { getProjectTypeColor, formatProjectType, formatDate } from '@/lib/utils/
 import { ProjectStageIndicator } from '@/components/features/projects/ProjectStageIndicator';
 import { ProjectStage } from '@/types/project-stages';
 import { formatServiceLineName } from '@/lib/utils/serviceLineUtils';
-import { Client } from '@/types';
+import { ServiceLine } from '@/types';
 import { CreateProjectModal } from '@/components/features/projects/CreateProjectModal';
 import { ClientHeader } from '@/components/features/clients/ClientHeader';
-
-interface ClientWithProjects extends Client {
-  Project: Array<{
-    id: number;
-    name: string;
-    description?: string | null;
-    projectType: string;
-    serviceLine: string;
-    taxYear?: number | null;
-    updatedAt: string;
-    archived: boolean;
-    _count: {
-      mappings: number;
-      taxAdjustments: number;
-    };
-  }>;
-}
+import { useClient, type ClientWithProjects } from '@/hooks/clients/useClients';
 
 export default function ServiceLineClientDetailPage() {
   const params = useParams();
@@ -44,31 +28,27 @@ export default function ServiceLineClientDetailPage() {
   const clientId = params.id as string;
   const serviceLine = (params.serviceLine as string)?.toUpperCase();
   
-  const [client, setClient] = useState<ClientWithProjects | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [activeServiceLineTab, setActiveServiceLineTab] = useState<ServiceLine>(ServiceLine.TAX);
 
+  // Fetch client using React Query hook
+  const { data: clientData, isLoading, error } = useClient(clientId);
+  
+  // Transform client data to match expected format
+  const client = useMemo(() => {
+    if (!clientData) return null;
+    return {
+      ...clientData,
+      Project: clientData.projects || [],
+    };
+  }, [clientData]);
+
+  // Update active tab when URL serviceLine changes
   useEffect(() => {
-    fetchClient();
-  }, [clientId]);
-
-  const fetchClient = async () => {
-    try {
-      const response = await fetch(`/api/clients/${clientId}`);
-      if (!response.ok) throw new Error('Failed to fetch client');
-      const data = await response.json();
-      const clientData = data.success ? data.data : data;
-      // Ensure projects is always an array
-      setClient({
-        ...clientData,
-        Project: clientData.Project || clientData.projects || [],
-      });
-    } catch (error) {
-      console.error('Failed to fetch client:', error);
-    } finally {
-      setIsLoading(false);
+    if (serviceLine) {
+      setActiveServiceLineTab(serviceLine as ServiceLine);
     }
-  };
+  }, [serviceLine]);
 
   // Placeholder function - returns random stage for demo
   const getProjectStage = (projectId: number): ProjectStage => {
@@ -83,11 +63,32 @@ export default function ServiceLineClientDetailPage() {
     return stages[projectId % stages.length];
   };
 
-  const handleProjectCreated = async (project: any) => {
+  const handleProjectCreated = (project: any) => {
     setShowCreateModal(false);
     // Navigate to the newly created project within the client context
     router.push(`/dashboard/${serviceLine.toLowerCase()}/clients/${clientId}/projects/${project.id}`);
   };
+
+  // Get projects for active tab
+  const getProjectsForTab = () => {
+    if (!client) return [];
+    return client.Project.filter(p => p.serviceLine?.toUpperCase() === activeServiceLineTab.toUpperCase());
+  };
+
+  // Get project count for each service line
+  const getProjectCountByServiceLine = (sl: ServiceLine) => {
+    if (!client) return 0;
+    return client.Project.filter(p => p.serviceLine?.toUpperCase() === sl.toUpperCase()).length;
+  };
+
+  const serviceLines = [
+    ServiceLine.TAX,
+    ServiceLine.AUDIT,
+    ServiceLine.ACCOUNTING,
+    ServiceLine.ADVISORY,
+  ];
+
+  const filteredProjects = getProjectsForTab();
 
   if (isLoading) {
     return (
@@ -221,36 +222,73 @@ export default function ServiceLineClientDetailPage() {
                 <h2 className="text-base font-semibold text-forvis-gray-900">
                   Projects ({client.Project.length})
                 </h2>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-forvis-gray-500">All service lines</span>
-                  <button
-                    onClick={() => setShowCreateModal(true)}
-                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-forvis-blue-600 rounded-lg hover:bg-forvis-blue-700 transition-colors"
-                  >
-                    <PlusIcon className="h-4 w-4 mr-1" />
-                    New Project
-                  </button>
-                </div>
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-forvis-blue-600 rounded-lg hover:bg-forvis-blue-700 transition-colors"
+                >
+                  <PlusIcon className="h-4 w-4 mr-1" />
+                  New Project
+                </button>
               </div>
+
+              {/* Service Line Tabs */}
+              <div className="border-b border-forvis-gray-200">
+                <nav className="flex -mb-px px-4" aria-label="Service Line Tabs">
+                  {serviceLines.map((sl) => {
+                    const count = getProjectCountByServiceLine(sl);
+                    const isActive = activeServiceLineTab === sl;
+                    
+                    return (
+                      <button
+                        key={sl}
+                        onClick={() => setActiveServiceLineTab(sl)}
+                        className={`flex items-center space-x-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                          isActive
+                            ? 'border-forvis-blue-600 text-forvis-blue-600'
+                            : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
+                        }`}
+                      >
+                        <span>{formatServiceLineName(sl)}</span>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          isActive
+                            ? 'bg-forvis-blue-100 text-forvis-blue-700'
+                            : 'bg-forvis-gray-100 text-forvis-gray-600'
+                        }`}>
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </nav>
+              </div>
+
               <div className="p-4">
-                {client.Project.length === 0 ? (
+                {filteredProjects.length === 0 ? (
                   <div className="text-center py-8">
                     <FolderIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
-                    <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No projects</h3>
+                    <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No projects in {formatServiceLineName(activeServiceLineTab)}</h3>
                     <p className="mt-1 text-sm text-forvis-gray-600">
-                      This client doesn't have any projects yet.
+                      This client doesn't have any {formatServiceLineName(activeServiceLineTab).toLowerCase()} projects yet.
                     </p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {client.Project.map((project) => {
+                    {filteredProjects.map((project) => {
                       const projectStage = getProjectStage(project.id);
+                      const isAccessible = project.serviceLine?.toUpperCase() === serviceLine.toUpperCase();
+                      const ProjectWrapper = isAccessible ? Link : 'div';
                       
                       return (
-                        <Link
+                        <ProjectWrapper
                           key={project.id}
-                          href={`/dashboard/${serviceLine.toLowerCase()}/clients/${clientId}/projects/${project.id}`}
-                          className="block p-4 border-2 border-forvis-gray-200 rounded-lg hover:border-forvis-blue-500 hover:shadow-md transition-all"
+                          {...(isAccessible ? {
+                            href: `/dashboard/${serviceLine.toLowerCase()}/clients/${clientId}/projects/${project.id}`,
+                          } : {})}
+                          className={`block p-4 border-2 border-forvis-gray-200 rounded-lg transition-all ${
+                            isAccessible
+                              ? 'hover:border-forvis-blue-500 hover:shadow-md cursor-pointer'
+                              : 'opacity-60 cursor-not-allowed'
+                          }`}
                         >
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex-1 min-w-0">
@@ -264,6 +302,11 @@ export default function ServiceLineClientDetailPage() {
                                 {project.taxYear && (
                                   <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
                                     {project.taxYear}
+                                  </span>
+                                )}
+                                {!isAccessible && (
+                                  <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
+                                    Available in {formatServiceLineName(project.serviceLine)}
                                   </span>
                                 )}
                                 {project.archived && (
@@ -294,7 +337,7 @@ export default function ServiceLineClientDetailPage() {
                             </div>
                             <ProjectStageIndicator stage={projectStage} />
                           </div>
-                        </Link>
+                        </ProjectWrapper>
                       );
                     })}
                   </div>

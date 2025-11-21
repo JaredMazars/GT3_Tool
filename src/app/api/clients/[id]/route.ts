@@ -38,8 +38,10 @@ export async function GET(
             name: true,
             description: true,
             projectType: true,
+            serviceLine: true,
             taxYear: true,
             status: true,
+            archived: true,
             createdAt: true,
             updatedAt: true,
             _count: {

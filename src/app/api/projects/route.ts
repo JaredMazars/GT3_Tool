@@ -3,8 +3,9 @@ import { prisma } from '@/lib/db/prisma';
 import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { CreateProjectSchema } from '@/lib/validation/schemas';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { getCurrentUser, getUserProjects } from '@/lib/services/auth/auth';
+import { getCurrentUser } from '@/lib/services/auth/auth';
 import { getUserServiceLines } from '@/lib/services/service-lines/serviceLineService';
+import { getProjectsWithCounts } from '@/lib/services/projects/projectService';
 import { z } from 'zod';
 
 export async function GET(request: NextRequest) {
@@ -23,11 +24,11 @@ export async function GET(request: NextRequest) {
     const userServiceLines = await getUserServiceLines(user.id);
     const accessibleServiceLines = userServiceLines.map(sl => sl.serviceLine);
 
-    // Get projects user has access to
-    const userProjects = await getUserProjects(user.id);
+    // Get projects with counts in single optimized query
+    const allProjects = await getProjectsWithCounts(user.id, undefined, includeArchived);
 
     // Filter by service line access
-    let projects = userProjects.filter(p => 
+    let projects = allProjects.filter(p => 
       accessibleServiceLines.includes(p.serviceLine)
     );
 
@@ -36,32 +37,14 @@ export async function GET(request: NextRequest) {
       projects = projects.filter(p => p.serviceLine === serviceLine);
     }
 
-    // Filter by archived status if specified
-    projects = includeArchived
-      ? projects
-      : projects.filter(p => !p.archived);
-
-    // Get counts for each project
-    const projectsWithCounts = await Promise.all(
-      projects.map(async (project) => {
-        const counts = await prisma.project.findUnique({
-          where: { id: project.id },
-          include: {
-            _count: {
-              select: {
-                MappedAccount: true,
-                TaxAdjustment: true,
-              },
-            },
-          },
-        });
-        
-        return {
-          ...project,
-          _count: counts?._count || { mappings: 0, taxAdjustments: 0 },
-        };
-      })
-    );
+    // Transform _count to match expected format
+    const projectsWithCounts = projects.map(project => ({
+      ...project,
+      _count: {
+        mappings: project._count.MappedAccount,
+        taxAdjustments: project._count.TaxAdjustment,
+      },
+    }));
     
     return NextResponse.json(successResponse(projectsWithCounts));
   } catch (error) {

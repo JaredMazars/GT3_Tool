@@ -38,13 +38,28 @@ export async function GET(request: NextRequest) {
     // Get total count
     const total = await prisma.client.count({ where });
 
-    // Get clients with project count
+    // Get clients with project count - optimized field selection
     const clients = await prisma.client.findMany({
       where,
       skip,
       take,
       orderBy: { clientNameFull: 'asc' },
-      include: {
+      select: {
+        id: true,
+        clientCode: true,
+        clientNameFull: true,
+        groupCode: true,
+        groupDesc: true,
+        clientPartner: true,
+        clientManager: true,
+        clientIncharge: true,
+        industry: true,
+        sector: true,
+        active: true,
+        typeCode: true,
+        typeDesc: true,
+        createdAt: true,
+        updatedAt: true,
         _count: {
           select: {
             Project: true,

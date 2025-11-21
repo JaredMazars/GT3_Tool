@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { 
@@ -12,21 +12,7 @@ import {
 import { isValidServiceLine, formatServiceLineName } from '@/lib/utils/serviceLineUtils';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { ServiceLine } from '@/types';
-
-interface Client {
-  id: number;
-  clientCode: string;
-  clientNameFull: string | null;
-  groupCode: string;
-  groupDesc: string;
-  clientPartner: string;
-  industry: string | null;
-  sector: string | null;
-  active: string;
-  _count: {
-    Project: number;
-  };
-}
+import { useClients, type Client } from '@/hooks/clients/useClients';
 
 export default function ServiceLineWorkspacePage() {
   const router = useRouter();
@@ -34,12 +20,13 @@ export default function ServiceLineWorkspacePage() {
   const serviceLine = (params.serviceLine as string)?.toUpperCase();
   const { setCurrentServiceLine } = useServiceLine();
   
-  const [clients, setClients] = useState<Client[]>([]);
-  const [filteredClients, setFilteredClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
+
+  // Fetch clients using React Query hook
+  const { data: clientsData, isLoading, error } = useClients();
+  const clients = clientsData?.clients || [];
 
   // Validate service line
   useEffect(() => {
@@ -50,41 +37,25 @@ export default function ServiceLineWorkspacePage() {
     }
   }, [serviceLine, router, setCurrentServiceLine]);
 
-  useEffect(() => {
-    if (isValidServiceLine(serviceLine)) {
-      fetchClients();
-    }
-  }, [serviceLine]);
-
-  useEffect(() => {
+  // Client-side filtering with useMemo for performance
+  const filteredClients = useMemo(() => {
     const searchLower = searchTerm.toLowerCase().trim();
-    const filtered = searchLower === '' 
-      ? clients 
-      : clients.filter(client =>
-          client.clientNameFull?.toLowerCase().includes(searchLower) ||
-          client.clientCode?.toLowerCase().includes(searchLower) ||
-          client.groupDesc?.toLowerCase().includes(searchLower) ||
-          client.groupCode?.toLowerCase().includes(searchLower) ||
-          client.industry?.toLowerCase().includes(searchLower) ||
-          client.sector?.toLowerCase().includes(searchLower)
-        );
-    setFilteredClients(filtered);
-    setCurrentPage(1); // Reset to first page when search changes
+    if (searchLower === '') return clients;
+    
+    return clients.filter(client =>
+      client.clientNameFull?.toLowerCase().includes(searchLower) ||
+      client.clientCode?.toLowerCase().includes(searchLower) ||
+      client.groupDesc?.toLowerCase().includes(searchLower) ||
+      client.groupCode?.toLowerCase().includes(searchLower) ||
+      client.industry?.toLowerCase().includes(searchLower) ||
+      client.sector?.toLowerCase().includes(searchLower)
+    );
   }, [searchTerm, clients]);
 
-  const fetchClients = async () => {
-    try {
-      const response = await fetch('/api/clients');
-      if (!response.ok) throw new Error('Failed to fetch clients');
-      const result = await response.json();
-      const data = result.success ? result.data.clients : [];
-      setClients(Array.isArray(data) ? data : []);
-    } catch (error) {
-      setClients([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Reset to first page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   if (!isValidServiceLine(serviceLine)) {
     return null;
