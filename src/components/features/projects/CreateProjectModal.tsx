@@ -12,9 +12,10 @@ interface CreateProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (project: any) => void;
+  initialClientId?: number | null;
 }
 
-export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProjectModalProps) {
+export function CreateProjectModal({ isOpen, onClose, onSuccess, initialClientId }: CreateProjectModalProps) {
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -33,7 +34,7 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    clientId: null as number | null,
+    clientId: initialClientId || null,
     projectType: getDefaultProjectType(),
     serviceLine: (currentServiceLine || ServiceLine.TAX) as ServiceLine,
     taxYear: new Date().getFullYear(),
@@ -42,6 +43,13 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
     assessmentYear: '',
     submissionDeadline: null as Date | null,
   });
+
+  // Update clientId when initialClientId changes
+  useEffect(() => {
+    if (initialClientId !== undefined) {
+      setFormData(prev => ({ ...prev, clientId: initialClientId }));
+    }
+  }, [initialClientId]);
 
   // Update service line and project type when current service line changes
   useEffect(() => {
@@ -117,7 +125,7 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
       setFormData({
         name: '',
         description: '',
-        clientId: null,
+        clientId: initialClientId || null,
         projectType: defaultType,
         serviceLine: (currentServiceLine || ServiceLine.TAX) as ServiceLine,
         taxYear: new Date().getFullYear(),
@@ -142,7 +150,7 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
     setFormData({
       name: '',
       description: '',
-      clientId: null,
+      clientId: initialClientId || null,
       projectType: defaultType,
       serviceLine: (currentServiceLine || ServiceLine.TAX) as ServiceLine,
       taxYear: new Date().getFullYear(),
@@ -216,19 +224,30 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Client
-                </label>
-                <ClientSelector
-                  value={formData.clientId}
-                  onChange={(clientId) => handleFieldChange('clientId', clientId)}
-                  allowCreate={false}
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  Optional: Associate this project with a client
-                </p>
-              </div>
+              {!initialClientId ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Client
+                  </label>
+                  <ClientSelector
+                    value={formData.clientId}
+                    onChange={(clientId) => handleFieldChange('clientId', clientId)}
+                    allowCreate={false}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Optional: Associate this project with a client
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Client
+                  </label>
+                  <div className="px-3 py-2 bg-forvis-gray-50 border border-forvis-gray-300 rounded-md text-sm text-forvis-gray-700">
+                    Project will be created for the current client
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

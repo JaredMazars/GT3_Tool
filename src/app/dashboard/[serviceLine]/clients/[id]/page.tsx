@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { 
   ChevronRightIcon,
   BuildingOfficeIcon,
@@ -11,12 +11,15 @@ import {
   ChartBarIcon,
   UserGroupIcon,
   ClockIcon,
+  PlusIcon,
 } from '@heroicons/react/24/outline';
 import { getProjectTypeColor, formatProjectType, formatDate } from '@/lib/utils/projectUtils';
 import { ProjectStageIndicator } from '@/components/features/projects/ProjectStageIndicator';
 import { ProjectStage } from '@/types/project-stages';
 import { formatServiceLineName } from '@/lib/utils/serviceLineUtils';
 import { Client } from '@/types';
+import { CreateProjectModal } from '@/components/features/projects/CreateProjectModal';
+import { ClientHeader } from '@/components/features/clients/ClientHeader';
 
 interface ClientWithProjects extends Client {
   Project: Array<{
@@ -37,11 +40,13 @@ interface ClientWithProjects extends Client {
 
 export default function ServiceLineClientDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const clientId = params.id as string;
   const serviceLine = (params.serviceLine as string)?.toUpperCase();
   
   const [client, setClient] = useState<ClientWithProjects | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   useEffect(() => {
     fetchClient();
@@ -76,6 +81,12 @@ export default function ServiceLineClientDetailPage() {
     ];
     // Simple hash to keep stage consistent per project
     return stages[projectId % stages.length];
+  };
+
+  const handleProjectCreated = async (project: any) => {
+    setShowCreateModal(false);
+    // Navigate to the newly created project within the client context
+    router.push(`/dashboard/${serviceLine.toLowerCase()}/clients/${clientId}/projects/${project.id}`);
   };
 
   if (isLoading) {
@@ -123,34 +134,15 @@ export default function ServiceLineClientDetailPage() {
         </nav>
 
         {/* Client Header */}
-        <div className="card mb-6">
-          <div className="p-6">
-            <div className="flex items-start justify-between">
-              <div className="flex items-start space-x-4">
-                <div className="w-16 h-16 rounded-lg bg-forvis-blue-100 flex items-center justify-center flex-shrink-0">
-                  <BuildingOfficeIcon className="h-8 w-8 text-forvis-blue-600" />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold text-forvis-gray-900 mb-2">
-                    {client.clientNameFull || client.clientCode}
-                  </h1>
-                  <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-forvis-gray-600">
-                    <span><span className="font-medium">Client Code:</span> {client.clientCode}</span>
-                    {client.industry && (
-                      <span><span className="font-medium">Industry:</span> {client.industry}</span>
-                    )}
-                    <span><span className="font-medium">Group:</span> {client.groupDesc}</span>
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      client.active === 'YES' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {client.active === 'YES' ? 'Active' : 'Inactive'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ClientHeader client={client} />
+
+        {/* Create Project Modal */}
+        <CreateProjectModal
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={handleProjectCreated}
+          initialClientId={client ? client.id : null}
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Client Information */}
@@ -229,7 +221,16 @@ export default function ServiceLineClientDetailPage() {
                 <h2 className="text-base font-semibold text-forvis-gray-900">
                   Projects ({client.Project.length})
                 </h2>
-                <span className="text-xs text-forvis-gray-500">All service lines</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-forvis-gray-500">All service lines</span>
+                  <button
+                    onClick={() => setShowCreateModal(true)}
+                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-forvis-blue-600 rounded-lg hover:bg-forvis-blue-700 transition-colors"
+                  >
+                    <PlusIcon className="h-4 w-4 mr-1" />
+                    New Project
+                  </button>
+                </div>
               </div>
               <div className="p-4">
                 {client.Project.length === 0 ? (
@@ -248,7 +249,7 @@ export default function ServiceLineClientDetailPage() {
                       return (
                         <Link
                           key={project.id}
-                          href={`/dashboard/${serviceLine.toLowerCase()}/projects/${project.id}`}
+                          href={`/dashboard/${serviceLine.toLowerCase()}/clients/${clientId}/projects/${project.id}`}
                           className="block p-4 border-2 border-forvis-gray-200 rounded-lg hover:border-forvis-blue-500 hover:shadow-md transition-all"
                         >
                           <div className="flex items-start justify-between mb-3">
