@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 // Query Keys
 export const clientKeys = {
   all: ['clients'] as const,
-  list: (params?: Record<string, string | null>) => [...clientKeys.all, 'list', params] as const,
+  list: (params?: Record<string, string | number | null>) => [...clientKeys.all, 'list', params] as const,
   detail: (id: string | number) => [...clientKeys.all, id] as const,
 };
 

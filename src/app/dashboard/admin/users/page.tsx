@@ -34,8 +34,9 @@ interface SystemUser {
       projectType: string;
       client?: {
         id: number;
-        name: string;
-      };
+        clientCode: string;
+        clientNameFull: string | null;
+      } | null;
     };
   }>;
 }
@@ -658,7 +659,7 @@ export default function UserManagementPage() {
                         <div className="flex-1">
                           <div className="font-medium text-forvis-gray-900">{projectUser.project.name}</div>
                           {projectUser.project.client && (
-                            <div className="text-sm text-forvis-gray-600">{projectUser.project.client.name}</div>
+                            <div className="text-sm text-forvis-gray-600">{projectUser.project.client.clientNameFull || projectUser.project.client.clientCode}</div>
                           )}
                         </div>
                         <span className={`px-3 py-1 rounded-full text-sm font-medium ${getRoleBadgeColor(projectUser.role)}`}>

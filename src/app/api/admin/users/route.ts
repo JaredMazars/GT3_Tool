@@ -78,8 +78,14 @@ export async function GET(request: NextRequest) {
       projects: user.ProjectUser.map(pu => ({
         ...pu,
         project: {
-          ...pu.Project,
-          client: pu.Project.Client,
+          id: pu.Project.id,
+          name: pu.Project.name,
+          projectType: pu.Project.projectType,
+          client: pu.Project.Client ? {
+            id: pu.Project.Client.id,
+            clientCode: pu.Project.Client.clientCode,
+            clientNameFull: pu.Project.Client.clientNameFull,
+          } : null,
         },
       })),
       projectCount: user.ProjectUser.length,
