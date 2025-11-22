@@ -6,7 +6,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 export const clientKeys = {
   all: ['clients'] as const,
   list: (params?: Record<string, string | number | null>) => [...clientKeys.all, 'list', params] as const,
-  detail: (id: string | number) => [...clientKeys.all, id] as const,
+  detail: (id: string | number, params?: Record<string, string | number | boolean | null>) => 
+    params ? [...clientKeys.all, id, params] as const : [...clientKeys.all, id] as const,
 };
 
 // Types
@@ -48,6 +49,18 @@ export interface ClientWithProjects extends Client {
       taxAdjustments: number;
     };
   }>;
+  projectPagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+  projectCountsByServiceLine?: {
+    TAX: number;
+    AUDIT: number;
+    ACCOUNTING: number;
+    ADVISORY: number;
+  };
 }
 
 interface ClientsResponse {
@@ -130,7 +143,12 @@ export function useClient(
   } = params;
 
   return useQuery<ClientWithProjects>({
-    queryKey: clientKeys.detail(clientId),
+    queryKey: clientKeys.detail(clientId, {
+      projectPage,
+      projectLimit,
+      serviceLine,
+      includeArchived,
+    }),
     queryFn: async () => {
       const searchParams = new URLSearchParams();
       searchParams.set('projectPage', projectPage.toString());

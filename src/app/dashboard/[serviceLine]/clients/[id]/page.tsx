@@ -92,16 +92,16 @@ export default function ServiceLineClientDetailPage() {
     }
   };
 
-  // Get projects for active tab
+  // Get projects for active tab (already filtered by API based on activeServiceLineTab)
   const getProjectsForTab = () => {
     if (!client) return [];
-    return client.Project.filter((p: any) => p.serviceLine?.toUpperCase() === activeServiceLineTab.toUpperCase());
+    return client.Project || [];
   };
 
-  // Get project count for each service line
+  // Get project count for each service line from API response
   const getProjectCountByServiceLine = (sl: ServiceLine) => {
-    if (!client) return 0;
-    return client.Project.filter((p: any) => p.serviceLine?.toUpperCase() === sl.toUpperCase()).length;
+    if (!clientData?.projectCountsByServiceLine) return 0;
+    return clientData.projectCountsByServiceLine[sl] || 0;
   };
 
   const serviceLines = [
@@ -260,7 +260,7 @@ export default function ServiceLineClientDetailPage() {
             <div className="card">
               <div className="px-4 py-3 border-b border-forvis-gray-200 flex items-center justify-between">
                 <h2 className="text-base font-semibold text-forvis-gray-900">
-                  Projects ({client.Project.length})
+                  Projects ({client._count?.Project || 0})
                 </h2>
                 <button
                   onClick={() => setShowCreateModal(true)}

@@ -96,6 +96,14 @@ export async function GET(
       },
     });
 
+    // Get project counts per service line for tab display
+    const projectCountsByServiceLine = await Promise.all([
+      prisma.project.count({ where: { clientId, archived: !includeArchived ? false : undefined, serviceLine: 'TAX' } }),
+      prisma.project.count({ where: { clientId, archived: !includeArchived ? false : undefined, serviceLine: 'AUDIT' } }),
+      prisma.project.count({ where: { clientId, archived: !includeArchived ? false : undefined, serviceLine: 'ACCOUNTING' } }),
+      prisma.project.count({ where: { clientId, archived: !includeArchived ? false : undefined, serviceLine: 'ADVISORY' } }),
+    ]);
+
     // Transform Project to projects for frontend compatibility
     const { Project, ...clientWithoutProject } = client;
     const responseData = {
@@ -112,6 +120,12 @@ export async function GET(
         limit: projectLimit,
         total: totalProjects,
         totalPages: Math.ceil(totalProjects / projectLimit),
+      },
+      projectCountsByServiceLine: {
+        TAX: projectCountsByServiceLine[0],
+        AUDIT: projectCountsByServiceLine[1],
+        ACCOUNTING: projectCountsByServiceLine[2],
+        ADVISORY: projectCountsByServiceLine[3],
       },
     };
 

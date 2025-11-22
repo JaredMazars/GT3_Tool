@@ -117,7 +117,18 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(successResponse(project));
+    // Transform data to match expected format
+    const transformedProject = {
+      ...project,
+      client: project.Client, // Transform Client → client for consistency
+      Client: undefined, // Remove original Client field
+      _count: {
+        mappings: project._count.MappedAccount,
+        taxAdjustments: project._count.TaxAdjustment,
+      },
+    };
+
+    return NextResponse.json(successResponse(transformedProject));
   } catch (error) {
     return handleApiError(error, 'Get Project');
   }
@@ -213,10 +224,27 @@ export async function PUT(
       data: updateData,
       include: {
         Client: true,
+        _count: {
+          select: {
+            MappedAccount: true,
+            TaxAdjustment: true,
+          },
+        },
       },
     });
 
-    return NextResponse.json(successResponse(project));
+    // Transform data to match expected format
+    const transformedProject = {
+      ...project,
+      client: project.Client, // Transform Client → client for consistency
+      Client: undefined, // Remove original Client field
+      _count: project._count ? {
+        mappings: project._count.MappedAccount,
+        taxAdjustments: project._count.TaxAdjustment,
+      } : undefined,
+    };
+
+    return NextResponse.json(successResponse(transformedProject));
   } catch (error) {
     return handleApiError(error, 'Update Project');
   }

@@ -369,13 +369,6 @@ export default function InternalProjectPage() {
   
   const { data: project, isLoading, refetch: fetchProject } = useProject(projectId);
   
-  // Lazy load team members only when team tab is active
-  const { 
-    data: teamMembers = [],
-    isLoading: loadingTeam,
-    refetch: refetchTeam 
-  } = useProjectTeam(projectId, activeTab === 'team');
-  
   // Set default active tab based on project type
   const getDefaultTab = () => {
     if (!project) return 'team';
@@ -397,6 +390,13 @@ export default function InternalProjectPage() {
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [currentUserId, setCurrentUserId] = useState('');
   const [currentUserRole, setCurrentUserRole] = useState<ProjectRole>('VIEWER' as ProjectRole);
+  
+  // Lazy load team members only when team tab is active
+  const { 
+    data: teamMembers = [],
+    isLoading: loadingTeam,
+    refetch: refetchTeam 
+  } = useProjectTeam(projectId, activeTab === 'team');
 
   // Handle tab query parameter and update default tab when project loads
   useEffect(() => {

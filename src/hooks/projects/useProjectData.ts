@@ -25,6 +25,42 @@ interface ProjectData {
   };
 }
 
+/**
+ * Normalize project data from API response
+ * Transforms Prisma relation names to consistent lowercase naming
+ */
+function normalizeProjectData(data: any): any {
+  if (!data) return data;
+  
+  const normalized = { ...data };
+  
+  // Transform Client → client (Prisma relation to lowercase)
+  if (normalized.Client) {
+    normalized.client = normalized.Client;
+    delete normalized.Client;
+  }
+  
+  // Transform _count field names from Prisma model names to friendly names
+  if (normalized._count) {
+    const newCount: any = {};
+    if (normalized._count.MappedAccount !== undefined) {
+      newCount.mappings = normalized._count.MappedAccount;
+    }
+    if (normalized._count.TaxAdjustment !== undefined) {
+      newCount.taxAdjustments = normalized._count.TaxAdjustment;
+    }
+    // Preserve any other count fields that may already be normalized
+    Object.keys(normalized._count).forEach(key => {
+      if (key !== 'MappedAccount' && key !== 'TaxAdjustment') {
+        newCount[key] = normalized._count[key];
+      }
+    });
+    normalized._count = newCount;
+  }
+  
+  return normalized;
+}
+
 interface TaxAdjustment {
   id: number;
   type: 'DEBIT' | 'CREDIT' | 'ALLOWANCE' | 'RECOUPMENT';
@@ -52,7 +88,8 @@ export function useProject(projectId: string) {
       const response = await fetch(`/api/projects/${projectId}`);
       if (!response.ok) throw new Error('Failed to fetch project');
       const result = await response.json();
-      return result.success ? result.data : result;
+      const data = result.success ? result.data : result;
+      return normalizeProjectData(data);
     },
     enabled: !!projectId,
   });
