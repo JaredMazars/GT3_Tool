@@ -68,10 +68,10 @@ export async function GET(request: NextRequest) {
     // Add search filter
     if (search) {
       where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-        { Client: { clientNameFull: { contains: search, mode: 'insensitive' } } },
-        { Client: { clientCode: { contains: search, mode: 'insensitive' } } },
+        { name: { contains: search } },
+        { description: { contains: search } },
+        { Client: { clientNameFull: { contains: search } } },
+        { Client: { clientCode: { contains: search } } },
       ];
     }
 

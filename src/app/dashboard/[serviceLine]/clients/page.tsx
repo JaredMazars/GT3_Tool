@@ -26,30 +26,53 @@ export default function ServiceLineClientsPage() {
   
   const [activeTab, setActiveTab] = useState<'clients' | 'projects'>('clients');
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
 
-  // Fetch clients using React Query hook
-  const { data: clientsData, isLoading: isLoadingClients, error: clientsError } = useClients({
-    page: 1,
-    limit: 1000, // Get all clients for the list
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1); // Reset to first page on search
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Fetch clients using React Query hook with server-side search
+  const { 
+    data: clientsData, 
+    isLoading: isLoadingClients,
+    isFetching: isFetchingClients,
+    error: clientsError 
+  } = useClients({
+    search: debouncedSearch,
+    page: currentPage,
+    limit: itemsPerPage,
   });
   const clients = clientsData?.clients || [];
+  const clientsPagination = clientsData?.pagination;
 
-  // Fetch client projects for the Projects tab
-  const { data: projectsData, isLoading: isLoadingProjects } = useProjects({
+  // Fetch client projects for the Projects tab with server-side search
+  const { 
+    data: projectsData, 
+    isLoading: isLoadingProjects,
+    isFetching: isFetchingProjects
+  } = useProjects({
+    search: debouncedSearch,
+    page: currentPage,
+    limit: itemsPerPage,
     serviceLine,
     includeArchived: false,
     internalOnly: false,
     clientProjectsOnly: true,
-    page: 1,
-    limit: 1000, // Get all projects for the list
     enabled: !!serviceLine, // Only fetch when serviceLine is available
   });
   const projects = projectsData?.projects || [];
-  const projectCount = projectsData?.pagination?.total ?? projects.length;
-
+  const projectsPagination = projectsData?.pagination;
+  
   const isLoading = activeTab === 'clients' ? isLoadingClients : isLoadingProjects;
+  const isFetching = activeTab === 'clients' ? isFetchingClients : isFetchingProjects;
 
   // Validate service line
   useEffect(() => {
@@ -60,36 +83,8 @@ export default function ServiceLineClientsPage() {
     }
   }, [serviceLine, router, setCurrentServiceLine]);
 
-  // Client-side filtering with useMemo for performance
-  const filteredClients = useMemo(() => {
-    const searchLower = searchTerm.toLowerCase().trim();
-    if (searchLower === '') return clients;
-    
-    return clients.filter(client =>
-      client.clientNameFull?.toLowerCase().includes(searchLower) ||
-      client.clientCode?.toLowerCase().includes(searchLower) ||
-      client.groupDesc?.toLowerCase().includes(searchLower) ||
-      client.groupCode?.toLowerCase().includes(searchLower) ||
-      client.industry?.toLowerCase().includes(searchLower) ||
-      client.sector?.toLowerCase().includes(searchLower)
-    );
-  }, [searchTerm, clients]);
-
-  // Projects filtering with useMemo for performance
-  const filteredProjects = useMemo(() => {
-    const searchLower = searchTerm.toLowerCase().trim();
-    if (searchLower === '') return projects;
-    
-    return projects.filter(project =>
-      project.name?.toLowerCase().includes(searchLower) ||
-      project.description?.toLowerCase().includes(searchLower) ||
-      project.client?.clientNameFull?.toLowerCase().includes(searchLower) ||
-      project.client?.clientCode?.toLowerCase().includes(searchLower) ||
-      project.projectType?.toLowerCase().includes(searchLower) ||
-      project.status?.toLowerCase().includes(searchLower) ||
-      (project.taxYear?.toString()?.includes(searchLower) ?? false)
-    );
-  }, [searchTerm, projects]);
+  // Server-side search and pagination handles filtering
+  // No need for client-side filtering
 
   // Reset to first page when search or tab changes
   useEffect(() => {
@@ -108,8 +103,9 @@ export default function ServiceLineClientsPage() {
     );
   }
 
-  const currentData = activeTab === 'clients' ? filteredClients : filteredProjects;
-  const totalCount = activeTab === 'clients' ? clients.length : projects.length;
+  const currentData = activeTab === 'clients' ? clients : projects;
+  const pagination = activeTab === 'clients' ? clientsPagination : projectsPagination;
+  const totalCount = pagination?.total ?? currentData.length;
 
   return (
     <div className="min-h-screen bg-forvis-gray-50">
@@ -144,7 +140,7 @@ export default function ServiceLineClientsPage() {
           
           <div className="text-right">
             <div className="text-2xl font-bold text-forvis-blue-600">
-              {activeTab === 'clients' ? totalCount : (isLoadingProjects ? '...' : projectCount)}
+              {activeTab === 'clients' ? totalCount : (isFetchingProjects && !projectsPagination ? '...' : (projectsPagination?.total ?? 0))}
             </div>
             <div className="text-sm text-forvis-gray-600">
               Total {activeTab === 'clients' ? 'Clients' : 'Projects'}
@@ -191,7 +187,7 @@ export default function ServiceLineClientsPage() {
                     ? 'bg-forvis-blue-100 text-forvis-blue-700'
                     : 'bg-forvis-gray-100 text-forvis-gray-600'
                 }`}>
-                  {isLoadingProjects ? '...' : projectCount}
+                  {isFetchingProjects && !projectsPagination ? '...' : (projectsPagination?.total ?? 0)}
                 </span>
               </div>
             </button>
@@ -243,7 +239,7 @@ export default function ServiceLineClientsPage() {
         {/* Content - Clients or Projects */}
         {activeTab === 'clients' ? (
           /* Clients List */
-          filteredClients.length === 0 ? (
+          clients.length === 0 ? (
             <div className="card text-center py-12">
               <BuildingOfficeIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No clients</h3>
@@ -291,9 +287,7 @@ export default function ServiceLineClientsPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-forvis-gray-200">
-                    {filteredClients
-                      .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                      .map((client) => (
+                    {clients.map((client) => (
                         <tr key={client.id} className="hover:bg-forvis-gray-50 transition-colors">
                           <td className="px-3 py-2 truncate">
                             <div className="flex items-center space-x-2 min-w-0">
@@ -347,14 +341,14 @@ export default function ServiceLineClientsPage() {
             {/* Pagination */}
             <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="text-sm text-forvis-gray-700">
-                Showing <span className="font-medium">{filteredClients.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</span> to{' '}
+                Showing <span className="font-medium">{totalCount === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</span> to{' '}
                 <span className="font-medium">
-                  {Math.min(currentPage * itemsPerPage, filteredClients.length)}
+                  {Math.min(currentPage * itemsPerPage, totalCount)}
                 </span>{' '}
-                of <span className="font-medium">{filteredClients.length}</span> {searchTerm ? 'filtered ' : ''}client{filteredClients.length !== 1 ? 's' : ''}
+                of <span className="font-medium">{totalCount}</span> {debouncedSearch ? 'filtered ' : ''}client{totalCount !== 1 ? 's' : ''}
               </div>
               
-              {filteredClients.length > itemsPerPage && (
+              {(pagination?.totalPages ?? 1) > 1 && (
                 <div className="flex gap-2">
                   <button
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
@@ -364,10 +358,10 @@ export default function ServiceLineClientsPage() {
                     Previous
                   </button>
                   <div className="flex items-center gap-1">
-                    {Array.from({ length: Math.ceil(filteredClients.length / itemsPerPage) }, (_, i) => i + 1)
+                    {Array.from({ length: pagination?.totalPages ?? 1 }, (_, i) => i + 1)
                       .filter(page => {
                         // Show first page, last page, current page, and 1 page on each side
-                        const totalPages = Math.ceil(filteredClients.length / itemsPerPage);
+                        const totalPages = pagination?.totalPages ?? 1;
                         return (
                           page === 1 ||
                           page === totalPages ||
@@ -397,8 +391,8 @@ export default function ServiceLineClientsPage() {
                       })}
                   </div>
                   <button
-                    onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredClients.length / itemsPerPage), p + 1))}
-                    disabled={currentPage >= Math.ceil(filteredClients.length / itemsPerPage)}
+                    onClick={() => setCurrentPage(p => Math.min(pagination?.totalPages ?? 1, p + 1))}
+                    disabled={currentPage >= (pagination?.totalPages ?? 1)}
                     className="px-3 py-1.5 text-sm font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 rounded-md hover:bg-forvis-gray-50 disabled:bg-forvis-gray-100 disabled:text-forvis-gray-400 disabled:cursor-not-allowed transition-colors"
                   >
                     Next
@@ -410,7 +404,7 @@ export default function ServiceLineClientsPage() {
         )
         ) : (
           /* Projects List */
-          filteredProjects.length === 0 ? (
+          projects.length === 0 ? (
             <div className="card text-center py-12">
               <FolderIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No projects</h3>
@@ -449,9 +443,7 @@ export default function ServiceLineClientsPage() {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-forvis-gray-200">
-                      {filteredProjects
-                        .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                        .map((project) => (
+                      {projects.map((project) => (
                           <tr key={project.id} className="hover:bg-forvis-gray-50 transition-colors">
                             <td className="px-6 py-4">
                               <div className="flex items-center space-x-3">
@@ -518,14 +510,14 @@ export default function ServiceLineClientsPage() {
               {/* Pagination */}
               <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="text-sm text-forvis-gray-700">
-                  Showing <span className="font-medium">{filteredProjects.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</span> to{' '}
+                  Showing <span className="font-medium">{totalCount === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</span> to{' '}
                   <span className="font-medium">
-                    {Math.min(currentPage * itemsPerPage, filteredProjects.length)}
+                    {Math.min(currentPage * itemsPerPage, totalCount)}
                   </span>{' '}
-                  of <span className="font-medium">{filteredProjects.length}</span> {searchTerm ? 'filtered ' : ''}project{filteredProjects.length !== 1 ? 's' : ''}
+                  of <span className="font-medium">{totalCount}</span> {debouncedSearch ? 'filtered ' : ''}project{totalCount !== 1 ? 's' : ''}
                 </div>
                 
-                {filteredProjects.length > itemsPerPage && (
+                {(pagination?.totalPages ?? 1) > 1 && (
                   <div className="flex gap-2">
                     <button
                       onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
@@ -535,9 +527,9 @@ export default function ServiceLineClientsPage() {
                       Previous
                     </button>
                     <div className="flex items-center gap-1">
-                      {Array.from({ length: Math.ceil(filteredProjects.length / itemsPerPage) }, (_, i) => i + 1)
+                      {Array.from({ length: pagination?.totalPages ?? 1 }, (_, i) => i + 1)
                         .filter(page => {
-                          const totalPages = Math.ceil(filteredProjects.length / itemsPerPage);
+                          const totalPages = pagination?.totalPages ?? 1;
                           return (
                             page === 1 ||
                             page === totalPages ||
@@ -566,8 +558,8 @@ export default function ServiceLineClientsPage() {
                         })}
                     </div>
                     <button
-                      onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredProjects.length / itemsPerPage), p + 1))}
-                      disabled={currentPage >= Math.ceil(filteredProjects.length / itemsPerPage)}
+                      onClick={() => setCurrentPage(p => Math.min(pagination?.totalPages ?? 1, p + 1))}
+                      disabled={currentPage >= (pagination?.totalPages ?? 1)}
                       className="px-3 py-1.5 text-sm font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 rounded-md hover:bg-forvis-gray-50 disabled:bg-forvis-gray-100 disabled:text-forvis-gray-400 disabled:cursor-not-allowed transition-colors"
                     >
                       Next

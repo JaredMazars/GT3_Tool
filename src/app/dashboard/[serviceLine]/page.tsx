@@ -71,9 +71,9 @@ export default function ServiceLineWorkspacePage() {
   });
   const projects = projectsData?.projects || [];
   const projectsPagination = projectsData?.pagination;
-  const projectCount = projectsPagination?.total ?? 0;
-
+  
   const isLoading = activeTab === 'clients' ? isLoadingClients : isLoadingProjects;
+  const isFetching = activeTab === 'clients' ? false : isFetchingProjects;
 
   // Validate service line
   useEffect(() => {
@@ -108,7 +108,7 @@ export default function ServiceLineWorkspacePage() {
 
   const currentData = activeTab === 'clients' ? clients : projects;
   const pagination = activeTab === 'clients' ? clientsPagination : projectsPagination;
-  const totalCount = pagination?.total || 0;
+  const totalCount = isFetching && !pagination ? '...' : (pagination?.total ?? 0);
 
   return (
     <div className="min-h-screen bg-forvis-gray-50">
@@ -183,7 +183,7 @@ export default function ServiceLineWorkspacePage() {
                     ? 'bg-forvis-blue-100 text-forvis-blue-700'
                     : 'bg-forvis-gray-100 text-forvis-gray-600'
                 }`}>
-                  {isLoadingProjects && !projectsData ? '...' : projectCount}
+                  {isFetchingProjects && !projectsPagination ? '...' : (projectsPagination?.total ?? 0)}
                 </span>
               </div>
             </button>

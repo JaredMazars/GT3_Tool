@@ -25,12 +25,12 @@ export async function GET(request: NextRequest) {
     const where: any = {};
     if (search) {
       where.OR = [
-        { clientNameFull: { contains: search, mode: 'insensitive' } },
-        { clientCode: { contains: search, mode: 'insensitive' } },
-        { groupDesc: { contains: search, mode: 'insensitive' } },
-        { groupCode: { contains: search, mode: 'insensitive' } },
-        { industry: { contains: search, mode: 'insensitive' } },
-        { sector: { contains: search, mode: 'insensitive' } },
+        { clientNameFull: { contains: search } },
+        { clientCode: { contains: search } },
+        { groupDesc: { contains: search } },
+        { groupCode: { contains: search } },
+        { industry: { contains: search } },
+        { sector: { contains: search } },
       ];
     }
 
