@@ -19,7 +19,10 @@ import {
   EnvelopeIcon,
   FolderIcon,
   ClipboardDocumentCheckIcon,
-  DocumentCheckIcon
+  DocumentCheckIcon,
+  CheckCircleIcon,
+  LockClosedIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import BalanceSheetPage from '@/app/dashboard/projects/[id]/balance-sheet/page';
 import IncomeStatementPage from '@/app/dashboard/projects/[id]/income-statement/page';
@@ -35,29 +38,53 @@ import { ProjectTypeSelector } from '@/components/features/projects/ProjectTypeS
 import { TaxYearInput } from '@/components/shared/TaxYearInput';
 import { ProjectUserList } from '@/components/features/projects/UserManagement/ProjectUserList';
 import { UserSearchModal } from '@/components/features/projects/UserManagement/UserSearchModal';
+import { AcceptanceTab } from '@/components/features/projects/AcceptanceTab';
+import { EngagementLetterTab } from '@/components/features/projects/EngagementLetterTab';
 import { ProjectUser, ProjectRole } from '@/types';
+import { canAccessWorkTabs, isClientProject, getBlockedTabMessage } from '@/lib/utils/projectWorkflow';
 
 interface TabProps {
   selected: boolean;
   children: React.ReactNode;
   onClick: () => void;
   icon: React.ComponentType<{ className?: string }>;
+  disabled?: boolean;
+  tooltip?: string;
 }
 
-function Tab({ selected, children, onClick, icon: Icon }: TabProps) {
-  return (
+function Tab({ selected, children, onClick, icon: Icon, disabled = false, tooltip }: TabProps) {
+  const button = (
     <button
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
       className={`flex items-center space-x-2 px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
-        selected
+        disabled
+          ? 'border-transparent text-forvis-gray-400 cursor-not-allowed opacity-60'
+          : selected
           ? 'border-forvis-blue-600 text-forvis-blue-600'
           : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
       }`}
+      title={tooltip}
     >
       <Icon className="h-4 w-4" />
       <span>{children}</span>
+      {disabled && <LockClosedIcon className="h-3 w-3 ml-1" />}
     </button>
   );
+
+  if (disabled && tooltip) {
+    return (
+      <div className="relative group">
+        {button}
+        <div className="absolute hidden group-hover:block bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-forvis-gray-900 text-white text-xs rounded-lg whitespace-nowrap z-10">
+          {tooltip}
+          <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-forvis-gray-900"></div>
+        </div>
+      </div>
+    );
+  }
+
+  return button;
 }
 
 interface ProjectData {
@@ -369,9 +396,21 @@ export default function ClientProjectPage() {
   
   const { data: project, isLoading, refetch: fetchProject } = useProject(projectId);
   
-  // Set default active tab based on project type
+  // Set default active tab based on project type and workflow status
   const getDefaultTab = () => {
-    if (!project) return 'team';
+    if (!project) return 'acceptance';
+    
+    // For client projects, start with acceptance if not approved
+    if (isClientProject(project)) {
+      if (!project.acceptanceApproved) {
+        return 'acceptance';
+      }
+      if (!project.engagementLetterUploaded) {
+        return 'engagement-letter';
+      }
+    }
+    
+    // Otherwise, default to project type tab
     switch (project.projectType) {
       case 'TAX_CALCULATION':
         return 'mapping';
@@ -454,6 +493,24 @@ export default function ClientProjectPage() {
     const childParams = { id: projectId };
     
     switch (activeTab) {
+      // Workflow tabs
+      case 'acceptance':
+        return project ? (
+          <AcceptanceTab 
+            project={project} 
+            currentUserRole={currentUserRole}
+            onApprovalComplete={fetchProject}
+          />
+        ) : null;
+      case 'engagement-letter':
+        return project ? (
+          <EngagementLetterTab 
+            project={project} 
+            currentUserRole={currentUserRole}
+            onUploadComplete={fetchProject}
+          />
+        ) : null;
+      
       // Tax Calculation tabs
       case 'mapping':
         return <MappingPage params={childParams} />;
@@ -604,6 +661,26 @@ export default function ClientProjectPage() {
           <span className="text-forvis-gray-900 font-medium">{project?.name}</span>
         </nav>
 
+        {/* Workflow Status Banner */}
+        {project && isClientProject(project) && !canAccessWorkTabs(project) && (
+          <div className="mb-4 bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4 shadow-corporate">
+            <div className="flex items-start">
+              <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" />
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-yellow-900 mb-1">
+                  Project Setup Required
+                </h3>
+                <p className="text-sm text-yellow-800">
+                  {!project.acceptanceApproved 
+                    ? 'Complete client acceptance and continuance to continue with this project.'
+                    : 'Upload the signed engagement letter to access project work tabs.'
+                  }
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Project Header */}
         <div className="card-hover mb-4 overflow-hidden">
           <div className="px-4 py-3">
@@ -666,6 +743,28 @@ export default function ClientProjectPage() {
           {/* Tabs */}
           <div className="border-t border-forvis-gray-200">
             <nav className="flex space-x-6 px-4 overflow-x-auto" aria-label="Tabs">
+              {/* Workflow Tabs - Only for client projects */}
+              {project && isClientProject(project) && (
+                <>
+                  <Tab
+                    onClick={() => setActiveTab('acceptance')}
+                    selected={activeTab === 'acceptance'}
+                    icon={CheckCircleIcon}
+                  >
+                    Acceptance
+                  </Tab>
+                  <Tab
+                    onClick={() => setActiveTab('engagement-letter')}
+                    selected={activeTab === 'engagement-letter'}
+                    icon={DocumentTextIcon}
+                    disabled={!project.acceptanceApproved}
+                    tooltip={!project.acceptanceApproved ? 'Complete client acceptance first' : undefined}
+                  >
+                    Engagement Letter
+                  </Tab>
+                </>
+              )}
+              
               {/* Tax Calculation Tabs - Only for TAX service line */}
               {project?.projectType === 'TAX_CALCULATION' && (!project?.serviceLine || project?.serviceLine === 'TAX') && (
                 <>
@@ -673,6 +772,8 @@ export default function ClientProjectPage() {
                     onClick={() => setActiveTab('mapping')}
                     selected={activeTab === 'mapping'}
                     icon={TableCellsIcon}
+                    disabled={!canAccessWorkTabs(project)}
+                    tooltip={!canAccessWorkTabs(project) ? getBlockedTabMessage(project) : undefined}
                   >
                     Mapping
                   </Tab>
@@ -680,6 +781,8 @@ export default function ClientProjectPage() {
                     onClick={() => setActiveTab('balance-sheet')}
                     selected={activeTab === 'balance-sheet'}
                     icon={DocumentTextIcon}
+                    disabled={!canAccessWorkTabs(project)}
+                    tooltip={!canAccessWorkTabs(project) ? getBlockedTabMessage(project) : undefined}
                   >
                     Balance Sheet
                   </Tab>
@@ -687,6 +790,8 @@ export default function ClientProjectPage() {
                     onClick={() => setActiveTab('income-statement')}
                     selected={activeTab === 'income-statement'}
                     icon={DocumentTextIcon}
+                    disabled={!canAccessWorkTabs(project)}
+                    tooltip={!canAccessWorkTabs(project) ? getBlockedTabMessage(project) : undefined}
                   >
                     Income Statement
                   </Tab>
@@ -694,6 +799,8 @@ export default function ClientProjectPage() {
                     onClick={() => setActiveTab('tax-calculation')}
                     selected={activeTab === 'tax-calculation'}
                     icon={CalculatorIcon}
+                    disabled={!canAccessWorkTabs(project)}
+                    tooltip={!canAccessWorkTabs(project) ? getBlockedTabMessage(project) : undefined}
                   >
                     Tax Calculation
                   </Tab>
@@ -701,6 +808,8 @@ export default function ClientProjectPage() {
                     onClick={() => setActiveTab('reporting')}
                     selected={activeTab === 'reporting'}
                     icon={ClipboardDocumentListIcon}
+                    disabled={!canAccessWorkTabs(project)}
+                    tooltip={!canAccessWorkTabs(project) ? getBlockedTabMessage(project) : undefined}
                   >
                     Reporting
                   </Tab>
@@ -713,6 +822,8 @@ export default function ClientProjectPage() {
                   onClick={() => setActiveTab('tax-opinion')}
                   selected={activeTab === 'tax-opinion'}
                   icon={BookOpenIcon}
+                  disabled={!canAccessWorkTabs(project)}
+                  tooltip={!canAccessWorkTabs(project) ? getBlockedTabMessage(project) : undefined}
                 >
                   Tax Opinion
                 </Tab>
@@ -725,6 +836,8 @@ export default function ClientProjectPage() {
                     onClick={() => setActiveTab('sars-responses')}
                     selected={activeTab === 'sars-responses'}
                     icon={EnvelopeIcon}
+                    disabled={!canAccessWorkTabs(project)}
+                    tooltip={!canAccessWorkTabs(project) ? getBlockedTabMessage(project) : undefined}
                   >
                     SARS Responses
                   </Tab>
@@ -732,6 +845,8 @@ export default function ClientProjectPage() {
                     onClick={() => setActiveTab('document-management')}
                     selected={activeTab === 'document-management'}
                     icon={FolderIcon}
+                    disabled={!canAccessWorkTabs(project)}
+                    tooltip={!canAccessWorkTabs(project) ? getBlockedTabMessage(project) : undefined}
                   >
                     Document Management
                   </Tab>
@@ -739,6 +854,8 @@ export default function ClientProjectPage() {
                     onClick={() => setActiveTab('compliance-checklist')}
                     selected={activeTab === 'compliance-checklist'}
                     icon={ClipboardDocumentCheckIcon}
+                    disabled={!canAccessWorkTabs(project)}
+                    tooltip={!canAccessWorkTabs(project) ? getBlockedTabMessage(project) : undefined}
                   >
                     Compliance Checklist
                   </Tab>
@@ -746,6 +863,8 @@ export default function ClientProjectPage() {
                     onClick={() => setActiveTab('filing-status')}
                     selected={activeTab === 'filing-status'}
                     icon={DocumentCheckIcon}
+                    disabled={!canAccessWorkTabs(project)}
+                    tooltip={!canAccessWorkTabs(project) ? getBlockedTabMessage(project) : undefined}
                   >
                     Filing Status
                   </Tab>

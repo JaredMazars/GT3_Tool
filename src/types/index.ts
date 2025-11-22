@@ -123,6 +123,15 @@ export interface Project {
   client?: Client | null;
   status: string;
   archived: boolean;
+  // Client Acceptance and Engagement Letter Workflow
+  acceptanceApproved?: boolean;
+  acceptanceApprovedBy?: string | null;
+  acceptanceApprovedAt?: Date | null;
+  engagementLetterGenerated?: boolean;
+  engagementLetterUploaded?: boolean;
+  engagementLetterPath?: string | null;
+  engagementLetterUploadedBy?: string | null;
+  engagementLetterUploadedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
   users?: ProjectUser[];

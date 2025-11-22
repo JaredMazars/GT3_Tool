@@ -136,6 +136,14 @@ model Project {
   taxPeriodEnd           DateTime?
   taxPeriodStart         DateTime?
   taxYear                Int?
+  acceptanceApproved     Boolean                  @default(false)
+  acceptanceApprovedBy   String?
+  acceptanceApprovedAt   DateTime?
+  engagementLetterGenerated Boolean               @default(false)
+  engagementLetterUploaded Boolean                @default(false)
+  engagementLetterPath   String?
+  engagementLetterUploadedBy String?
+  engagementLetterUploadedAt DateTime?
   AdjustmentDocument     AdjustmentDocument[]
   AITaxReport            AITaxReport[]
   MappedAccount          MappedAccount[]
