@@ -108,10 +108,11 @@ export async function handleCallback(code: string, redirectUri: string) {
     id: dbUser.id,
     email: dbUser.email,
     name: dbUser.name || dbUser.email,
-    role: dbUser.role || 'USER', // Include role from database
+    role: dbUser.role || 'USER', // Legacy - kept for backward compatibility
+    systemRole: dbUser.role || 'USER', // SUPERUSER or USER
   };
 
-  log.info('User authenticated successfully', { userId: user.id, email: user.email, role: user.role });
+  log.info('User authenticated successfully', { userId: user.id, email: user.email, systemRole: user.systemRole });
   
   return user;
 }
@@ -290,6 +291,7 @@ function hasRolePermission(userRole: string, requiredRole: string): boolean {
 
 /**
  * Check if user has access to a project with optional role requirement
+ * Also verifies service line access for non-superusers
  */
 export async function checkProjectAccess(
   userId: string,
@@ -297,6 +299,40 @@ export async function checkProjectAccess(
   requiredRole?: string
 ): Promise<boolean> {
   try {
+    // Check if user is a superuser (bypasses service line check)
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+
+    const isSuperuser = user?.role === 'SUPERUSER';
+
+    // Get the project's service line
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { serviceLine: true },
+    });
+
+    if (!project) {
+      return false;
+    }
+
+    // Non-superusers must have service line access
+    if (!isSuperuser) {
+      const serviceLineAccess = await prisma.serviceLineUser.findUnique({
+        where: {
+          userId_serviceLine: {
+            userId,
+            serviceLine: project.serviceLine,
+          },
+        },
+      });
+
+      if (!serviceLineAccess) {
+        return false;
+      }
+    }
+
     // Get user's project membership
     const projectUser = await prisma.projectUser.findUnique({
       where: {

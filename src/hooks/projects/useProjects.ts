@@ -23,7 +23,7 @@ export interface ProjectListItem {
   taxYear: number | null;
   createdAt: string;
   updatedAt: string;
-  Client: {
+  client?: {
     id: number;
     clientNameFull: string | null;
     clientCode: string | null;

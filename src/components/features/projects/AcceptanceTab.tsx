@@ -5,6 +5,7 @@ import { CheckCircleIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { Project } from '@/types';
 import { useQueryClient } from '@tanstack/react-query';
 import { projectKeys } from '@/hooks/projects/useProjectData';
+import { useCanApproveAcceptance } from '@/hooks/auth/usePermissions';
 
 interface AcceptanceTabProps {
   project: Project;
@@ -17,8 +18,10 @@ export function AcceptanceTab({ project, currentUserRole, onApprovalComplete }: 
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
+  // Check if user can approve acceptance (Partners and Superusers only)
+  const { data: canApprove = false, isLoading: isCheckingPermission } = useCanApproveAcceptance(project);
+
   const isApproved = project.acceptanceApproved;
-  const canApprove = currentUserRole === 'ADMIN' && !isApproved;
 
   const handleApprove = async () => {
     setIsApproving(true);
@@ -216,7 +219,11 @@ export function AcceptanceTab({ project, currentUserRole, onApprovalComplete }: 
                 </div>
               )}
 
-              {canApprove ? (
+              {isCheckingPermission ? (
+                <div className="p-4 bg-gray-50 border-2 border-gray-200 rounded-lg">
+                  <p className="text-sm text-gray-600">Checking permissions...</p>
+                </div>
+              ) : canApprove && !isApproved ? (
                 <button
                   onClick={handleApprove}
                   disabled={isApproving}
@@ -226,13 +233,13 @@ export function AcceptanceTab({ project, currentUserRole, onApprovalComplete }: 
                   <CheckCircleIcon className="h-5 w-5 mr-2" />
                   {isApproving ? 'Approving...' : 'Approve Client Acceptance'}
                 </button>
-              ) : (
+              ) : !isApproved ? (
                 <div className="p-4 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
                   <p className="text-sm text-yellow-800">
-                    Only project administrators can approve client acceptance.
+                    Only Partners and System Administrators can approve client acceptance.
                   </p>
                 </div>
-              )}
+              ) : null}
             </div>
           </div>
         )}

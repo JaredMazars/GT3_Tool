@@ -31,11 +31,15 @@ export default function InternalProjectsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Fetch internal projects only for this service line
-  const { data: projects = [], isLoading, error } = useProjects(
+  const { data: projectsData, isLoading, error } = useProjects({
     serviceLine,
-    showArchived,
-    true // internalOnly = true
-  );
+    includeArchived: showArchived,
+    internalOnly: true,
+    page: 1,
+    limit: 1000, // Get all internal projects
+    enabled: !!serviceLine,
+  });
+  const projects = projectsData?.projects || [];
 
   // Validate service line
   useEffect(() => {

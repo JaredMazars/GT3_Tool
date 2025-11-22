@@ -12,6 +12,7 @@ import { Project } from '@/types';
 import { MarkdownRenderer } from '@/components/shared/MarkdownRenderer';
 import { useQueryClient } from '@tanstack/react-query';
 import { projectKeys } from '@/hooks/projects/useProjectData';
+import { useCanApproveAcceptance } from '@/hooks/auth/usePermissions';
 
 interface EngagementLetterTabProps {
   project: Project;
@@ -28,7 +29,8 @@ export function EngagementLetterTab({ project, currentUserRole, onUploadComplete
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
-  const canManage = ['ADMIN', 'EDITOR'].includes(currentUserRole);
+  // Check if user can manage engagement letters (Partners and Superusers only)
+  const { data: canManage = false, isLoading: isCheckingPermission } = useCanApproveAcceptance(project);
   const isGenerated = project.engagementLetterGenerated || letterContent !== null;
   const isUploaded = project.engagementLetterUploaded;
   const acceptanceApproved = project.acceptanceApproved;
@@ -240,7 +242,7 @@ export function EngagementLetterTab({ project, currentUserRole, onUploadComplete
                   ) : (
                     <div className="p-4 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
                       <p className="text-sm text-yellow-800">
-                        Only project administrators and editors can generate engagement letters.
+                        Only Partners and System Administrators can generate engagement letters.
                       </p>
                     </div>
                   )}
@@ -315,7 +317,7 @@ export function EngagementLetterTab({ project, currentUserRole, onUploadComplete
               ) : (
                 <div className="p-4 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
                   <p className="text-sm text-yellow-800">
-                    Only project administrators and editors can upload engagement letters.
+                    Only Partners and System Administrators can upload engagement letters.
                   </p>
                 </div>
               )}

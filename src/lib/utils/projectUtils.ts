@@ -102,6 +102,30 @@ export function formatRole(role: string): string {
 }
 
 /**
+ * Format system role for display
+ */
+export function formatSystemRole(role: string): string {
+  const roleMap: Record<string, string> = {
+    SUPERUSER: 'System Administrator',
+    USER: 'User',
+  };
+
+  return roleMap[role] || role;
+}
+
+/**
+ * Get system role description
+ */
+export function getSystemRoleDescription(role: string): string {
+  const descriptionMap: Record<string, string> = {
+    SUPERUSER: 'System-wide access to all features and service lines',
+    USER: 'Regular user - requires service line access',
+  };
+
+  return descriptionMap[role] || 'No description available';
+}
+
+/**
  * Get role description
  */
 export function getRoleDescription(role: string): string {

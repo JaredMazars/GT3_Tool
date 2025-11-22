@@ -231,6 +231,8 @@ model User {
   email                   String                   @unique
   emailVerified           DateTime?
   image                   String?
+  // System-level role: SUPERUSER = system-wide access to all features and service lines
+  //                    USER = regular user, requires service line access via ServiceLineUser
   role                    String                   @default("USER")
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
@@ -248,6 +250,10 @@ model ServiceLineUser {
   id          Int      @id @default(autoincrement())
   userId      String
   serviceLine String
+  // Service line role: ADMIN = Partner (can approve acceptance/engagement letters)
+  //                    MANAGER = Manager (can manage projects)
+  //                    USER = Staff (can complete work)
+  //                    VIEWER = View-only access
   role        String   @default("USER")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

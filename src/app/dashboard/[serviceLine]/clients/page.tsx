@@ -30,16 +30,24 @@ export default function ServiceLineClientsPage() {
   const [itemsPerPage, setItemsPerPage] = useState(25);
 
   // Fetch clients using React Query hook
-  const { data: clientsData, isLoading: isLoadingClients, error: clientsError } = useClients();
+  const { data: clientsData, isLoading: isLoadingClients, error: clientsError } = useClients({
+    page: 1,
+    limit: 1000, // Get all clients for the list
+  });
   const clients = clientsData?.clients || [];
 
   // Fetch client projects for the Projects tab
-  const { data: projects = [], isLoading: isLoadingProjects } = useProjects(
+  const { data: projectsData, isLoading: isLoadingProjects } = useProjects({
     serviceLine,
-    false, // includeArchived
-    false, // internalOnly
-    true   // clientProjectsOnly
-  );
+    includeArchived: false,
+    internalOnly: false,
+    clientProjectsOnly: true,
+    page: 1,
+    limit: 1000, // Get all projects for the list
+    enabled: !!serviceLine, // Only fetch when serviceLine is available
+  });
+  const projects = projectsData?.projects || [];
+  const projectCount = projectsData?.pagination?.total ?? projects.length;
 
   const isLoading = activeTab === 'clients' ? isLoadingClients : isLoadingProjects;
 
@@ -75,9 +83,10 @@ export default function ServiceLineClientsPage() {
     return projects.filter(project =>
       project.name?.toLowerCase().includes(searchLower) ||
       project.description?.toLowerCase().includes(searchLower) ||
-      project.Client?.clientNameFull?.toLowerCase().includes(searchLower) ||
-      project.Client?.clientCode?.toLowerCase().includes(searchLower) ||
+      project.client?.clientNameFull?.toLowerCase().includes(searchLower) ||
+      project.client?.clientCode?.toLowerCase().includes(searchLower) ||
       project.projectType?.toLowerCase().includes(searchLower) ||
+      project.status?.toLowerCase().includes(searchLower) ||
       (project.taxYear?.toString()?.includes(searchLower) ?? false)
     );
   }, [searchTerm, projects]);
@@ -134,7 +143,9 @@ export default function ServiceLineClientsPage() {
           </div>
           
           <div className="text-right">
-            <div className="text-2xl font-bold text-forvis-blue-600">{totalCount}</div>
+            <div className="text-2xl font-bold text-forvis-blue-600">
+              {activeTab === 'clients' ? totalCount : (isLoadingProjects ? '...' : projectCount)}
+            </div>
             <div className="text-sm text-forvis-gray-600">
               Total {activeTab === 'clients' ? 'Clients' : 'Projects'}
             </div>
@@ -180,7 +191,7 @@ export default function ServiceLineClientsPage() {
                     ? 'bg-forvis-blue-100 text-forvis-blue-700'
                     : 'bg-forvis-gray-100 text-forvis-gray-600'
                 }`}>
-                  {projects.length}
+                  {isLoadingProjects ? '...' : projectCount}
                 </span>
               </div>
             </button>
@@ -196,7 +207,7 @@ export default function ServiceLineClientsPage() {
               placeholder={
                 activeTab === 'clients'
                   ? 'Search by name, code, group, or industry...'
-                  : 'Search by project name, client, type, or tax year...'
+                  : 'Search by project name, client, client code, type, or tax year...'
               }
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -460,12 +471,15 @@ export default function ServiceLineClientsPage() {
                               </div>
                             </td>
                             <td className="px-6 py-4">
-                              {project.Client && (
+                              {project.client && (
                                 <Link
                                   href={`/dashboard/${serviceLine.toLowerCase()}/clients/${project.clientId}`}
-                                  className="text-sm text-forvis-blue-600 hover:text-forvis-blue-900 font-medium"
+                                  className="block"
                                 >
-                                  {project.Client.clientNameFull || project.Client.clientCode}
+                                  <div className="text-sm font-medium text-forvis-blue-600 hover:text-forvis-blue-900">
+                                    {project.client.clientNameFull || project.client.clientCode}
+                                  </div>
+                                  <div className="text-xs text-forvis-gray-500">{project.client.clientCode}</div>
                                 </Link>
                               )}
                             </td>

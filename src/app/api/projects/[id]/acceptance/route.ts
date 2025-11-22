@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { getCurrentUser } from '@/lib/services/auth/auth';
+import { canApproveAcceptance } from '@/lib/services/auth/authorization';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { toProjectId } from '@/types/branded';
@@ -22,17 +23,13 @@ export async function POST(
     const { id } = await context.params;
     const projectId = toProjectId(id);
 
-    // Check if user has ADMIN role on this project
-    const projectUser = await prisma.projectUser.findFirst({
-      where: {
-        projectId,
-        userId: user.id,
-      },
-    });
+    // Check if user can approve acceptance
+    // Rules: SUPERUSER OR Partner (ServiceLineUser.role = ADMIN for project's service line)
+    const hasApprovalPermission = await canApproveAcceptance(user.id, projectId);
 
-    if (!projectUser || projectUser.role !== 'ADMIN') {
+    if (!hasApprovalPermission) {
       return NextResponse.json(
-        { error: 'Only project admins can approve client acceptance' },
+        { error: 'Only Partners and System Administrators can approve client acceptance' },
         { status: 403 }
       );
     }

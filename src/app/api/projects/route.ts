@@ -70,6 +70,8 @@ export async function GET(request: NextRequest) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } },
+        { Client: { clientNameFull: { contains: search, mode: 'insensitive' } } },
+        { Client: { clientCode: { contains: search, mode: 'insensitive' } } },
       ];
     }
 

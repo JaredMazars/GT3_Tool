@@ -166,6 +166,7 @@ export function useClient(
     enabled: enabled && !!clientId,
     staleTime: 5 * 60 * 1000, // 5 minutes - standardized
     gcTime: 10 * 60 * 1000,
+    placeholderData: (previousData) => previousData, // Keep previous data while fetching new data
   });
 }
 

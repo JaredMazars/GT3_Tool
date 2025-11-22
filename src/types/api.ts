@@ -136,6 +136,21 @@ export interface ServiceStatus {
   message?: string;
 }
 
+/**
+ * Permission check types
+ */
+export interface PermissionCheckResult {
+  allowed: boolean;
+  reason?: string;
+}
+
+export interface PermissionCheckRequest {
+  userId: string;
+  projectId?: number;
+  serviceLine?: string;
+  feature?: string;
+}
+
 
 
 

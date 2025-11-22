@@ -57,7 +57,8 @@ export default function ServiceLineWorkspacePage() {
   // Fetch client projects for the Projects tab
   const { 
     data: projectsData,
-    isLoading: isLoadingProjects 
+    isLoading: isLoadingProjects,
+    isFetching: isFetchingProjects
   } = useProjects({
     search: debouncedSearch,
     page: currentPage,
@@ -66,10 +67,11 @@ export default function ServiceLineWorkspacePage() {
     includeArchived: false,
     internalOnly: false,
     clientProjectsOnly: true,
-    enabled: activeTab === 'projects',
+    enabled: !!serviceLine, // Fetch when serviceLine is available, not just when tab is active
   });
   const projects = projectsData?.projects || [];
   const projectsPagination = projectsData?.pagination;
+  const projectCount = projectsPagination?.total ?? 0;
 
   const isLoading = activeTab === 'clients' ? isLoadingClients : isLoadingProjects;
 
@@ -181,7 +183,7 @@ export default function ServiceLineWorkspacePage() {
                     ? 'bg-forvis-blue-100 text-forvis-blue-700'
                     : 'bg-forvis-gray-100 text-forvis-gray-600'
                 }`}>
-                  {projects.length}
+                  {isLoadingProjects && !projectsData ? '...' : projectCount}
                 </span>
               </div>
             </button>
@@ -197,7 +199,7 @@ export default function ServiceLineWorkspacePage() {
               placeholder={
                 activeTab === 'clients'
                   ? 'Search by name, code, group, or industry...'
-                  : 'Search by project name, client, type, or tax year...'
+                  : 'Search by project name, client, client code, type, or tax year...'
               }
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -458,12 +460,15 @@ export default function ServiceLineWorkspacePage() {
                               </div>
                             </td>
                             <td className="px-6 py-4">
-                              {project.Client && (
+                              {project.client && (
                                 <Link
                                   href={`/dashboard/${serviceLine.toLowerCase()}/clients/${project.clientId}`}
-                                  className="text-sm text-forvis-blue-600 hover:text-forvis-blue-900 font-medium"
+                                  className="block"
                                 >
-                                  {project.Client.clientNameFull || project.Client.clientCode}
+                                  <div className="text-sm font-medium text-forvis-blue-600 hover:text-forvis-blue-900">
+                                    {project.client.clientNameFull || project.client.clientCode}
+                                  </div>
+                                  <div className="text-xs text-forvis-gray-500">{project.client.clientCode}</div>
                                 </Link>
                               )}
                             </td>

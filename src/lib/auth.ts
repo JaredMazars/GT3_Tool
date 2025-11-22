@@ -26,6 +26,8 @@ export interface SessionUser {
   id: string;
   email: string;
   name: string;
+  role?: string; // Deprecated - use systemRole instead
+  systemRole?: string; // SUPERUSER or USER
 }
 
 export interface Session {
@@ -87,6 +89,8 @@ export async function handleCallback(code: string, redirectUri: string) {
     id: dbUser.id,
     email: dbUser.email,
     name: dbUser.name || dbUser.email,
+    role: dbUser.role || 'USER', // Legacy - kept for backward compatibility
+    systemRole: dbUser.role || 'USER', // SUPERUSER or USER
   };
 
   return user;

@@ -37,7 +37,7 @@ export default function ServiceLineClientDetailPage() {
   const [projectLimit] = useState(20);
 
   // Fetch client using React Query hook with project pagination
-  const { data: clientData, isLoading, error } = useClient(clientId, {
+  const { data: clientData, isLoading, isFetching, error } = useClient(clientId, {
     projectPage,
     projectLimit,
     serviceLine: activeServiceLineTab,
@@ -113,7 +113,8 @@ export default function ServiceLineClientDetailPage() {
 
   const filteredProjects = getProjectsForTab();
 
-  if (isLoading) {
+  // Only show full-page loader on initial load, not when switching tabs
+  if (isLoading && !client) {
     return (
       <div className="min-h-screen bg-forvis-gray-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-forvis-blue-600"></div>
@@ -303,7 +304,12 @@ export default function ServiceLineClientDetailPage() {
               </div>
 
               <div className="p-4">
-                {filteredProjects.length === 0 ? (
+                {isFetching && !isLoading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-600 mx-auto"></div>
+                    <p className="mt-2 text-sm text-forvis-gray-600">Loading projects...</p>
+                  </div>
+                ) : filteredProjects.length === 0 ? (
                   <div className="text-center py-8">
                     <FolderIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
                     <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No projects in {formatServiceLineName(activeServiceLineTab)}</h3>
