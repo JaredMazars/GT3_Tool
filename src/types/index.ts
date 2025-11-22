@@ -347,6 +347,48 @@ export interface FilingStatus {
   updatedAt: Date;
 }
 
+// Client Documents
+export enum DocumentType {
+  ENGAGEMENT_LETTER = 'ENGAGEMENT_LETTER',
+  ADMINISTRATION = 'ADMINISTRATION',
+  ADJUSTMENT = 'ADJUSTMENT',
+  OPINION = 'OPINION',
+  SARS = 'SARS',
+}
+
+export interface ClientDocument {
+  id: number;
+  documentType: DocumentType;
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+  filePath: string;
+  projectId: number;
+  projectName: string;
+  uploadedBy?: string | null;
+  createdAt: Date;
+  // Type-specific fields
+  category?: string; // For Administration and Opinion documents
+  description?: string; // For Administration documents
+  version?: number; // For Administration documents
+  extractionStatus?: string; // For Adjustment documents
+  referenceNumber?: string; // For SARS documents
+  subject?: string; // For SARS documents
+}
+
+export interface DocumentsByType {
+  engagementLetters: ClientDocument[];
+  administration: ClientDocument[];
+  adjustments: ClientDocument[];
+  opinions: ClientDocument[];
+  sars: ClientDocument[];
+}
+
+export interface ClientDocumentsResponse {
+  documents: DocumentsByType;
+  totalCount: number;
+}
+
 // Re-export notification types
 export * from './notification';
 

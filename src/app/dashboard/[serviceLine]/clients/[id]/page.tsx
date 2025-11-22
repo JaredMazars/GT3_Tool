@@ -22,6 +22,7 @@ import { formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineU
 import { ServiceLine } from '@/types';
 import { CreateProjectModal } from '@/components/features/projects/CreateProjectModal';
 import { ClientHeader } from '@/components/features/clients/ClientHeader';
+import { ClientDocuments } from '@/components/features/clients/ClientDocuments';
 import { useClient, clientKeys, type ClientWithProjects } from '@/hooks/clients/useClients';
 import { projectListKeys } from '@/hooks/projects/useProjects';
 
@@ -33,6 +34,7 @@ export default function ServiceLineClientDetailPage() {
   const queryClient = useQueryClient();
   
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showDocumentsModal, setShowDocumentsModal] = useState(false);
   const [activeServiceLineTab, setActiveServiceLineTab] = useState<ServiceLine>(ServiceLine.TAX);
   const [projectPage, setProjectPage] = useState(1);
   const [projectLimit] = useState(20);
@@ -218,6 +220,42 @@ export default function ServiceLineClientDetailPage() {
           initialServiceLine={serviceLine as ServiceLine}
         />
 
+        {/* Documents Modal */}
+        {showDocumentsModal && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex min-h-screen items-center justify-center p-4">
+              {/* Backdrop */}
+              <div 
+                className="fixed inset-0 bg-black bg-opacity-30 transition-opacity"
+                onClick={() => setShowDocumentsModal(false)}
+              />
+              
+              {/* Modal Content */}
+              <div className="relative bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-forvis-gray-200 bg-forvis-gray-50">
+                  <h2 className="text-xl font-semibold text-forvis-gray-900">
+                    {client.clientNameFull || client.clientCode} - Documents
+                  </h2>
+                  <button
+                    onClick={() => setShowDocumentsModal(false)}
+                    className="text-forvis-gray-400 hover:text-forvis-gray-600 transition-colors"
+                  >
+                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                
+                {/* Content */}
+                <div className="overflow-y-auto max-h-[calc(90vh-80px)]">
+                  <ClientDocuments clientId={clientId} />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Client Information */}
           <div className="lg:col-span-1 space-y-6">
@@ -257,18 +295,18 @@ export default function ServiceLineClientDetailPage() {
               </div>
             </div>
 
-            {/* Placeholder Sections - Coming Soon */}
+            {/* Quick Actions */}
             <div className="card">
               <div className="px-4 py-3 border-b border-forvis-gray-200">
                 <h2 className="text-base font-semibold text-forvis-gray-900">Quick Actions</h2>
               </div>
               <div className="px-4 py-3 space-y-2">
                 <button 
-                  disabled
-                  className="w-full flex items-center px-3 py-2 text-sm text-forvis-gray-400 bg-forvis-gray-50 rounded-lg cursor-not-allowed"
+                  onClick={() => setShowDocumentsModal(true)}
+                  className="w-full flex items-center px-3 py-2 text-sm text-forvis-blue-700 bg-forvis-blue-50 hover:bg-forvis-blue-100 rounded-lg transition-colors"
                 >
                   <DocumentTextIcon className="h-4 w-4 mr-2" />
-                  Documents (Coming Soon)
+                  View Documents
                 </button>
                 <button 
                   disabled

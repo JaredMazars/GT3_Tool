@@ -68,7 +68,7 @@ export async function GET(
     const filename = project.engagementLetterPath.split('/').pop() || 'engagement-letter';
 
     // Return file with proper headers
-    return new NextResponse(fileBuffer, {
+    return new NextResponse(new Uint8Array(fileBuffer), {
       status: 200,
       headers: {
         'Content-Type': contentType,
