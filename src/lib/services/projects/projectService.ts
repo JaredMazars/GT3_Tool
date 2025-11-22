@@ -21,6 +21,11 @@ export async function getProjectsWithCounts(
   taxYear: number | null;
   createdAt: Date;
   updatedAt: Date;
+  Client: {
+    id: number;
+    clientNameFull: string | null;
+    clientCode: string | null;
+  } | null;
   _count: {
     MappedAccount: number;
     TaxAdjustment: number;
@@ -62,6 +67,13 @@ export async function getProjectsWithCounts(
           taxYear: true,
           createdAt: true,
           updatedAt: true,
+          Client: {
+            select: {
+              id: true,
+              clientNameFull: true,
+              clientCode: true,
+            },
+          },
           _count: {
             select: {
               MappedAccount: true,

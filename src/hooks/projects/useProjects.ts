@@ -5,8 +5,8 @@ import { useQuery } from '@tanstack/react-query';
 // Query Keys - extend existing projectKeys from useProjectData
 export const projectListKeys = {
   all: ['projects'] as const,
-  list: (serviceLine?: string, includeArchived?: boolean, internalOnly?: boolean) => 
-    [...projectListKeys.all, 'list', serviceLine, includeArchived, internalOnly] as const,
+  list: (serviceLine?: string, includeArchived?: boolean, internalOnly?: boolean, clientProjectsOnly?: boolean) => 
+    [...projectListKeys.all, 'list', serviceLine, includeArchived, internalOnly, clientProjectsOnly] as const,
 };
 
 // Types
@@ -22,6 +22,11 @@ export interface ProjectListItem {
   taxYear: number | null;
   createdAt: string;
   updatedAt: string;
+  Client: {
+    id: number;
+    clientNameFull: string | null;
+    clientCode: string | null;
+  } | null;
   _count: {
     mappings: number;
     taxAdjustments: number;
@@ -31,14 +36,15 @@ export interface ProjectListItem {
 /**
  * Fetch projects list with optional service line filter
  */
-export function useProjects(serviceLine?: string, includeArchived = false, internalOnly = false) {
+export function useProjects(serviceLine?: string, includeArchived = false, internalOnly = false, clientProjectsOnly = false) {
   return useQuery<ProjectListItem[]>({
-    queryKey: projectListKeys.list(serviceLine, includeArchived, internalOnly),
+    queryKey: projectListKeys.list(serviceLine, includeArchived, internalOnly, clientProjectsOnly),
     queryFn: async () => {
       const params = new URLSearchParams();
       if (serviceLine) params.set('serviceLine', serviceLine);
       if (includeArchived) params.set('includeArchived', 'true');
       if (internalOnly) params.set('internalOnly', 'true');
+      if (clientProjectsOnly) params.set('clientProjectsOnly', 'true');
       
       const url = `/api/projects${params.toString() ? `?${params.toString()}` : ''}`;
       const response = await fetch(url);
@@ -57,15 +63,16 @@ export function useProjects(serviceLine?: string, includeArchived = false, inter
  * Prefetch projects for a service line
  * Useful for optimistic navigation
  */
-export function usePrefetchProjects(serviceLine?: string) {
+export function usePrefetchProjects(serviceLine?: string, clientProjectsOnly = false) {
   const queryClient = useQueryClient();
   
   return () => {
     queryClient.prefetchQuery({
-      queryKey: projectListKeys.list(serviceLine, false),
+      queryKey: projectListKeys.list(serviceLine, false, false, clientProjectsOnly),
       queryFn: async () => {
         const params = new URLSearchParams();
         if (serviceLine) params.set('serviceLine', serviceLine);
+        if (clientProjectsOnly) params.set('clientProjectsOnly', 'true');
         
         const url = `/api/projects${params.toString() ? `?${params.toString()}` : ''}`;
         const response = await fetch(url);
