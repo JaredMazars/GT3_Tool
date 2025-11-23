@@ -9,6 +9,7 @@ import { parseProjectId } from '@/lib/utils/apiUtils';
 import { isValidServiceLine } from '@/lib/utils/serviceLineUtils';
 import { ServiceLine, ServiceLineRole } from '@/types';
 import { AuthenticatedHandler, ProjectHandler, ApiResponse } from './types';
+import { unauthorizedResponse, forbiddenResponse, badRequestResponse, internalErrorResponse } from '@/lib/utils/responseHelpers';
 
 /**
  * Middleware to require authentication
@@ -25,22 +26,15 @@ export function withAuth<TParams extends Record<string, string>, TResponse>(
       const user = await getCurrentUser();
       
       if (!user) {
-        return NextResponse.json(
-          { success: false, error: 'Unauthorized' },
-          { status: 401 }
-        );
+        return unauthorizedResponse() as NextResponse<ApiResponse<TResponse>>;
       }
 
       const params = await context.params;
       return handler(request, { params, user });
     } catch (error) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: error instanceof Error ? error.message : 'Internal server error' 
-        },
-        { status: 500 }
-      );
+      return internalErrorResponse(
+        error instanceof Error ? error.message : 'Internal server error'
+      ) as NextResponse<ApiResponse<TResponse>>;
     }
   };
 }
@@ -63,21 +57,14 @@ export function withProjectAccess<TParams extends Record<string, string> & { id:
         );
 
         if (!hasAccess) {
-          return NextResponse.json(
-            { success: false, error: 'Forbidden' },
-            { status: 403 }
-          );
+          return forbiddenResponse() as NextResponse<ApiResponse<TResponse>>;
         }
 
         return handler(request, context, projectId);
       } catch (error) {
-        return NextResponse.json(
-          { 
-            success: false, 
-            error: error instanceof Error ? error.message : 'Internal server error' 
-          },
-          { status: 500 }
-        );
+        return internalErrorResponse(
+          error instanceof Error ? error.message : 'Internal server error'
+        ) as NextResponse<ApiResponse<TResponse>>;
       }
     });
   };
@@ -97,10 +84,7 @@ export function withServiceLineAccess<TParams extends Record<string, string> & {
 
         // Validate service line
         if (!isValidServiceLine(serviceLine.toUpperCase())) {
-          return NextResponse.json(
-            { success: false, error: 'Invalid service line' },
-            { status: 400 }
-          );
+          return badRequestResponse('Invalid service line') as NextResponse<ApiResponse<TResponse>>;
         }
 
         // Check access
@@ -111,21 +95,14 @@ export function withServiceLineAccess<TParams extends Record<string, string> & {
         );
 
         if (!hasAccess) {
-          return NextResponse.json(
-            { success: false, error: 'Access denied to this service line' },
-            { status: 403 }
-          );
+          return forbiddenResponse('Access denied to this service line') as NextResponse<ApiResponse<TResponse>>;
         }
 
         return handler(request, context);
       } catch (error) {
-        return NextResponse.json(
-          { 
-            success: false, 
-            error: error instanceof Error ? error.message : 'Internal server error' 
-          },
-          { status: 500 }
-        );
+        return internalErrorResponse(
+          error instanceof Error ? error.message : 'Internal server error'
+        ) as NextResponse<ApiResponse<TResponse>>;
       }
     });
   };
@@ -136,7 +113,7 @@ export function withServiceLineAccess<TParams extends Record<string, string> & {
  */
 export async function validateBody<T>(
   request: NextRequest,
-  schema: { parse: (data: unknown) => T }
+  schema: { parse: (data: unknown) => T; safeParse?: (data: unknown) => { success: boolean; data?: T; error?: unknown } }
 ): Promise<T> {
   const body = await request.json();
   return schema.parse(body);

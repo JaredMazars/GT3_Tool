@@ -26,35 +26,49 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
       return [];
     }
 
-    // Get project counts for each service line
-    const stats = await Promise.all(
-      serviceLineUsers.map(async (slu) => {
-        const [projectCount, activeProjectCount] = await Promise.all([
-          prisma.project.count({
-            where: {
-              serviceLine: slu.serviceLine,
-            },
-          }),
-          prisma.project.count({
-            where: {
-              serviceLine: slu.serviceLine,
-              status: 'ACTIVE',
-              archived: false,
-            },
-          }),
-        ]);
+    // Get all service lines this user has access to
+    const serviceLines = serviceLineUsers.map(slu => slu.serviceLine);
 
-        return {
-          id: slu.id,
-          serviceLine: slu.serviceLine,
-          role: slu.role,
-          projectCount,
-          activeProjectCount,
-        };
-      })
+    // Use a single aggregation query to get project counts for all service lines
+    const [allProjectCounts, activeProjectCounts] = await Promise.all([
+      prisma.project.groupBy({
+        by: ['serviceLine'],
+        where: {
+          serviceLine: { in: serviceLines },
+        },
+        _count: {
+          id: true,
+        },
+      }),
+      prisma.project.groupBy({
+        by: ['serviceLine'],
+        where: {
+          serviceLine: { in: serviceLines },
+          status: 'ACTIVE',
+          archived: false,
+        },
+        _count: {
+          id: true,
+        },
+      }),
+    ]);
+
+    // Create lookup maps for fast access
+    const projectCountMap = new Map(
+      allProjectCounts.map(item => [item.serviceLine, item._count.id])
+    );
+    const activeProjectCountMap = new Map(
+      activeProjectCounts.map(item => [item.serviceLine, item._count.id])
     );
 
-    return stats;
+    // Combine service line data with counts
+    return serviceLineUsers.map(slu => ({
+      id: slu.id,
+      serviceLine: slu.serviceLine,
+      role: slu.role,
+      projectCount: projectCountMap.get(slu.serviceLine) || 0,
+      activeProjectCount: activeProjectCountMap.get(slu.serviceLine) || 0,
+    }));
   } catch (error) {
     logger.error('Error getting user service lines', { userId, error });
     throw error;

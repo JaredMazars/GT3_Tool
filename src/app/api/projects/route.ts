@@ -7,6 +7,8 @@ import { getCurrentUser } from '@/lib/services/auth/auth';
 import { getUserServiceLines } from '@/lib/services/service-lines/serviceLineService';
 import { getProjectsWithCounts } from '@/lib/services/projects/projectService';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
+import { sanitizeObject } from '@/lib/utils/sanitization';
 
 export async function GET(request: NextRequest) {
   try {
@@ -34,7 +36,7 @@ export async function GET(request: NextRequest) {
     const accessibleServiceLines = userServiceLines.map(sl => sl.serviceLine);
 
     // Build where clause for database-level filtering
-    const where: any = {
+    const where: Prisma.ProjectWhereInput = {
       ProjectUser: {
         some: {
           userId: user.id,
@@ -76,10 +78,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Build orderBy
-    const orderBy: any = {};
-    const validSortFields = ['name', 'updatedAt', 'createdAt', 'taxYear'];
-    if (validSortFields.includes(sortBy)) {
-      orderBy[sortBy] = sortOrder;
+    const orderBy: Prisma.ProjectOrderByWithRelationInput = {};
+    const validSortFields = ['name', 'updatedAt', 'createdAt', 'taxYear'] as const;
+    type ValidSortField = typeof validSortFields[number];
+    if (validSortFields.includes(sortBy as ValidSortField)) {
+      orderBy[sortBy as ValidSortField] = sortOrder;
     } else {
       orderBy.updatedAt = 'desc';
     }
@@ -169,8 +172,11 @@ export async function POST(request: NextRequest) {
     
     const body = await request.json();
     
+    // Sanitize input before validation
+    const sanitizedBody = sanitizeObject(body, { maxLength: 1000 });
+    
     // Validate request body
-    const validatedData = CreateProjectSchema.parse(body);
+    const validatedData = CreateProjectSchema.parse(sanitizedBody);
 
     // Check if user has access to the service line
     const userServiceLines = await getUserServiceLines(user.id);

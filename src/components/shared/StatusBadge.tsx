@@ -10,7 +10,7 @@ export function StatusBadge({ status, type = 'default' }: StatusBadgeProps) {
     // Opinion draft statuses
     if (type === 'opinion') {
       const colors = {
-        DRAFT: 'bg-gray-100 text-gray-800 border-gray-300',
+        DRAFT: 'bg-forvis-gray-100 text-forvis-gray-800 border-forvis-gray-300',
         UNDER_REVIEW: 'bg-yellow-100 text-yellow-800 border-yellow-300',
         FINAL: 'bg-green-100 text-green-800 border-green-300',
       };
@@ -21,9 +21,9 @@ export function StatusBadge({ status, type = 'default' }: StatusBadgeProps) {
     if (type === 'sars') {
       const colors = {
         PENDING: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-        IN_PROGRESS: 'bg-blue-100 text-blue-800 border-blue-300',
+        IN_PROGRESS: 'bg-forvis-blue-100 text-forvis-blue-800 border-forvis-blue-300',
         SUBMITTED: 'bg-green-100 text-green-800 border-green-300',
-        RESOLVED: 'bg-gray-100 text-gray-800 border-gray-300',
+        RESOLVED: 'bg-forvis-gray-100 text-forvis-gray-800 border-forvis-gray-300',
       };
       return colors[status as keyof typeof colors] || colors.PENDING;
     }
@@ -32,7 +32,7 @@ export function StatusBadge({ status, type = 'default' }: StatusBadgeProps) {
     if (type === 'filing') {
       const colors = {
         PENDING: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-        IN_PROGRESS: 'bg-blue-100 text-blue-800 border-blue-300',
+        IN_PROGRESS: 'bg-forvis-blue-100 text-forvis-blue-800 border-forvis-blue-300',
         SUBMITTED: 'bg-purple-100 text-purple-800 border-purple-300',
         APPROVED: 'bg-green-100 text-green-800 border-green-300',
         REJECTED: 'bg-red-100 text-red-800 border-red-300',
@@ -53,12 +53,12 @@ export function StatusBadge({ status, type = 'default' }: StatusBadgeProps) {
     // Default colors
     const defaultColors = {
       PENDING: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-      IN_PROGRESS: 'bg-blue-100 text-blue-800 border-blue-300',
+      IN_PROGRESS: 'bg-forvis-blue-100 text-forvis-blue-800 border-forvis-blue-300',
       COMPLETED: 'bg-green-100 text-green-800 border-green-300',
-      ACTIVE: 'bg-blue-100 text-blue-800 border-blue-300',
-      INACTIVE: 'bg-gray-100 text-gray-800 border-gray-300',
+      ACTIVE: 'bg-forvis-blue-100 text-forvis-blue-800 border-forvis-blue-300',
+      INACTIVE: 'bg-forvis-gray-100 text-forvis-gray-800 border-forvis-gray-300',
     };
-    return defaultColors[status as keyof typeof defaultColors] || 'bg-gray-100 text-gray-800 border-gray-300';
+    return defaultColors[status as keyof typeof defaultColors] || 'bg-forvis-gray-100 text-forvis-gray-800 border-forvis-gray-300';
   };
 
   return (

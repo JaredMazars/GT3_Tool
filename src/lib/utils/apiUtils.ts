@@ -1,5 +1,6 @@
 import { prisma } from '../db/prisma';
 import { AppError, ErrorCodes } from './errorHandler';
+import { Prisma } from '@prisma/client';
 
 /**
  * Common utility functions for API routes
@@ -95,7 +96,7 @@ export function parseDocumentId(id: string): number {
  */
 export async function getProjectOrThrow(
   projectId: number,
-  include?: Record<string, any>
+  include?: Prisma.ProjectInclude
 ) {
   const project = await prisma.project.findUnique({
     where: { id: projectId },
@@ -123,7 +124,7 @@ export async function getProjectOrThrow(
  */
 export async function getTaxAdjustmentOrThrow(
   adjustmentId: number,
-  include?: Record<string, any>
+  include?: Prisma.TaxAdjustmentInclude
 ) {
   const adjustment = await prisma.taxAdjustment.findUnique({
     where: { id: adjustmentId },
@@ -151,7 +152,7 @@ export async function getTaxAdjustmentOrThrow(
  */
 export async function getDocumentOrThrow(
   documentId: number,
-  include?: Record<string, any>
+  include?: Prisma.AdjustmentDocumentInclude
 ) {
   const document = await prisma.adjustmentDocument.findUnique({
     where: { id: documentId },
@@ -179,7 +180,7 @@ export async function getDocumentOrThrow(
  */
 export async function getMappedAccountOrThrow(
   accountId: number,
-  include?: Record<string, any>
+  include?: Prisma.MappedAccountInclude
 ) {
   const account = await prisma.mappedAccount.findUnique({
     where: { id: accountId },

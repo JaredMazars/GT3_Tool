@@ -1,6 +1,7 @@
 import { ConfidentialClientApplication, CryptoProvider } from '@azure/msal-node';
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
+import { randomBytes } from 'crypto';
 import { prisma } from '../../db/prisma';
 import { withRetry, RetryPresets } from '../../utils/retryUtils';
 import type { Session, SessionUser } from './types';
@@ -129,7 +130,7 @@ export async function createSession(user: SessionUser): Promise<string> {
 
   // Store session in database with retry logic for Azure SQL cold-start
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 1 day
-  const sessionId = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+  const sessionId = `sess_${randomBytes(16).toString('hex')}`;
   
   log.info('Creating session in database', { userId: user.id, sessionId });
   
@@ -384,7 +385,7 @@ export async function getUserProjectRole(
 }
 
 /**
- * Check if user is a system admin
+ * Check if user is a system admin (SUPERUSER or legacy ADMIN role)
  */
 export async function isSystemAdmin(userId: string): Promise<boolean> {
   try {
@@ -393,7 +394,8 @@ export async function isSystemAdmin(userId: string): Promise<boolean> {
       select: { role: true },
     });
 
-    return user?.role === 'ADMIN';
+    // Check for SUPERUSER (current) or ADMIN (legacy support)
+    return user?.role === 'SUPERUSER' || user?.role === 'ADMIN';
   } catch (error) {
     return false;
   }

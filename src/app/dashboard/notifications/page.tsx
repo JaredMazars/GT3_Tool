@@ -40,19 +40,19 @@ export default function NotificationsPage() {
   const totalPages = data ? Math.ceil(data.totalCount / pageSize) : 1;
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-forvis-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Notifications</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-2xl font-bold text-forvis-gray-900">Notifications</h1>
+          <p className="mt-1 text-sm text-forvis-gray-600">
             Stay updated on your projects and messages
           </p>
         </div>
 
         {/* Actions and Filters */}
-        <div className="bg-white rounded-lg shadow mb-6">
-          <div className="px-6 py-4 border-b border-gray-200">
+        <div className="bg-white rounded-lg shadow-corporate mb-6">
+          <div className="px-6 py-4 border-b border-forvis-gray-200">
             <div className="flex items-center justify-between flex-wrap gap-4">
               {/* Filter Tabs */}
               <div className="flex space-x-2">
@@ -63,8 +63,8 @@ export default function NotificationsPage() {
                   }}
                   className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                     activeTab === 'all'
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'text-gray-600 hover:bg-gray-100'
+                      ? 'bg-forvis-blue-100 text-forvis-blue-700'
+                      : 'text-forvis-gray-600 hover:bg-forvis-gray-100'
                   }`}
                 >
                   All
@@ -76,13 +76,13 @@ export default function NotificationsPage() {
                   }}
                   className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                     activeTab === 'unread'
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'text-gray-600 hover:bg-gray-100'
+                      ? 'bg-forvis-blue-100 text-forvis-blue-700'
+                      : 'text-forvis-gray-600 hover:bg-forvis-gray-100'
                   }`}
                 >
                   Unread
                   {data && data.unreadCount > 0 && (
-                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500 text-white">
+                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-forvis-blue-500 text-white">
                       {data.unreadCount}
                     </span>
                   )}
@@ -94,7 +94,7 @@ export default function NotificationsPage() {
                 <button
                   onClick={handleMarkAllAsRead}
                   disabled={markAllAsRead.isPending || data?.unreadCount === 0}
-                  className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center px-3 py-2 border border-forvis-gray-300 shadow-corporate text-sm font-medium rounded-md text-forvis-gray-700 bg-white hover:bg-forvis-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <CheckIcon className="h-4 w-4 mr-2" />
                   Mark all read
@@ -102,7 +102,7 @@ export default function NotificationsPage() {
                 <button
                   onClick={handleDeleteAllRead}
                   disabled={deleteAllRead.isPending}
-                  className="inline-flex items-center px-3 py-2 border border-red-300 shadow-sm text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center px-3 py-2 border border-red-300 shadow-corporate text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <TrashIcon className="h-4 w-4 mr-2" />
                   Delete all read
@@ -116,11 +116,11 @@ export default function NotificationsPage() {
             {isLoading && (
               <div className="p-6 space-y-4">
                 {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="animate-pulse flex space-x-4 p-4 border border-gray-200 rounded-lg">
-                    <div className="rounded-full bg-gray-200 h-12 w-12"></div>
+                  <div key={i} className="animate-pulse flex space-x-4 p-4 border border-forvis-gray-200 rounded-lg">
+                    <div className="rounded-full bg-forvis-gray-200 h-12 w-12"></div>
                     <div className="flex-1 space-y-3 py-1">
-                      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                      <div className="h-4 bg-forvis-gray-200 rounded w-3/4"></div>
+                      <div className="h-3 bg-forvis-gray-200 rounded w-1/2"></div>
                     </div>
                   </div>
                 ))}
@@ -129,7 +129,7 @@ export default function NotificationsPage() {
 
             {!isLoading && data && data.notifications.length === 0 && (
               <div className="p-12 text-center">
-                <div className="mx-auto h-12 w-12 text-gray-400">
+                <div className="mx-auto h-12 w-12 text-forvis-gray-400">
                   <svg
                     fill="none"
                     viewBox="0 0 24 24"
@@ -144,10 +144,10 @@ export default function NotificationsPage() {
                     />
                   </svg>
                 </div>
-                <h3 className="mt-2 text-sm font-medium text-gray-900">
+                <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">
                   {activeTab === 'unread' ? 'No unread notifications' : 'No notifications'}
                 </h3>
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-forvis-gray-600">
                   {activeTab === 'unread'
                     ? 'You are all caught up!'
                     : 'When you get notifications, they will appear here.'}
@@ -170,8 +170,8 @@ export default function NotificationsPage() {
 
           {/* Pagination */}
           {data && data.totalCount > pageSize && (
-            <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-              <div className="text-sm text-gray-700">
+            <div className="px-6 py-4 border-t border-forvis-gray-200 flex items-center justify-between">
+              <div className="text-sm text-forvis-gray-700">
                 Showing <span className="font-medium">{(currentPage - 1) * pageSize + 1}</span> to{' '}
                 <span className="font-medium">
                   {Math.min(currentPage * pageSize, data.totalCount)}
@@ -182,17 +182,17 @@ export default function NotificationsPage() {
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="px-3 py-1 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-3 py-1 text-sm font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 rounded-md hover:bg-forvis-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
-                <span className="text-sm text-gray-700">
+                <span className="text-sm text-forvis-gray-700">
                   Page {currentPage} of {totalPages}
                 </span>
                 <button
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
-                  className="px-3 py-1 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-3 py-1 text-sm font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 rounded-md hover:bg-forvis-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next
                 </button>

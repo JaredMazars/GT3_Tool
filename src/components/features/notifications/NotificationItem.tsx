@@ -57,8 +57,8 @@ export function NotificationItem({
       onClick={handleClick}
       className={`
         group relative p-4 cursor-pointer transition-colors
-        ${!notification.isRead ? 'bg-blue-50 border-l-4 border-l-blue-500' : 'bg-white hover:bg-gray-50'}
-        ${compact ? 'border-b border-gray-100' : 'border border-gray-200 rounded-lg mb-2'}
+        ${!notification.isRead ? 'bg-forvis-blue-50 border-l-4 border-l-forvis-blue-500' : 'bg-white hover:bg-forvis-gray-50'}
+        ${compact ? 'border-b border-forvis-gray-100' : 'border border-forvis-gray-200 rounded-lg mb-2'}
       `}
     >
       <div className="flex gap-3">
@@ -72,34 +72,34 @@ export function NotificationItem({
           {/* Header */}
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">
+              <p className="text-sm font-medium text-forvis-gray-900 truncate">
                 {notification.title}
               </p>
               {notification.FromUser && (
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-forvis-gray-600">
                   from {senderName}
                 </p>
               )}
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-forvis-gray-600">
                 {formatTimeAgo(notification.createdAt)}
               </span>
               {!notification.isRead && (
-                <span className="w-2 h-2 bg-blue-500 rounded-full" title="Unread" />
+                <span className="w-2 h-2 bg-forvis-blue-500 rounded-full" title="Unread" />
               )}
             </div>
           </div>
 
           {/* Message */}
-          <p className={`mt-1 text-sm text-gray-600 ${compact ? 'line-clamp-2' : ''}`}>
+          <p className={`mt-1 text-sm text-forvis-gray-700 ${compact ? 'line-clamp-2' : ''}`}>
             {messageText}
           </p>
 
           {/* Project Badge */}
           {notification.Project && (
             <div className="mt-2">
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-forvis-gray-100 text-forvis-gray-800">
                 {notification.Project.name}
               </span>
             </div>

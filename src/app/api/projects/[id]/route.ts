@@ -4,6 +4,7 @@ import { parseProjectId, successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { getCurrentUser, checkProjectAccess } from '@/lib/services/auth/auth';
 import { Prisma } from '@prisma/client';
+import { sanitizeText } from '@/lib/utils/sanitization';
 
 export async function GET(
   request: NextRequest,
@@ -174,17 +175,22 @@ export async function PUT(
     const updateData: Prisma.ProjectUpdateInput = {};
     
     if (body.name !== undefined) {
-      if (!body.name || !body.name.trim()) {
+      const sanitizedName = sanitizeText(body.name, { maxLength: 200 });
+      if (!sanitizedName) {
         return NextResponse.json(
           { error: 'Project name is required' },
           { status: 400 }
         );
       }
-      updateData.name = body.name.trim();
+      updateData.name = sanitizedName;
     }
     
     if (body.description !== undefined) {
-      updateData.description = body.description?.trim() || null;
+      updateData.description = sanitizeText(body.description, { 
+        maxLength: 1000,
+        allowHTML: false,
+        allowNewlines: true 
+      });
     }
     
     if (body.projectType !== undefined) {
