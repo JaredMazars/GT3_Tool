@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import Link from 'next/link';
 import { useProject } from '@/hooks/projects/useProjectData';
 
 /**
@@ -39,9 +40,9 @@ export default function ProjectRedirect() {
         <div className="text-center">
           <h2 className="text-2xl font-bold text-forvis-gray-900 mb-2">Project Not Found</h2>
           <p className="text-forvis-gray-600 mb-4">The project you're looking for doesn't exist.</p>
-          <a href="/dashboard" className="text-forvis-blue-600 hover:text-forvis-blue-700">
+          <Link href="/dashboard" className="text-forvis-blue-600 hover:text-forvis-blue-700">
             Return to Dashboard
-          </a>
+          </Link>
         </div>
       </div>
     );

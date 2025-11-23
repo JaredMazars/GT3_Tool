@@ -12,21 +12,14 @@ import { Suspense, useMemo } from 'react';
 function ClientDocumentsContent() {
   const params = useParams();
   
-  if (!params) {
-    return (
-      <div className="min-h-screen bg-forvis-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-forvis-blue-600"></div>
-      </div>
-    );
-  }
+  const clientId = (params?.id as string) || '';
+  const serviceLine = (params?.serviceLine as string)?.toUpperCase();
 
-  const clientId = params.id as string;
-  const serviceLine = (params.serviceLine as string)?.toUpperCase();
-
-  // Fetch client data
+  // Fetch client data - hooks must be called unconditionally
   const { data: clientData, isLoading } = useClient(clientId, {
     projectPage: 1,
     projectLimit: 1,
+    enabled: !!params && !!clientId,
   });
 
   // Transform client data to match expected format
@@ -37,6 +30,14 @@ function ClientDocumentsContent() {
       Project: clientData.projects || [],
     };
   }, [clientData]);
+
+  if (!params) {
+    return (
+      <div className="min-h-screen bg-forvis-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-forvis-blue-600"></div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (

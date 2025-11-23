@@ -160,7 +160,7 @@ export async function GET(
       uploadedBy: doc.uploadedBy ? userMap.get(doc.uploadedBy) || doc.uploadedBy : null,
       createdAt: doc.createdAt,
       category: doc.category,
-      description: doc.description,
+      description: doc.description ?? undefined,
       version: doc.version,
     }));
 

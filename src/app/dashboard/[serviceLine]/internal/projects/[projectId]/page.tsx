@@ -518,7 +518,7 @@ export default function InternalProjectPage() {
               ) : (
                 <ProjectUserList
                   projectId={parseInt(projectId)}
-                  users={teamMembers}
+                  users={teamMembers as any}
                   currentUserId={currentUserId}
                   currentUserRole={currentUserRole}
                   onUserRemoved={refetchTeam}

@@ -121,7 +121,7 @@ export function usePrefetchProjects(serviceLine?: string, clientProjectsOnly = f
   
   return () => {
     queryClient.prefetchQuery({
-      queryKey: projectListKeys.list(serviceLine, false, false, clientProjectsOnly),
+      queryKey: projectListKeys.list({ serviceLine, includeArchived: false, clientProjectsOnly }),
       queryFn: async () => {
         const params = new URLSearchParams();
         if (serviceLine) params.set('serviceLine', serviceLine);

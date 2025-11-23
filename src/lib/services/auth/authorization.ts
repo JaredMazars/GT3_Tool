@@ -282,7 +282,7 @@ export async function checkFeaturePermission(
           projectUser.role === 'ADMIN' ||
           projectUser.role === 'REVIEWER' ||
           projectUser.role === 'EDITOR' ||
-          (serviceLineRole && serviceLineRole !== ServiceLineRole.VIEWER)
+          (serviceLineRole !== null && serviceLineRole !== ServiceLineRole.VIEWER)
         );
 
       case Feature.VIEW_PROJECT:

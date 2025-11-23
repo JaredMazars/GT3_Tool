@@ -118,7 +118,7 @@ export default function ServiceLineClientDetailPage() {
   // Get project count for each service line from API response
   const getProjectCountByServiceLine = (sl: ServiceLine) => {
     if (!clientData?.projectCountsByServiceLine) return 0;
-    return clientData.projectCountsByServiceLine[sl] || 0;
+    return (clientData.projectCountsByServiceLine as Record<string, number>)[sl] || 0;
   };
 
   const serviceLines = [
