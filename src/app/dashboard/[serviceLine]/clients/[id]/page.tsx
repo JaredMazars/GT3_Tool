@@ -6,7 +6,6 @@ import { useParams, useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { 
   ChevronRightIcon,
-  BuildingOfficeIcon,
   FolderIcon,
   DocumentTextIcon,
   ChartBarIcon,
@@ -14,6 +13,7 @@ import {
   ClockIcon,
   PlusIcon,
   MagnifyingGlassIcon,
+  PresentationChartLineIcon,
 } from '@heroicons/react/24/outline';
 import { getProjectTypeColor, formatProjectType, formatDate } from '@/lib/utils/projectUtils';
 import { ProjectStageIndicator } from '@/components/features/projects/ProjectStageIndicator';
@@ -22,7 +22,6 @@ import { formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineU
 import { ServiceLine } from '@/types';
 import { CreateProjectModal } from '@/components/features/projects/CreateProjectModal';
 import { ClientHeader } from '@/components/features/clients/ClientHeader';
-import { ClientDocuments } from '@/components/features/clients/ClientDocuments';
 import { useClient, clientKeys, type ClientWithProjects } from '@/hooks/clients/useClients';
 import { projectListKeys } from '@/hooks/projects/useProjects';
 
@@ -34,7 +33,6 @@ export default function ServiceLineClientDetailPage() {
   const queryClient = useQueryClient();
   
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showDocumentsModal, setShowDocumentsModal] = useState(false);
   const [activeServiceLineTab, setActiveServiceLineTab] = useState<ServiceLine>(ServiceLine.TAX);
   const [projectPage, setProjectPage] = useState(1);
   const [projectLimit] = useState(20);
@@ -220,116 +218,127 @@ export default function ServiceLineClientDetailPage() {
           initialServiceLine={serviceLine as ServiceLine}
         />
 
-        {/* Documents Modal */}
-        {showDocumentsModal && (
-          <div className="fixed inset-0 z-50 overflow-y-auto">
-            <div className="flex min-h-screen items-center justify-center p-4">
-              {/* Backdrop */}
-              <div 
-                className="fixed inset-0 bg-black bg-opacity-30 transition-opacity"
-                onClick={() => setShowDocumentsModal(false)}
-              />
-              
-              {/* Modal Content */}
-              <div className="relative bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
-                {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-forvis-gray-200 bg-forvis-gray-50">
-                  <h2 className="text-xl font-semibold text-forvis-gray-900">
-                    {client.clientNameFull || client.clientCode} - Documents
-                  </h2>
-                  <button
-                    onClick={() => setShowDocumentsModal(false)}
-                    className="text-forvis-gray-400 hover:text-forvis-gray-600 transition-colors"
-                  >
-                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-                
-                {/* Content */}
-                <div className="overflow-y-auto max-h-[calc(90vh-80px)]">
-                  <ClientDocuments clientId={clientId} />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Client Information */}
-          <div className="lg:col-span-1 space-y-6">
-            <div className="card">
-              <div className="px-4 py-3 border-b border-forvis-gray-200">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:items-stretch">
+          {/* Left Column - Client Information (Extended) */}
+          <div className="lg:col-span-1 self-stretch">
+            <div className="card h-full flex flex-col">
+              <div className="px-4 py-3 border-b border-forvis-gray-200 flex-shrink-0">
                 <h2 className="text-base font-semibold text-forvis-gray-900">Client Information</h2>
               </div>
-              <div className="px-4 py-3">
+              <div className="px-4 py-3 flex-1">
                 <dl className="space-y-3">
+                  {/* Basic Information */}
                   <div>
-                    <dt className="text-xs font-medium text-forvis-gray-500">Group</dt>
-                    <dd className="mt-1 text-sm text-forvis-gray-900">{client.groupDesc} ({client.groupCode})</dd>
+                    <dt className="text-xs font-semibold text-forvis-gray-700 uppercase tracking-wider mb-2">Basic Information</dt>
+                    <div className="space-y-2 ml-2">
+                      <div>
+                        <dt className="text-xs font-medium text-forvis-gray-500">Client Code</dt>
+                        <dd className="mt-0.5 text-sm text-forvis-gray-900">{client.clientCode}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-medium text-forvis-gray-500">Status</dt>
+                        <dd className="mt-0.5">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            client.active === 'Yes' 
+                              ? 'bg-green-100 text-green-700' 
+                              : 'bg-red-100 text-red-700'
+                          }`}>
+                            {client.active === 'Yes' ? 'Active' : 'Inactive'}
+                          </span>
+                        </dd>
+                      </div>
+                      {client.clientDateOpen && (
+                        <div>
+                          <dt className="text-xs font-medium text-forvis-gray-500">Date Opened</dt>
+                          <dd className="mt-0.5 text-sm text-forvis-gray-900">{formatDate(client.clientDateOpen)}</dd>
+                        </div>
+                      )}
+                      {client.clientDateTerminate && (
+                        <div>
+                          <dt className="text-xs font-medium text-forvis-gray-500">Date Terminated</dt>
+                          <dd className="mt-0.5 text-sm text-forvis-gray-900">{formatDate(client.clientDateTerminate)}</dd>
+                        </div>
+                      )}
+                    </div>
                   </div>
+
+                  {/* Group & Type */}
                   <div>
-                    <dt className="text-xs font-medium text-forvis-gray-500">Partner</dt>
-                    <dd className="mt-1 text-sm text-forvis-gray-900">{client.clientPartner}</dd>
+                    <dt className="text-xs font-semibold text-forvis-gray-700 uppercase tracking-wider mb-2">Group & Type</dt>
+                    <div className="space-y-2 ml-2">
+                      <div>
+                        <dt className="text-xs font-medium text-forvis-gray-500">Group</dt>
+                        <dd className="mt-0.5 text-sm text-forvis-gray-900">{client.groupDesc} ({client.groupCode})</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-medium text-forvis-gray-500">Type</dt>
+                        <dd className="mt-0.5 text-sm text-forvis-gray-900">{client.typeDesc} ({client.typeCode})</dd>
+                      </div>
+                    </div>
                   </div>
+
+                  {/* Team */}
                   <div>
-                    <dt className="text-xs font-medium text-forvis-gray-500">Manager</dt>
-                    <dd className="mt-1 text-sm text-forvis-gray-900">{client.clientManager}</dd>
+                    <dt className="text-xs font-semibold text-forvis-gray-700 uppercase tracking-wider mb-2">Team</dt>
+                    <div className="space-y-2 ml-2">
+                      <div>
+                        <dt className="text-xs font-medium text-forvis-gray-500">Partner</dt>
+                        <dd className="mt-0.5 text-sm text-forvis-gray-900">{client.clientPartner}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-medium text-forvis-gray-500">Manager</dt>
+                        <dd className="mt-0.5 text-sm text-forvis-gray-900">{client.clientManager}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-medium text-forvis-gray-500">Incharge</dt>
+                        <dd className="mt-0.5 text-sm text-forvis-gray-900">{client.clientIncharge}</dd>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <dt className="text-xs font-medium text-forvis-gray-500">Incharge</dt>
-                    <dd className="mt-1 text-sm text-forvis-gray-900">{client.clientIncharge}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs font-medium text-forvis-gray-500">Type</dt>
-                    <dd className="mt-1 text-sm text-forvis-gray-900">{client.typeDesc} ({client.typeCode})</dd>
-                  </div>
-                  {(client.industry || client.sector) && (
+
+                  {/* Industry */}
+                  {(client.industry || client.sector || client.forvisMazarsIndustry) && (
                     <div>
-                      <dt className="text-xs font-medium text-forvis-gray-500">Industry</dt>
-                      <dd className="mt-1 text-sm text-forvis-gray-900">{client.industry || client.sector}</dd>
+                      <dt className="text-xs font-semibold text-forvis-gray-700 uppercase tracking-wider mb-2">Industry</dt>
+                      <div className="space-y-2 ml-2">
+                        {(client.industry || client.sector) && (
+                          <div>
+                            <dt className="text-xs font-medium text-forvis-gray-500">Industry/Sector</dt>
+                            <dd className="mt-0.5 text-sm text-forvis-gray-900">{client.industry || client.sector}</dd>
+                          </div>
+                        )}
+                        {client.forvisMazarsIndustry && (
+                          <div>
+                            <dt className="text-xs font-medium text-forvis-gray-500">Forvis Mazars Industry</dt>
+                            <dd className="mt-0.5 text-sm text-forvis-gray-900">{client.forvisMazarsIndustry}</dd>
+                          </div>
+                        )}
+                        {client.forvisMazarsSector && (
+                          <div>
+                            <dt className="text-xs font-medium text-forvis-gray-500">Forvis Mazars Sector</dt>
+                            <dd className="mt-0.5 text-sm text-forvis-gray-900">{client.forvisMazarsSector}</dd>
+                          </div>
+                        )}
+                        {client.forvisMazarsSubsector && (
+                          <div>
+                            <dt className="text-xs font-medium text-forvis-gray-500">Forvis Mazars Subsector</dt>
+                            <dd className="mt-0.5 text-sm text-forvis-gray-900">{client.forvisMazarsSubsector}</dd>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
+
                 </dl>
               </div>
             </div>
-
-            {/* Quick Actions */}
-            <div className="card">
-              <div className="px-4 py-3 border-b border-forvis-gray-200">
-                <h2 className="text-base font-semibold text-forvis-gray-900">Quick Actions</h2>
-              </div>
-              <div className="px-4 py-3 space-y-2">
-                <button 
-                  onClick={() => setShowDocumentsModal(true)}
-                  className="w-full flex items-center px-3 py-2 text-sm text-forvis-blue-700 bg-forvis-blue-50 hover:bg-forvis-blue-100 rounded-lg transition-colors"
-                >
-                  <DocumentTextIcon className="h-4 w-4 mr-2" />
-                  View Documents
-                </button>
-                <button 
-                  disabled
-                  className="w-full flex items-center px-3 py-2 text-sm text-forvis-gray-400 bg-forvis-gray-50 rounded-lg cursor-not-allowed"
-                >
-                  <ChartBarIcon className="h-4 w-4 mr-2" />
-                  Reports (Coming Soon)
-                </button>
-                <button 
-                  disabled
-                  className="w-full flex items-center px-3 py-2 text-sm text-forvis-gray-400 bg-forvis-gray-50 rounded-lg cursor-not-allowed"
-                >
-                  <UserGroupIcon className="h-4 w-4 mr-2" />
-                  Contacts (Coming Soon)
-                </button>
-              </div>
-            </div>
           </div>
 
-          {/* Projects */}
-          <div className="lg:col-span-2">
-            <div className="card">
-              <div className="px-4 py-3 border-b border-forvis-gray-200 flex items-center justify-between">
+          {/* Right Column - Projects and 4-Card Grid */}
+          <div className="lg:col-span-2 space-y-6 flex flex-col">
+            {/* Projects Section with Fixed Height */}
+            <div className="card flex-shrink-0" style={{ height: '600px', display: 'flex', flexDirection: 'column' }}>
+              <div className="px-4 py-3 border-b border-forvis-gray-200 flex items-center justify-between flex-shrink-0">
                 <h2 className="text-base font-semibold text-forvis-gray-900">
                   Projects ({client._count?.Project || 0})
                 </h2>
@@ -343,7 +352,7 @@ export default function ServiceLineClientDetailPage() {
               </div>
 
               {/* Service Line Tabs */}
-              <div className="border-b border-forvis-gray-200">
+              <div className="border-b border-forvis-gray-200 flex-shrink-0">
                 <nav className="flex -mb-px px-4" aria-label="Service Line Tabs">
                   {serviceLines.map((sl) => {
                     const count = getProjectCountByServiceLine(sl);
@@ -374,7 +383,7 @@ export default function ServiceLineClientDetailPage() {
               </div>
 
               {/* Search Bar */}
-              <div className="px-4 pt-4">
+              <div className="px-4 pt-4 flex-shrink-0">
                 <div className="relative">
                   <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
                   <input
@@ -393,7 +402,8 @@ export default function ServiceLineClientDetailPage() {
                 )}
               </div>
 
-              <div className="p-4">
+              {/* Scrollable Projects List */}
+              <div className="p-4 overflow-y-auto flex-1">
                 {isFetching && !isLoading ? (
                   <div className="text-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-600 mx-auto"></div>
@@ -486,20 +496,44 @@ export default function ServiceLineClientDetailPage() {
               </div>
             </div>
 
-            {/* Placeholder: Future Process Sections */}
-            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="card">
+            {/* 4-Card Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-shrink-0">
+              {/* Documents Card */}
+              <Link 
+                href={`/dashboard/${serviceLine.toLowerCase()}/clients/${clientId}/documents`}
+                className="card hover:shadow-lg hover:border-forvis-blue-500 transition-all cursor-pointer"
+              >
                 <div className="p-4 text-center">
-                  <DocumentTextIcon className="mx-auto h-8 w-8 text-forvis-gray-300 mb-2" />
-                  <h3 className="text-sm font-medium text-forvis-gray-500">Document Management</h3>
-                  <p className="text-xs text-forvis-gray-400 mt-1">Coming Soon</p>
+                  <DocumentTextIcon className="mx-auto h-10 w-10 text-forvis-blue-500 mb-2" />
+                  <h3 className="text-sm font-semibold text-forvis-gray-900 mb-1">Documents</h3>
+                  <p className="text-xs text-forvis-gray-500">View & download</p>
+                </div>
+              </Link>
+
+              {/* Reports Card */}
+              <div className="card opacity-60">
+                <div className="p-4 text-center">
+                  <ChartBarIcon className="mx-auto h-10 w-10 text-forvis-gray-300 mb-2" />
+                  <h3 className="text-sm font-semibold text-forvis-gray-900 mb-1">Reports</h3>
+                  <p className="text-xs text-forvis-gray-500">Coming Soon</p>
                 </div>
               </div>
-              <div className="card">
+
+              {/* Analytics Card */}
+              <div className="card opacity-60">
                 <div className="p-4 text-center">
-                  <ChartBarIcon className="mx-auto h-8 w-8 text-forvis-gray-300 mb-2" />
-                  <h3 className="text-sm font-medium text-forvis-gray-500">Analytics</h3>
-                  <p className="text-xs text-forvis-gray-400 mt-1">Coming Soon</p>
+                  <PresentationChartLineIcon className="mx-auto h-10 w-10 text-forvis-gray-300 mb-2" />
+                  <h3 className="text-sm font-semibold text-forvis-gray-900 mb-1">Analytics</h3>
+                  <p className="text-xs text-forvis-gray-500">Coming Soon</p>
+                </div>
+              </div>
+
+              {/* Contacts Card */}
+              <div className="card opacity-60">
+                <div className="p-4 text-center">
+                  <UserGroupIcon className="mx-auto h-10 w-10 text-forvis-gray-300 mb-2" />
+                  <h3 className="text-sm font-semibold text-forvis-gray-900 mb-1">Contacts</h3>
+                  <p className="text-xs text-forvis-gray-500">Coming Soon</p>
                 </div>
               </div>
             </div>
@@ -509,4 +543,3 @@ export default function ServiceLineClientDetailPage() {
     </div>
   );
 }
-

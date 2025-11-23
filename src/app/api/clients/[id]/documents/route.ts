@@ -26,15 +26,6 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid client ID' }, { status: 400 });
     }
 
-    // Verify client exists
-    const client = await prisma.client.findUnique({
-      where: { id: clientId },
-    });
-
-    if (!client) {
-      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
-    }
-
     // Get all projects for this client
     const projects = await prisma.project.findMany({
       where: { clientId },
@@ -47,67 +38,84 @@ export async function GET(
       },
     });
 
+    // Early return if no projects
+    if (projects.length === 0) {
+      return NextResponse.json(
+        successResponse({
+          documents: {
+            engagementLetters: [],
+            administration: [],
+            adjustments: [],
+            opinions: [],
+            sars: [],
+          },
+          totalCount: 0,
+        })
+      );
+    }
+
     const projectIds = projects.map((p) => p.id);
     const projectMap = new Map(projects.map((p) => [p.id, p.name]));
 
-    // Collect user IDs
+    // Fetch all documents in parallel for performance
+    const [adminDocs, adjustmentDocs, opinionDocs, sarsDocs] = await Promise.all([
+      prisma.administrationDocument.findMany({
+        where: { projectId: { in: projectIds } },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.adjustmentDocument.findMany({
+        where: { projectId: { in: projectIds } },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.opinionDocument.findMany({
+        where: {
+          OpinionDraft: {
+            projectId: { in: projectIds },
+          },
+        },
+        include: {
+          OpinionDraft: {
+            select: {
+              projectId: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.sarsResponse.findMany({
+        where: {
+          projectId: { in: projectIds },
+          documentPath: { not: null },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+
+    // Collect all user IDs
     const userIds = new Set<string>();
     projects.forEach(p => {
       if (p.engagementLetterUploadedBy) userIds.add(p.engagementLetterUploadedBy);
     });
-
-    // Fetch all documents
-    const adminDocs = await prisma.administrationDocument.findMany({
-      where: { projectId: { in: projectIds } },
-      orderBy: { createdAt: 'desc' },
-    });
     adminDocs.forEach(doc => {
       if (doc.uploadedBy) userIds.add(doc.uploadedBy);
-    });
-
-    const adjustmentDocs = await prisma.adjustmentDocument.findMany({
-      where: { projectId: { in: projectIds } },
-      orderBy: { createdAt: 'desc' },
     });
     adjustmentDocs.forEach(doc => {
       if (doc.uploadedBy) userIds.add(doc.uploadedBy);
     });
-
-    const opinionDocs = await prisma.opinionDocument.findMany({
-      where: {
-        OpinionDraft: {
-          projectId: { in: projectIds },
-        },
-      },
-      include: {
-        OpinionDraft: {
-          select: {
-            projectId: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
     opinionDocs.forEach(doc => {
       if (doc.uploadedBy) userIds.add(doc.uploadedBy);
-    });
-
-    const sarsDocs = await prisma.sarsResponse.findMany({
-      where: {
-        projectId: { in: projectIds },
-        documentPath: { not: null },
-      },
-      orderBy: { createdAt: 'desc' },
     });
     sarsDocs.forEach(doc => {
       if (doc.createdBy) userIds.add(doc.createdBy);
     });
 
-    // Look up user names NOW before mapping
-    const users = await prisma.user.findMany({
-      where: { id: { in: Array.from(userIds) } },
-      select: { id: true, name: true, email: true },
-    });
+    // Look up user names
+    const users = userIds.size > 0 
+      ? await prisma.user.findMany({
+          where: { id: { in: Array.from(userIds) } },
+          select: { id: true, name: true, email: true },
+        })
+      : [];
     const userMap = new Map(users.map(u => [u.id, u.name || u.email]));
 
     // Initialize result structure
@@ -216,12 +224,17 @@ export async function GET(
       documentsByType.opinions.length +
       documentsByType.sars.length;
 
-    return NextResponse.json(
+    const response = NextResponse.json(
       successResponse({
         documents: documentsByType,
         totalCount,
       })
     );
+
+    // Add cache headers for better performance
+    response.headers.set('Cache-Control', 'private, s-maxage=60, stale-while-revalidate=120');
+    
+    return response;
   } catch (error) {
     return handleApiError(error, 'GET /api/clients/[id]/documents');
   }

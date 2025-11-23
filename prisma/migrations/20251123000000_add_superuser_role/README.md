@@ -38,3 +38,4 @@ This migration introduces a clear distinction between system-level and service-l
 - No impact on ServiceLineUser or ProjectUser roles
 - Authentication and authorization logic updated to respect the new hierarchy
 
+

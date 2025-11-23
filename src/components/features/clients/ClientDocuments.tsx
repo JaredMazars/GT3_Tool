@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   DocumentTextIcon,
   ArrowDownTrayIcon,
   FolderOpenIcon,
+  MagnifyingGlassIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { useClientDocuments, downloadClientDocument } from '@/hooks/clients/useClientDocuments';
 import { DocumentType, ClientDocument } from '@/types';
@@ -32,6 +34,7 @@ function formatFileSize(bytes: number): string {
 
 export function ClientDocuments({ clientId }: ClientDocumentsProps) {
   const [activeTab, setActiveTab] = useState<DocumentType>(DocumentType.ENGAGEMENT_LETTER);
+  const [searchTerm, setSearchTerm] = useState('');
   const { data, isLoading, error } = useClientDocuments(clientId);
 
   const handleDownload = (doc: ClientDocument) => {
@@ -63,6 +66,27 @@ export function ClientDocuments({ clientId }: ClientDocumentsProps) {
     }
   };
 
+  // Filter documents by search term
+  const filteredDocuments = useMemo(() => {
+    if (!data?.documents) return [];
+    
+    const docs = getDocumentsForTab();
+    if (!searchTerm.trim()) return docs;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return docs.filter((doc) => {
+      return (
+        doc.fileName?.toLowerCase().includes(searchLower) ||
+        doc.projectName?.toLowerCase().includes(searchLower) ||
+        doc.uploadedBy?.toLowerCase().includes(searchLower) ||
+        doc.category?.toLowerCase().includes(searchLower) ||
+        doc.referenceNumber?.toLowerCase().includes(searchLower) ||
+        doc.subject?.toLowerCase().includes(searchLower) ||
+        doc.description?.toLowerCase().includes(searchLower)
+      );
+    });
+  }, [searchTerm, data?.documents, activeTab]);
+
   const getDocumentCount = (type: DocumentType): number => {
     if (!data?.documents) return 0;
     
@@ -82,7 +106,7 @@ export function ClientDocuments({ clientId }: ClientDocumentsProps) {
     }
   };
 
-  const documents = getDocumentsForTab();
+  const documents = filteredDocuments;
 
   if (error) {
     return (
@@ -135,8 +159,36 @@ export function ClientDocuments({ clientId }: ClientDocumentsProps) {
         </nav>
       </div>
 
+      {/* Search Bar */}
+      <div className="px-6 pt-4 pb-2">
+        <div className="relative">
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
+          <input
+            type="text"
+            placeholder="Search documents by name, project, uploaded by, category..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 pr-10 py-2 w-full border border-forvis-gray-300 rounded-lg focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent text-sm"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-forvis-gray-400 hover:text-forvis-gray-600"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+          )}
+        </div>
+        {searchTerm && (
+          <div className="mt-2 text-sm text-forvis-gray-600">
+            Found <span className="font-medium">{documents.length}</span>{' '}
+            document{documents.length !== 1 ? 's' : ''} matching "{searchTerm}"
+          </div>
+        )}
+      </div>
+
       {/* Content */}
-      <div className="p-6">
+      <div className="p-6 pt-2">
         {isLoading ? (
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-forvis-blue-600 mx-auto"></div>
@@ -146,11 +198,22 @@ export function ClientDocuments({ clientId }: ClientDocumentsProps) {
           <div className="text-center py-12">
             <FolderOpenIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">
-              No {DOCUMENT_TYPE_LABELS[activeTab].toLowerCase()}
+              {searchTerm ? 'No documents found' : `No ${DOCUMENT_TYPE_LABELS[activeTab].toLowerCase()}`}
             </h3>
             <p className="mt-1 text-sm text-forvis-gray-600">
-              This client doesn't have any {DOCUMENT_TYPE_LABELS[activeTab].toLowerCase()} yet.
+              {searchTerm 
+                ? `No documents match your search "${searchTerm}".`
+                : `This client doesn't have any ${DOCUMENT_TYPE_LABELS[activeTab].toLowerCase()} yet.`
+              }
             </p>
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="mt-4 text-sm text-forvis-blue-600 hover:text-forvis-blue-700 font-medium"
+              >
+                Clear search
+              </button>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">

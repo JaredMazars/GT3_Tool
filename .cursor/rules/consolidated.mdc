@@ -366,3 +366,5 @@ prisma/
 - Use DB indexes for frequent queries
 - Implement pagination for large datasets
 - Server Components by default
+- Ensure react query is consistantly used
+- Ensure the performance when loading pages and re-loading is optimized

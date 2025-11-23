@@ -80,3 +80,4 @@ This migration is part of a larger database optimization effort that includes:
 - Lazy loading for team members
 - Optimized Prisma select statements
 
+

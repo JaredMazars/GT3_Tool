@@ -24,8 +24,10 @@ export function useClientDocuments(clientId: string | number, enabled = true) {
       return result.success ? result.data : result;
     },
     enabled: enabled && !!clientId,
-    staleTime: 2 * 60 * 1000, // 2 minutes - documents change less frequently
-    gcTime: 5 * 60 * 1000, // 5 minutes cache retention
+    staleTime: 5 * 60 * 1000, // 5 minutes - documents don't change frequently
+    gcTime: 10 * 60 * 1000, // 10 minutes cache retention
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+    refetchOnMount: false, // Don't refetch on component mount if data exists
   });
 }
 
@@ -55,4 +57,5 @@ export function downloadClientDocument(
   link.click();
   document.body.removeChild(link);
 }
+
 
