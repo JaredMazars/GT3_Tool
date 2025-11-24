@@ -73,11 +73,6 @@ export async function GET(
             },
           },
         },
-        _count: {
-          select: {
-            Project: true,
-          },
-        },
       },
     });
 
@@ -96,13 +91,21 @@ export async function GET(
       },
     });
 
-    // Get project counts per service line for tab display
+    // Get project counts per service line for tab display (all 9 service lines)
     const projectCountsByServiceLine = await Promise.all([
       prisma.project.count({ where: { clientId, archived: !includeArchived ? false : undefined, serviceLine: 'TAX' } }),
       prisma.project.count({ where: { clientId, archived: !includeArchived ? false : undefined, serviceLine: 'AUDIT' } }),
       prisma.project.count({ where: { clientId, archived: !includeArchived ? false : undefined, serviceLine: 'ACCOUNTING' } }),
       prisma.project.count({ where: { clientId, archived: !includeArchived ? false : undefined, serviceLine: 'ADVISORY' } }),
+      prisma.project.count({ where: { clientId, archived: !includeArchived ? false : undefined, serviceLine: 'QRM' } }),
+      prisma.project.count({ where: { clientId, archived: !includeArchived ? false : undefined, serviceLine: 'BUSINESS_DEV' } }),
+      prisma.project.count({ where: { clientId, archived: !includeArchived ? false : undefined, serviceLine: 'IT' } }),
+      prisma.project.count({ where: { clientId, archived: !includeArchived ? false : undefined, serviceLine: 'FINANCE' } }),
+      prisma.project.count({ where: { clientId, archived: !includeArchived ? false : undefined, serviceLine: 'HR' } }),
     ]);
+
+    // Calculate total across all service lines
+    const totalAcrossAllServiceLines = projectCountsByServiceLine.reduce((sum, count) => sum + count, 0);
 
     // Transform Project to projects for frontend compatibility
     const { Project, ...clientWithoutProject } = client;
@@ -115,10 +118,13 @@ export async function GET(
           taxAdjustments: project._count.TaxAdjustment,
         },
       })),
+      _count: {
+        Project: totalAcrossAllServiceLines, // Total across all service lines (not filtered by active tab)
+      },
       projectPagination: {
         page: projectPage,
         limit: projectLimit,
-        total: totalProjects,
+        total: totalProjects, // Filtered count for pagination
         totalPages: Math.ceil(totalProjects / projectLimit),
       },
       projectCountsByServiceLine: {
@@ -126,6 +132,11 @@ export async function GET(
         AUDIT: projectCountsByServiceLine[1],
         ACCOUNTING: projectCountsByServiceLine[2],
         ADVISORY: projectCountsByServiceLine[3],
+        QRM: projectCountsByServiceLine[4],
+        BUSINESS_DEV: projectCountsByServiceLine[5],
+        IT: projectCountsByServiceLine[6],
+        FINANCE: projectCountsByServiceLine[7],
+        HR: projectCountsByServiceLine[8],
       },
     };
 

@@ -32,8 +32,15 @@ export default function ServiceLineClientDetailPage() {
   const serviceLine = (params.serviceLine as string)?.toUpperCase();
   const queryClient = useQueryClient();
   
+  // Determine initial main tab and service line tab based on URL
+  const initialIsSharedService = serviceLine ? isSharedService(serviceLine) : false;
+  const initialServiceLineTab = serviceLine ? (serviceLine as ServiceLine) : ServiceLine.TAX;
+  
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [activeServiceLineTab, setActiveServiceLineTab] = useState<ServiceLine>(ServiceLine.TAX);
+  const [mainTab, setMainTab] = useState<'service-lines' | 'shared-services'>(
+    initialIsSharedService ? 'shared-services' : 'service-lines'
+  );
+  const [activeServiceLineTab, setActiveServiceLineTab] = useState<ServiceLine>(initialServiceLineTab);
   const [projectPage, setProjectPage] = useState(1);
   const [projectLimit] = useState(20);
   const [searchTerm, setSearchTerm] = useState('');
@@ -61,6 +68,7 @@ export default function ServiceLineClientDetailPage() {
   useEffect(() => {
     if (serviceLine) {
       setActiveServiceLineTab(serviceLine as ServiceLine);
+      setMainTab(isSharedService(serviceLine) ? 'shared-services' : 'service-lines');
     }
   }, [serviceLine]);
 
@@ -68,6 +76,20 @@ export default function ServiceLineClientDetailPage() {
   useEffect(() => {
     setProjectPage(1);
   }, [activeServiceLineTab]);
+
+  // Ensure activeServiceLineTab is valid for the current main tab
+  useEffect(() => {
+    const currentIsShared = isSharedService(activeServiceLineTab);
+    const shouldBeShared = mainTab === 'shared-services';
+    
+    // If the active tab doesn't match the main tab category, switch to the first tab in that category
+    if (currentIsShared !== shouldBeShared) {
+      const newTab = shouldBeShared ? sharedServices[0] : mainServiceLines[0];
+      if (newTab) {
+        setActiveServiceLineTab(newTab);
+      }
+    }
+  }, [mainTab]);
 
   // Debounce search input
   useEffect(() => {
@@ -81,7 +103,7 @@ export default function ServiceLineClientDetailPage() {
   useEffect(() => {
     setSearchTerm('');
     setDebouncedSearch('');
-  }, [activeServiceLineTab]);
+  }, [activeServiceLineTab, mainTab]);
 
   // Placeholder function - returns random stage for demo
   const getProjectStage = (projectId: number): ProjectStage => {
@@ -121,12 +143,24 @@ export default function ServiceLineClientDetailPage() {
     return (clientData.projectCountsByServiceLine as Record<string, number>)[sl] || 0;
   };
 
-  const serviceLines = [
+  // Define main service lines and shared services
+  const mainServiceLines = [
     ServiceLine.TAX,
     ServiceLine.AUDIT,
     ServiceLine.ACCOUNTING,
     ServiceLine.ADVISORY,
   ];
+  
+  const sharedServices = [
+    ServiceLine.QRM,
+    ServiceLine.BUSINESS_DEV,
+    ServiceLine.IT,
+    ServiceLine.FINANCE,
+    ServiceLine.HR,
+  ];
+
+  // Get active tab list based on main tab selection
+  const activeTabList = mainTab === 'service-lines' ? mainServiceLines : sharedServices;
 
   // Filter projects by search term
   const filteredProjects = useMemo(() => {
@@ -351,10 +385,46 @@ export default function ServiceLineClientDetailPage() {
                 </button>
               </div>
 
-              {/* Service Line Tabs */}
+              {/* Main Tabs - Service Lines vs Shared Services */}
               <div className="border-b border-forvis-gray-200 flex-shrink-0">
-                <nav className="flex -mb-px px-4" aria-label="Service Line Tabs">
-                  {serviceLines.map((sl) => {
+                <nav className="flex -mb-px px-4" aria-label="Main Project Categories">
+                  <button
+                    onClick={() => {
+                      setMainTab('service-lines');
+                      if (mainServiceLines[0]) {
+                        setActiveServiceLineTab(mainServiceLines[0]);
+                      }
+                    }}
+                    className={`flex items-center space-x-2 px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
+                      mainTab === 'service-lines'
+                        ? 'border-forvis-blue-600 text-forvis-blue-600'
+                        : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
+                    }`}
+                  >
+                    <span>Service Lines</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMainTab('shared-services');
+                      if (sharedServices[0]) {
+                        setActiveServiceLineTab(sharedServices[0]);
+                      }
+                    }}
+                    className={`flex items-center space-x-2 px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
+                      mainTab === 'shared-services'
+                        ? 'border-forvis-blue-600 text-forvis-blue-600'
+                        : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
+                    }`}
+                  >
+                    <span>Shared Services</span>
+                  </button>
+                </nav>
+              </div>
+
+              {/* Service Line Sub-Tabs */}
+              <div className="border-b border-forvis-gray-200 flex-shrink-0 overflow-x-auto bg-forvis-gray-50">
+                <nav className="flex -mb-px px-4 min-w-max" aria-label="Service Line Tabs">
+                  {activeTabList.map((sl) => {
                     const count = getProjectCountByServiceLine(sl);
                     const isActive = activeServiceLineTab === sl;
                     
@@ -362,14 +432,14 @@ export default function ServiceLineClientDetailPage() {
                       <button
                         key={sl}
                         onClick={() => setActiveServiceLineTab(sl)}
-                        className={`flex items-center space-x-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                        className={`flex items-center space-x-1.5 px-3 py-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
                           isActive
-                            ? 'border-forvis-blue-600 text-forvis-blue-600'
+                            ? 'border-forvis-blue-600 text-forvis-blue-600 bg-white'
                             : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
                         }`}
                       >
                         <span>{formatServiceLineName(sl)}</span>
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${
                           isActive
                             ? 'bg-forvis-blue-100 text-forvis-blue-700'
                             : 'bg-forvis-gray-100 text-forvis-gray-600'

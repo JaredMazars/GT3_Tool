@@ -33,9 +33,9 @@ export function AcceptanceQuestionnaire({ projectId, onSubmitSuccess }: Acceptan
   const existingAnswers = questionnaireData?.data?.answers || [];
   const riskAssessment = questionnaireData?.data?.riskAssessment;
 
-  // Load existing answers
+  // Load existing answers (only on initial load, not on every refetch)
   useEffect(() => {
-    if (existingAnswers && existingAnswers.length > 0) {
+    if (existingAnswers && existingAnswers.length > 0 && Object.keys(answers).length === 0) {
       const answerMap: AnswerState = {};
       existingAnswers.forEach((ans: any) => {
         answerMap[ans.Question.questionKey] = {
@@ -45,6 +45,7 @@ export function AcceptanceQuestionnaire({ projectId, onSubmitSuccess }: Acceptan
       });
       setAnswers(answerMap);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existingAnswers]);
 
   // Autosave functionality (debounced)
@@ -91,18 +92,37 @@ export function AcceptanceQuestionnaire({ projectId, onSubmitSuccess }: Acceptan
     }
   };
 
-  // Calculate completion for each section
+  // Calculate completion for each section (accounting for conditional questions)
   const sectionCompletion = useMemo(() => {
     return sections.map((section) => {
       const questions = section.questions.filter((q) => q.required && q.fieldType !== 'PLACEHOLDER' && q.fieldType !== 'BUTTON');
-      const answered = questions.filter((q) => {
-        const answer = answers[q.questionKey];
-        return answer && answer.answer && answer.answer.trim() !== '';
-      });
+      
+      let visibleCount = 0;
+      let answeredCount = 0;
+      
+      for (const question of questions) {
+        // Check conditional display
+        if (question.conditionalDisplay) {
+          const dependentAnswer = answers[question.conditionalDisplay.dependsOn];
+          if (dependentAnswer?.answer !== question.conditionalDisplay.requiredAnswer) {
+            continue; // Skip questions that shouldn't be shown
+          }
+        }
+        
+        // This question is visible
+        visibleCount++;
+        
+        // Check if answered
+        const answer = answers[question.questionKey];
+        if (answer && answer.answer && answer.answer.trim() !== '') {
+          answeredCount++;
+        }
+      }
+      
       return {
-        total: questions.length,
-        completed: answered.length,
-        percentage: questions.length > 0 ? Math.round((answered.length / questions.length) * 100) : 100,
+        total: visibleCount,
+        completed: answeredCount,
+        percentage: visibleCount > 0 ? Math.round((answeredCount / visibleCount) * 100) : 100,
       };
     });
   }, [sections, answers]);

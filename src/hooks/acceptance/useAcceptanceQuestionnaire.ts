@@ -98,9 +98,20 @@ export function useSaveAnswers(projectId: string) {
         queryClient.setQueryData(acceptanceKeys.questionnaire(projectId), context.previousData);
       }
     },
-    onSuccess: () => {
-      // Invalidate both queries to ensure fresh data
-      queryClient.invalidateQueries({ queryKey: acceptanceKeys.questionnaire(projectId) });
+    onSuccess: (data) => {
+      // Update risk assessment without refetching (prevents state jumping)
+      queryClient.setQueryData(acceptanceKeys.questionnaire(projectId), (oldData: any) => {
+        if (!oldData?.data) return oldData;
+        return {
+          ...oldData,
+          data: {
+            ...oldData.data,
+            riskAssessment: data.data?.riskAssessment,
+          },
+        };
+      });
+      
+      // Only invalidate status (lightweight query)
       queryClient.invalidateQueries({ queryKey: acceptanceKeys.status(projectId) });
     },
   });

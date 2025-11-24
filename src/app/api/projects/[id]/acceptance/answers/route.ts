@@ -78,82 +78,88 @@ export async function PATCH(
 
     const questionMap = new Map(allQuestions.map((q) => [q.questionKey, q]));
 
-    // Use transaction to ensure atomic updates
-    const updatedResponse = await prisma.$transaction(async (tx) => {
-      // Batch upsert answers with sanitization
-      const upsertPromises = validated.answers
-        .map((answerInput) => {
-          const question = questionMap.get(answerInput.questionKey);
-          
-          if (!question) {
-            console.warn(`Question with key ${answerInput.questionKey} not found`);
-            return null;
-          }
+    // Batch upsert answers (no transaction - each upsert is atomic)
+    const upsertPromises = validated.answers
+      .map((answerInput) => {
+        const question = questionMap.get(answerInput.questionKey);
+        
+        if (!question) {
+          console.warn(`Question with key ${answerInput.questionKey} not found`);
+          return null;
+        }
 
-          // Sanitize comment to prevent XSS
-          const sanitizedComment = sanitizeComment(answerInput.comment);
+        // Sanitize comment to prevent XSS
+        const sanitizedComment = sanitizeComment(answerInput.comment);
 
-          return tx.acceptanceAnswer.upsert({
-            where: {
-              responseId_questionId: {
-                responseId: response.id,
-                questionId: question.id,
-              },
-            },
-            create: {
+        return prisma.acceptanceAnswer.upsert({
+          where: {
+            responseId_questionId: {
               responseId: response.id,
               questionId: question.id,
-              answer: answerInput.answer,
-              comment: sanitizedComment,
-            },
-            update: {
-              answer: answerInput.answer,
-              comment: sanitizedComment,
-              updatedAt: new Date(),
-            },
-          });
-        })
-        .filter((p) => p !== null);
-
-      // Execute all upserts in parallel
-      await Promise.all(upsertPromises);
-
-      // Get all current answers
-      const allAnswers = await tx.acceptanceAnswer.findMany({
-        where: { responseId: response.id },
-        include: { Question: true },
-      });
-
-      // Calculate risk assessment
-      const questionDefs = getAllQuestions(response.questionnaireType as any);
-      const answerData = allAnswers.map((a) => ({
-        questionKey: a.Question.questionKey,
-        answer: a.answer || '',
-        comment: a.comment || undefined,
-      }));
-
-      const riskAssessment = calculateRiskAssessment(questionDefs, answerData);
-
-      // Update response with risk assessment
-      const updated = await tx.clientAcceptanceResponse.update({
-        where: { id: response.id },
-        data: {
-          overallRiskScore: riskAssessment.overallRiskScore,
-          riskRating: riskAssessment.riskRating,
-          riskSummary: riskAssessment.riskSummary,
-          updatedAt: new Date(),
-        },
-        include: {
-          AcceptanceAnswer: {
-            include: {
-              Question: true,
             },
           },
-        },
-      });
+          create: {
+            responseId: response.id,
+            questionId: question.id,
+            answer: answerInput.answer,
+            comment: sanitizedComment,
+          },
+          update: {
+            answer: answerInput.answer,
+            comment: sanitizedComment,
+            updatedAt: new Date(),
+          },
+        });
+      })
+      .filter((p) => p !== null);
 
-      return { updated, riskAssessment };
+    // Execute all upserts in parallel
+    await Promise.all(upsertPromises);
+
+    // Get all current answers (optimized query - only needed fields)
+    const allAnswers = await prisma.acceptanceAnswer.findMany({
+      where: { responseId: response.id },
+      select: {
+        answer: true,
+        comment: true,
+        Question: {
+          select: {
+            questionKey: true,
+          },
+        },
+      },
     });
+
+    // Calculate risk assessment
+    const questionDefs = getAllQuestions(response.questionnaireType as any);
+    const answerData = allAnswers.map((a) => ({
+      questionKey: a.Question.questionKey,
+      answer: a.answer || '',
+      comment: a.comment || undefined,
+    }));
+
+    const riskAssessment = calculateRiskAssessment(questionDefs, answerData);
+
+    // Update response with risk assessment
+    const updated = await prisma.clientAcceptanceResponse.update({
+      where: { id: response.id },
+      data: {
+        overallRiskScore: riskAssessment.overallRiskScore,
+        riskRating: riskAssessment.riskRating,
+        riskSummary: riskAssessment.riskSummary,
+        updatedAt: new Date(),
+      },
+      select: {
+        id: true,
+        overallRiskScore: true,
+        riskRating: true,
+        riskSummary: true,
+        completedAt: true,
+        reviewedAt: true,
+      },
+    });
+
+    const updatedResponse = { updated, riskAssessment };
 
     // Audit log
     await logAnswersSaved(projectId, user.id, validated.answers.length);
