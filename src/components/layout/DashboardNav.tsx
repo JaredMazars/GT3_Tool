@@ -59,6 +59,11 @@ export default function DashboardNav() {
           href: '/dashboard/admin/service-lines',
           description: 'Manage service line permissions',
         },
+        {
+          label: 'Template Management',
+          href: '/dashboard/admin/templates',
+          description: 'Manage engagement letter templates',
+        },
       ],
     },
   ];

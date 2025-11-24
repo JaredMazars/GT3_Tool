@@ -6,13 +6,15 @@ import {
   ArrowDownTrayIcon, 
   ArrowUpTrayIcon,
   CheckCircleIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline';
 import { Project } from '@/types';
 import { MarkdownRenderer } from '@/components/shared/MarkdownRenderer';
 import { useQueryClient } from '@tanstack/react-query';
 import { projectKeys } from '@/hooks/projects/useProjectData';
 import { useCanApproveAcceptance } from '@/hooks/auth/usePermissions';
+import { TemplateSelector } from '@/components/features/templates/TemplateSelector';
 
 interface EngagementLetterTabProps {
   project: Project;
@@ -24,8 +26,11 @@ export function EngagementLetterTab({ project, currentUserRole, onUploadComplete
   const [isGenerating, setIsGenerating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [letterContent, setLetterContent] = useState<string | null>(null);
+  const [sectionsUsed, setSectionsUsed] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
+  const [useAiAdaptation, setUseAiAdaptation] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
@@ -43,6 +48,10 @@ export function EngagementLetterTab({ project, currentUserRole, onUploadComplete
       const response = await fetch(`/api/projects/${project.id}/engagement-letter/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          templateId: selectedTemplateId,
+          useAiAdaptation,
+        }),
       });
 
       const data = await response.json();
@@ -52,6 +61,7 @@ export function EngagementLetterTab({ project, currentUserRole, onUploadComplete
       }
 
       setLetterContent(data.data.content);
+      setSectionsUsed(data.data.sectionsUsed || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate engagement letter');
     } finally {
@@ -252,20 +262,54 @@ export function EngagementLetterTab({ project, currentUserRole, onUploadComplete
             </div>
             <div className="px-6 py-4">
               {!letterContent ? (
-                <div>
-                  <p className="text-sm text-forvis-gray-700 mb-4">
-                    Generate an engagement letter using the standard template. The letter will be pre-filled with client and project information.
+                <div className="space-y-6">
+                  <p className="text-sm text-forvis-gray-700">
+                    Select a template and generate an engagement letter pre-filled with client and project information.
                   </p>
+                  
                   {canManage ? (
-                    <button
-                      onClick={handleGenerate}
-                      disabled={isGenerating}
-                      className="inline-flex items-center px-6 py-3 text-sm font-semibold text-white rounded-lg transition-all shadow-corporate hover:shadow-corporate-md disabled:opacity-50 disabled:cursor-not-allowed"
-                      style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
-                    >
-                      <DocumentTextIcon className="h-5 w-5 mr-2" />
-                      {isGenerating ? 'Generating...' : 'Generate Letter'}
-                    </button>
+                    <>
+                      {/* Template Selection */}
+                      <div className="border-2 border-forvis-gray-200 rounded-lg p-4">
+                        <TemplateSelector
+                          serviceLine={project.serviceLine}
+                          projectType={project.projectType}
+                          selectedTemplateId={selectedTemplateId}
+                          onSelect={setSelectedTemplateId}
+                        />
+                      </div>
+
+                      {/* AI Adaptation Option */}
+                      <div className="flex items-start space-x-3 p-4 bg-purple-50 border-2 border-purple-200 rounded-lg">
+                        <input
+                          type="checkbox"
+                          id="aiAdaptation"
+                          checked={useAiAdaptation}
+                          onChange={(e) => setUseAiAdaptation(e.target.checked)}
+                          className="mt-1 h-4 w-4 text-purple-600 border-forvis-gray-300 rounded focus:ring-purple-500"
+                        />
+                        <div className="flex-1">
+                          <label htmlFor="aiAdaptation" className="text-sm font-medium text-purple-900 flex items-center cursor-pointer">
+                            <SparklesIcon className="h-5 w-5 mr-2" />
+                            Use AI to customize sections
+                          </label>
+                          <p className="text-xs text-purple-700 mt-1">
+                            AI will adapt marked sections to be specific to this client and project while maintaining the professional structure and tone.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Generate Button */}
+                      <button
+                        onClick={handleGenerate}
+                        disabled={isGenerating || !selectedTemplateId}
+                        className="inline-flex items-center px-6 py-3 text-sm font-semibold text-white rounded-lg transition-all shadow-corporate hover:shadow-corporate-md disabled:opacity-50 disabled:cursor-not-allowed"
+                        style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+                      >
+                        <DocumentTextIcon className="h-5 w-5 mr-2" />
+                        {isGenerating ? 'Generating...' : 'Generate Letter'}
+                      </button>
+                    </>
                   ) : (
                     <div className="p-4 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
                       <p className="text-sm text-yellow-800">
@@ -277,9 +321,22 @@ export function EngagementLetterTab({ project, currentUserRole, onUploadComplete
               ) : (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-green-700">
-                      Letter generated successfully
-                    </p>
+                    <div>
+                      <p className="text-sm font-medium text-green-700">
+                        Letter generated successfully
+                      </p>
+                      {sectionsUsed.length > 0 && (
+                        <p className="text-xs text-forvis-gray-600 mt-1">
+                          {sectionsUsed.length} sections included
+                          {sectionsUsed.some((s: any) => s.wasAiAdapted) && (
+                            <span className="ml-2 inline-flex items-center text-purple-600">
+                              <SparklesIcon className="h-3 w-3 mr-1" />
+                              AI-adapted
+                            </span>
+                          )}
+                        </p>
+                      )}
+                    </div>
                     <button
                       onClick={handleDownload}
                       className="inline-flex items-center px-4 py-2 text-sm font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 rounded-lg hover:bg-forvis-gray-50 transition-colors"

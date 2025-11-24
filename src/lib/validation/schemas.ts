@@ -211,6 +211,51 @@ export const NotificationFiltersSchema = z.object({
 }).strict();
 
 /**
+ * Template schemas
+ */
+export const CreateTemplateSchema = z.object({
+  name: z.string().min(1).max(200),
+  description: z.string().optional(),
+  type: z.enum(['ENGAGEMENT_LETTER', 'PROPOSAL', 'AGREEMENT']),
+  serviceLine: z.string().optional(),
+  projectType: z.string().optional(),
+  content: z.string(),
+  active: z.boolean().default(true),
+}).strict();
+
+export const UpdateTemplateSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  description: z.string().optional(),
+  type: z.enum(['ENGAGEMENT_LETTER', 'PROPOSAL', 'AGREEMENT']).optional(),
+  serviceLine: z.string().nullable().optional(),
+  projectType: z.string().nullable().optional(),
+  content: z.string().optional(),
+  active: z.boolean().optional(),
+}).strict();
+
+export const CreateTemplateSectionSchema = z.object({
+  sectionKey: z.string().min(1),
+  title: z.string().min(1),
+  content: z.string(),
+  isRequired: z.boolean().default(true),
+  isAiAdaptable: z.boolean().default(false),
+  order: z.number().int().positive(),
+  applicableServiceLines: z.array(z.string()).optional(),
+  applicableProjectTypes: z.array(z.string()).optional(),
+}).strict();
+
+export const UpdateTemplateSectionSchema = z.object({
+  sectionKey: z.string().min(1).optional(),
+  title: z.string().min(1).optional(),
+  content: z.string().optional(),
+  isRequired: z.boolean().optional(),
+  isAiAdaptable: z.boolean().optional(),
+  order: z.number().int().positive().optional(),
+  applicableServiceLines: z.array(z.string()).nullable().optional(),
+  applicableProjectTypes: z.array(z.string()).nullable().optional(),
+}).strict();
+
+/**
  * Type inference from schemas
  */
 export type UpdateProjectInput = z.infer<typeof UpdateProjectSchema>;
@@ -225,8 +270,8 @@ export type CreateNotificationPreferenceInput = z.infer<typeof CreateNotificatio
 export type UpdateInAppNotificationInput = z.infer<typeof UpdateInAppNotificationSchema>;
 export type SendUserMessageInput = z.infer<typeof SendUserMessageSchema>;
 export type NotificationFiltersInput = z.infer<typeof NotificationFiltersSchema>;
-
-
-
-
+export type CreateTemplateInput = z.infer<typeof CreateTemplateSchema>;
+export type UpdateTemplateInput = z.infer<typeof UpdateTemplateSchema>;
+export type CreateTemplateSectionInput = z.infer<typeof CreateTemplateSectionSchema>;
+export type UpdateTemplateSectionInput = z.infer<typeof UpdateTemplateSectionSchema>;
 

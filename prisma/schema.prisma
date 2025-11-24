@@ -516,6 +516,45 @@ model InAppNotification {
   @@index([createdAt(sort: Desc)])
 }
 
+model Template {
+  id          Int               @id @default(autoincrement())
+  name        String
+  description String?
+  type        String
+  serviceLine String?
+  projectType String?
+  content     String            @db.NVarChar(Max)
+  active      Boolean           @default(true)
+  createdBy   String
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  sections    TemplateSection[]
+
+  @@index([type])
+  @@index([serviceLine])
+  @@index([projectType])
+  @@index([active])
+}
+
+model TemplateSection {
+  id                      Int      @id @default(autoincrement())
+  templateId              Int
+  sectionKey              String
+  title                   String
+  content                 String   @db.NVarChar(Max)
+  isRequired              Boolean  @default(true)
+  isAiAdaptable           Boolean  @default(false)
+  order                   Int
+  applicableServiceLines  String?  @db.NVarChar(Max)
+  applicableProjectTypes  String?  @db.NVarChar(Max)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  Template                Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@index([sectionKey])
+}
+
 model VerificationToken {
   identifier String
   token      String   @unique
