@@ -29,30 +29,32 @@ interface ProjectData {
  * Normalize project data from API response
  * Transforms Prisma relation names to consistent lowercase naming
  */
-function normalizeProjectData(data: any): any {
-  if (!data) return data;
+function normalizeProjectData(data: unknown): unknown {
+  if (!data || typeof data !== 'object') return data;
   
-  const normalized = { ...data };
+  const normalized = { ...(data as Record<string, unknown>) };
   
   // Transform Client → client (Prisma relation to lowercase)
-  if (normalized.Client) {
+  if ('Client' in normalized) {
     normalized.client = normalized.Client;
     delete normalized.Client;
   }
   
   // Transform _count field names from Prisma model names to friendly names
-  if (normalized._count) {
-    const newCount: any = {};
-    if (normalized._count.MappedAccount !== undefined) {
-      newCount.mappings = normalized._count.MappedAccount;
+  if ('_count' in normalized && normalized._count && typeof normalized._count === 'object') {
+    const count = normalized._count as Record<string, unknown>;
+    const newCount: Record<string, unknown> = {};
+    
+    if ('MappedAccount' in count && count.MappedAccount !== undefined) {
+      newCount.mappings = count.MappedAccount;
     }
-    if (normalized._count.TaxAdjustment !== undefined) {
-      newCount.taxAdjustments = normalized._count.TaxAdjustment;
+    if ('TaxAdjustment' in count && count.TaxAdjustment !== undefined) {
+      newCount.taxAdjustments = count.TaxAdjustment;
     }
     // Preserve any other count fields that may already be normalized
-    Object.keys(normalized._count).forEach(key => {
+    Object.keys(count).forEach(key => {
       if (key !== 'MappedAccount' && key !== 'TaxAdjustment') {
-        newCount[key] = normalized._count[key];
+        newCount[key] = count[key];
       }
     });
     normalized._count = newCount;
@@ -235,9 +237,9 @@ export function useUpdateTaxAdjustment(projectId: string) {
       const previousAdjustments = queryClient.getQueryData(projectKeys.taxAdjustments(projectId));
 
       // Optimistically update cache
-      queryClient.setQueryData(projectKeys.taxAdjustments(projectId), (old: any) => {
-        if (!old) return old;
-        return old.map((adj: any) =>
+      queryClient.setQueryData(projectKeys.taxAdjustments(projectId), (old: unknown) => {
+        if (!old || !Array.isArray(old)) return old;
+        return old.map((adj: TaxAdjustment) =>
           adj.id === adjustmentId ? { ...adj, status } : adj
         );
       });

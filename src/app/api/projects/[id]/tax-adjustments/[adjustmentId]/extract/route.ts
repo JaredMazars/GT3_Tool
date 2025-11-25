@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/db/prisma';
 import { DocumentExtractor } from '@/lib/services/documents/documentExtractor';
 import { handleApiError } from '@/lib/utils/errorHandler';
+import { getCurrentUser, checkProjectAccess } from '@/lib/services/auth/auth';
+import { toProjectId } from '@/types/branded';
+import { z } from 'zod';
 
-const prisma = new PrismaClient();
+const ExtractDocumentSchema = z.object({
+  documentId: z.number().int().positive(),
+  context: z.string().optional(),
+});
 
 /**
  * POST /api/projects/[id]/tax-adjustments/[adjustmentId]/extract
@@ -11,20 +17,27 @@ const prisma = new PrismaClient();
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string; adjustmentId: string }> }
+  context: { params: Promise<{ id: string; adjustmentId: string }> }
 ) {
   try {
-    const resolvedParams = await params;
-    const adjustmentId = parseInt(resolvedParams.adjustmentId);
-    const body = await request.json();
-    const { documentId, context } = body;
-
-    if (!documentId) {
-      return NextResponse.json(
-        { error: 'documentId is required' },
-        { status: 400 }
-      );
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const params = await context.params;
+    const projectId = toProjectId(params.id);
+    const adjustmentId = parseInt(params.adjustmentId);
+
+    // Check project access (requires EDITOR role or higher)
+    const hasAccess = await checkProjectAccess(user.id, projectId, 'EDITOR');
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const validated = ExtractDocumentSchema.parse(body);
+    const { documentId, context: extractContext } = validated;
 
     // Fetch the document
     const document = await prisma.adjustmentDocument.findUnique({
@@ -59,7 +72,7 @@ export async function POST(
       const extractedData = await DocumentExtractor.extractFromDocument(
         document.filePath,
         document.fileType,
-        context
+        extractContext
       );
 
       // Update document with extracted data

@@ -23,7 +23,7 @@ export interface TaxAdjustmentSuggestion {
   reasoning: string;
   calculationDetails: {
     method: string;
-    inputs: Record<string, any>;
+    inputs: Record<string, string | number>;
     formula?: string;
   };
 }
@@ -121,30 +121,23 @@ export class TaxAdjustmentEngine {
         }
 
         // Check subsection match
-        if ('subsectionMatch' in criteria) {
-          const subsections = (criteria as any).subsectionMatch;
-          if (Array.isArray(subsections) && subsections.length > 0) {
-            if (!subsections.includes(account.subsection)) {
-              continue;
-            }
+        if (criteria.subsectionMatch && Array.isArray(criteria.subsectionMatch) && criteria.subsectionMatch.length > 0) {
+          if (!criteria.subsectionMatch.includes(account.subsection)) {
+            continue;
           }
         }
 
         // Check sarsItem contains
-        if ('sarsItemContains' in criteria) {
-          const sarsItems = (criteria as any).sarsItemContains;
-          if (Array.isArray(sarsItems) && sarsItems.length > 0) {
-            if (!sarsItems.some((item: string) => sarsItemLower.includes(item.toLowerCase()))) {
-              continue;
-            }
+        if (criteria.sarsItemContains && Array.isArray(criteria.sarsItemContains) && criteria.sarsItemContains.length > 0) {
+          if (!criteria.sarsItemContains.some((item: string) => sarsItemLower.includes(item.toLowerCase()))) {
+            continue;
           }
         }
 
         // Check balance sign
-        if ('balanceSign' in criteria) {
-          const balanceSign = (criteria as any).balanceSign;
-          if (balanceSign === 'positive' && account.balance <= 0) continue;
-          if (balanceSign === 'negative' && account.balance >= 0) continue;
+        if (criteria.balanceSign) {
+          if (criteria.balanceSign === 'positive' && account.balance <= 0) continue;
+          if (criteria.balanceSign === 'negative' && account.balance >= 0) continue;
         }
       }
 
@@ -185,7 +178,7 @@ export class TaxAdjustmentEngine {
       const description = definition.descriptionTemplate.replace('{accountName}', account.accountName);
       
       // Build calculation details
-      const calculationInputs: Record<string, any> = { 
+      const calculationInputs: Record<string, string | number> = { 
         accountBalance: account.balance, 
         accountCode: account.accountCode,
         accountName: account.accountName

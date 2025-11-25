@@ -9,8 +9,8 @@ import { logInfo, logError } from '@/lib/utils/logger';
 import { determineSectionAndSubsection } from '@/lib/services/opinions/sectionMapper';
 
 // Helper to convert worksheet to JSON
-function sheetToJson(worksheet: ExcelJS.Worksheet): any[] {
-  const data: any[] = [];
+function sheetToJson(worksheet: ExcelJS.Worksheet): Record<string, unknown>[] {
+  const data: Record<string, unknown>[] = [];
   const headers: string[] = [];
 
   worksheet.getRow(1).eachCell((cell, colNumber) => {
@@ -19,7 +19,7 @@ function sheetToJson(worksheet: ExcelJS.Worksheet): any[] {
 
   worksheet.eachRow((row, rowNumber) => {
     if (rowNumber === 1) return;
-    const rowData: Record<string, any> = {};
+    const rowData: Record<string, unknown> = {};
     row.eachCell((cell, colNumber) => {
       const header = headers[colNumber];
       if (header) {
@@ -61,13 +61,15 @@ async function handleStreamingRequest(trialBalanceFile: File, projectId: number)
 
         // Split trial balance data
         const incomeStatementData = trialBalanceData.filter(
-          (row: any) => {
-            return row['Section']?.toString().toLowerCase() === 'income statement';
+          (row) => {
+            const section = row['Section'];
+            return typeof section === 'string' && section.toLowerCase() === 'income statement';
           }
         );
         const balanceSheetData = trialBalanceData.filter(
-          (row: any) => {
-            return row['Section']?.toString().toLowerCase() === 'balance sheet';
+          (row) => {
+            const section = row['Section'];
+            return typeof section === 'string' && section.toLowerCase() === 'balance sheet';
           }
         );
         sendProgress(1, 'complete', 'Trial balance parsed successfully');
@@ -273,13 +275,15 @@ export async function POST(request: NextRequest) {
 
     // Split trial balance data
     const incomeStatementData = trialBalanceData.filter(
-      (row: any) => {
-        return row['Section']?.toString().toLowerCase() === 'income statement';
+      (row) => {
+        const section = row['Section'];
+        return typeof section === 'string' && section.toLowerCase() === 'income statement';
       }
     );
     const balanceSheetData = trialBalanceData.filter(
-      (row: any) => {
-        return row['Section']?.toString().toLowerCase() === 'balance sheet';
+      (row) => {
+        const section = row['Section'];
+        return typeof section === 'string' && section.toLowerCase() === 'balance sheet';
       }
     );
 
@@ -320,14 +324,18 @@ Do not include any explanation, commentary, or text outside the JSON array.
         prompt: incomeStatementPrompt,
       });
       incomeStatementResult = result.object;
-    } catch (apiError: any) {
-      logError('AI SDK Error for Income Statement', apiError, {
-        message: apiError.message,
-        status: apiError.status,
-        code: apiError.code,
-        type: apiError.type
-      });
-      throw new Error(`AI SDK Error: ${apiError.message || apiError}`);
+    } catch (apiError) {
+      const errorDetails = apiError && typeof apiError === 'object' ? {
+        message: 'message' in apiError ? apiError.message : undefined,
+        status: 'status' in apiError ? apiError.status : undefined,
+        code: 'code' in apiError ? apiError.code : undefined,
+        type: 'type' in apiError ? apiError.type : undefined,
+      } : {};
+      
+      logError('AI SDK Error for Income Statement', apiError, errorDetails);
+      
+      const errorMessage = apiError instanceof Error ? apiError.message : String(apiError);
+      throw new Error(`AI SDK Error: ${errorMessage}`);
     }
 
     logInfo('Income Statement mapping completed');

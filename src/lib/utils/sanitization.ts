@@ -260,11 +260,11 @@ export function sanitizeFilename(filename: string, maxLength: number = 255): str
  * Sanitize object with multiple fields
  * Applies appropriate sanitization to each field based on field name patterns
  */
-export function sanitizeObject<T extends Record<string, any>>(
+export function sanitizeObject<T extends Record<string, unknown>>(
   obj: T,
   options: SanitizeOptions = {}
 ): T {
-  const sanitized: Record<string, any> = {};
+  const sanitized: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(obj)) {
     if (value === null || value === undefined) {

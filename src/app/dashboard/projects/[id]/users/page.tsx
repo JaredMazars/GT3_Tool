@@ -29,6 +29,7 @@ export default function ProjectUsersPage() {
         setUsers(data.data);
       }
     } catch (error) {
+      console.error('Failed to fetch users:', error);
     } finally {
       setLoading(false);
     }
@@ -42,13 +43,14 @@ export default function ProjectUsersPage() {
       if (data.success) {
         // Get current user from session (you might need to adjust this based on your auth setup)
         // For now, we'll just use the first admin user
-        const adminUser = data.data.users.find((u: any) => u.role === 'ADMIN');
+        const adminUser = data.data.users.find((u: ProjectUser) => u.role === 'ADMIN');
         if (adminUser) {
           setCurrentUserId(adminUser.userId);
           setCurrentUserRole(adminUser.role);
         }
       }
     } catch (error) {
+      console.error('Failed to fetch current user:', error);
     }
   };
 

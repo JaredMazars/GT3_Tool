@@ -125,8 +125,8 @@ export default function DocumentManager({ projectId, draftId }: DocumentManagerP
       }
 
       await fetchDocuments();
-    } catch (error: any) {
-      setError(error.message || 'Failed to upload document');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to upload document');
     } finally {
       setUploading(false);
     }

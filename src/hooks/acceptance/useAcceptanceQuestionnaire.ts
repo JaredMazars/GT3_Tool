@@ -100,12 +100,19 @@ export function useSaveAnswers(projectId: string) {
     },
     onSuccess: (data) => {
       // Update risk assessment without refetching (prevents state jumping)
-      queryClient.setQueryData(acceptanceKeys.questionnaire(projectId), (oldData: any) => {
-        if (!oldData?.data) return oldData;
+      queryClient.setQueryData(acceptanceKeys.questionnaire(projectId), (oldData: unknown) => {
+        if (
+          !oldData ||
+          typeof oldData !== 'object' ||
+          !('data' in oldData) ||
+          !oldData.data
+        ) {
+          return oldData;
+        }
         return {
           ...oldData,
           data: {
-            ...oldData.data,
+            ...(oldData.data as Record<string, unknown>),
             riskAssessment: data.data?.riskAssessment,
           },
         };

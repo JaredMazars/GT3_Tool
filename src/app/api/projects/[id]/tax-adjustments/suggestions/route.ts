@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/db/prisma';
 import { TaxAdjustmentEngine } from '@/lib/services/tax/taxAdjustmentEngine';
 import { handleApiError } from '@/lib/utils/errorHandler';
+import { getCurrentUser, checkProjectAccess } from '@/lib/services/auth/auth';
+import { toProjectId } from '@/types/branded';
+import { z } from 'zod';
 
-const prisma = new PrismaClient();
+const GenerateSuggestionsSchema = z.object({
+  useAI: z.boolean().optional(),
+  autoSave: z.boolean().optional(),
+});
 
 /**
  * POST /api/projects/[id]/tax-adjustments/suggestions
@@ -14,10 +20,23 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const params = await context.params;
-    const projectId = parseInt(params.id);
+    const projectId = toProjectId(params.id);
+
+    // Check project access (requires EDITOR role or higher for generating suggestions)
+    const hasAccess = await checkProjectAccess(user.id, projectId, 'EDITOR');
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const body = await request.json();
-    const { useAI = true, autoSave = false } = body;
+    const validated = GenerateSuggestionsSchema.parse(body);
+    const { useAI = true, autoSave = false } = validated;
 
     // Fetch mapped accounts for this project
     const mappedAccounts = await prisma.mappedAccount.findMany({
@@ -127,8 +146,19 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const params = await context.params;
-    const projectId = parseInt(params.id);
+    const projectId = toProjectId(params.id);
+
+    // Check project access
+    const hasAccess = await checkProjectAccess(user.id, projectId);
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const suggestions = await prisma.taxAdjustment.findMany({
       where: {

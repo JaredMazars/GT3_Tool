@@ -261,7 +261,7 @@ export async function verifyAdjustmentBelongsToProject(
  * @param meta - Optional metadata (pagination, etc.)
  * @returns Formatted response object
  */
-export function successResponse<T>(data: T, meta?: Record<string, any>) {
+export function successResponse<T>(data: T, meta?: Record<string, unknown>) {
   return {
     success: true,
     data,

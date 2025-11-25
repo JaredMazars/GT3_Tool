@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { formatAmount } from '@/lib/utils/formatters';
 
 interface AdjustmentsListProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 interface TaxAdjustment {
@@ -23,7 +23,8 @@ interface TaxAdjustment {
 
 type StatusFilter = 'ALL' | 'SUGGESTED' | 'APPROVED' | 'MODIFIED' | 'REJECTED' | 'ARCHIVED';
 
-export default function AdjustmentsListPage({ params }: AdjustmentsListProps) {
+export default async function AdjustmentsListPage(props: AdjustmentsListProps) {
+  const params = await props.params;
   const router = useRouter();
   const [adjustments, setAdjustments] = useState<TaxAdjustment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -298,11 +299,7 @@ export default function AdjustmentsListPage({ params }: AdjustmentsListProps) {
           placeholder="Search by description, SARS section, or notes..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full px-4 py-3 pl-11 text-sm border-2 rounded-lg focus:outline-none focus:ring-2 transition-all shadow-sm focus:shadow-corporate"
-          style={{ 
-            borderColor: '#E5E7EB',
-            '--tw-ring-color': '#2E5AAC'
-          } as any}
+          className="w-full px-4 py-3 pl-11 text-sm border-2 rounded-lg focus:outline-none focus:ring-2 transition-all shadow-sm focus:shadow-corporate border-forvis-gray-200 focus:ring-forvis-blue-500"
         />
         <svg
           className="absolute left-4 top-3.5 w-5 h-5"
@@ -388,12 +385,7 @@ export default function AdjustmentsListPage({ params }: AdjustmentsListProps) {
                 {filteredAdjustments.map((adjustment) => (
                   <tr
                     key={adjustment.id}
-                    className="cursor-pointer transition-colors"
-                    style={{ 
-                      '--hover-bg': '#EFF6FF'
-                    } as any}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#EFF6FF'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    className="cursor-pointer transition-colors hover:bg-forvis-blue-50"
                     onClick={() =>
                       router.push(
                         `/dashboard/projects/${params.id}/tax-calculation/adjustments/${adjustment.id}`

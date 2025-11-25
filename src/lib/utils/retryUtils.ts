@@ -9,7 +9,7 @@ export interface RetryConfig {
   initialDelayMs: number;
   maxDelayMs: number;
   backoffMultiplier: number;
-  retryableErrors?: (error: any) => boolean;
+  retryableErrors?: (error: unknown) => boolean;
 }
 
 /**
@@ -22,14 +22,16 @@ export const RetryPresets = {
     initialDelayMs: 1000,
     maxDelayMs: 10000,
     backoffMultiplier: 2,
-    retryableErrors: (error: any) => {
+    retryableErrors: (error: unknown) => {
       // Retry on rate limits, timeouts, and 5xx errors
-      if (error?.status) {
-        return error.status === 429 || error.status >= 500;
+      if (typeof error === 'object' && error !== null && 'status' in error) {
+        const status = (error as { status?: number }).status;
+        return status === 429 || (status !== undefined && status >= 500);
       }
       // Retry on network errors
-      if (error?.code) {
-        return ['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND'].includes(error.code);
+      if (typeof error === 'object' && error !== null && 'code' in error) {
+        const code = (error as { code?: string }).code;
+        return code !== undefined && ['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND'].includes(code);
       }
       return false;
     },
@@ -41,8 +43,13 @@ export const RetryPresets = {
     initialDelayMs: 500,
     maxDelayMs: 5000,
     backoffMultiplier: 2,
-    retryableErrors: (error: any) => {
-      return error?.status >= 500 || error?.code === 'ECONNRESET';
+    retryableErrors: (error: unknown) => {
+      if (typeof error === 'object' && error !== null) {
+        const status = (error as { status?: number }).status;
+        const code = (error as { code?: string }).code;
+        return (status !== undefined && status >= 500) || code === 'ECONNRESET';
+      }
+      return false;
     },
   },
   
@@ -52,9 +59,13 @@ export const RetryPresets = {
     initialDelayMs: 100,
     maxDelayMs: 1000,
     backoffMultiplier: 2,
-    retryableErrors: (error: any) => {
+    retryableErrors: (error: unknown) => {
       // Retry on deadlock or connection errors
-      return error?.code === 'P2034' || error?.code === 'P1001';
+      if (typeof error === 'object' && error !== null && 'code' in error) {
+        const code = (error as { code?: string }).code;
+        return code === 'P2034' || code === 'P1001';
+      }
+      return false;
     },
   },
   
@@ -64,21 +75,29 @@ export const RetryPresets = {
     initialDelayMs: 5000, // Longer initial delay for cold start
     maxDelayMs: 30000, // Allow up to 30s for cold start
     backoffMultiplier: 2,
-    retryableErrors: (error: any) => {
+    retryableErrors: (error: unknown) => {
       // P1001: Can't reach database server
       // P1017: Server closed connection
       // P2024: Timed out fetching from data source
       // P1008: Operations timed out
-      if (error?.code) {
-        return ['P1001', 'P1017', 'P2024', 'P1008'].includes(error.code);
-      }
-      // Also retry on connection-related error messages
-      if (error?.message) {
-        const message = error.message.toLowerCase();
-        return message.includes('timeout') || 
-               message.includes('connect') ||
-               message.includes('connection') ||
-               message.includes('econnreset');
+      if (typeof error === 'object' && error !== null) {
+        if ('code' in error) {
+          const code = (error as { code?: string }).code;
+          if (code && ['P1001', 'P1017', 'P2024', 'P1008'].includes(code)) {
+            return true;
+          }
+        }
+        // Also retry on connection-related error messages
+        if ('message' in error) {
+          const message = (error as { message?: string }).message;
+          if (message) {
+            const messageLower = message.toLowerCase();
+            return messageLower.includes('timeout') || 
+                   messageLower.includes('connect') ||
+                   messageLower.includes('connection') ||
+                   messageLower.includes('econnreset');
+          }
+        }
       }
       return false;
     },
@@ -115,18 +134,26 @@ function sleep(ms: number): Promise<void> {
  * @param config - Retry configuration
  * @returns True if error is retryable
  */
-function isRetryableError(error: any, config: RetryConfig): boolean {
+function isRetryableError(error: unknown, config: RetryConfig): boolean {
   if (config.retryableErrors) {
     return config.retryableErrors(error);
   }
   
   // Default: retry on 5xx errors and network errors
-  if (error?.status >= 500) {
-    return true;
-  }
-  
-  if (error?.code && ['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND'].includes(error.code)) {
-    return true;
+  if (typeof error === 'object' && error !== null) {
+    if ('status' in error) {
+      const status = (error as { status?: number }).status;
+      if (status !== undefined && status >= 500) {
+        return true;
+      }
+    }
+    
+    if ('code' in error) {
+      const code = (error as { code?: string }).code;
+      if (code && ['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND'].includes(code)) {
+        return true;
+      }
+    }
   }
   
   return false;
@@ -146,7 +173,7 @@ export async function withRetry<T>(
   config: RetryConfig = RetryPresets.AI_API,
   context?: string
 ): Promise<T> {
-  let lastError: any;
+  let lastError: unknown;
   
   for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
     try {

@@ -151,16 +151,6 @@ export interface PaginatedResponse<T> {
 }
 
 /**
- * Generic API response wrapper
- */
-export interface ApiResponse<T = unknown> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  code?: string;
-}
-
-/**
  * DTO for service line with stats
  */
 export interface ServiceLineWithStats {
@@ -188,9 +178,10 @@ export interface UpdateServiceLineUserDTO {
 }
 
 /**
- * Service Line User entity with user details
+ * Service Line User entity with user details (basic DTO version)
+ * For the full entity type with user relations, see ServiceLineUser in index.ts
  */
-export interface ServiceLineUser {
+export interface ServiceLineUserDTO {
   id: number;
   userId: string;
   serviceLine: ServiceLine | string;

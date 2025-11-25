@@ -95,7 +95,10 @@ export function useDeleteAnalyticsDocument() {
       if (!res.ok) {
         const error = await res.json();
         // For 409 Conflict (document in use), preserve full error details
-        const customError: any = new Error(error.message || error.error || 'Failed to delete document');
+        const customError = new Error(error.message || error.error || 'Failed to delete document') as Error & {
+          status?: number;
+          ratingsAffected?: unknown;
+        };
         customError.status = res.status;
         if (res.status === 409 && error.ratingsAffected) {
           customError.ratingsAffected = error.ratingsAffected;

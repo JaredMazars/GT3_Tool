@@ -114,8 +114,8 @@ export function SendMessageModal({
       onClose();
       // Show success message (could use a toast library)
       alert('Message sent successfully!');
-    } catch (error: any) {
-      setErrors({ submit: error.message || 'Failed to send message' });
+    } catch (error) {
+      setErrors({ submit: error instanceof Error ? error.message : 'Failed to send message' });
     }
   };
 

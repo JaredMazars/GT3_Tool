@@ -81,11 +81,11 @@ export const logger = createLogger();
  * Structured logging helpers
  */
 
-export const logInfo = (message: string, meta?: Record<string, any>) => {
+export const logInfo = (message: string, meta?: Record<string, unknown>) => {
   logger.info(message, meta);
 };
 
-export const logError = (message: string, error?: Error | unknown, meta?: Record<string, any>) => {
+export const logError = (message: string, error?: Error | unknown, meta?: Record<string, unknown>) => {
   if (error instanceof Error) {
     logger.error(message, {
       ...meta,
@@ -100,11 +100,11 @@ export const logError = (message: string, error?: Error | unknown, meta?: Record
   }
 };
 
-export const logWarn = (message: string, meta?: Record<string, any>) => {
+export const logWarn = (message: string, meta?: Record<string, unknown>) => {
   logger.warn(message, meta);
 };
 
-export const logDebug = (message: string, meta?: Record<string, any>) => {
+export const logDebug = (message: string, meta?: Record<string, unknown>) => {
   logger.debug(message, meta);
 };
 
@@ -114,7 +114,7 @@ export const logDebug = (message: string, meta?: Record<string, any>) => {
 export const logApiRequest = (
   method: string,
   path: string,
-  meta?: Record<string, any>
+  meta?: Record<string, unknown>
 ) => {
   logger.http(`${method} ${path}`, meta);
 };
@@ -127,7 +127,7 @@ export const logApiResponse = (
   path: string,
   statusCode: number,
   duration: number,
-  meta?: Record<string, any>
+  meta?: Record<string, unknown>
 ) => {
   logger.http(`${method} ${path} ${statusCode} ${duration}ms`, meta);
 };
@@ -138,7 +138,7 @@ export const logApiResponse = (
 export const logDatabaseQuery = (
   query: string,
   duration?: number,
-  meta?: Record<string, any>
+  meta?: Record<string, unknown>
 ) => {
   logger.debug(`Database query: ${query}`, { ...meta, duration });
 };
@@ -150,7 +150,7 @@ export const logExternalApiCall = (
   service: string,
   endpoint: string,
   duration?: number,
-  meta?: Record<string, any>
+  meta?: Record<string, unknown>
 ) => {
   logger.debug(`External API call: ${service} ${endpoint}`, { ...meta, duration });
 };
@@ -163,7 +163,7 @@ export const logAiOperation = (
   model: string,
   tokens?: number,
   duration?: number,
-  meta?: Record<string, any>
+  meta?: Record<string, unknown>
 ) => {
   logger.info(`AI operation: ${operation}`, {
     ...meta,
@@ -180,7 +180,7 @@ export const logFileOperation = (
   operation: string,
   fileName: string,
   fileSize?: number,
-  meta?: Record<string, any>
+  meta?: Record<string, unknown>
 ) => {
   logger.info(`File operation: ${operation}`, {
     ...meta,
@@ -195,7 +195,7 @@ export const logFileOperation = (
 export const logSecurityEvent = (
   event: string,
   severity: 'low' | 'medium' | 'high' | 'critical',
-  meta?: Record<string, any>
+  meta?: Record<string, unknown>
 ) => {
   logger.warn(`Security event: ${event}`, { ...meta, severity });
 };
@@ -204,7 +204,7 @@ export const logSecurityEvent = (
  * Create child logger with context
  * Useful for adding consistent metadata to all logs in a specific context
  */
-export const createChildLogger = (context: Record<string, any>) => {
+export const createChildLogger = (context: Record<string, unknown>) => {
   return logger.child(context);
 };
 

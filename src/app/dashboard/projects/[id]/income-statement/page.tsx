@@ -14,7 +14,12 @@ const subsectionDisplayNames: Record<string, string> = {
   incomeItemsOnlyCreditAmounts: 'Income Items (Credit Only)'
 };
 
-export default function IncomeStatementPage({ params }: { params: { id: string } }) {
+interface IncomeStatementPageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default async function IncomeStatementPage(props: IncomeStatementPageProps) {
+  const params = await props.params;
   const { data: allMappedData = [], isLoading, error: queryError } = useMappedAccounts(params.id);
   const updateMappedAccount = useUpdateMappedAccount(params.id);
   

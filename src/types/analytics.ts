@@ -28,7 +28,7 @@ export interface AnalyticsDocument {
   fileSize: number;
   uploadedBy: string;
   uploadedAt: Date;
-  extractedData?: any;
+  extractedData?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
 }

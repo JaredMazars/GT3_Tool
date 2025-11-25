@@ -68,7 +68,7 @@ export default function InternalProjectsPage() {
     setCurrentPage(1);
   }, [searchTerm]);
 
-  const handleProjectCreated = (project: any) => {
+  const handleProjectCreated = (project: ProjectListItem) => {
     setShowCreateModal(false);
     // Invalidate projects query to refetch and show the new project
     queryClient.invalidateQueries({ queryKey: projectListKeys.all });

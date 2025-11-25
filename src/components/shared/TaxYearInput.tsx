@@ -6,7 +6,7 @@ interface TaxYearInputProps {
   taxPeriodEnd?: Date | null;
   assessmentYear?: string | null;
   submissionDeadline?: Date | null;
-  onChange: (field: string, value: any) => void;
+  onChange: (field: string, value: number | string | Date | null) => void;
 }
 
 export function TaxYearInput({

@@ -34,6 +34,12 @@ export interface PaginationMeta {
 }
 
 /**
+ * Generic API response wrapper (for backward compatibility)
+ * @deprecated Use ApiResponse instead
+ */
+export type GenericApiResponse<T = unknown> = ApiResponse<T>;
+
+/**
  * Tax computation export data types
  */
 export interface TaxExportData {

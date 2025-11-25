@@ -273,7 +273,12 @@ function MappingTable({ mappedData, onMappingUpdate, onRowClick }: MappingTableP
   );
 }
 
-export default function MappingPage({ params }: { params: { id: string } }) {
+interface MappingPageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default async function MappingPage(props: MappingPageProps) {
+  const params = await props.params;
   const queryClient = useQueryClient();
   const { data: project } = useProject(params.id);
   const { data: mappedData = [], isLoading, error: queryError } = useMappedAccounts(params.id);

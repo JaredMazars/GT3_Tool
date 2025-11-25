@@ -5,7 +5,7 @@ import { useState } from 'react';
 interface ExtractedData {
   documentType: string;
   summary: string;
-  structuredData: Record<string, any>;
+  structuredData: Record<string, unknown>;
   confidence: number;
   warnings: string[];
 }
@@ -27,7 +27,7 @@ export default function ExtractionResults({
     return 'text-red-600 bg-red-50';
   };
 
-  const renderStructuredData = (data: any, level = 0): React.ReactNode => {
+  const renderStructuredData = (data: unknown, level = 0): React.ReactNode => {
     if (typeof data !== 'object' || data === null) {
       return <span className="text-gray-700">{String(data)}</span>;
     }

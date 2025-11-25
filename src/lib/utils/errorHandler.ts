@@ -259,7 +259,7 @@ export function validateEnvVariables(required: string[]): void {
  * Async error wrapper for API route handlers
  * Catches errors and passes them to handleApiError
  */
-export function asyncHandler<T extends any[]>(
+export function asyncHandler<T extends unknown[]>(
   handler: (...args: T) => Promise<NextResponse>
 ) {
   return async (...args: T): Promise<NextResponse> => {

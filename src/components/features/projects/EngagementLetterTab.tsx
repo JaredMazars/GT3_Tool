@@ -22,11 +22,17 @@ interface EngagementLetterTabProps {
   onUploadComplete: () => void;
 }
 
+interface SectionUsed {
+  id: number;
+  name: string;
+  wasAiAdapted?: boolean;
+}
+
 export function EngagementLetterTab({ project, currentUserRole, onUploadComplete }: EngagementLetterTabProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [letterContent, setLetterContent] = useState<string | null>(null);
-  const [sectionsUsed, setSectionsUsed] = useState<any[]>([]);
+  const [sectionsUsed, setSectionsUsed] = useState<SectionUsed[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
@@ -338,7 +344,7 @@ export function EngagementLetterTab({ project, currentUserRole, onUploadComplete
                       {sectionsUsed.length > 0 && (
                         <p className="text-xs text-forvis-gray-600 mt-1">
                           {sectionsUsed.length} sections included
-                          {sectionsUsed.some((s: any) => s.wasAiAdapted) && (
+                          {sectionsUsed.some((s) => s.wasAiAdapted) && (
                             <span className="ml-2 inline-flex items-center text-purple-600">
                               <SparklesIcon className="h-3 w-3 mr-1" />
                               AI-adapted

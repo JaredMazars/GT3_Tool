@@ -8,8 +8,15 @@
 import React from 'react';
 import { OpportunityCard } from './OpportunityCard';
 
+interface Opportunity {
+  id: number;
+  title: string;
+  value: number | null;
+  [key: string]: unknown;
+}
+
 interface PipelineBoardProps {
-  pipeline: Record<string, any[]>;
+  pipeline: Record<string, Opportunity[]>;
   onOpportunityClick: (opportunityId: number) => void;
 }
 
@@ -54,7 +61,7 @@ export function PipelineBoard({ pipeline, onOpportunityClick }: PipelineBoardPro
     <div className="flex gap-4 overflow-x-auto pb-4">
       {stages.map((stageName) => {
         const opportunities = pipeline[stageName] || [];
-        const totalValue = opportunities.reduce((sum: number, opp: any) => sum + (opp.value || 0), 0);
+        const totalValue = opportunities.reduce((sum: number, opp) => sum + (opp.value || 0), 0);
 
         return (
           <div key={stageName} className="flex-shrink-0 w-80">
@@ -93,7 +100,7 @@ export function PipelineBoard({ pipeline, onOpportunityClick }: PipelineBoardPro
                   <p className="text-xs text-forvis-gray-600">No opportunities</p>
                 </div>
               ) : (
-                opportunities.map((opportunity: any) => (
+                opportunities.map((opportunity) => (
                   <OpportunityCard
                     key={opportunity.id}
                     opportunity={opportunity}

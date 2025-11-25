@@ -17,8 +17,9 @@ import {
   getServiceLineBorderColor,
   formatServiceLineName 
 } from '@/lib/utils/serviceLineUtils';
+import { ForwardRefExoticComponent, SVGProps } from 'react';
 
-const iconMap: Record<string, any> = {
+const iconMap: Record<string, ForwardRefExoticComponent<SVGProps<SVGSVGElement>>> = {
   [ServiceLine.QRM]: ShieldCheckIcon,
   [ServiceLine.BUSINESS_DEV]: MegaphoneIcon,
   [ServiceLine.IT]: ComputerDesktopIcon,

@@ -119,7 +119,19 @@ export async function PATCH(
     }
 
     // Build update data object
-    const updateData: any = {};
+    interface UpdateData {
+      type?: string;
+      description?: string;
+      amount?: number;
+      status?: string;
+      sarsSection?: string;
+      notes?: string;
+      confidenceScore?: number;
+      calculationDetails?: string;
+      extractedData?: string;
+    }
+
+    const updateData: UpdateData = {};
     
     if (type !== undefined) updateData.type = type;
     if (description !== undefined) updateData.description = description;

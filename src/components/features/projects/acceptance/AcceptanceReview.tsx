@@ -33,11 +33,17 @@ export function AcceptanceReview({ projectId, onApprove, canApprove, isApproving
   const response = questionnaireData?.data?.response;
   const existingAnswers = questionnaireData?.data?.answers || [];
   const riskAssessment = questionnaireData?.data?.riskAssessment;
-  const documents = questionnaireData?.data?.documents || [];
+  interface DocumentData {
+    id: number;
+    fileName: string;
+    documentType: string;
+    uploadedAt: string | Date;
+  }
+  const documents: DocumentData[] = questionnaireData?.data?.documents || [];
 
   // Create answer lookup
   const answerMap = new Map<string, AnswerData>(
-    existingAnswers.map((ans: any) => [ans.Question.questionKey, ans as AnswerData])
+    existingAnswers.map((ans: AnswerData) => [ans.Question.questionKey, ans])
   );
 
   if (isLoading) {
@@ -113,7 +119,7 @@ export function AcceptanceReview({ projectId, onApprove, canApprove, isApproving
                 High Risk Indicators ({riskAssessment.highRiskQuestions.length})
               </h4>
               <div className="space-y-2">
-                {riskAssessment.highRiskQuestions.map((hrq: any, idx: number) => (
+                {riskAssessment.highRiskQuestions.map((hrq: { questionText: string; answer: string; questionKey: string }, idx: number) => (
                   <div key={idx} className="p-3 bg-red-50 border border-red-200 rounded-lg">
                     <p className="text-xs font-medium text-red-900">{hrq.questionText}</p>
                     <p className="text-xs text-red-700 mt-1">Answer: {hrq.answer}</p>
@@ -154,7 +160,7 @@ export function AcceptanceReview({ projectId, onApprove, canApprove, isApproving
 
               // Check if high risk
               const isHighRisk = riskAssessment?.highRiskQuestions?.some(
-                (hrq: any) => hrq.questionKey === question.questionKey
+                (hrq: { questionKey: string }) => hrq.questionKey === question.questionKey
               );
 
               return (
@@ -205,7 +211,7 @@ export function AcceptanceReview({ projectId, onApprove, canApprove, isApproving
             <h3 className="text-sm font-bold text-white">Supporting Documents</h3>
           </div>
           <div className="p-4 space-y-2">
-            {documents.map((doc: any) => (
+            {documents.map((doc) => (
               <div key={doc.id} className="flex items-center justify-between p-3 bg-forvis-gray-50 border border-forvis-gray-200 rounded-lg">
                 <div>
                   <p className="text-sm font-medium text-forvis-gray-900">{doc.fileName}</p>

@@ -99,9 +99,9 @@ export function useUpdateProjectTeamMemberRole(projectId: string) {
       
       const previousTeam = queryClient.getQueryData(projectTeamKeys.list(projectId));
       
-      queryClient.setQueryData(projectTeamKeys.list(projectId), (old: any) => {
-        if (!old) return old;
-        return old.map((member: any) =>
+      queryClient.setQueryData(projectTeamKeys.list(projectId), (old: unknown) => {
+        if (!old || !Array.isArray(old)) return old;
+        return old.map((member: ProjectTeamMember) =>
           member.id === projectUserId ? { ...member, role } : member
         );
       });

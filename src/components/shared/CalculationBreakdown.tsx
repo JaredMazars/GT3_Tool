@@ -5,7 +5,7 @@ import { formatAmount } from '@/lib/utils/formatters';
 
 interface CalculationDetails {
   method: string;
-  inputs: Record<string, any>;
+  inputs: Record<string, unknown>;
   formula?: string;
 }
 
@@ -20,7 +20,7 @@ export default function CalculationBreakdown({
 }: CalculationBreakdownProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const renderInput = (key: string, value: any): React.ReactNode => {
+  const renderInput = (key: string, value: unknown): React.ReactNode => {
     if (typeof value === 'number') {
       return formatAmount(value);
     }

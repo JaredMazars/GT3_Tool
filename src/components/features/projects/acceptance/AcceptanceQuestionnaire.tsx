@@ -37,7 +37,7 @@ export function AcceptanceQuestionnaire({ projectId, onSubmitSuccess }: Acceptan
   useEffect(() => {
     if (existingAnswers && existingAnswers.length > 0 && Object.keys(answers).length === 0) {
       const answerMap: AnswerState = {};
-      existingAnswers.forEach((ans: any) => {
+      existingAnswers.forEach((ans: { Question: { questionKey: string }; answer: string | null; comment: string | null }) => {
         answerMap[ans.Question.questionKey] = {
           answer: ans.answer || '',
           comment: ans.comment || '',

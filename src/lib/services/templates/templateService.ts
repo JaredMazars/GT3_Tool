@@ -58,7 +58,18 @@ export interface UpdateTemplateSectionData {
  */
 export async function getTemplates(filter?: TemplateFilter) {
   try {
-    const where: any = {};
+    interface TemplateWhere {
+      type?: string;
+      serviceLine?: string;
+      projectType?: string;
+      active?: boolean;
+      OR?: Array<{
+        name?: { contains: string };
+        description?: { contains: string };
+      }>;
+    }
+
+    const where: TemplateWhere = {};
 
     if (filter?.type) {
       where.type = filter.type;
@@ -238,7 +249,18 @@ export async function updateTemplateSection(
   data: UpdateTemplateSectionData
 ) {
   try {
-    const updateData: any = {};
+    interface TemplateSectionUpdateData {
+      sectionKey?: string;
+      title?: string;
+      content?: string;
+      isRequired?: boolean;
+      isAiAdaptable?: boolean;
+      order?: number;
+      applicableServiceLines?: string | null;
+      applicableProjectTypes?: string | null;
+    }
+
+    const updateData: TemplateSectionUpdateData = {};
 
     if (data.sectionKey) updateData.sectionKey = data.sectionKey;
     if (data.title) updateData.title = data.title;
@@ -344,7 +366,16 @@ export async function getApplicableTemplates(
   projectType?: string
 ) {
   try {
-    const where: any = {
+    interface ApplicableTemplateWhere {
+      type: string;
+      active: boolean;
+      OR: Array<{
+        serviceLine?: string | null;
+        projectType?: string | null;
+      }>;
+    }
+
+    const where: ApplicableTemplateWhere = {
       type,
       active: true,
       OR: [

@@ -41,8 +41,14 @@ export function OpportunityForm({
   });
 
   // Client search state
+  interface ClientSearchResult {
+    id: number;
+    clientCode: string;
+    clientNameFull: string | null;
+    groupDesc: string | null;
+  }
   const [clientSearch, setClientSearch] = useState('');
-  const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [selectedClient, setSelectedClient] = useState<ClientSearchResult | null>(null);
   const [showClientDropdown, setShowClientDropdown] = useState(false);
   const clientSearchRef = useRef<HTMLDivElement>(null);
 
@@ -107,7 +113,7 @@ export function OpportunityForm({
     }
   };
 
-  const handleClientSelect = (client: any) => {
+  const handleClientSelect = (client: ClientSearchResult) => {
     setSelectedClient(client);
     setClientSearch(client.clientNameFull || client.clientCode);
     setFormData((prev) => ({ ...prev, clientId: client.id }));
@@ -248,7 +254,7 @@ export function OpportunityForm({
           {/* Dropdown Results */}
           {showClientDropdown && !isLoadingClients && clientsData && clientsData.length > 0 && (
             <div className="absolute z-10 mt-1 w-full bg-white border border-forvis-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
-              {clientsData.map((client: any) => (
+              {clientsData.map((client: ClientSearchResult) => (
                 <button
                   key={client.id}
                   type="button"

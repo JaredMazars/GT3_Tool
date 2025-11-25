@@ -2,10 +2,18 @@
 
 import { useState, useRef } from 'react';
 
+interface UploadedDocument {
+  id: number;
+  fileName: string;
+  fileUrl: string;
+  uploadedBy: string;
+  createdAt: Date;
+}
+
 interface DocumentUploaderProps {
   projectId: number;
   adjustmentId: number;
-  onUploadComplete?: (document: any) => void;
+  onUploadComplete?: (document: UploadedDocument) => void;
   onUploadError?: (error: string) => void;
 }
 

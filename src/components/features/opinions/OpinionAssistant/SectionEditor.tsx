@@ -130,8 +130,8 @@ export default function SectionEditor({ projectId, draftId }: SectionEditorProps
       setGenerationState(data.state);
       setCurrentQuestion(data.question);
       setIsAnswering(false); // Enable the textarea for user input
-    } catch (error: any) {
-      setError(error.message || 'Failed to start section');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to start section');
       setIsAnswering(false);
     }
   };
@@ -173,8 +173,8 @@ export default function SectionEditor({ projectId, draftId }: SectionEditorProps
         setCurrentQuestion(data.question);
         setUserAnswer('');
       }
-    } catch (error: any) {
-      setError(error.message || 'Failed to submit answer');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to submit answer');
     } finally {
       setIsAnswering(false);
     }
@@ -213,8 +213,8 @@ export default function SectionEditor({ projectId, draftId }: SectionEditorProps
       setGenerationState(null);
       setCurrentQuestion('');
       setUserAnswer('');
-    } catch (error: any) {
-      setError(error.message || 'Failed to generate section');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to generate section');
     } finally {
       setIsGenerating(false);
     }
@@ -289,8 +289,8 @@ export default function SectionEditor({ projectId, draftId }: SectionEditorProps
         setIsUploadingDoc(false);
       }, 2000);
 
-    } catch (error: any) {
-      setError(error.message || 'Failed to upload document');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to upload document');
       setIsUploadingDoc(false);
       setUploadProgress('');
     }
@@ -328,8 +328,8 @@ export default function SectionEditor({ projectId, draftId }: SectionEditorProps
       }
 
       await fetchSections();
-    } catch (error: any) {
-      setError(error.message || 'Failed to regenerate section');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to regenerate section');
     } finally {
       setIsLoading(false);
     }

@@ -46,7 +46,7 @@ export default function OpportunityDetailPage() {
     },
   });
 
-  const handleUpdateOpportunity = async (data: any) => {
+  const handleUpdateOpportunity = async (data: Record<string, unknown>) => {
     try {
       await updateOpportunity.mutateAsync(data);
       setIsEditModalOpen(false);
@@ -255,7 +255,7 @@ export default function OpportunityDetailPage() {
             <h3 className="text-sm font-semibold text-forvis-gray-900 mb-4">Activity Timeline</h3>
             {activitiesData && activitiesData.activities.length > 0 ? (
               <div className="space-y-3">
-                {activitiesData.activities.map((activity: any) => (
+                {activitiesData.activities.map((activity) => (
                   <div key={activity.id} className="flex gap-3">
                     <div
                       className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center"

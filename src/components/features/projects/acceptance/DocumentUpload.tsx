@@ -121,7 +121,7 @@ export function DocumentUpload({ projectId, documentType = 'OTHER', disabled }: 
       {documents.length > 0 && (
         <div className="space-y-2">
           <h4 className="text-sm font-semibold text-forvis-gray-900">Uploaded Documents</h4>
-          {documents.map((doc: any) => (
+          {documents.map((doc: { id: number; fileName: string; documentType: string; uploadedAt: string | Date }) => (
             <div
               key={doc.id}
               className="flex items-center justify-between p-3 bg-white border border-forvis-gray-200 rounded-lg hover:border-forvis-blue-300 transition-colors"

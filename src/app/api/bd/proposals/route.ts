@@ -26,10 +26,14 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const pageSize = parseInt(searchParams.get('pageSize') || '20');
 
-    const where: any = {
-      ...(opportunityId && { opportunityId }),
-      ...(status && { status }),
-    };
+    interface WhereClause {
+      opportunityId?: number;
+      status?: string;
+    }
+
+    const where: WhereClause = {};
+    if (opportunityId) where.opportunityId = opportunityId;
+    if (status) where.status = status;
 
     const [proposals, total] = await Promise.all([
       prisma.bDProposal.findMany({

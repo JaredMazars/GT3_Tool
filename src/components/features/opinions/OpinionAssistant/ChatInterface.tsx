@@ -267,7 +267,7 @@ export default function ChatInterface({ projectId, draftId }: ChatInterfaceProps
                         📄 Sources Referenced:
                       </p>
                       <div className="space-y-1">
-                        {sources.map((source: any, idx: number) => (
+                        {sources.map((source: { fileName: string; category: string }, idx: number) => (
                           <div
                             key={idx}
                             className="flex items-center gap-2 text-xs text-gray-600"

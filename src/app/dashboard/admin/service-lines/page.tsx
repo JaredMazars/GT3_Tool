@@ -60,6 +60,7 @@ export default function ServiceLineAdminPage() {
       const result = await response.json();
       setServiceLineData(result.success ? result.data : []);
     } catch (error) {
+      console.error('Failed to fetch service line data:', error);
     } finally {
       setIsLoading(false);
     }
@@ -72,6 +73,7 @@ export default function ServiceLineAdminPage() {
       const result = await response.json();
       setAllUsers(result.success ? result.data : []);
     } catch (error) {
+      console.error('Failed to fetch all users:', error);
     }
   };
 

@@ -142,7 +142,12 @@ function BalanceSheetSection({ title, items, onMappingUpdate, onOpenModal }: Bal
   );
 }
 
-export default function BalanceSheetPage({ params }: { params: { id: string } }) {
+interface BalanceSheetPageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default async function BalanceSheetPage(props: BalanceSheetPageProps) {
+  const params = await props.params;
   const { data: mappedData = [], isLoading, error: queryError } = useMappedAccounts(params.id);
   const updateMappedAccount = useUpdateMappedAccount(params.id);
   

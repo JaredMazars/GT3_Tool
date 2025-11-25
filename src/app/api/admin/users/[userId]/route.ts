@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  context: { params: Promise<{ userId: string }> }
 ) {
   try {
     const currentUser = await getCurrentUser();
@@ -27,6 +27,7 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const params = await context.params;
     const user = await prisma.user.findUnique({
       where: { id: params.userId },
       include: {
@@ -68,7 +69,7 @@ export async function GET(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  context: { params: Promise<{ userId: string }> }
 ) {
   try {
     const currentUser = await getCurrentUser();
@@ -82,6 +83,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const params = await context.params;
     // Remove user from all projects
     await prisma.projectUser.deleteMany({
       where: { userId: params.userId },

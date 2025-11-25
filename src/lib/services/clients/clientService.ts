@@ -65,7 +65,10 @@ export async function getClientsWithPagination(
       const take = Math.min(limit, 100);
 
       // Build where clause with improved search
-      const where: any = {};
+      interface WhereClause {
+        OR?: Array<{ [key: string]: { contains: string; mode: 'insensitive' } }>;
+      }
+      const where: WhereClause = {};
       if (search) {
         where.OR = [
           { clientNameFull: { contains: search, mode: 'insensitive' } },
@@ -78,9 +81,10 @@ export async function getClientsWithPagination(
       }
 
       // Build orderBy clause
-      const orderBy: any = {};
-      const validSortFields = ['clientNameFull', 'clientCode', 'groupDesc', 'createdAt', 'updatedAt'];
-      if (validSortFields.includes(sortBy)) {
+      type OrderByClause = Record<string, 'asc' | 'desc'>;
+      const orderBy: OrderByClause = {};
+      const validSortFields = ['clientNameFull', 'clientCode', 'groupDesc', 'createdAt', 'updatedAt'] as const;
+      if (validSortFields.includes(sortBy as typeof validSortFields[number])) {
         orderBy[sortBy] = sortOrder;
       } else {
         orderBy.clientNameFull = 'asc';
@@ -154,7 +158,11 @@ export async function getClientWithProjects(
       const projectTake = Math.min(projectLimit, 50);
 
       // Build project where clause
-      const projectWhere: any = {};
+      interface ProjectWhereClause {
+        archived?: boolean;
+        serviceLine?: string;
+      }
+      const projectWhere: ProjectWhereClause = {};
       if (!includeArchived) {
         projectWhere.archived = false;
       }

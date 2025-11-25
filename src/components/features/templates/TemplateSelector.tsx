@@ -3,6 +3,11 @@
 import { useState, useEffect } from 'react';
 import { DocumentTextIcon } from '@heroicons/react/24/outline';
 
+interface TemplateSection {
+  id: number;
+  [key: string]: unknown;
+}
+
 interface Template {
   id: number;
   name: string;
@@ -10,7 +15,7 @@ interface Template {
   type: string;
   serviceLine: string | null;
   projectType: string | null;
-  sections: any[];
+  sections: TemplateSection[];
 }
 
 interface TemplateSelectorProps {

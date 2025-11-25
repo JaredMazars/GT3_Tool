@@ -10,7 +10,7 @@ import { handleApiError } from '@/lib/utils/errorHandler';
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  context: { params: Promise<{ userId: string }> }
 ) {
   try {
     const currentUser = await getCurrentUser();
@@ -24,6 +24,7 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const params = await context.params;
     const body = await request.json();
     const { projectIds, role } = body;
 
@@ -86,7 +87,7 @@ export async function POST(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  context: { params: Promise<{ userId: string }> }
 ) {
   try {
     const currentUser = await getCurrentUser();
@@ -100,6 +101,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const params = await context.params;
     const body = await request.json();
     const { projectIds, role } = body;
 
@@ -138,7 +140,7 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  context: { params: Promise<{ userId: string }> }
 ) {
   try {
     const currentUser = await getCurrentUser();
@@ -152,6 +154,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const params = await context.params;
     const body = await request.json();
     const { projectIds } = body;
 

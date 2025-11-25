@@ -29,7 +29,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Build where clause for search
-    const whereClause: any = {};
+    interface WhereClause {
+      OR?: Array<{ name: { contains: string } } | { email: { contains: string } }>;
+    }
+    
+    const whereClause: WhereClause = {};
     
     if (query.trim()) {
       // Search by name or email (SQL Server uses case-insensitive collation by default)

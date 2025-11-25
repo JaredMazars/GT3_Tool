@@ -22,7 +22,10 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     // Build where clause with improved search
-    const where: any = {};
+    interface WhereClause {
+      OR?: Array<Record<string, { contains: string }>>;
+    }
+    const where: WhereClause = {};
     if (search) {
       where.OR = [
         { clientNameFull: { contains: search } },
@@ -35,9 +38,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Build orderBy clause
-    const orderBy: any = {};
-    const validSortFields = ['clientNameFull', 'clientCode', 'groupDesc', 'createdAt', 'updatedAt'];
-    if (validSortFields.includes(sortBy)) {
+    type OrderByClause = Record<string, 'asc' | 'desc'>;
+    const orderBy: OrderByClause = {};
+    const validSortFields = ['clientNameFull', 'clientCode', 'groupDesc', 'createdAt', 'updatedAt'] as const;
+    if (validSortFields.includes(sortBy as typeof validSortFields[number])) {
       orderBy[sortBy] = sortOrder;
     } else {
       orderBy.clientNameFull = 'asc';

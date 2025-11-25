@@ -73,7 +73,7 @@ export async function DELETE(
         {
           error: 'Cannot delete document',
           message: `This document is being used in ${ratingsUsingDoc.length} credit rating(s). Please delete those ratings first.`,
-          ratingsAffected: ratingsUsingDoc.map((r: any) => r.CreditRating),
+          ratingsAffected: ratingsUsingDoc.map((r) => r.CreditRating),
         },
         { status: 409 }
       );

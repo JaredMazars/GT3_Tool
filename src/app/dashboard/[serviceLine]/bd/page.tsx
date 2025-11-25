@@ -48,7 +48,7 @@ export default function BDPipelinePage() {
 
   const createMutation = useCreateOpportunity();
 
-  const handleCreateOpportunity = async (data: any) => {
+  const handleCreateOpportunity = async (data: Record<string, unknown>) => {
     try {
       await createMutation.mutateAsync(data);
       setShowCreateForm(false);

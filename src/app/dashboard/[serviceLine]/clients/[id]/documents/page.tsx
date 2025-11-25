@@ -23,7 +23,7 @@ function ClientDocumentsContent() {
   });
 
   // Transform client data to match expected format
-  const client: any = useMemo(() => {
+  const client = useMemo(() => {
     if (!clientData) return null;
     return {
       ...clientData,

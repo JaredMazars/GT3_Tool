@@ -105,7 +105,7 @@ export function ProjectUserList({
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {users.map((projectUser) => {
-          const user = (projectUser as any).User || (projectUser as any).user;
+          const user = 'User' in projectUser ? projectUser.User : ('user' in projectUser ? projectUser.user : undefined);
           return (
             <div
               key={projectUser.id}
@@ -164,7 +164,7 @@ export function ProjectUserList({
 
       {/* User Detail Modal */}
       {selectedUser && (() => {
-        const user = (selectedUser as any).User || (selectedUser as any).user;
+        const user = 'User' in selectedUser ? selectedUser.User : ('user' in selectedUser ? selectedUser.user : undefined);
         return (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-lg shadow-corporate-lg max-w-2xl w-full border-2 border-forvis-gray-200">

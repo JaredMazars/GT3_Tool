@@ -15,7 +15,15 @@ export function AnalyticsDocumentsTab({ clientId }: AnalyticsDocumentsTabProps) 
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [showDeleteRatingsModal, setShowDeleteRatingsModal] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<{ id: number; name: string } | null>(null);
-  const [affectedRatings, setAffectedRatings] = useState<any[]>([]);
+  
+  interface AffectedRating {
+    id: number;
+    ratingGrade: string;
+    ratingScore: number;
+    ratingDate: Date | string;
+    confidence?: number;
+  }
+  const [affectedRatings, setAffectedRatings] = useState<AffectedRating[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
   
   const { data: documentsData, isLoading } = useAnalyticsDocuments(clientId);
@@ -42,16 +50,16 @@ export function AnalyticsDocumentsTab({ clientId }: AnalyticsDocumentsTabProps) 
     setDeleteError(null);
     try {
       await deleteMutation.mutateAsync({ clientId, documentId });
-    } catch (error: any) {
+    } catch (error) {
       // Check if this is a 409 conflict (document used in ratings)
-      if (error.status === 409 && error.ratingsAffected) {
+      if (error && typeof error === 'object' && 'status' in error && error.status === 409 && 'ratingsAffected' in error) {
         // Show modal with affected ratings
         setDocumentToDelete({ id: documentId, name: fileName });
-        setAffectedRatings(error.ratingsAffected);
+        setAffectedRatings((error as { ratingsAffected: AffectedRating[] }).ratingsAffected);
         setShowDeleteRatingsModal(true);
       } else {
         // Show error for other failures
-        const errorMessage = error.message || 'Failed to delete document';
+        const errorMessage = error instanceof Error ? error.message : 'Failed to delete document';
         setDeleteError(errorMessage);
         // Auto-dismiss error after 10 seconds
         setTimeout(() => setDeleteError(null), 10000);
@@ -82,8 +90,8 @@ export function AnalyticsDocumentsTab({ clientId }: AnalyticsDocumentsTabProps) 
       setShowDeleteRatingsModal(false);
       setDocumentToDelete(null);
       setAffectedRatings([]);
-    } catch (error: any) {
-      setDeleteError(error.message || 'Failed to delete ratings/document');
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : 'Failed to delete ratings/document');
       // Auto-dismiss error after 10 seconds
       setTimeout(() => setDeleteError(null), 10000);
       // Close modal on error

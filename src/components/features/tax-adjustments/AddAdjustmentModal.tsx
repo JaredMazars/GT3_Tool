@@ -160,11 +160,7 @@ export default function AddAdjustmentModal({
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     placeholder="Enter adjustment description"
                     rows={3}
-                    className="w-full px-4 py-2.5 bg-white text-gray-900 border-2 rounded-lg focus:outline-none focus:ring-2 transition-all shadow-sm focus:shadow-corporate disabled:bg-gray-50 disabled:cursor-not-allowed"
-                    style={{ 
-                      borderColor: '#E5E7EB',
-                      '--tw-ring-color': color.borderColor
-                    } as any}
+                    className="w-full px-4 py-2.5 bg-white text-gray-900 border-2 border-forvis-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 transition-all shadow-sm focus:shadow-corporate disabled:bg-gray-50 disabled:cursor-not-allowed"
                     autoFocus
                     disabled={isSubmitting}
                   />
@@ -183,11 +179,7 @@ export default function AddAdjustmentModal({
                       placeholder="0.00"
                       step="0.01"
                       min="0"
-                      className="w-full pl-9 pr-4 py-2.5 bg-white text-gray-900 border-2 rounded-lg focus:outline-none focus:ring-2 transition-all shadow-sm focus:shadow-corporate disabled:bg-gray-50 disabled:cursor-not-allowed"
-                      style={{ 
-                        borderColor: '#E5E7EB',
-                        '--tw-ring-color': color.borderColor
-                      } as any}
+                      className="w-full pl-9 pr-4 py-2.5 bg-white text-gray-900 border-2 border-forvis-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 transition-all shadow-sm focus:shadow-corporate disabled:bg-gray-50 disabled:cursor-not-allowed"
                       disabled={isSubmitting}
                     />
                   </div>
@@ -202,11 +194,7 @@ export default function AddAdjustmentModal({
                     value={formData.sarsSection}
                     onChange={(e) => setFormData({ ...formData, sarsSection: e.target.value })}
                     placeholder="e.g., s11(e), s23, s18A"
-                    className="w-full px-4 py-2.5 bg-white text-gray-900 border-2 rounded-lg focus:outline-none focus:ring-2 transition-all shadow-sm focus:shadow-corporate disabled:bg-gray-50 disabled:cursor-not-allowed"
-                    style={{ 
-                      borderColor: '#E5E7EB',
-                      '--tw-ring-color': color.borderColor
-                    } as any}
+                    className="w-full px-4 py-2.5 bg-white text-gray-900 border-2 border-forvis-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 transition-all shadow-sm focus:shadow-corporate disabled:bg-gray-50 disabled:cursor-not-allowed"
                     disabled={isSubmitting}
                   />
                 </div>
@@ -220,11 +208,7 @@ export default function AddAdjustmentModal({
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                     placeholder="Additional notes or explanation for this adjustment"
                     rows={4}
-                    className="w-full px-4 py-2.5 bg-white text-gray-900 border-2 rounded-lg focus:outline-none focus:ring-2 transition-all shadow-sm focus:shadow-corporate disabled:bg-gray-50 disabled:cursor-not-allowed"
-                    style={{ 
-                      borderColor: '#E5E7EB',
-                      '--tw-ring-color': color.borderColor
-                    } as any}
+                    className="w-full px-4 py-2.5 bg-white text-gray-900 border-2 border-forvis-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 transition-all shadow-sm focus:shadow-corporate disabled:bg-gray-50 disabled:cursor-not-allowed"
                     disabled={isSubmitting}
                   />
                 </div>

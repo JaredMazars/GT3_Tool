@@ -10,6 +10,11 @@ import {
   TrashIcon,
 } from '@heroicons/react/24/outline';
 
+interface TemplateSection {
+  id: number;
+  [key: string]: unknown;
+}
+
 interface Template {
   id: number;
   name: string;
@@ -20,7 +25,7 @@ interface Template {
   active: boolean;
   createdAt: string;
   updatedAt: string;
-  sections: any[];
+  sections: TemplateSection[];
 }
 
 interface TemplateListProps {

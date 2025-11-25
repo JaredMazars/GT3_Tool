@@ -112,7 +112,7 @@ interface ProjectData {
     mappings: number;
     taxAdjustments: number;
   };
-  users?: any[];
+  users?: ProjectUser[];
 }
 
 interface SettingsTabProps {
@@ -466,7 +466,7 @@ export default function ClientProjectPage() {
         const sessionResponse = await fetch('/api/auth/session');
         const sessionData = await sessionResponse.json();
         if (sessionData.user) {
-          const currentUser = projectUsers.find((u: any) => {
+          const currentUser = projectUsers.find((u: ProjectUser) => {
             const userId = u.User?.id || u.user?.id || u.userId;
             return userId === sessionData.user.id;
           });
@@ -477,6 +477,7 @@ export default function ClientProjectPage() {
         }
       }
     } catch (error) {
+      // Silently fail - user may not be on team
     }
   };
 
@@ -577,7 +578,7 @@ export default function ClientProjectPage() {
               ) : (
                 <ProjectUserList
                   projectId={parseInt(projectId)}
-                  users={teamMembers as any}
+                  users={teamMembers}
                   currentUserId={currentUserId}
                   currentUserRole={currentUserRole}
                   onUserRemoved={refetchTeam}

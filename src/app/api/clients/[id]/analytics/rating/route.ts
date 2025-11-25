@@ -60,7 +60,14 @@ export async function GET(
     const { limit, startDate, endDate } = queryValidation.data;
 
     // Build type-safe where clause
-    const where: any = { clientId };
+    interface WhereClause {
+      clientId: number;
+      ratingDate?: {
+        gte?: Date;
+        lte?: Date;
+      };
+    }
+    const where: WhereClause = { clientId };
     if (startDate || endDate) {
       where.ratingDate = {
         ...(startDate && { gte: startDate }),
@@ -90,13 +97,13 @@ export async function GET(
     });
 
     // Transform the data with safe JSON parsing
-    const transformedRatings = ratings.map((rating: any) => {
+    const transformedRatings = ratings.map((rating) => {
       try {
         return {
           ...rating,
           analysisReport: parseCreditAnalysisReport(rating.analysisReport),
           financialRatios: parseFinancialRatios(rating.financialRatios),
-          documents: rating.Documents.map((d: any) => d.AnalyticsDocument),
+          documents: rating.Documents.map((d) => d.AnalyticsDocument),
         };
       } catch (error) {
         logger.error('Error transforming rating', {
@@ -225,7 +232,7 @@ export async function POST(
         industry: client.industry || undefined,
         sector: client.sector || undefined,
       },
-      documents.map((doc: any) => ({
+      documents.map((doc) => ({
         id: doc.id,
         fileName: doc.fileName,
         documentType: doc.documentType,
@@ -304,7 +311,7 @@ export async function POST(
       ...completeRating,
       analysisReport: parseCreditAnalysisReport(completeRating.analysisReport),
       financialRatios: parseFinancialRatios(completeRating.financialRatios),
-      documents: completeRating.Documents.map((d: any) => d.AnalyticsDocument),
+      documents: completeRating.Documents.map((d) => d.AnalyticsDocument),
     };
 
     // Verify data was saved correctly

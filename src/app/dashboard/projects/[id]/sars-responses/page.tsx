@@ -6,10 +6,11 @@ import { SarsResponse } from '@/types';
 import { PlusIcon, EnvelopeIcon, CalendarIcon, ClockIcon } from '@heroicons/react/24/outline';
 
 interface SarsResponsesPageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
-export default function SarsResponsesPage({ params }: SarsResponsesPageProps) {
+export default async function SarsResponsesPage(props: SarsResponsesPageProps) {
+  const params = await props.params;
   const { data: project } = useProject(params.id);
   const [responses, setResponses] = useState<SarsResponse[]>([]);
   const [isLoading, setIsLoading] = useState(false);

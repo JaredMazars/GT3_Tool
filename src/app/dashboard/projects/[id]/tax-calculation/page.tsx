@@ -9,7 +9,7 @@ import AddAdjustmentModal from '@/components/features/tax-adjustments/AddAdjustm
 import { useTaxAdjustments, useTaxCalculation, useUpdateTaxAdjustment, useGenerateTaxSuggestions } from '@/hooks/projects/useProjectData';
 
 interface TaxCalculationProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 interface TaxAdjustment {
@@ -23,7 +23,8 @@ interface TaxAdjustment {
   notes?: string;
 }
 
-export default function TaxCalculationPage({ params }: TaxCalculationProps) {
+export default async function TaxCalculationPage(props: TaxCalculationProps) {
+  const params = await props.params;
   const router = useRouter();
   const { data: taxCalcData, isLoading: isLoadingCalc } = useTaxCalculation(params.id);
   const { data: adjustments = [], isLoading: isLoadingAdjustments, error: queryError } = useTaxAdjustments(params.id);

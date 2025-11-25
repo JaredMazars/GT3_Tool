@@ -8,10 +8,17 @@ import { ProjectTimelineInput } from '../../shared/ProjectTimelineInput';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { getProjectTypesForServiceLine } from '@/lib/utils/serviceLineUtils';
 
+interface ProjectCreatedResult {
+  id: number;
+  name: string;
+  serviceLine: ServiceLine;
+  [key: string]: unknown;
+}
+
 interface CreateProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (project: any) => void;
+  onSuccess: (project: ProjectCreatedResult) => void;
   initialClientId?: number | null;
   initialServiceLine?: ServiceLine | null;
 }
@@ -67,7 +74,7 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess, initialClientId
     }
   }, [isOpen, initialServiceLine, currentServiceLine]);
 
-  const handleFieldChange = (field: string, value: any) => {
+  const handleFieldChange = (field: string, value: string | number | Date | null | ProjectType | ServiceLine) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 

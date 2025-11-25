@@ -38,8 +38,8 @@ export function UploadAnalyzeTab({ clientId, onGenerateComplete }: UploadAnalyze
         file,
         documentType: selectedDocumentType,
       });
-    } catch (error: any) {
-      setUploadError(error.message || 'Failed to upload document');
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : 'Failed to upload document');
     }
 
     // Reset file input
@@ -81,8 +81,8 @@ export function UploadAnalyzeTab({ clientId, onGenerateComplete }: UploadAnalyze
           onGenerateComplete();
         }
       }, 1500);
-    } catch (error: any) {
-      setGenerateError(error.message || 'Failed to generate credit rating');
+    } catch (error) {
+      setGenerateError(error instanceof Error ? error.message : 'Failed to generate credit rating');
     }
   };
 

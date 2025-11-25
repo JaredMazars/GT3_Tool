@@ -65,37 +65,37 @@ model AITaxReport {
 }
 
 model Client {
-  id                     Int       @id @default(autoincrement())
-  ClientID               String    @ignore @db.UniqueIdentifier
-  clientCode             String    @unique @db.NVarChar(10)
-  clientNameFull         String?   @db.NVarChar(255)
-  groupCode              String    @db.NVarChar(10)
-  groupDesc              String    @db.NVarChar(150)
-  clientPartner          String    @db.NVarChar(10)
-  clientManager          String    @db.NVarChar(10)
-  clientIncharge         String    @db.NVarChar(10)
-  active                 String    @db.VarChar(3)
-  clientDateOpen         DateTime?
-  clientDateTerminate    DateTime?
-  industry               String?   @db.NVarChar(255)
-  sector                 String?   @db.NVarChar(255)
-  forvisMazarsIndustry   String?   @db.NVarChar(255)
-  forvisMazarsSector     String?   @db.NVarChar(255)
-  forvisMazarsSubsector  String?   @db.NVarChar(255)
-  clientOCFlag           Boolean
-  clientTaxFlag          Boolean?
-  clientSecFlag          Boolean?
-  creditor               Boolean?
-  rolePlayer             Boolean
-  typeCode               String    @db.NVarChar(10)
-  typeDesc               String    @db.NVarChar(50)
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime  @updatedAt
-  Project                Project[]
+  id                       Int                        @id @default(autoincrement())
+  clientCode               String                     @unique @db.NVarChar(10)
+  clientNameFull           String?                    @db.NVarChar(255)
+  groupCode                String                     @db.NVarChar(10)
+  groupDesc                String                     @db.NVarChar(150)
+  clientPartner            String                     @db.NVarChar(10)
+  clientManager            String                     @db.NVarChar(10)
+  clientIncharge           String                     @db.NVarChar(10)
+  active                   String                     @db.VarChar(3)
+  clientDateOpen           DateTime?
+  clientDateTerminate      DateTime?
+  industry                 String?                    @db.NVarChar(255)
+  sector                   String?                    @db.NVarChar(255)
+  forvisMazarsIndustry     String?                    @db.NVarChar(255)
+  forvisMazarsSector       String?                    @db.NVarChar(255)
+  forvisMazarsSubsector    String?                    @db.NVarChar(255)
+  clientOCFlag             Boolean
+  clientTaxFlag            Boolean?
+  clientSecFlag            Boolean?
+  creditor                 Boolean?
+  rolePlayer               Boolean
+  typeCode                 String                     @db.NVarChar(10)
+  typeDesc                 String                     @db.NVarChar(50)
+  createdAt                DateTime                   @default(now())
+  updatedAt                DateTime                   @updatedAt
+  ClientID                 String                     @ignore @db.UniqueIdentifier
+  BDOpportunity            BDOpportunity[]            @relation("BDOpportunityClient")
   ClientAcceptanceResponse ClientAcceptanceResponse[]
-  ClientAnalyticsDocument ClientAnalyticsDocument[]
-  ClientCreditRating     ClientCreditRating[]
-  BDOpportunity          BDOpportunity[]  @relation("BDOpportunityClient")
+  ClientAnalyticsDocument  ClientAnalyticsDocument[]
+  ClientCreditRating       ClientCreditRating[]
+  Project                  Project[]
 
   @@index([clientNameFull])
   @@index([clientCode])
@@ -107,18 +107,18 @@ model Client {
 }
 
 model ClientAnalyticsDocument {
-  id             Int      @id @default(autoincrement())
-  clientId       Int
-  documentType   String   // AFS, MANAGEMENT_ACCOUNTS, BANK_STATEMENTS, CASH_FLOW, OTHER
-  fileName       String
-  filePath       String
-  fileSize       Int
-  uploadedBy     String
-  uploadedAt     DateTime @default(now())
-  extractedData  String?  @db.NVarChar(Max)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  Client         Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  id                    Int                    @id @default(autoincrement())
+  clientId              Int
+  documentType          String
+  fileName              String
+  filePath              String
+  fileSize              Int
+  uploadedBy            String
+  uploadedAt            DateTime               @default(now())
+  extractedData         String?                @db.NVarChar(Max)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  Client                Client                 @relation(fields: [clientId], references: [id], onDelete: Cascade)
   CreditRatingDocuments CreditRatingDocument[]
 
   @@index([clientId])
@@ -127,19 +127,19 @@ model ClientAnalyticsDocument {
 }
 
 model ClientCreditRating {
-  id             Int      @id @default(autoincrement())
-  clientId       Int
-  ratingScore    Float    // 0-100
-  ratingGrade    String   // AAA, AA, A, BBB, BB, B, CCC, D
-  ratingDate     DateTime @default(now())
-  analysisReport String   @db.NVarChar(Max)  // JSON containing AI analysis
-  financialRatios String  @db.NVarChar(Max)  // JSON containing calculated ratios
-  confidence     Float    // 0-1
-  analyzedBy     String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  Client         Client   @relation(fields: [clientId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  Documents      CreditRatingDocument[]
+  id              Int                    @id @default(autoincrement())
+  clientId        Int
+  ratingScore     Float
+  ratingGrade     String
+  ratingDate      DateTime               @default(now())
+  analysisReport  String                 @db.NVarChar(Max)
+  financialRatios String                 @db.NVarChar(Max)
+  confidence      Float
+  analyzedBy      String
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  Client          Client                 @relation(fields: [clientId], references: [id], onUpdate: NoAction)
+  Documents       CreditRatingDocument[]
 
   @@index([clientId])
   @@index([ratingGrade])
@@ -148,12 +148,12 @@ model ClientCreditRating {
 }
 
 model CreditRatingDocument {
-  id                      Int                     @id @default(autoincrement())
-  creditRatingId          Int
-  analyticsDocumentId     Int
-  createdAt               DateTime                @default(now())
-  CreditRating            ClientCreditRating      @relation(fields: [creditRatingId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  AnalyticsDocument       ClientAnalyticsDocument @relation(fields: [analyticsDocumentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id                  Int                     @id @default(autoincrement())
+  creditRatingId      Int
+  analyticsDocumentId Int
+  createdAt           DateTime                @default(now())
+  AnalyticsDocument   ClientAnalyticsDocument @relation(fields: [analyticsDocumentId], references: [id], onUpdate: NoAction)
+  CreditRating        ClientCreditRating      @relation(fields: [creditRatingId], references: [id], onDelete: Cascade)
 
   @@unique([creditRatingId, analyticsDocumentId])
   @@index([creditRatingId])
@@ -181,49 +181,49 @@ model MappedAccount {
 }
 
 model Project {
-  id                     Int                      @id @default(autoincrement())
-  name                   String
-  description            String?
-  createdAt              DateTime                 @default(now())
-  updatedAt              DateTime                 @updatedAt
-  status                 String                   @default("ACTIVE")
-  archived               Boolean                  @default(false)
-  assessmentYear         String?
-  clientId               Int?
-  projectType            String                   @default("TAX_CALCULATION")
-  serviceLine            String                   @default("TAX")
-  submissionDeadline     DateTime?
-  taxPeriodEnd           DateTime?
-  taxPeriodStart         DateTime?
-  taxYear                Int?
-  acceptanceApproved     Boolean                  @default(false)
-  acceptanceApprovedBy   String?
-  acceptanceApprovedAt   DateTime?
-  engagementLetterGenerated Boolean               @default(false)
-  engagementLetterContent String?                 @db.NVarChar(Max)
-  engagementLetterTemplateId Int?
-  engagementLetterGeneratedBy String?
+  id                          Int                        @id @default(autoincrement())
+  name                        String
+  description                 String?
+  createdAt                   DateTime                   @default(now())
+  updatedAt                   DateTime                   @updatedAt
+  status                      String                     @default("ACTIVE")
+  archived                    Boolean                    @default(false)
+  assessmentYear              String?
+  clientId                    Int?
+  projectType                 String                     @default("TAX_CALCULATION")
+  serviceLine                 String                     @default("TAX")
+  submissionDeadline          DateTime?
+  taxPeriodEnd                DateTime?
+  taxPeriodStart              DateTime?
+  taxYear                     Int?
+  acceptanceApproved          Boolean                    @default(false)
+  acceptanceApprovedBy        String?
+  acceptanceApprovedAt        DateTime?
+  engagementLetterGenerated   Boolean                    @default(false)
+  engagementLetterUploaded    Boolean                    @default(false)
+  engagementLetterPath        String?
+  engagementLetterUploadedBy  String?
+  engagementLetterUploadedAt  DateTime?
+  engagementLetterContent     String?                    @db.NVarChar(Max)
   engagementLetterGeneratedAt DateTime?
-  engagementLetterUploaded Boolean                @default(false)
-  engagementLetterPath   String?
-  engagementLetterUploadedBy String?
-  engagementLetterUploadedAt DateTime?
-  AdjustmentDocument     AdjustmentDocument[]
-  AITaxReport            AITaxReport[]
-  MappedAccount          MappedAccount[]
-  Client                 Client?                  @relation(fields: [clientId], references: [id])
-  ProjectUser            ProjectUser[]
-  TaxAdjustment          TaxAdjustment[]
-  OpinionDraft           OpinionDraft[]
-  ResearchNote           ResearchNote[]
-  LegalPrecedent         LegalPrecedent[]
-  SarsResponse           SarsResponse[]
-  AdministrationDocument AdministrationDocument[]
-  ComplianceChecklist    ComplianceChecklist[]
-  FilingStatus           FilingStatus[]
-  NotificationPreference NotificationPreference[]
-  InAppNotification      InAppNotification[]
-  ClientAcceptanceResponse ClientAcceptanceResponse[]
+  engagementLetterGeneratedBy String?
+  engagementLetterTemplateId  Int?
+  AdjustmentDocument          AdjustmentDocument[]
+  AdministrationDocument      AdministrationDocument[]
+  AITaxReport                 AITaxReport[]
+  ClientAcceptanceResponse    ClientAcceptanceResponse[]
+  ComplianceChecklist         ComplianceChecklist[]
+  FilingStatus                FilingStatus[]
+  InAppNotification           InAppNotification[]
+  LegalPrecedent              LegalPrecedent[]
+  MappedAccount               MappedAccount[]
+  NotificationPreference      NotificationPreference[]
+  OpinionDraft                OpinionDraft[]
+  Client                      Client?                    @relation(fields: [clientId], references: [id])
+  ProjectUser                 ProjectUser[]
+  ResearchNote                ResearchNote[]
+  SarsResponse                SarsResponse[]
+  TaxAdjustment               TaxAdjustment[]
 
   @@index([clientId])
   @@index([projectType])
@@ -291,24 +291,22 @@ model TaxAdjustment {
 }
 
 model User {
-  id                      String                   @id
-  name                    String?
-  email                   String                   @unique
-  emailVerified           DateTime?
-  image                   String?
-  // System-level role: SUPERUSER = system-wide access to all features and service lines
-  //                    USER = regular user, requires service line access via ServiceLineUser
-  role                    String                   @default("USER")
-  createdAt               DateTime                 @default(now())
-  updatedAt               DateTime                 @updatedAt
-  Account                 Account[]
-  ProjectUser             ProjectUser[]
-  Session                 Session[]
-  ServiceLineUser         ServiceLineUser[]
-  NotificationPreference  NotificationPreference[]
-  EmailLog                EmailLog[]
-  NotificationsReceived   InAppNotification[]      @relation("NotificationsReceived")
-  NotificationsSent       InAppNotification[]      @relation("NotificationsSent")
+  id                     String                   @id
+  name                   String?
+  email                  String                   @unique
+  emailVerified          DateTime?
+  image                  String?
+  role                   String                   @default("USER")
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+  Account                Account[]
+  EmailLog               EmailLog[]
+  NotificationsSent      InAppNotification[]      @relation("NotificationsSent")
+  NotificationsReceived  InAppNotification[]      @relation("NotificationsReceived")
+  NotificationPreference NotificationPreference[]
+  ProjectUser            ProjectUser[]
+  ServiceLineUser        ServiceLineUser[]
+  Session                Session[]
 
   @@index([role])
 }
@@ -317,10 +315,6 @@ model ServiceLineUser {
   id          Int      @id @default(autoincrement())
   userId      String
   serviceLine String
-  // Service line role: ADMIN = Partner (can approve acceptance/engagement letters)
-  //                    MANAGER = Manager (can manage projects)
-  //                    USER = Staff (can complete work)
-  //                    VIEWER = View-only access
   role        String   @default("USER")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -332,19 +326,19 @@ model ServiceLineUser {
 }
 
 model OpinionDraft {
-  id           Int                   @id @default(autoincrement())
+  id           Int                  @id @default(autoincrement())
   projectId    Int
-  version      Int                   @default(1)
+  version      Int                  @default(1)
   title        String
-  content      String                @db.NVarChar(Max)
-  status       String                @default("DRAFT")
+  content      String               @db.NVarChar(Max)
+  status       String               @default("DRAFT")
   createdBy    String
-  createdAt    DateTime              @default(now())
-  updatedAt    DateTime              @updatedAt
-  Project      Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  documents    OpinionDocument[]
-  sections     OpinionSection[]
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
   chatMessages OpinionChatMessage[]
+  documents    OpinionDocument[]
+  Project      Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sections     OpinionSection[]
 
   @@index([projectId])
   @@index([status])
@@ -529,8 +523,8 @@ model NotificationPreference {
   emailEnabled     Boolean  @default(true)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
-  User             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   Project          Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  User             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, projectId, notificationType])
   @@index([userId])
@@ -548,7 +542,7 @@ model EmailLog {
   metadata        String?   @db.NVarChar(Max)
   sentAt          DateTime?
   createdAt       DateTime  @default(now())
-  User            User?     @relation(fields: [recipientUserId], references: [id], onDelete: SetNull)
+  User            User?     @relation(fields: [recipientUserId], references: [id])
 
   @@index([recipientUserId])
   @@index([emailType])
@@ -568,9 +562,9 @@ model InAppNotification {
   metadata   String?   @db.NVarChar(Max)
   fromUserId String?
   createdAt  DateTime  @default(now())
-  User       User      @relation("NotificationsReceived", fields: [userId], references: [id], onDelete: Cascade)
   FromUser   User?     @relation("NotificationsSent", fields: [fromUserId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   Project    Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  User       User      @relation("NotificationsReceived", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([userId, isRead])
@@ -600,104 +594,100 @@ model Template {
 }
 
 model TemplateSection {
-  id                      Int      @id @default(autoincrement())
-  templateId              Int
-  sectionKey              String
-  title                   String
-  content                 String   @db.NVarChar(Max)
-  isRequired              Boolean  @default(true)
-  isAiAdaptable           Boolean  @default(false)
-  order                   Int
-  applicableServiceLines  String?  @db.NVarChar(Max)
-  applicableProjectTypes  String?  @db.NVarChar(Max)
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
-  Template                Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  id                     Int      @id @default(autoincrement())
+  templateId             Int
+  sectionKey             String
+  title                  String
+  content                String   @db.NVarChar(Max)
+  isRequired             Boolean  @default(true)
+  isAiAdaptable          Boolean  @default(false)
+  order                  Int
+  applicableServiceLines String?  @db.NVarChar(Max)
+  applicableProjectTypes String?  @db.NVarChar(Max)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  Template               Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
   @@index([templateId])
   @@index([sectionKey])
 }
 
 model ClientAcceptanceResponse {
-  id                Int                  @id @default(autoincrement())
-  projectId         Int
-  clientId          Int
-  questionnaireType String               // ACCEPTANCE_FULL, ACCEPTANCE_LITE, CONTINUANCE_FULL, CONTINUANCE_LITE
-  overallRiskScore  Float?
-  riskRating        String?              // LOW, MEDIUM, HIGH
-  riskSummary       String?              @db.NVarChar(Max)
-  completedAt       DateTime?
-  completedBy       String?
-  reviewedBy        String?
-  reviewedAt        DateTime?
-  createdAt         DateTime             @default(now())
-  updatedAt         DateTime             @updatedAt
-  Project           Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  Client            Client               @relation(fields: [clientId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  AcceptanceAnswer  AcceptanceAnswer[]
+  id                 Int                  @id(map: "PK__ClientAc__3213E83F94B62F25") @default(autoincrement())
+  projectId          Int
+  clientId           Int
+  questionnaireType  String               @db.NVarChar(50)
+  overallRiskScore   Float?
+  riskRating         String?              @db.NVarChar(20)
+  riskSummary        String?              @db.NVarChar(Max)
+  completedAt        DateTime?
+  completedBy        String?              @db.NVarChar(200)
+  reviewedBy         String?              @db.NVarChar(200)
+  reviewedAt         DateTime?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @default(now()) @updatedAt
+  AcceptanceAnswer   AcceptanceAnswer[]
   AcceptanceDocument AcceptanceDocument[]
+  Client             Client               @relation(fields: [clientId], references: [id], onUpdate: NoAction, map: "FK_ClientAcceptanceResponse_Client")
+  Project            Project              @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_ClientAcceptanceResponse_Project")
 
   @@index([projectId])
   @@index([clientId])
   @@index([questionnaireType])
   @@index([riskRating])
   @@index([projectId, questionnaireType])
-  @@index([projectId, createdAt(sort: Desc)])
-  @@index([completedAt])
-  @@index([reviewedAt])
 }
 
 model AcceptanceQuestion {
-  id                Int                  @id @default(autoincrement())
-  questionnaireType String               // ACCEPTANCE_FULL, ACCEPTANCE_LITE, CONTINUANCE_FULL, CONTINUANCE_LITE
-  sectionKey        String               // e.g., "independence", "money_laundering", "kyc"
-  questionKey       String               // e.g., "Q1Independence"
-  questionText      String               @db.NVarChar(Max)
-  description       String?              @db.NVarChar(Max)
-  fieldType         String               // RADIO, TEXTAREA, SELECT, FILE_UPLOAD
-  options           String?              @db.NVarChar(Max) // JSON array of options
-  required          Boolean              @default(true)
+  id                Int                @id(map: "PK__Acceptan__3213E83FB3075BED") @default(autoincrement())
+  questionnaireType String             @db.NVarChar(50)
+  sectionKey        String             @db.NVarChar(100)
+  questionKey       String             @db.NVarChar(100)
+  questionText      String             @db.NVarChar(Max)
+  description       String?            @db.NVarChar(Max)
+  fieldType         String             @db.NVarChar(50)
+  options           String?            @db.NVarChar(Max)
+  required          Boolean            @default(true)
   order             Int
-  riskWeight        Float                @default(1.0)
-  highRiskAnswers   String?              @db.NVarChar(500) // JSON array of answers that indicate high risk (e.g., ["Yes"])
-  createdAt         DateTime             @default(now())
-  updatedAt         DateTime             @updatedAt
+  riskWeight        Float              @default(1.0)
+  highRiskAnswers   String?            @db.NVarChar(500)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @default(now()) @updatedAt
   AcceptanceAnswer  AcceptanceAnswer[]
 
+  @@unique([questionnaireType, questionKey])
   @@index([questionnaireType])
   @@index([questionnaireType, sectionKey])
   @@index([questionnaireType, order])
-  @@unique([questionnaireType, questionKey])
 }
 
 model AcceptanceAnswer {
-  id         Int                        @id @default(autoincrement())
+  id         Int                      @id(map: "PK__Acceptan__3213E83F4AB0FF4B") @default(autoincrement())
   responseId Int
   questionId Int
-  answer     String?                    @db.NVarChar(Max)
-  comment    String?                    @db.NVarChar(Max)
-  createdAt  DateTime                   @default(now())
-  updatedAt  DateTime                   @updatedAt
-  Response   ClientAcceptanceResponse   @relation(fields: [responseId], references: [id], onDelete: Cascade)
-  Question   AcceptanceQuestion         @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answer     String?                  @db.NVarChar(Max)
+  comment    String?                  @db.NVarChar(Max)
+  createdAt  DateTime                 @default(now())
+  updatedAt  DateTime                 @default(now()) @updatedAt
+  Question   AcceptanceQuestion       @relation(fields: [questionId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_AcceptanceAnswer_Question")
+  Response   ClientAcceptanceResponse @relation(fields: [responseId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_AcceptanceAnswer_Response")
 
+  @@unique([responseId, questionId])
   @@index([responseId])
   @@index([questionId])
-  @@index([responseId, questionId])
-  @@unique([responseId, questionId])
 }
 
 model AcceptanceDocument {
-  id           Int                        @id @default(autoincrement())
+  id           Int                      @id(map: "PK__Acceptan__3213E83FEBEE39E6") @default(autoincrement())
   responseId   Int
-  documentType String                     // WECHECK, PONG, OTHER
-  fileName     String
-  filePath     String
+  documentType String                   @db.NVarChar(50)
+  fileName     String                   @db.NVarChar(255)
+  filePath     String                   @db.NVarChar(500)
   fileSize     Int
-  uploadedBy   String
-  uploadedAt   DateTime                   @default(now())
-  createdAt    DateTime                   @default(now())
-  Response     ClientAcceptanceResponse   @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  uploadedBy   String                   @db.NVarChar(200)
+  uploadedAt   DateTime                 @default(now())
+  createdAt    DateTime                 @default(now())
+  Response     ClientAcceptanceResponse @relation(fields: [responseId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_AcceptanceDocument_Response")
 
   @@index([responseId])
   @@index([documentType])
@@ -711,23 +701,19 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// ============================================
-// Business Development CRM Models
-// ============================================
-
 model BDStage {
-  id              Int             @id @default(autoincrement())
-  name            String
-  description     String?
-  order           Int
-  probability     Float           // 0-100 (percentage)
-  serviceLine     String?         // NULL = applies to all service lines
-  isActive        Boolean         @default(true)
-  isDefault       Boolean         @default(false)
-  color           String?         // Hex color for UI
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  BDOpportunity   BDOpportunity[]
+  id            Int             @id @default(autoincrement())
+  name          String
+  description   String?
+  order         Int
+  probability   Float
+  serviceLine   String?
+  isActive      Boolean         @default(true)
+  isDefault     Boolean         @default(false)
+  color         String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  BDOpportunity BDOpportunity[]
 
   @@unique([serviceLine, name])
   @@index([serviceLine])
@@ -736,29 +722,29 @@ model BDStage {
 }
 
 model BDContact {
-  id              Int             @id @default(autoincrement())
-  companyName     String
-  firstName       String
-  lastName        String
-  email           String?
-  phone           String?
-  mobile          String?
-  jobTitle        String?
-  linkedin        String?
-  industry        String?
-  sector          String?
-  website         String?
-  address         String?
-  city            String?
-  province        String?
-  postalCode      String?
-  country         String?         @default("South Africa")
-  notes           String?         @db.NVarChar(Max)
-  createdBy       String
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  BDOpportunity   BDOpportunity[]
-  BDActivity      BDActivity[]
+  id            Int             @id @default(autoincrement())
+  companyName   String?
+  firstName     String
+  lastName      String
+  email         String?
+  phone         String?
+  mobile        String?
+  jobTitle      String?
+  linkedin      String?
+  industry      String?
+  sector        String?
+  website       String?
+  address       String?
+  city          String?
+  province      String?
+  postalCode    String?
+  country       String?         @default("South Africa")
+  notes         String?         @db.NVarChar(Max)
+  createdBy     String
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  BDActivity    BDActivity[]
+  BDOpportunity BDOpportunity[]
 
   @@index([companyName])
   @@index([email])
@@ -766,32 +752,32 @@ model BDContact {
 }
 
 model BDOpportunity {
-  id                  Int           @id @default(autoincrement())
+  id                  Int          @id @default(autoincrement())
   title               String
-  description         String?       @db.NVarChar(Max)
-  clientId            Int?          // Link to existing client (for current clients)
-  companyName         String?       // For new prospects (required if clientId is null)
+  description         String?      @db.NVarChar(Max)
+  companyName         String?
   contactId           Int?
   serviceLine         String
   stageId             Int
-  value               Float?        // Expected revenue
-  probability         Float?        // Override stage probability if needed
+  value               Float?
+  probability         Float?
   expectedCloseDate   DateTime?
-  source              String?       // REFERRAL, WEBSITE, COLD_CALL, NETWORKING, EXISTING_CLIENT, OTHER
-  status              String        @default("OPEN") // OPEN, WON, LOST, ABANDONED
+  source              String?
+  status              String       @default("OPEN")
   lostReason          String?
-  assignedTo          String        // User ID
-  convertedToClientId Int?          // Client ID after conversion (if was a prospect)
+  assignedTo          String
+  convertedToClientId Int?
   convertedAt         DateTime?
   createdBy           String
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
-  Client              Client?       @relation("BDOpportunityClient", fields: [clientId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  Contact             BDContact?    @relation(fields: [contactId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  Stage               BDStage       @relation(fields: [stageId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  clientId            Int?
   BDActivity          BDActivity[]
-  BDProposal          BDProposal[]
   BDNote              BDNote[]
+  Client              Client?      @relation("BDOpportunityClient", fields: [clientId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Contact             BDContact?   @relation(fields: [contactId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Stage               BDStage      @relation(fields: [stageId], references: [id], onUpdate: NoAction)
+  BDProposal          BDProposal[]
 
   @@index([serviceLine])
   @@index([stageId])
@@ -807,23 +793,23 @@ model BDOpportunity {
 }
 
 model BDActivity {
-  id              Int           @id @default(autoincrement())
-  opportunityId   Int
-  contactId       Int?
-  activityType    String        // MEETING, CALL, EMAIL, TASK, NOTE, OTHER
-  subject         String
-  description     String?       @db.NVarChar(Max)
-  status          String        @default("SCHEDULED") // SCHEDULED, COMPLETED, CANCELLED
-  dueDate         DateTime?
-  completedAt     DateTime?
-  duration        Int?          // Minutes
-  location        String?
-  assignedTo      String        // User ID
-  createdBy       String
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  Opportunity     BDOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
-  Contact         BDContact?    @relation(fields: [contactId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id            Int           @id @default(autoincrement())
+  opportunityId Int
+  contactId     Int?
+  activityType  String
+  subject       String
+  description   String?       @db.NVarChar(Max)
+  status        String        @default("SCHEDULED")
+  dueDate       DateTime?
+  completedAt   DateTime?
+  duration      Int?
+  location      String?
+  assignedTo    String
+  createdBy     String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  Contact       BDContact?    @relation(fields: [contactId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Opportunity   BDOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
 
   @@index([opportunityId])
   @@index([contactId])
@@ -836,24 +822,24 @@ model BDActivity {
 }
 
 model BDProposal {
-  id              Int           @id @default(autoincrement())
-  opportunityId   Int
-  title           String
-  description     String?       @db.NVarChar(Max)
-  fileName        String
-  filePath        String
-  fileSize        Int
-  proposedValue   Float?
-  validUntil      DateTime?
-  status          String        @default("DRAFT") // DRAFT, SENT, VIEWED, ACCEPTED, REJECTED
-  sentAt          DateTime?
-  viewedAt        DateTime?
-  respondedAt     DateTime?
-  version         Int           @default(1)
-  uploadedBy      String
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  Opportunity     BDOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  id            Int           @id @default(autoincrement())
+  opportunityId Int
+  title         String
+  description   String?       @db.NVarChar(Max)
+  fileName      String
+  filePath      String
+  fileSize      Int
+  proposedValue Float?
+  validUntil    DateTime?
+  status        String        @default("DRAFT")
+  sentAt        DateTime?
+  viewedAt      DateTime?
+  respondedAt   DateTime?
+  version       Int           @default(1)
+  uploadedBy    String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  Opportunity   BDOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
 
   @@index([opportunityId])
   @@index([status])
@@ -862,14 +848,14 @@ model BDProposal {
 }
 
 model BDNote {
-  id              Int           @id @default(autoincrement())
-  opportunityId   Int
-  content         String        @db.NVarChar(Max)
-  isPrivate       Boolean       @default(false)
-  createdBy       String
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  Opportunity     BDOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  id            Int           @id @default(autoincrement())
+  opportunityId Int
+  content       String        @db.NVarChar(Max)
+  isPrivate     Boolean       @default(false)
+  createdBy     String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  Opportunity   BDOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
 
   @@index([opportunityId])
   @@index([createdAt(sort: Desc)])

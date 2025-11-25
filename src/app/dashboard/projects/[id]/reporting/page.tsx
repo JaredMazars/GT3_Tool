@@ -13,7 +13,7 @@ import { AITaxReportData } from '@/lib/services/opinions/aiTaxReportGenerator';
 import { useProject, useMappedAccounts, useTaxAdjustments, useTaxCalculation, useTrialBalance } from '@/hooks/projects/useProjectData';
 
 interface ReportingPageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 interface TrialBalanceAccount {
@@ -47,7 +47,8 @@ interface Tab {
   component: React.ReactNode;
 }
 
-export default function ReportingPage({ params }: ReportingPageProps) {
+export default async function ReportingPage(props: ReportingPageProps) {
+  const params = await props.params;
   const [activeTab, setActiveTab] = useState('trialBalance');
   const [isExporting, setIsExporting] = useState(false);
 

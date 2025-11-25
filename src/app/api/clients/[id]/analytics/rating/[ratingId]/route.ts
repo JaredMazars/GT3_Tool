@@ -73,7 +73,7 @@ export async function GET(
       ...rating,
       analysisReport: parseCreditAnalysisReport(rating.analysisReport),
       financialRatios: parseFinancialRatios(rating.financialRatios),
-      documents: rating.Documents.map((d: any) => d.AnalyticsDocument),
+      documents: rating.Documents.map((d) => d.AnalyticsDocument),
     };
 
     return NextResponse.json(successResponse(transformedRating));

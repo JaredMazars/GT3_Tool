@@ -13,7 +13,7 @@ import {
 import { getRoleBadgeColor, formatRole, formatDate } from '@/lib/utils/projectUtils';
 import { UserSearchModal } from '@/components/features/projects/UserManagement/UserSearchModal';
 import { ADUser, ServiceLine, ServiceLineRole } from '@/types';
-import { ServiceLineUser } from '@/types/dto';
+import { ServiceLineUser } from '@/types';
 import { SERVICE_LINE_DETAILS } from '@/types/service-line';
 
 interface SystemUser {

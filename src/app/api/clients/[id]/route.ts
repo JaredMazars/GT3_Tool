@@ -38,7 +38,11 @@ export async function GET(
     const projectSkip = (projectPage - 1) * projectLimit;
 
     // Build project where clause
-    const projectWhere: any = {};
+    interface ProjectWhereClause {
+      archived?: boolean;
+      serviceLine?: string;
+    }
+    const projectWhere: ProjectWhereClause = {};
     if (!includeArchived) {
       projectWhere.archived = false;
     }
@@ -217,8 +221,9 @@ export async function PUT(
     
     // Handle Prisma unique constraint violations
     if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
-      const target = (error as any).meta?.target;
-      if (target && target.includes('clientCode')) {
+      const meta = 'meta' in error && error.meta && typeof error.meta === 'object' ? error.meta : null;
+      const target = meta && 'target' in meta ? meta.target : null;
+      if (target && Array.isArray(target) && target.includes('clientCode')) {
         return handleApiError(
           new AppError(400, 'Client code is already in use', ErrorCodes.VALIDATION_ERROR),
           'Update Client'

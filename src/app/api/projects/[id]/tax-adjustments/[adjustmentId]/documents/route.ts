@@ -13,15 +13,15 @@ const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_UPLOAD_SIZE || '10485760'); 
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string; adjustmentId: string }> }
+  context: { params: Promise<{ id: string; adjustmentId: string }> }
 ) {
   try {
     // Apply rate limiting for file uploads
     enforceRateLimit(request, RateLimitPresets.FILE_UPLOADS);
     
-    const resolvedParams = await params;
-    const projectId = parseInt(resolvedParams.id);
-    const adjustmentId = parseInt(resolvedParams.adjustmentId);
+    const params = await context.params;
+    const projectId = parseInt(params.id);
+    const adjustmentId = parseInt(params.adjustmentId);
 
     // Parse multipart form data
     const formData = await request.formData();
@@ -114,7 +114,7 @@ export async function GET(
     });
 
     // Parse extracted data
-    const documentsWithParsedData = documents.map((doc: any) => ({
+    const documentsWithParsedData = documents.map((doc) => ({
       ...doc,
       extractedData: doc.extractedData ? JSON.parse(doc.extractedData) : null,
     }));
