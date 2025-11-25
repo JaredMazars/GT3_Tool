@@ -3,6 +3,7 @@
  */
 
 import { z } from 'zod';
+import { CreditRatingGrade, AnalyticsDocumentType } from '@/types/analytics';
 
 /**
  * Project validation schemas
@@ -364,4 +365,63 @@ export const CreditRatingQuerySchema = z.object({
 export type UploadAnalyticsDocumentInput = z.infer<typeof UploadAnalyticsDocumentSchema>;
 export type GenerateCreditRatingInput = z.infer<typeof GenerateCreditRatingSchema>;
 export type CreditRatingQueryInput = z.infer<typeof CreditRatingQuerySchema>;
+
+/**
+ * Runtime validation schemas for database JSON fields
+ */
+export const FinancialRatiosSchema = z.object({
+  // Liquidity Ratios
+  currentRatio: z.number().optional(),
+  quickRatio: z.number().optional(),
+  cashRatio: z.number().optional(),
+  
+  // Profitability Ratios
+  grossMargin: z.number().optional(),
+  netMargin: z.number().optional(),
+  returnOnAssets: z.number().optional(),
+  returnOnEquity: z.number().optional(),
+  
+  // Leverage Ratios
+  debtToEquity: z.number().optional(),
+  interestCoverage: z.number().optional(),
+  debtRatio: z.number().optional(),
+  
+  // Efficiency Ratios
+  assetTurnover: z.number().optional(),
+  inventoryTurnover: z.number().optional(),
+  receivablesTurnover: z.number().optional(),
+});
+
+export const RiskFactorSchema = z.object({
+  factor: z.string(),
+  severity: z.enum(['HIGH', 'MEDIUM', 'LOW']),
+  impact: z.string(),
+  mitigation: z.string().optional(),
+});
+
+export const IndustryComparisonSchema = z.object({
+  industry: z.string(),
+  companyPosition: z.string(),
+  keyMetrics: z.array(
+    z.object({
+      metric: z.string(),
+      companyValue: z.number(),
+      industryAverage: z.number(),
+      comparison: z.string(),
+    })
+  ),
+});
+
+export const CreditAnalysisReportSchema = z.object({
+  executiveSummary: z.string().min(1),
+  strengths: z.array(z.string()),
+  weaknesses: z.array(z.string()),
+  riskFactors: z.array(RiskFactorSchema),
+  industryComparison: IndustryComparisonSchema.optional(),
+  recommendations: z.array(z.string()),
+  detailedAnalysis: z.string().min(1),
+});
+
+export type FinancialRatiosInput = z.infer<typeof FinancialRatiosSchema>;
+export type CreditAnalysisReportInput = z.infer<typeof CreditAnalysisReportSchema>;
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChartBarIcon, CalendarIcon, DocumentTextIcon, ArrowArrowTrendingUpIcon, ArrowArrowTrendingDownIcon } from '@heroicons/react/24/outline';
+import { ChartBarIcon, CalendarIcon, DocumentTextIcon, ArrowTrendingUpIcon, ArrowTrendingDownIcon } from '@heroicons/react/24/outline';
 import { useLatestCreditRating, useCreditRatings } from '@/hooks/analytics/useClientAnalytics';
 import { CreditRating, CreditRatingGrade } from '@/types/analytics';
 import { RatingReportModal } from './RatingReportModal';
@@ -12,11 +12,23 @@ interface CreditRatingsTabProps {
 
 export function CreditRatingsTab({ clientId }: CreditRatingsTabProps) {
   const [selectedRatingId, setSelectedRatingId] = useState<number | null>(null);
-  const { data: latestRating, isLoading: isLoadingLatest } = useLatestCreditRating(clientId);
-  const { data: ratingsData, isLoading: isLoadingHistory } = useCreditRatings(clientId, { limit: 10 });
+  const { data: latestRating, isLoading: isLoadingLatest, error: latestError } = useLatestCreditRating(clientId);
+  const { data: ratingsData, isLoading: isLoadingHistory, error: historyError } = useCreditRatings(clientId, { limit: 10 });
 
   const ratings = ratingsData?.ratings || [];
   const previousRating = ratings.length > 1 ? ratings[1] : null;
+
+  // Debug logging
+  console.log('CreditRatingsTab Debug:', {
+    clientId,
+    latestRating,
+    latestError,
+    ratingsData,
+    historyError,
+    ratingsCount: ratings.length,
+    isLoadingLatest,
+    isLoadingHistory,
+  });
 
   const getRatingColor = (grade: CreditRatingGrade) => {
     switch (grade) {
@@ -234,19 +246,22 @@ export function CreditRatingsTab({ clientId }: CreditRatingsTabProps) {
       </div>
 
       {/* Rating History */}
-      {ratings.length > 0 && (
-        <div className="card">
-          <div className="px-4 py-3 border-b border-forvis-gray-200 bg-forvis-gray-50">
-            <h3 className="text-lg font-semibold text-forvis-gray-900">Rating History</h3>
-          </div>
-          <div className="p-6">
-            {isLoadingHistory ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-600"></div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {ratings.map((rating, index) => {
+      <div className="card">
+        <div className="px-4 py-3 border-b border-forvis-gray-200 bg-forvis-gray-50">
+          <h3 className="text-lg font-semibold text-forvis-gray-900">Rating History</h3>
+        </div>
+        <div className="p-6">
+          {isLoadingHistory ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-600"></div>
+            </div>
+          ) : ratings.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-sm text-forvis-gray-600">No rating history available yet</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {ratings.map((rating, index) => {
                   const ratingColor = getRatingColor(rating.ratingGrade as CreditRatingGrade);
                   const prevRating = index < ratings.length - 1 ? ratings[index + 1] : null;
                   const change = prevRating ? rating.ratingScore - prevRating.ratingScore : 0;
@@ -293,11 +308,10 @@ export function CreditRatingsTab({ clientId }: CreditRatingsTabProps) {
                     </div>
                   );
                 })}
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Rating Report Modal */}
       {selectedRatingId && (

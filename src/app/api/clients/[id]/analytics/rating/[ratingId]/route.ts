@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+import { getCurrentUser, checkClientAccess } from '@/lib/services/auth/auth';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
+import { parseCreditAnalysisReport, parseFinancialRatios } from '@/lib/utils/jsonValidation';
+import { logger } from '@/lib/utils/logger';
 
 /**
  * GET /api/clients/[id]/analytics/rating/[ratingId]
@@ -24,6 +26,18 @@ export async function GET(
 
     if (isNaN(clientId) || isNaN(ratId)) {
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
+    }
+
+    // SECURITY: Check authorization
+    const hasAccess = await checkClientAccess(user.id, clientId);
+    if (!hasAccess) {
+      logger.warn('Unauthorized rating detail access attempt', {
+        userId: user.id,
+        userEmail: user.email,
+        clientId,
+        ratingId: ratId,
+      });
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Fetch rating with documents
@@ -54,12 +68,12 @@ export async function GET(
       return NextResponse.json({ error: 'Rating not found' }, { status: 404 });
     }
 
-    // Transform response
+    // Transform response with safe JSON parsing
     const transformedRating = {
       ...rating,
-      analysisReport: JSON.parse(rating.analysisReport),
-      financialRatios: JSON.parse(rating.financialRatios),
-      documents: rating.Documents.map((d) => d.AnalyticsDocument),
+      analysisReport: parseCreditAnalysisReport(rating.analysisReport),
+      financialRatios: parseFinancialRatios(rating.financialRatios),
+      documents: rating.Documents.map((d: any) => d.AnalyticsDocument),
     };
 
     return NextResponse.json(successResponse(transformedRating));
@@ -88,6 +102,18 @@ export async function DELETE(
 
     if (isNaN(clientId) || isNaN(ratId)) {
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
+    }
+
+    // SECURITY: Check authorization
+    const hasAccess = await checkClientAccess(user.id, clientId);
+    if (!hasAccess) {
+      logger.warn('Unauthorized rating deletion attempt', {
+        userId: user.id,
+        userEmail: user.email,
+        clientId,
+        ratingId: ratId,
+      });
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Verify rating exists and belongs to client

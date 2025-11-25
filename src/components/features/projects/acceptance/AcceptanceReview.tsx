@@ -1,6 +1,12 @@
 'use client';
 
-import { CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { 
+  CheckCircleIcon, 
+  ExclamationTriangleIcon,
+  ArrowTrendingUpIcon,
+  ArrowTrendingDownIcon,
+  ChartBarIcon
+} from '@heroicons/react/24/outline';
 import { useQuestionnaire } from '@/hooks/acceptance/useAcceptanceQuestionnaire';
 import { QuestionSection } from '@/constants/acceptance-questions';
 

@@ -362,6 +362,78 @@ export async function checkProjectAccess(
 }
 
 /**
+ * Check if user has access to a client
+ * A user has access to a client if:
+ * 1. They are a SUPERUSER, or
+ * 2. They have access to any service line that has projects for this client, or
+ * 3. They are assigned to any project for that client
+ */
+export async function checkClientAccess(
+  userId: string,
+  clientId: number
+): Promise<boolean> {
+  try {
+    // Check if user is a superuser (full access)
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+
+    if (user?.role === 'SUPERUSER') {
+      return true;
+    }
+
+    // Check if client exists
+    const client = await prisma.client.findUnique({
+      where: { id: clientId },
+      select: { id: true },
+    });
+
+    if (!client) {
+      return false;
+    }
+
+    // Get all unique service lines from projects for this client
+    const projectServiceLines = await prisma.project.findMany({
+      where: { clientId },
+      select: { serviceLine: true },
+      distinct: ['serviceLine'],
+    });
+
+    // If client has projects, check if user has access to any of those service lines
+    if (projectServiceLines.length > 0) {
+      const serviceLines = projectServiceLines.map(p => p.serviceLine);
+      
+      const serviceLineAccess = await prisma.serviceLineUser.findFirst({
+        where: {
+          userId,
+          serviceLine: { in: serviceLines },
+        },
+      });
+
+      if (serviceLineAccess) {
+        return true;
+      }
+    }
+
+    // Check if user is assigned to any project for this client
+    const projectAccess = await prisma.projectUser.findFirst({
+      where: {
+        userId,
+        Project: {
+          clientId,
+        },
+      },
+    });
+
+    return !!projectAccess;
+  } catch (error) {
+    log.error('Error checking client access', error);
+    return false;
+  }
+}
+
+/**
  * Get user's role on a project
  */
 export async function getUserProjectRole(

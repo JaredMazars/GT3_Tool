@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+import { getCurrentUser, checkClientAccess } from '@/lib/services/auth/auth';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
+import { parseFinancialRatios } from '@/lib/utils/jsonValidation';
+import { logger } from '@/lib/utils/logger';
 
 /**
  * GET /api/clients/[id]/analytics/ratios
@@ -25,13 +27,27 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid client ID' }, { status: 400 });
     }
 
+    // SECURITY: Check authorization
+    const hasAccess = await checkClientAccess(user.id, clientId);
+    if (!hasAccess) {
+      logger.warn('Unauthorized ratios access attempt', {
+        userId: user.id,
+        userEmail: user.email,
+        clientId,
+      });
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     // Get the most recent rating for this client
     const latestRating = await prisma.clientCreditRating.findFirst({
       where: { clientId },
       orderBy: { ratingDate: 'desc' },
       select: {
+        id: true,
         financialRatios: true,
         ratingDate: true,
+        ratingScore: true,
+        ratingGrade: true,
       },
     });
 
@@ -44,12 +60,22 @@ export async function GET(
       );
     }
 
-    const ratios = JSON.parse(latestRating.financialRatios);
+    // SAFE PARSING: Use validated JSON parsing
+    const ratios = parseFinancialRatios(latestRating.financialRatios);
+
+    logger.info('Financial ratios retrieved', {
+      clientId,
+      ratingId: latestRating.id,
+      ratingDate: latestRating.ratingDate,
+      ratiosCount: Object.keys(ratios).filter(key => ratios[key as keyof typeof ratios] !== undefined).length,
+    });
 
     return NextResponse.json(
       successResponse({
         ratios,
         ratingDate: latestRating.ratingDate,
+        ratingScore: latestRating.ratingScore,
+        ratingGrade: latestRating.ratingGrade,
       })
     );
   } catch (error) {

@@ -48,15 +48,34 @@ export class CreditRatingAnalyzer {
     try {
       // Step 1: Extract and combine financial data from all documents
       const financialData = this.combineFinancialData(documents);
+      logger.info('Financial data extracted', {
+        clientId: client.id,
+        dataPoints: Object.keys(financialData).filter(k => financialData[k as keyof typeof financialData] !== undefined).length,
+      });
 
       // Step 2: Calculate financial ratios
       const financialRatios = FinancialRatioCalculator.calculateRatios(financialData);
+      const calculatedRatios = Object.keys(financialRatios).filter(k => financialRatios[k as keyof typeof financialRatios] !== undefined);
+      logger.info('Financial ratios calculated', {
+        clientId: client.id,
+        ratiosCalculated: calculatedRatios.length,
+        ratios: calculatedRatios,
+      });
 
       // Step 3: Build comprehensive prompt for AI analysis
       const prompt = this.buildAnalysisPrompt(client, documents, financialData, financialRatios);
 
       // Step 4: Generate AI analysis
       const analysisReport = await this.generateAIAnalysis(prompt, financialRatios);
+      logger.info('AI analysis generated', {
+        clientId: client.id,
+        hasExecutiveSummary: !!analysisReport.executiveSummary,
+        strengthsCount: analysisReport.strengths.length,
+        weaknessesCount: analysisReport.weaknesses.length,
+        riskFactorsCount: analysisReport.riskFactors.length,
+        recommendationsCount: analysisReport.recommendations.length,
+        hasIndustryComparison: !!analysisReport.industryComparison,
+      });
 
       // Step 5: Calculate rating score and grade
       const { ratingScore, ratingGrade, confidence } = this.calculateRating(
@@ -64,12 +83,22 @@ export class CreditRatingAnalyzer {
         analysisReport
       );
 
-      logger.info('Credit rating analysis completed', {
+      logger.info('Credit rating calculation completed', {
         clientId: client.id,
         ratingGrade,
         ratingScore,
         confidence,
       });
+
+      // Verify we have all required data before returning
+      if (!analysisReport || !financialRatios) {
+        logger.error('Missing critical data in credit rating result', {
+          clientId: client.id,
+          hasAnalysisReport: !!analysisReport,
+          hasFinancialRatios: !!financialRatios,
+        });
+        throw new Error('Failed to generate complete credit rating analysis');
+      }
 
       return {
         ratingGrade,
@@ -271,7 +300,10 @@ Be objective, thorough, and professional. Acknowledge data limitations if applic
         prompt,
       });
 
-      return object as CreditAnalysisReport;
+      // VALIDATION: Validate the AI response against our schema
+      // The generateObject should already validate, but we double-check for safety
+      const validated = schema.parse(object);
+      return validated as CreditAnalysisReport;
     } catch (error) {
       logger.error('Error generating AI analysis', { error });
       

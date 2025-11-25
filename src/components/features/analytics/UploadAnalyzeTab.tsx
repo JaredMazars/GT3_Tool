@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { CloudArrowUpIcon, DocumentTextIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import { CloudArrowUpIcon, DocumentTextIcon, CheckCircleIcon, XCircleIcon, ChartBarIcon } from '@heroicons/react/24/outline';
 import { useAnalyticsDocuments, useUploadAnalyticsDocument, useGenerateCreditRating } from '@/hooks/analytics/useClientAnalytics';
 import { AnalyticsDocumentType } from '@/types/analytics';
 
@@ -30,6 +30,7 @@ export function UploadAnalyzeTab({ clientId, onGenerateComplete }: UploadAnalyze
 
     setUploadError(null);
     const file = files[0];
+    if (!file) return;
 
     try {
       await uploadMutation.mutateAsync({

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+import { getCurrentUser, checkClientAccess } from '@/lib/services/auth/auth';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
@@ -7,6 +7,7 @@ import { DocumentExtractor } from '@/lib/services/documents/documentExtractor';
 import { logger } from '@/lib/utils/logger';
 import path from 'path';
 import fs from 'fs/promises';
+import { fileTypeFromBuffer } from 'file-type';
 
 const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_UPLOAD_SIZE || '10485760'); // 10MB default
 const ALLOWED_TYPES = [
@@ -37,6 +38,18 @@ export async function GET(
 
     if (isNaN(clientId)) {
       return NextResponse.json({ error: 'Invalid client ID' }, { status: 400 });
+    }
+
+    // SECURITY: Check authorization - user must have access to this client
+    const hasAccess = await checkClientAccess(user.id, clientId);
+    if (!hasAccess) {
+      logger.warn('Unauthorized client access attempt', {
+        userId: user.id,
+        userEmail: user.email,
+        clientId,
+        action: 'GET /analytics/documents',
+      });
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Verify client exists
@@ -86,6 +99,17 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid client ID' }, { status: 400 });
     }
 
+    // SECURITY: Check authorization
+    const hasAccess = await checkClientAccess(user.id, clientId);
+    if (!hasAccess) {
+      logger.warn('Unauthorized document upload attempt', {
+        userId: user.id,
+        userEmail: user.email,
+        clientId,
+      });
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     // Verify client exists
     const client = await prisma.client.findUnique({
       where: { id: clientId },
@@ -112,7 +136,7 @@ export async function POST(
       );
     }
 
-    // Validate file type
+    // Validate MIME type from header
     if (!ALLOWED_TYPES.includes(file.type)) {
       return NextResponse.json(
         { error: 'Invalid file type. Only PDF, Excel, CSV, and image files are allowed.' },
@@ -123,14 +147,39 @@ export async function POST(
     // Convert file to buffer
     const buffer = Buffer.from(await file.arrayBuffer());
 
+    // SECURITY: Verify file signature (magic numbers) to prevent MIME type spoofing
+    const detectedType = await fileTypeFromBuffer(buffer);
+    if (!detectedType) {
+      return NextResponse.json(
+        { error: 'Unable to determine file type. File may be corrupted.' },
+        { status: 400 }
+      );
+    }
+
+    if (!ALLOWED_TYPES.includes(detectedType.mime)) {
+      logger.warn('File type mismatch detected', {
+        declaredType: file.type,
+        detectedType: detectedType.mime,
+        userId: user.id,
+        clientId,
+      });
+      return NextResponse.json(
+        { error: 'File type verification failed. The file does not match its declared type.' },
+        { status: 400 }
+      );
+    }
+
     // Create upload directory if it doesn't exist
     const uploadDir = path.join(process.cwd(), 'uploads', 'analytics', clientId.toString());
     await fs.mkdir(uploadDir, { recursive: true });
 
-    // Generate unique filename
+    // SECURITY: Generate safe filename - remove original extension and use verified one
     const timestamp = Date.now();
-    const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const fileName = `${timestamp}_${sanitizedFileName}`;
+    const safeBaseName = file.name
+      .replace(/\.[^/.]+$/, '') // Remove extension
+      .replace(/[^a-zA-Z0-9-]/g, '_') // Sanitize
+      .substring(0, 100); // Limit length
+    const fileName = `${timestamp}_${safeBaseName}.${detectedType.ext}`;
     const filePath = path.join(uploadDir, fileName);
 
     // Save file to disk
@@ -141,7 +190,7 @@ export async function POST(
     try {
       // Use DocumentExtractor to extract data from PDF/Excel
       if (file.type.includes('pdf') || file.type.includes('sheet') || file.type.includes('excel')) {
-        const extraction = await DocumentExtractor.extractData(filePath, 'Financial document for credit analysis');
+        const extraction = await DocumentExtractor.extractFromDocument(filePath, 'Financial document for credit analysis');
         extractedData = {
           summary: extraction.summary,
           data: extraction.structuredData,

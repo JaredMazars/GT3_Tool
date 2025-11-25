@@ -31,6 +31,8 @@ function ClientAnalyticsContent() {
     ? {
         ...clientData,
         Project: clientData.projects || [],
+        clientOCFlag: (clientData as any).clientOCFlag ?? false,
+        rolePlayer: (clientData as any).rolePlayer ?? false,
       }
     : null;
 
@@ -130,7 +132,7 @@ function ClientAnalyticsContent() {
         </nav>
 
         {/* Client Header */}
-        <ClientHeader client={client} />
+        <ClientHeader client={client as any} />
 
         {/* Tabs */}
         <div className="mt-6 mb-6 border-b border-forvis-gray-200">

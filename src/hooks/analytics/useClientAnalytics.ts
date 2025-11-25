@@ -94,14 +94,21 @@ export function useDeleteAnalyticsDocument() {
 
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.error || error.message || 'Failed to delete document');
+        // For 409 Conflict (document in use), preserve full error details
+        const customError: any = new Error(error.message || error.error || 'Failed to delete document');
+        customError.status = res.status;
+        if (res.status === 409 && error.ratingsAffected) {
+          customError.ratingsAffected = error.ratingsAffected;
+        }
+        throw customError;
       }
 
       const data = await res.json();
       return data.data;
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
+    onSuccess: async (_, variables) => {
+      // Refetch documents list immediately
+      await queryClient.refetchQueries({
         queryKey: analyticsKeys.documents(variables.clientId),
       });
     },
@@ -131,9 +138,16 @@ export function useCreditRatings(
       const url = `/api/clients/${clientId}/analytics/rating${
         params.toString() ? `?${params.toString()}` : ''
       }`;
+      console.log('Fetching credit ratings from:', url);
       const res = await fetch(url);
-      if (!res.ok) throw new Error('Failed to fetch credit ratings');
+      console.log('Credit ratings response status:', res.status);
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        console.error('Failed to fetch credit ratings:', errorData);
+        throw new Error('Failed to fetch credit ratings');
+      }
       const data = await res.json();
+      console.log('Credit ratings data received:', data);
       return data.data as { ratings: CreditRating[]; totalCount: number };
     },
     enabled: options?.enabled !== false && !!clientId,
@@ -145,6 +159,14 @@ export function useCreditRatings(
  */
 export function useLatestCreditRating(clientId: string | number) {
   const { data, ...rest } = useCreditRatings(clientId, { limit: 1 });
+  
+  console.log('useLatestCreditRating:', {
+    clientId,
+    data,
+    ratings: data?.ratings,
+    ratingsLength: data?.ratings?.length,
+    firstRating: data?.ratings?.[0],
+  });
 
   return {
     data: data?.ratings?.[0] || null,
@@ -198,15 +220,11 @@ export function useGenerateCreditRating() {
       const data = await res.json();
       return data.data as CreditRating;
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: analyticsKeys.ratings(variables.clientId),
-      });
-      queryClient.invalidateQueries({
-        queryKey: analyticsKeys.ratios(variables.clientId),
-      });
-      queryClient.invalidateQueries({
-        queryKey: analyticsKeys.latestRating(variables.clientId),
+    onSuccess: async (_, variables) => {
+      // Refetch all queries related to this client's analytics immediately
+      // This ensures all tabs (ratings, ratios) show new data without manual refresh
+      await queryClient.refetchQueries({
+        queryKey: analyticsKeys.clients(variables.clientId),
       });
     },
   });
@@ -238,12 +256,10 @@ export function useDeleteCreditRating() {
       const data = await res.json();
       return data.data;
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: analyticsKeys.ratings(variables.clientId),
-      });
-      queryClient.invalidateQueries({
-        queryKey: analyticsKeys.ratios(variables.clientId),
+    onSuccess: async (_, variables) => {
+      // Refetch all queries related to this client's analytics
+      await queryClient.refetchQueries({
+        queryKey: analyticsKeys.clients(variables.clientId),
       });
     },
   });

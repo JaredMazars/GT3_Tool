@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { DocumentTextIcon, MagnifyingGlassIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { useAnalyticsDocuments, useDeleteAnalyticsDocument } from '@/hooks/analytics/useClientAnalytics';
+import { useAnalyticsDocuments, useDeleteAnalyticsDocument, useDeleteCreditRating } from '@/hooks/analytics/useClientAnalytics';
+import { DeleteDocumentWithRatingsModal } from './DeleteDocumentWithRatingsModal';
 
 interface AnalyticsDocumentsTabProps {
   clientId: string | number;
@@ -12,9 +13,14 @@ export function AnalyticsDocumentsTab({ clientId }: AnalyticsDocumentsTabProps) 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('ALL');
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [showDeleteRatingsModal, setShowDeleteRatingsModal] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<{ id: number; name: string } | null>(null);
+  const [affectedRatings, setAffectedRatings] = useState<any[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   const { data: documentsData, isLoading } = useAnalyticsDocuments(clientId);
   const deleteMutation = useDeleteAnalyticsDocument();
+  const deleteRatingMutation = useDeleteCreditRating();
 
   const documents = documentsData?.documents || [];
 
@@ -28,8 +34,8 @@ export function AnalyticsDocumentsTab({ clientId }: AnalyticsDocumentsTabProps) 
 
   const documentTypes = ['ALL', ...Array.from(new Set(documents.map((d) => d.documentType)))];
 
-  const handleDelete = async (documentId: number) => {
-    if (!confirm('Are you sure you want to delete this document? This action cannot be undone.')) {
+  const handleDelete = async (documentId: number, fileName: string) => {
+    if (!confirm(`Are you sure you want to delete "${fileName}"? This action cannot be undone.`)) {
       return;
     }
 
@@ -37,7 +43,55 @@ export function AnalyticsDocumentsTab({ clientId }: AnalyticsDocumentsTabProps) 
     try {
       await deleteMutation.mutateAsync({ clientId, documentId });
     } catch (error: any) {
-      setDeleteError(error.message || 'Failed to delete document');
+      // Check if this is a 409 conflict (document used in ratings)
+      if (error.status === 409 && error.ratingsAffected) {
+        // Show modal with affected ratings
+        setDocumentToDelete({ id: documentId, name: fileName });
+        setAffectedRatings(error.ratingsAffected);
+        setShowDeleteRatingsModal(true);
+      } else {
+        // Show error for other failures
+        const errorMessage = error.message || 'Failed to delete document';
+        setDeleteError(errorMessage);
+        // Auto-dismiss error after 10 seconds
+        setTimeout(() => setDeleteError(null), 10000);
+      }
+    }
+  };
+
+  const handleConfirmDeleteWithRatings = async () => {
+    if (!documentToDelete || affectedRatings.length === 0) return;
+    
+    setIsDeleting(true);
+    try {
+      // Delete all affected ratings first
+      for (const rating of affectedRatings) {
+        await deleteRatingMutation.mutateAsync({
+          clientId,
+          ratingId: rating.id,
+        });
+      }
+      
+      // Now delete the document
+      await deleteMutation.mutateAsync({
+        clientId,
+        documentId: documentToDelete.id,
+      });
+      
+      // Close modal and reset state
+      setShowDeleteRatingsModal(false);
+      setDocumentToDelete(null);
+      setAffectedRatings([]);
+    } catch (error: any) {
+      setDeleteError(error.message || 'Failed to delete ratings/document');
+      // Auto-dismiss error after 10 seconds
+      setTimeout(() => setDeleteError(null), 10000);
+      // Close modal on error
+      setShowDeleteRatingsModal(false);
+      setDocumentToDelete(null);
+      setAffectedRatings([]);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -53,8 +107,24 @@ export function AnalyticsDocumentsTab({ clientId }: AnalyticsDocumentsTabProps) 
     <div className="space-y-6">
       {/* Delete Error */}
       {deleteError && (
-        <div className="rounded-lg p-3 bg-red-50 border border-red-200">
-          <p className="text-sm text-red-800">{deleteError}</p>
+        <div className="rounded-lg p-4 bg-red-50 border-2 border-red-200">
+          <div className="flex items-start gap-3">
+            <svg className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-red-900">Unable to Delete Document</h3>
+              <p className="text-sm text-red-800 mt-1">{deleteError}</p>
+            </div>
+            <button
+              onClick={() => setDeleteError(null)}
+              className="text-red-400 hover:text-red-600"
+            >
+              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
         </div>
       )}
 
@@ -161,12 +231,22 @@ export function AnalyticsDocumentsTab({ clientId }: AnalyticsDocumentsTabProps) 
                     </td>
                     <td className="px-6 py-4 text-center">
                       <button
-                        onClick={() => handleDelete(doc.id)}
+                        onClick={() => handleDelete(doc.id, doc.fileName)}
                         disabled={deleteMutation.isPending}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-700 hover:text-red-900 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-700 hover:text-red-900 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={deleteMutation.isPending ? 'Deleting...' : 'Delete document'}
                       >
-                        <TrashIcon className="h-4 w-4" />
-                        Delete
+                        {deleteMutation.isPending ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-700"></div>
+                            Deleting...
+                          </>
+                        ) : (
+                          <>
+                            <TrashIcon className="h-4 w-4" />
+                            Delete
+                          </>
+                        )}
                       </button>
                     </td>
                   </tr>
@@ -183,6 +263,20 @@ export function AnalyticsDocumentsTab({ clientId }: AnalyticsDocumentsTabProps) 
           Showing {filteredDocuments.length} of {documents.length} document{documents.length !== 1 ? 's' : ''}
         </div>
       )}
+
+      {/* Delete Document With Ratings Modal */}
+      <DeleteDocumentWithRatingsModal
+        isOpen={showDeleteRatingsModal}
+        onClose={() => {
+          setShowDeleteRatingsModal(false);
+          setDocumentToDelete(null);
+          setAffectedRatings([]);
+        }}
+        onConfirm={handleConfirmDeleteWithRatings}
+        documentName={documentToDelete?.name || ''}
+        affectedRatings={affectedRatings}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }

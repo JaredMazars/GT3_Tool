@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+import { getCurrentUser, checkClientAccess } from '@/lib/services/auth/auth';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
@@ -28,6 +28,18 @@ export async function DELETE(
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
     }
 
+    // SECURITY: Check authorization
+    const hasAccess = await checkClientAccess(user.id, clientId);
+    if (!hasAccess) {
+      logger.warn('Unauthorized document deletion attempt', {
+        userId: user.id,
+        userEmail: user.email,
+        clientId,
+        documentId: docId,
+      });
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     // Find the document
     const document = await prisma.clientAnalyticsDocument.findFirst({
       where: {
@@ -48,6 +60,9 @@ export async function DELETE(
           select: {
             id: true,
             ratingDate: true,
+            ratingGrade: true,
+            ratingScore: true,
+            confidence: true,
           },
         },
       },
@@ -58,7 +73,7 @@ export async function DELETE(
         {
           error: 'Cannot delete document',
           message: `This document is being used in ${ratingsUsingDoc.length} credit rating(s). Please delete those ratings first.`,
-          ratingsAffected: ratingsUsingDoc.map((r) => r.CreditRating),
+          ratingsAffected: ratingsUsingDoc.map((r: any) => r.CreditRating),
         },
         { status: 409 }
       );
@@ -118,6 +133,18 @@ export async function GET(
 
     if (isNaN(clientId) || isNaN(docId)) {
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
+    }
+
+    // SECURITY: Check authorization
+    const hasAccess = await checkClientAccess(user.id, clientId);
+    if (!hasAccess) {
+      logger.warn('Unauthorized document access attempt', {
+        userId: user.id,
+        userEmail: user.email,
+        clientId,
+        documentId: docId,
+      });
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Find the document

@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+import { getCurrentUser, checkClientAccess } from '@/lib/services/auth/auth';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { CreditRatingAnalyzer } from '@/lib/services/analytics/creditRatingAnalyzer';
 import { logger } from '@/lib/utils/logger';
+import { CreditRatingQuerySchema, GenerateCreditRatingSchema } from '@/lib/validation/schemas';
+import { parseCreditAnalysisReport, parseFinancialRatios, safeStringifyJSON } from '@/lib/utils/jsonValidation';
+import { CreditAnalysisReportSchema, FinancialRatiosSchema } from '@/lib/validation/schemas';
+import type { Prisma } from '@prisma/client';
 
 /**
  * GET /api/clients/[id]/analytics/rating
@@ -27,18 +31,41 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid client ID' }, { status: 400 });
     }
 
-    // Get query parameters
-    const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '10');
-    const startDate = searchParams.get('startDate');
-    const endDate = searchParams.get('endDate');
+    // SECURITY: Check authorization
+    const hasAccess = await checkClientAccess(user.id, clientId);
+    if (!hasAccess) {
+      logger.warn('Unauthorized rating access attempt', {
+        userId: user.id,
+        userEmail: user.email,
+        clientId,
+      });
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
-    // Build where clause
+    // VALIDATION: Validate and parse query parameters
+    const { searchParams } = new URL(request.url);
+    const queryValidation = CreditRatingQuerySchema.safeParse({
+      limit: searchParams.get('limit'),
+      ...(searchParams.get('startDate') && { startDate: searchParams.get('startDate') }),
+      ...(searchParams.get('endDate') && { endDate: searchParams.get('endDate') }),
+    });
+
+    if (!queryValidation.success) {
+      return NextResponse.json(
+        { error: 'Invalid query parameters', details: queryValidation.error.errors },
+        { status: 400 }
+      );
+    }
+
+    const { limit, startDate, endDate } = queryValidation.data;
+
+    // Build type-safe where clause
     const where: any = { clientId };
     if (startDate || endDate) {
-      where.ratingDate = {};
-      if (startDate) where.ratingDate.gte = new Date(startDate);
-      if (endDate) where.ratingDate.lte = new Date(endDate);
+      where.ratingDate = {
+        ...(startDate && { gte: startDate }),
+        ...(endDate && { lte: endDate }),
+      };
     }
 
     // Fetch ratings with documents
@@ -55,13 +82,35 @@ export async function GET(
       },
     });
 
-    // Transform the data
-    const transformedRatings = ratings.map((rating) => ({
-      ...rating,
-      analysisReport: JSON.parse(rating.analysisReport),
-      financialRatios: JSON.parse(rating.financialRatios),
-      documents: rating.Documents.map((d) => d.AnalyticsDocument),
-    }));
+    logger.info('Fetched credit ratings', {
+      clientId,
+      ratingsFound: ratings.length,
+      limit,
+      whereClause: JSON.stringify(where),
+    });
+
+    // Transform the data with safe JSON parsing
+    const transformedRatings = ratings.map((rating: any) => {
+      try {
+        return {
+          ...rating,
+          analysisReport: parseCreditAnalysisReport(rating.analysisReport),
+          financialRatios: parseFinancialRatios(rating.financialRatios),
+          documents: rating.Documents.map((d: any) => d.AnalyticsDocument),
+        };
+      } catch (error) {
+        logger.error('Error transforming rating', {
+          ratingId: rating.id,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        throw error;
+      }
+    });
+
+    logger.info('Transformed credit ratings', {
+      clientId,
+      transformedCount: transformedRatings.length,
+    });
 
     return NextResponse.json(
       successResponse({
@@ -95,16 +144,29 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid client ID' }, { status: 400 });
     }
 
-    // Parse request body
-    const body = await request.json();
-    const { documentIds } = body;
+    // SECURITY: Check authorization
+    const hasAccess = await checkClientAccess(user.id, clientId);
+    if (!hasAccess) {
+      logger.warn('Unauthorized rating generation attempt', {
+        userId: user.id,
+        userEmail: user.email,
+        clientId,
+      });
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
-    if (!documentIds || !Array.isArray(documentIds) || documentIds.length === 0) {
+    // VALIDATION: Parse and validate request body
+    const body = await request.json();
+    const validation = GenerateCreditRatingSchema.safeParse(body);
+
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'At least one document ID is required' },
+        { error: 'Invalid request body', details: validation.error.errors },
         { status: 400 }
       );
     }
+
+    const { documentIds } = validation.data;
 
     // Verify client exists
     const client = await prisma.client.findUnique({
@@ -163,7 +225,7 @@ export async function POST(
         industry: client.industry || undefined,
         sector: client.sector || undefined,
       },
-      documents.map((doc) => ({
+      documents.map((doc: any) => ({
         id: doc.id,
         fileName: doc.fileName,
         documentType: doc.documentType,
@@ -171,56 +233,93 @@ export async function POST(
       }))
     );
 
-    // Save rating to database
-    const rating = await prisma.clientCreditRating.create({
-      data: {
-        clientId,
-        ratingScore: result.ratingScore,
-        ratingGrade: result.ratingGrade,
-        analysisReport: JSON.stringify(result.analysisReport),
-        financialRatios: JSON.stringify(result.financialRatios),
-        confidence: result.confidence,
-        analyzedBy: user.email!,
-      },
-    });
-
-    // Create junction table entries linking rating to documents
-    await prisma.creditRatingDocument.createMany({
-      data: documentIds.map((docId: number) => ({
-        creditRatingId: rating.id,
-        analyticsDocumentId: docId,
-      })),
-    });
-
-    // Fetch complete rating with documents
-    const completeRating = await prisma.clientCreditRating.findUnique({
-      where: { id: rating.id },
-      include: {
-        Documents: {
-          include: {
-            AnalyticsDocument: true,
-          },
-        },
-      },
-    });
-
-    if (!completeRating) {
-      throw new Error('Failed to fetch created rating');
-    }
-
-    // Transform response
-    const transformedRating = {
-      ...completeRating,
-      analysisReport: JSON.parse(completeRating.analysisReport),
-      financialRatios: JSON.parse(completeRating.financialRatios),
-      documents: completeRating.Documents.map((d) => d.AnalyticsDocument),
-    };
-
-    logger.info('Credit rating generated successfully', {
-      ratingId: rating.id,
+    // Log what we're about to save
+    logger.info('Credit rating analysis completed', {
       clientId,
       ratingGrade: result.ratingGrade,
       ratingScore: result.ratingScore,
+      confidence: result.confidence,
+      hasAnalysisReport: !!result.analysisReport,
+      hasFinancialRatios: !!result.financialRatios,
+      analysisReportFields: result.analysisReport ? Object.keys(result.analysisReport) : [],
+      ratiosCalculated: result.financialRatios ? Object.keys(result.financialRatios).filter(k => result.financialRatios[k as keyof typeof result.financialRatios] !== undefined) : [],
+    });
+
+    // DATA INTEGRITY: Save rating and document associations in a transaction
+    const completeRating = await prisma.$transaction(async (tx) => {
+      // Validate and stringify JSON data before saving
+      const analysisReportJson = safeStringifyJSON(
+        result.analysisReport,
+        CreditAnalysisReportSchema,
+        'analysisReport'
+      );
+      const financialRatiosJson = safeStringifyJSON(
+        result.financialRatios,
+        FinancialRatiosSchema,
+        'financialRatios'
+      );
+
+      // Create rating
+      const rating = await tx.clientCreditRating.create({
+        data: {
+          clientId,
+          ratingScore: result.ratingScore,
+          ratingGrade: result.ratingGrade,
+          analysisReport: analysisReportJson,
+          financialRatios: financialRatiosJson,
+          confidence: result.confidence,
+          analyzedBy: user.email!,
+        },
+      });
+
+      // Create junction table entries linking rating to documents
+      await tx.creditRatingDocument.createMany({
+        data: documentIds.map((docId: number) => ({
+          creditRatingId: rating.id,
+          analyticsDocumentId: docId,
+        })),
+      });
+
+      // Fetch complete rating with documents
+      const complete = await tx.clientCreditRating.findUnique({
+        where: { id: rating.id },
+        include: {
+          Documents: {
+            include: {
+              AnalyticsDocument: true,
+            },
+          },
+        },
+      });
+
+      if (!complete) {
+        throw new AppError(500, 'Failed to fetch created rating', ErrorCodes.INTERNAL_ERROR);
+      }
+
+      return complete;
+    });
+
+    // Transform response with safe JSON parsing
+    const transformedRating = {
+      ...completeRating,
+      analysisReport: parseCreditAnalysisReport(completeRating.analysisReport),
+      financialRatios: parseFinancialRatios(completeRating.financialRatios),
+      documents: completeRating.Documents.map((d: any) => d.AnalyticsDocument),
+    };
+
+    // Verify data was saved correctly
+    logger.info('Credit rating saved successfully to database', {
+      ratingId: completeRating.id,
+      clientId,
+      ratingGrade: completeRating.ratingGrade,
+      ratingScore: completeRating.ratingScore,
+      confidence: completeRating.confidence,
+      analyzedBy: completeRating.analyzedBy,
+      documentsLinked: completeRating.Documents.length,
+      analysisReportSize: completeRating.analysisReport.length,
+      financialRatiosSize: completeRating.financialRatios.length,
+      parsedAnalysisFields: Object.keys(transformedRating.analysisReport),
+      parsedRatiosCount: Object.keys(transformedRating.financialRatios).filter(k => transformedRating.financialRatios[k as keyof typeof transformedRating.financialRatios] !== undefined).length,
     });
 
     return NextResponse.json(successResponse(transformedRating), { status: 201 });
