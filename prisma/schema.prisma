@@ -709,3 +709,164 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
+
+// ============================================
+// Business Development CRM Models
+// ============================================
+
+model BDStage {
+  id              Int             @id @default(autoincrement())
+  name            String
+  description     String?
+  order           Int
+  probability     Float           // 0-100 (percentage)
+  serviceLine     String?         // NULL = applies to all service lines
+  isActive        Boolean         @default(true)
+  isDefault       Boolean         @default(false)
+  color           String?         // Hex color for UI
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  BDOpportunity   BDOpportunity[]
+
+  @@unique([serviceLine, name])
+  @@index([serviceLine])
+  @@index([order])
+  @@index([isActive])
+}
+
+model BDContact {
+  id              Int             @id @default(autoincrement())
+  companyName     String
+  firstName       String
+  lastName        String
+  email           String?
+  phone           String?
+  mobile          String?
+  jobTitle        String?
+  linkedin        String?
+  industry        String?
+  sector          String?
+  website         String?
+  address         String?
+  city            String?
+  province        String?
+  postalCode      String?
+  country         String?         @default("South Africa")
+  notes           String?         @db.NVarChar(Max)
+  createdBy       String
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  BDOpportunity   BDOpportunity[]
+  BDActivity      BDActivity[]
+
+  @@index([companyName])
+  @@index([email])
+  @@index([createdAt(sort: Desc)])
+}
+
+model BDOpportunity {
+  id                  Int           @id @default(autoincrement())
+  title               String
+  description         String?       @db.NVarChar(Max)
+  companyName         String
+  contactId           Int?
+  serviceLine         String
+  stageId             Int
+  value               Float?        // Expected revenue
+  probability         Float?        // Override stage probability if needed
+  expectedCloseDate   DateTime?
+  source              String?       // REFERRAL, WEBSITE, COLD_CALL, NETWORKING, EXISTING_CLIENT, OTHER
+  status              String        @default("OPEN") // OPEN, WON, LOST, ABANDONED
+  lostReason          String?
+  assignedTo          String        // User ID
+  convertedToClientId Int?          // Client ID after conversion
+  convertedAt         DateTime?
+  createdBy           String
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  Contact             BDContact?    @relation(fields: [contactId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Stage               BDStage       @relation(fields: [stageId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  BDActivity          BDActivity[]
+  BDProposal          BDProposal[]
+  BDNote              BDNote[]
+
+  @@index([serviceLine])
+  @@index([stageId])
+  @@index([status])
+  @@index([assignedTo])
+  @@index([convertedToClientId])
+  @@index([expectedCloseDate])
+  @@index([serviceLine, status])
+  @@index([assignedTo, status])
+  @@index([createdAt(sort: Desc)])
+  @@index([updatedAt(sort: Desc)])
+}
+
+model BDActivity {
+  id              Int           @id @default(autoincrement())
+  opportunityId   Int
+  contactId       Int?
+  activityType    String        // MEETING, CALL, EMAIL, TASK, NOTE, OTHER
+  subject         String
+  description     String?       @db.NVarChar(Max)
+  status          String        @default("SCHEDULED") // SCHEDULED, COMPLETED, CANCELLED
+  dueDate         DateTime?
+  completedAt     DateTime?
+  duration        Int?          // Minutes
+  location        String?
+  assignedTo      String        // User ID
+  createdBy       String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  Opportunity     BDOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  Contact         BDContact?    @relation(fields: [contactId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([opportunityId])
+  @@index([contactId])
+  @@index([activityType])
+  @@index([status])
+  @@index([assignedTo])
+  @@index([dueDate])
+  @@index([assignedTo, status, dueDate])
+  @@index([opportunityId, createdAt(sort: Desc)])
+}
+
+model BDProposal {
+  id              Int           @id @default(autoincrement())
+  opportunityId   Int
+  title           String
+  description     String?       @db.NVarChar(Max)
+  fileName        String
+  filePath        String
+  fileSize        Int
+  proposedValue   Float?
+  validUntil      DateTime?
+  status          String        @default("DRAFT") // DRAFT, SENT, VIEWED, ACCEPTED, REJECTED
+  sentAt          DateTime?
+  viewedAt        DateTime?
+  respondedAt     DateTime?
+  version         Int           @default(1)
+  uploadedBy      String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  Opportunity     BDOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  @@index([opportunityId])
+  @@index([status])
+  @@index([sentAt])
+  @@index([opportunityId, version])
+}
+
+model BDNote {
+  id              Int           @id @default(autoincrement())
+  opportunityId   Int
+  content         String        @db.NVarChar(Max)
+  isPrivate       Boolean       @default(false)
+  createdBy       String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  Opportunity     BDOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  @@index([opportunityId])
+  @@index([createdAt(sort: Desc)])
+}

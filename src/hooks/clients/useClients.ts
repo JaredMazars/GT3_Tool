@@ -60,6 +60,11 @@ export interface ClientWithProjects extends Client {
     AUDIT: number;
     ACCOUNTING: number;
     ADVISORY: number;
+    QRM: number;
+    BUSINESS_DEV: number;
+    IT: number;
+    FINANCE: number;
+    HR: number;
   };
 }
 

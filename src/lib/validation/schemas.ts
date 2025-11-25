@@ -425,3 +425,221 @@ export const CreditAnalysisReportSchema = z.object({
 export type FinancialRatiosInput = z.infer<typeof FinancialRatiosSchema>;
 export type CreditAnalysisReportInput = z.infer<typeof CreditAnalysisReportSchema>;
 
+/**
+ * Business Development CRM validation schemas
+ */
+
+// BD Stage schemas
+export const CreateBDStageSchema = z.object({
+  name: z.string().min(1).max(200),
+  description: z.string().max(1000).optional(),
+  order: z.number().int().positive(),
+  probability: z.number().min(0).max(100),
+  serviceLine: z.string().max(50).nullable().optional(),
+  isActive: z.boolean().default(true),
+  isDefault: z.boolean().default(false),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(), // Hex color
+}).strict();
+
+export const UpdateBDStageSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  description: z.string().max(1000).optional(),
+  order: z.number().int().positive().optional(),
+  probability: z.number().min(0).max(100).optional(),
+  isActive: z.boolean().optional(),
+  isDefault: z.boolean().optional(),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+}).strict();
+
+// BD Contact schemas
+export const CreateBDContactSchema = z.object({
+  companyName: z.string().min(1).max(500),
+  firstName: z.string().min(1).max(200),
+  lastName: z.string().min(1).max(200),
+  email: z.string().email().max(255).optional(),
+  phone: z.string().max(50).optional(),
+  mobile: z.string().max(50).optional(),
+  jobTitle: z.string().max(200).optional(),
+  linkedin: z.string().url().max(500).optional(),
+  industry: z.string().max(200).optional(),
+  sector: z.string().max(200).optional(),
+  website: z.string().url().max(500).optional(),
+  address: z.string().max(500).optional(),
+  city: z.string().max(100).optional(),
+  province: z.string().max(100).optional(),
+  postalCode: z.string().max(20).optional(),
+  country: z.string().max(100).default('South Africa'),
+  notes: z.string().max(10000).optional(),
+}).strict();
+
+export const UpdateBDContactSchema = z.object({
+  companyName: z.string().min(1).max(500).optional(),
+  firstName: z.string().min(1).max(200).optional(),
+  lastName: z.string().min(1).max(200).optional(),
+  email: z.string().email().max(255).optional(),
+  phone: z.string().max(50).optional(),
+  mobile: z.string().max(50).optional(),
+  jobTitle: z.string().max(200).optional(),
+  linkedin: z.string().url().max(500).optional(),
+  industry: z.string().max(200).optional(),
+  sector: z.string().max(200).optional(),
+  website: z.string().url().max(500).optional(),
+  address: z.string().max(500).optional(),
+  city: z.string().max(100).optional(),
+  province: z.string().max(100).optional(),
+  postalCode: z.string().max(20).optional(),
+  country: z.string().max(100).optional(),
+  notes: z.string().max(10000).optional(),
+}).strict();
+
+// BD Opportunity schemas
+export const CreateBDOpportunitySchema = z.object({
+  title: z.string().min(1).max(500),
+  description: z.string().max(10000).optional(),
+  companyName: z.string().min(1).max(500),
+  contactId: z.number().int().positive().optional(),
+  serviceLine: z.enum(['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'BUSINESS_DEV', 'IT', 'FINANCE', 'HR']),
+  stageId: z.number().int().positive(),
+  value: z.number().min(0).optional(),
+  probability: z.number().min(0).max(100).optional(),
+  expectedCloseDate: z.coerce.date().optional(),
+  source: z.enum(['REFERRAL', 'WEBSITE', 'COLD_CALL', 'NETWORKING', 'EXISTING_CLIENT', 'OTHER']).optional(),
+  assignedTo: z.string().min(1).optional(), // Will default to creator if not provided
+}).strict();
+
+export const UpdateBDOpportunitySchema = z.object({
+  title: z.string().min(1).max(500).optional(),
+  description: z.string().max(10000).optional(),
+  companyName: z.string().min(1).max(500).optional(),
+  contactId: z.number().int().positive().nullable().optional(),
+  stageId: z.number().int().positive().optional(),
+  value: z.number().min(0).nullable().optional(),
+  probability: z.number().min(0).max(100).nullable().optional(),
+  expectedCloseDate: z.coerce.date().nullable().optional(),
+  source: z.enum(['REFERRAL', 'WEBSITE', 'COLD_CALL', 'NETWORKING', 'EXISTING_CLIENT', 'OTHER']).nullable().optional(),
+  status: z.enum(['OPEN', 'WON', 'LOST', 'ABANDONED']).optional(),
+  lostReason: z.string().max(1000).nullable().optional(),
+  assignedTo: z.string().min(1).optional(),
+}).strict();
+
+export const MoveBDOpportunityStageSchema = z.object({
+  stageId: z.number().int().positive(),
+}).strict();
+
+export const ConvertBDOpportunitySchema = z.object({
+  createProject: z.boolean().default(false),
+  projectType: z.string().optional(), // Required if createProject = true
+}).strict();
+
+// BD Activity schemas
+export const CreateBDActivitySchema = z.object({
+  opportunityId: z.number().int().positive(),
+  contactId: z.number().int().positive().optional(),
+  activityType: z.enum(['MEETING', 'CALL', 'EMAIL', 'TASK', 'NOTE', 'OTHER']),
+  subject: z.string().min(1).max(500),
+  description: z.string().max(10000).optional(),
+  status: z.enum(['SCHEDULED', 'COMPLETED', 'CANCELLED']).default('SCHEDULED'),
+  dueDate: z.coerce.date().optional(),
+  duration: z.number().int().min(0).optional(), // Minutes
+  location: z.string().max(500).optional(),
+  assignedTo: z.string().min(1).optional(), // Will default to creator if not provided
+}).strict();
+
+export const UpdateBDActivitySchema = z.object({
+  contactId: z.number().int().positive().nullable().optional(),
+  activityType: z.enum(['MEETING', 'CALL', 'EMAIL', 'TASK', 'NOTE', 'OTHER']).optional(),
+  subject: z.string().min(1).max(500).optional(),
+  description: z.string().max(10000).optional(),
+  status: z.enum(['SCHEDULED', 'COMPLETED', 'CANCELLED']).optional(),
+  dueDate: z.coerce.date().nullable().optional(),
+  completedAt: z.coerce.date().nullable().optional(),
+  duration: z.number().int().min(0).nullable().optional(),
+  location: z.string().max(500).nullable().optional(),
+  assignedTo: z.string().min(1).optional(),
+}).strict();
+
+// BD Proposal schemas
+export const CreateBDProposalSchema = z.object({
+  opportunityId: z.number().int().positive(),
+  title: z.string().min(1).max(500),
+  description: z.string().max(10000).optional(),
+  proposedValue: z.number().min(0).optional(),
+  validUntil: z.coerce.date().optional(),
+  version: z.number().int().positive().default(1),
+}).strict();
+
+export const UpdateBDProposalSchema = z.object({
+  title: z.string().min(1).max(500).optional(),
+  description: z.string().max(10000).optional(),
+  proposedValue: z.number().min(0).nullable().optional(),
+  validUntil: z.coerce.date().nullable().optional(),
+  status: z.enum(['DRAFT', 'SENT', 'VIEWED', 'ACCEPTED', 'REJECTED']).optional(),
+  sentAt: z.coerce.date().nullable().optional(),
+  viewedAt: z.coerce.date().nullable().optional(),
+  respondedAt: z.coerce.date().nullable().optional(),
+}).strict();
+
+// BD Note schemas
+export const CreateBDNoteSchema = z.object({
+  opportunityId: z.number().int().positive(),
+  content: z.string().min(1).max(10000),
+  isPrivate: z.boolean().default(false),
+}).strict();
+
+export const UpdateBDNoteSchema = z.object({
+  content: z.string().min(1).max(10000).optional(),
+  isPrivate: z.boolean().optional(),
+}).strict();
+
+// BD Query/Filter schemas
+export const BDOpportunityFiltersSchema = z.object({
+  serviceLine: z.string().optional(),
+  stageId: z.number().int().positive().optional(),
+  status: z.enum(['OPEN', 'WON', 'LOST', 'ABANDONED']).optional(),
+  assignedTo: z.string().optional(),
+  search: z.string().optional(), // Search in title, company name
+  fromDate: z.coerce.date().optional(),
+  toDate: z.coerce.date().optional(),
+  page: z.number().int().positive().default(1),
+  pageSize: z.number().int().positive().max(100).default(20),
+}).strict();
+
+export const BDActivityFiltersSchema = z.object({
+  opportunityId: z.number().int().positive().optional(),
+  activityType: z.enum(['MEETING', 'CALL', 'EMAIL', 'TASK', 'NOTE', 'OTHER']).optional(),
+  status: z.enum(['SCHEDULED', 'COMPLETED', 'CANCELLED']).optional(),
+  assignedTo: z.string().optional(),
+  fromDate: z.coerce.date().optional(),
+  toDate: z.coerce.date().optional(),
+  page: z.number().int().positive().default(1),
+  pageSize: z.number().int().positive().max(100).default(20),
+}).strict();
+
+export const BDAnalyticsFiltersSchema = z.object({
+  serviceLine: z.string().optional(),
+  fromDate: z.coerce.date().optional(),
+  toDate: z.coerce.date().optional(),
+  assignedTo: z.string().optional(),
+}).strict();
+
+/**
+ * Type inference from BD schemas
+ */
+export type CreateBDStageInput = z.infer<typeof CreateBDStageSchema>;
+export type UpdateBDStageInput = z.infer<typeof UpdateBDStageSchema>;
+export type CreateBDContactInput = z.infer<typeof CreateBDContactSchema>;
+export type UpdateBDContactInput = z.infer<typeof UpdateBDContactSchema>;
+export type CreateBDOpportunityInput = z.infer<typeof CreateBDOpportunitySchema>;
+export type UpdateBDOpportunityInput = z.infer<typeof UpdateBDOpportunitySchema>;
+export type MoveBDOpportunityStageInput = z.infer<typeof MoveBDOpportunityStageSchema>;
+export type ConvertBDOpportunityInput = z.infer<typeof ConvertBDOpportunitySchema>;
+export type CreateBDActivityInput = z.infer<typeof CreateBDActivitySchema>;
+export type UpdateBDActivityInput = z.infer<typeof UpdateBDActivitySchema>;
+export type CreateBDProposalInput = z.infer<typeof CreateBDProposalSchema>;
+export type UpdateBDProposalInput = z.infer<typeof UpdateBDProposalSchema>;
+export type CreateBDNoteInput = z.infer<typeof CreateBDNoteSchema>;
+export type UpdateBDNoteInput = z.infer<typeof UpdateBDNoteSchema>;
+export type BDOpportunityFiltersInput = z.infer<typeof BDOpportunityFiltersSchema>;
+export type BDActivityFiltersInput = z.infer<typeof BDActivityFiltersSchema>;
+export type BDAnalyticsFiltersInput = z.infer<typeof BDAnalyticsFiltersSchema>;
+

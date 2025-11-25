@@ -159,6 +159,15 @@ export default function ServiceLineClientDetailPage() {
     ServiceLine.HR,
   ];
 
+  // Calculate total counts for main tabs
+  const getServiceLinesTotalCount = () => {
+    return mainServiceLines.reduce((total, sl) => total + getProjectCountByServiceLine(sl), 0);
+  };
+
+  const getSharedServicesTotalCount = () => {
+    return sharedServices.reduce((total, sl) => total + getProjectCountByServiceLine(sl), 0);
+  };
+
   // Get active tab list based on main tab selection
   const activeTabList = mainTab === 'service-lines' ? mainServiceLines : sharedServices;
 
@@ -402,6 +411,13 @@ export default function ServiceLineClientDetailPage() {
                     }`}
                   >
                     <span>Service Lines</span>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                      mainTab === 'service-lines'
+                        ? 'bg-forvis-blue-100 text-forvis-blue-700'
+                        : 'bg-forvis-gray-100 text-forvis-gray-600'
+                    }`}>
+                      {getServiceLinesTotalCount()}
+                    </span>
                   </button>
                   <button
                     onClick={() => {
@@ -417,6 +433,13 @@ export default function ServiceLineClientDetailPage() {
                     }`}
                   >
                     <span>Shared Services</span>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                      mainTab === 'shared-services'
+                        ? 'bg-forvis-blue-100 text-forvis-blue-700'
+                        : 'bg-forvis-gray-100 text-forvis-gray-600'
+                    }`}>
+                      {getSharedServicesTotalCount()}
+                    </span>
                   </button>
                 </nav>
               </div>

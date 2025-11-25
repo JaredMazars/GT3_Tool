@@ -32,6 +32,7 @@
     "@tanstack/react-query-devtools": "^5.90.2",
     "@types/multer": "^1.4.7",
     "ai": "^5.0.89",
+    "date-fns": "^4.1.0",
     "docx": "^9.5.1",
     "exceljs": "^4.4.0",
     "file-type": "^21.1.1",

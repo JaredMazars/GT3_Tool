@@ -6,6 +6,7 @@ import {
   FolderIcon, 
   BuildingOfficeIcon,
   ArrowLeftIcon,
+  ChartBarIcon,
 } from '@heroicons/react/24/outline';
 import { formatServiceLineName } from '@/lib/utils/serviceLineUtils';
 
@@ -38,7 +39,27 @@ export function ServiceLineSelector() {
         </div>
 
         {/* Selection Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl">
+          {/* BD Pipeline Card */}
+          <Link
+            href={`/dashboard/${serviceLine}/bd`}
+            className="group block"
+          >
+            <div className="card hover:shadow-lg transition-all duration-200 border-2 border-transparent hover:border-forvis-blue-500 cursor-pointer h-full">
+              <div className="flex flex-col items-center text-center p-8">
+                <div className="w-20 h-20 rounded-full bg-teal-100 flex items-center justify-center mb-6 group-hover:bg-teal-200 transition-colors">
+                  <ChartBarIcon className="h-10 w-10 text-teal-600" />
+                </div>
+                <h2 className="text-2xl font-bold text-forvis-gray-900 mb-3">
+                  BD Pipeline
+                </h2>
+                <p className="text-forvis-gray-600">
+                  Track opportunities, prospects, and manage your sales pipeline
+                </p>
+              </div>
+            </div>
+          </Link>
+
           {/* Internal Projects Card */}
           <Link
             href={`/dashboard/${serviceLine}/internal`}
