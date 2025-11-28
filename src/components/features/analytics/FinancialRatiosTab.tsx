@@ -231,3 +231,15 @@ export function FinancialRatiosTab({ clientId }: FinancialRatiosTabProps) {
 }
 
 
+
+
+
+
+
+
+
+
+
+
+
+

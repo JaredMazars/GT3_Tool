@@ -6,6 +6,7 @@ import { ServiceLineCard } from '@/components/features/service-lines/ServiceLine
 import { SharedServiceCard } from '@/components/features/service-lines/SharedServiceCard';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { isSharedService } from '@/lib/utils/serviceLineUtils';
+import { GT3Logo } from '@/components/shared/GT3Logo';
 
 export default function DashboardHomePage() {
   const router = useRouter();
@@ -81,10 +82,13 @@ export default function DashboardHomePage() {
     <div className="min-h-screen bg-forvis-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-semibold text-forvis-gray-900 mb-2">
+        <div className="mb-8 text-center" style={{ overflow: 'visible' }}>
+          <h1 className="text-3xl md:text-4xl font-semibold text-forvis-gray-900">
             Welcome to Forvis Mazars
           </h1>
+          <div className="flex justify-center" style={{ overflow: 'visible' }}>
+            <GT3Logo />
+          </div>
           <p className="text-sm text-forvis-gray-600">
             Select a service line to get started
           </p>

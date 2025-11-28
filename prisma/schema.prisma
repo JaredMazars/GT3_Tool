@@ -96,6 +96,7 @@ model Client {
   ClientAnalyticsDocument  ClientAnalyticsDocument[]
   ClientCreditRating       ClientCreditRating[]
   Project                  Project[]
+  Task                     Task[]
 
   @@index([clientNameFull])
   @@index([clientCode])
@@ -859,4 +860,128 @@ model BDNote {
 
   @@index([opportunityId])
   @@index([createdAt(sort: Desc)])
+}
+
+model Employee {
+  id               Int       @id @default(autoincrement())
+  EmpCode          String    @db.NVarChar(10)
+  EmpName          String    @db.NVarChar(50)
+  EmpNameFull      String    @db.NVarChar(63)
+  OfficeCode       String    @db.NVarChar(10)
+  SLGroup          String    @db.NVarChar(10)
+  ServLineCode     String    @db.NVarChar(10)
+  ServLineDesc     String    @db.NVarChar(150)
+  SubServLineCode  String    @db.NVarChar(10)
+  SubServLineDesc  String    @db.NVarChar(50)
+  EmpCatCode       String    @db.NVarChar(5)
+  EmpCatDesc       String    @db.NVarChar(50)
+  EmpCatType       String?   @db.NVarChar(1)
+  RateValue        Float     @db.Money
+  EmpDateLeft      DateTime?
+  Active           String    @db.VarChar(3)
+  EmpDateStarted   DateTime?
+  Team             String?   @db.NVarChar(100)
+  ExternalEmpID    String    @ignore @db.UniqueIdentifier
+  WinLogon         String?   @db.NVarChar(100)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([EmpCode])
+  @@index([EmpCode])
+  @@index([Active])
+  @@index([ServLineCode])
+  @@index([WinLogon])
+  @@index([OfficeCode])
+  @@index([SLGroup])
+}
+
+model ServiceLine {
+  id           Int     @id @default(autoincrement())
+  ServLineCode String? @db.NVarChar(10)
+  ServLineDesc String? @db.NVarChar(150)
+  GLPrefix     String? @db.NVarChar(10)
+  SLGroup      String? @db.NVarChar(10)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([ServLineCode])
+  @@index([SLGroup])
+}
+
+model Task {
+  id              Int       @id @default(autoincrement())
+  ExternalTaskID  String    @ignore @db.UniqueIdentifier
+  ClientCode      String    @db.NVarChar(10)
+  TaskCode        String    @db.NVarChar(10)
+  TaskDesc        String    @db.NVarChar(150)
+  TaskPartner     String    @db.NVarChar(10)
+  TaskPartnerName String    @db.NVarChar(50)
+  TaskManager     String    @db.NVarChar(10)
+  TaskManagerName String    @db.NVarChar(50)
+  OfficeCode      String    @db.NVarChar(10)
+  SLGroup         String    @db.NVarChar(10)
+  ServLineCode    String    @db.NVarChar(10)
+  ServLineDesc    String    @db.NVarChar(150)
+  Active          String    @db.VarChar(3)
+  TaskDateOpen    DateTime
+  TaskDateTerminate DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  Client          Client?   @relation(fields: [ClientCode], references: [clientCode], onDelete: NoAction, onUpdate: NoAction)
+  WipLTD          WipLTD[]
+
+  @@unique([ClientCode, TaskCode])
+  @@index([ClientCode])
+  @@index([TaskCode])
+  @@index([TaskPartner])
+  @@index([TaskManager])
+  @@index([Active])
+  @@index([ServLineCode])
+  @@index([OfficeCode])
+  @@index([SLGroup])
+}
+
+model WipLTD {
+  id                Int       @id @default(autoincrement())
+  taskId            Int
+  ExternalTaskID    String    @ignore @db.UniqueIdentifier
+  ClientCode        String    @db.NVarChar(10)
+  TaskCode          String    @db.NVarChar(10)
+  OfficeCode        String    @db.NVarChar(10)
+  ServLineCode      String    @db.NVarChar(10)
+  TaskPartner       String    @db.NVarChar(10)
+  LTDTime           Float?    @db.Money
+  LTDDisb           Float?    @db.Money
+  LTDFeeTime        Float?    @db.Money
+  LTDFeeDisb        Float?    @db.Money
+  LTDAdjTime        Float?    @db.Money
+  LTDAdjDisb        Float?    @db.Money
+  LTDCost           Float?    @db.Money
+  BalTime           Float?    @db.Money
+  BalDisb           Float?    @db.Money
+  BalWIP            Float?    @db.Money
+  WipProvision      Float?    @db.Money
+  LTDPendingTime    Float?    @db.Money
+  LTDCostExcludeCP  Float?    @db.Money
+  LTDHours          Float?    @db.Money
+  EstFeeTime        Float?    @db.Money
+  EstFeeDisb        Float?    @db.Money
+  EstChgTime        Float?    @db.Money
+  EstChgDisb        Float?    @db.Money
+  EstChgHours       Float?    @db.Money
+  EstAdjTime        Float?    @db.Money
+  EstAdjDisb        Float?    @db.Money
+  BudStartDate      DateTime?
+  BudDueDate        DateTime?
+  BudApproveDate    DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  Task              Task      @relation(fields: [taskId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([taskId])
+  @@index([ClientCode])
+  @@index([TaskCode])
+  @@index([TaskPartner])
+  @@index([ServLineCode])
+  @@index([OfficeCode])
 }

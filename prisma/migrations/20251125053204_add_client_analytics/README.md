@@ -21,3 +21,15 @@ Junction table linking credit ratings to the documents used in their analysis.
 - Document versioning and metadata
 
 
+
+
+
+
+
+
+
+
+
+
+
+

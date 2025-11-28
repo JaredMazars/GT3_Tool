@@ -47,12 +47,31 @@
     }
   }
 
+  @keyframes drawIn {
+    0% {
+      opacity: 0;
+      transform: translateX(-20px) scale(0.8);
+    }
+    50% {
+      opacity: 0.5;
+      transform: translateX(-5px) scale(0.95);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+    }
+  }
+
   .animate-fadeIn {
     animation: fadeIn 0.2s ease-out;
   }
 
   .animate-scaleIn {
     animation: scaleIn 0.2s ease-out;
+  }
+
+  .animate-drawIn {
+    animation: drawIn 1.5s ease-out forwards;
   }
 }
 
