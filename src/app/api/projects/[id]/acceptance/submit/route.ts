@@ -31,7 +31,7 @@ export async function POST(
       include: {
         AcceptanceAnswer: {
           include: {
-            Question: true,
+            AcceptanceQuestion: true,
           },
         },
       },
@@ -55,7 +55,7 @@ export async function POST(
     // Validate all required questions are answered
     const questionDefs = getAllQuestions(response.questionnaireType as any);
     const answerData = response.AcceptanceAnswer.map((a) => ({
-      questionKey: a.Question.questionKey,
+      questionKey: a.AcceptanceQuestion.questionKey,
       answer: a.answer || '',
       comment: a.comment || undefined,
     }));
@@ -81,7 +81,7 @@ export async function POST(
       },
     });
 
-    // TODO: Send notification to Partner/Superuser for review
+    // TODO: Send notification to Partner/System Admin for review
 
     return NextResponse.json(
       successResponse({
@@ -93,6 +93,7 @@ export async function POST(
     return handleApiError(error, 'POST /api/projects/[id]/acceptance/submit');
   }
 }
+
 
 
 

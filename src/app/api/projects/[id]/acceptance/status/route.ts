@@ -35,7 +35,7 @@ export async function GET(
         include: {
           AcceptanceAnswer: {
             include: {
-              Question: true,
+              AcceptanceQuestion: true,
             },
           },
         },
@@ -44,7 +44,7 @@ export async function GET(
       if (response) {
         const questionDefs = getAllQuestions(response.questionnaireType as any);
         const answerData = response.AcceptanceAnswer.map((a) => ({
-          questionKey: a.Question.questionKey,
+          questionKey: a.AcceptanceQuestion.questionKey,
           answer: a.answer || '',
           comment: a.comment || undefined,
         }));
@@ -70,6 +70,7 @@ export async function GET(
     return handleApiError(error, 'GET /api/projects/[id]/acceptance/status');
   }
 }
+
 
 
 

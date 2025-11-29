@@ -1,1039 +1,264 @@
 ---
 alwaysApply: true
 ---
+
 # Forvis Mazars Styling Guide
 
-Professional, corporate styling consistent with Forvis Mazars brand guidelines and existing application patterns.
+Professional, corporate styling consistent with Forvis Mazars brand guidelines.
 
 ## Brand Colors
 
-### Primary Palette
-
-```typescript
-// Forvis Mazars Blue (Primary Brand Color)
-forvis-blue-500: '#2E5AAC'  // Primary - use for CTAs, links, accents
-forvis-blue-600: '#25488A'  // Hover states
-forvis-blue-700: '#1C3667'  // Active states
-forvis-blue-50:  '#EBF2FA'  // Backgrounds, highlights
-forvis-blue-100: '#D6E4F5'  // Subtle backgrounds
-
-// Extended Blue Palette (for gradients)
-'#5B93D7'  // Light blue for gradient starts
-'#132445'  // Very dark blue for gradient ends
-
-// Professional Grays
-forvis-gray-900: '#212529'  // Headings, primary text
-forvis-gray-800: '#343A40'  // Body text
-forvis-gray-700: '#495057'  // Secondary text
-forvis-gray-600: '#6C757D'  // Muted text
-forvis-gray-300: '#DEE2E6'  // Borders
-forvis-gray-200: '#E9ECEF'  // Dividers
-forvis-gray-100: '#F1F3F5'  // Subtle backgrounds
-forvis-gray-50:  '#F8F9FA'  // Page backgrounds
-
-// Light Background Gradients
-'#E0EDFB'  // Light blue background start
-'#C7DDEF'  // Light blue background end
-'#F0F7FD'  // Very light blue start
-'#E5F1FB'  // Very light blue end
-'#F8FBFE'  // Subtle light blue start
-'#EEF6FC'  // Subtle light blue end
-```
-
-### Usage Guidelines
-
-**Primary Blue**: Reserve for interactive elements, links, primary actions
-**Grays**: Use for text hierarchy, borders, backgrounds
-**White**: Card backgrounds, form inputs, modals
-**Gradients**: Use for headers, stats cards, and primary feature areas
+**Primary Blues**: forvis-blue-500 (#2E5AAC - primary), 600 (#25488A - hover), 700 (#1C3667 - active), 50 (#EBF2FA), 100 (#D6E4F5)
+**Extended Blues**: #5B93D7 (gradient starts), #132445 (gradient ends)
+**Grays**: 900 (#212529 - headings), 800 (#343A40 - body), 700 (#495057 - secondary), 600 (#6C757D - muted), 300 (#DEE2E6 - borders), 200 (#E9ECEF - dividers), 100 (#F1F3F5), 50 (#F8F9FA - backgrounds)
+**Light Gradients**: #E0EDFB, #C7DDEF, #F0F7FD, #E5F1FB, #F8FBFE, #EEF6FC
 
 ## Typography
 
-### Font Family
+**Font**: Inter (from Google Fonts, in globals.css)
 
-```css
-font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Arial', sans-serif
-```
+**Hierarchy**: h1 `text-3xl font-semibold text-forvis-gray-900`, h2 `text-2xl`, h3 `text-xl`, body `text-sm text-forvis-gray-800`, muted `text-sm text-forvis-gray-600`, label `text-sm font-medium text-forvis-gray-700`
 
-Use Inter for all text. Already configured in globals.css and imported from Google Fonts.
+**Weights**: 400 (body), 500 (labels), 600 (headings), 700 (emphasis)
 
-### Text Hierarchy
+## Gradients
 
-```typescript
-// Headings - always semibold, use forvis-gray-900
-h1: 'text-3xl md:text-4xl font-semibold text-forvis-gray-900'
-h2: 'text-2xl md:text-3xl font-semibold text-forvis-gray-900'
-h3: 'text-xl md:text-2xl font-semibold text-forvis-gray-900'
-h4: 'text-lg font-semibold text-forvis-gray-900'
-h5: 'text-base font-semibold text-forvis-gray-900'
-
-// Body Text
-body:         'text-sm text-forvis-gray-800'      // Default body
-body-large:   'text-base text-forvis-gray-800'
-body-small:   'text-xs text-forvis-gray-800'
-
-// Secondary Text
-muted:        'text-sm text-forvis-gray-600'
-caption:      'text-xs text-forvis-gray-600'
-label:        'text-sm font-medium text-forvis-gray-700'
-```
-
-### Font Weights
-
-- **300** (light): Rarely used
-- **400** (normal): Body text, paragraphs
-- **500** (medium): Labels, emphasized text
-- **600** (semibold): Headings, subheadings
-- **700** (bold): Strong emphasis
-- **800** (extrabold): Rare, special emphasis only
-
-## Gradient Backgrounds
-
-Gradients are a key visual element in the Forvis Mazars design system, used for headers, cards, and emphasis areas.
+Always use inline styles (not Tailwind). Use 135deg for diagonal, `to right` for horizontal.
 
 ```typescript
-// Primary Gradient (headers, action sections)
-style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)' }}
-
-// Horizontal Gradient (table headers, bars)
-style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
-
-// Stats Card Gradients (from light to dark)
-style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #25488A)' }}     // Primary
-style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}     // Medium
-style={{ background: 'linear-gradient(to bottom right, #25488A, #1C3667)' }}     // Dark
-style={{ background: 'linear-gradient(to bottom right, #1C3667, #132445)' }}     // Darkest
-
-// Button Gradient (primary actions)
-style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
-
-// Light Background Gradients (content areas)
-style={{ background: 'linear-gradient(135deg, #E0EDFB 0%, #C7DDEF 100%)' }}
-style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
-style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E5F1FB 100%)' }}
-style={{ background: 'linear-gradient(135deg, #F8FBFE 0%, #EEF6FC 100%)' }}
+// Primary: style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)' }}
+// Horizontal: style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
+// Stats Cards: 'linear-gradient(to bottom right, #2E5AAC, #25488A)' (vary darkness)
+// Buttons: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)'
+// Light Backgrounds: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)'
 ```
-
-**Gradient Guidelines**:
-- Always use inline styles for gradients (not Tailwind classes)
-- Use 135deg for diagonal gradients (cards, sections)
-- Use `to right` or `to bottom right` for directional gradients
-- Darker gradients for emphasis, lighter for backgrounds
-- Maintain consistent gradient direction within a component
 
 ## Component Styling
 
 ### Stats Cards
 
-Stats cards with gradients are used for key metrics on dashboards.
-
 ```typescript
-// Stats Card Container (with gradient background)
-<div 
-  className="rounded-lg p-3 shadow-corporate text-white"
-  style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #25488A)' }}
->
+<div className="rounded-lg p-3 shadow-corporate text-white"
+     style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #25488A)' }}>
   <div className="flex items-center justify-between">
     <div>
       <p className="text-xs font-medium opacity-90">Label</p>
       <p className="text-2xl font-bold mt-1">Value</p>
     </div>
     <div className="rounded-full p-2" style={{ backgroundColor: 'rgba(28, 54, 103, 0.5)' }}>
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        {/* Icon */}
-      </svg>
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">{/* Icon */}</svg>
     </div>
-  </div>
-</div>
-
-// Stats Card with Progress Bar
-<div 
-  className="rounded-lg p-3 shadow-corporate text-white"
-  style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
->
-  <div className="flex items-center justify-between">
-    <div>
-      <p className="text-xs font-medium opacity-90">Completion Rate</p>
-      <p className="text-2xl font-bold mt-1">85%</p>
-    </div>
-    <div className="rounded-full p-2" style={{ backgroundColor: 'rgba(37, 72, 138, 0.5)' }}>
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        {/* Icon */}
-      </svg>
-    </div>
-  </div>
-  <div className="mt-2 rounded-full h-1.5" style={{ backgroundColor: 'rgba(28, 54, 103, 0.3)' }}>
-    <div 
-      className="bg-white h-1.5 rounded-full transition-all duration-500"
-      style={{ width: '85%' }}
-    />
   </div>
 </div>
 ```
 
-**Stats Card Guidelines**:
-- Always white text on gradient backgrounds
-- Use opacity-90 for labels, bold for values
-- Icon containers use semi-transparent dark blue (`rgba(28, 54, 103, 0.5)`)
-- Progress bars use white on semi-transparent dark background
-- Text size: xs for labels, 2xl bold for values
-- Use different gradient variants for visual variety across multiple cards
+White text on gradient, opacity-90 for labels, icon containers use `rgba(28, 54, 103, 0.5)`, vary gradient darkness
 
 ### Buttons
 
 ```typescript
-// Primary Button (solid background)
-className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium text-white bg-forvis-blue-500 hover:bg-forvis-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-forvis-blue-500 transition-colors shadow-corporate"
+// Primary: className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium text-white bg-forvis-blue-500 hover:bg-forvis-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-forvis-blue-500 transition-colors shadow-corporate"
 
-// Primary Gradient Button (enhanced visual)
-className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-bold text-white rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
-style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+// Gradient: className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-bold text-white rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
+// style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
 
-// Translucent Button on Gradient (for use on gradient backgrounds)
-className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-white/20 hover:bg-white/30 disabled:bg-white/10 rounded-lg border-2 border-white/40 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-
-// Secondary Button (secondary actions)
-className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 hover:bg-forvis-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-forvis-blue-500 transition-colors"
-
-// Danger Button (destructive actions)
-className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
-
-// Link Button (tertiary, text-only)
-className="inline-flex items-center text-sm font-medium text-forvis-blue-500 hover:text-forvis-blue-600 transition-colors"
-
-// Icon Button (compact)
-className="inline-flex items-center justify-center p-2 rounded-lg text-forvis-gray-600 hover:bg-forvis-gray-100 hover:text-forvis-gray-900 transition-colors"
-
-// Download/Template Button (on light gradient backgrounds)
-className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white rounded-lg shadow-lg hover:shadow-xl transition-all"
-style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+// Secondary: className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 hover:bg-forvis-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-forvis-blue-500 transition-colors"
 ```
 
-**Button Guidelines**:
-- Use `btn-primary` or `btn-secondary` CSS classes (defined in globals.css)
-- Icons should be 16px (h-4 w-4) for small buttons, 20px (h-5 w-5) for regular
-- Always include hover and focus states
-- Use transition-colors for smooth interactions
-- Use gradient buttons for primary actions in prominent sections
-- Use translucent buttons when placed on gradient backgrounds
-- Use font-bold for gradient buttons, font-medium for standard buttons
+Icons 16px (h-4 w-4) small, 20px (h-5 w-5) regular. Always include hover/focus states.
 
 ### Cards
 
 ```typescript
-// Standard Card
-className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate"
+// Standard: className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate"
 
-// Hoverable Card (for clickable items)
-className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate hover:shadow-corporate-md transition-shadow cursor-pointer"
+// Gradient Header: className="flex justify-between items-center p-4"
+// style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)' }}
 
-// Bordered Card with Emphasis (using border-2 with brand color)
-className="bg-white rounded-lg shadow-corporate border-2 overflow-hidden"
-style={{ borderColor: '#2E5AAC' }}
-
-// Card Header (standard)
-className="px-4 py-3 border-b border-forvis-gray-200 bg-forvis-gray-50"
-
-// Card Header with Gradient (for emphasis sections)
-className="flex justify-between items-center p-4"
-style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)' }}
-
-// Card Section Header with Gradient
-className="px-3 py-2 shadow-sm"
-style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
-
-// Light Card with Accent Border (info/help sections)
-className="rounded-xl p-4 border-2 shadow-corporate"
-style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)', borderColor: '#2E5AAC' }}
-
-// Info Section with Left Border
-className="flex items-center gap-2 px-3 py-2 rounded-lg"
-style={{ background: 'linear-gradient(135deg, #E0EDFB 0%, #C7DDEF 100%)', borderLeft: '4px solid #2E5AAC' }}
-
-// Card Body
-className="p-4"
-
-// Card Footer
-className="px-4 py-3 border-t border-forvis-gray-200 bg-forvis-gray-50"
-
-// Card Footer with Top Border Emphasis
-className="grid grid-cols-1 md:grid-cols-2 gap-5 px-4 pb-4 pt-5 border-t-2"
-style={{ borderColor: '#2E5AAC' }}
+// Light with Accent Border: className="rounded-xl p-4 border-2 shadow-corporate"
+// style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)', borderColor: '#2E5AAC' }}
 ```
 
-**Card Guidelines**:
-- Use `card` CSS class (defined in globals.css)
-- Maintain consistent padding (p-4 for body, px-4 py-3 for header/footer, p-3 for compact)
-- Headers and footers use gray-50 background OR gradient for emphasis
-- Standard borders use gray-200, emphasis borders use border-2 with #2E5AAC
-- Use gradient headers for primary feature sections
-- Use left border accent for info/help sections
-- Use light gradient backgrounds for subtle emphasis areas
+p-4 body, px-4 py-3 header/footer. Use gray-50 OR gradient for emphasis. Emphasis borders: border-2 with #2E5AAC.
 
 ### Forms
 
 ```typescript
-// Form Group (container for label + input)
-className="space-y-1"
-
-// Label
-className="block text-sm font-medium text-forvis-gray-700"
-
-// Required Indicator
-className="text-red-600 ml-1"
-
-// Input Field (text, email, number, etc.)
-className="block w-full px-4 py-2 border border-forvis-gray-300 rounded-lg text-sm text-forvis-gray-900 placeholder:text-forvis-gray-400 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-
-// Select Dropdown
-className="block w-full px-4 py-2 border border-forvis-gray-300 rounded-lg text-sm text-forvis-gray-900 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500 transition-colors disabled:opacity-50"
-
-// Textarea
-className="block w-full px-4 py-2 border border-forvis-gray-300 rounded-lg text-sm text-forvis-gray-900 placeholder:text-forvis-gray-400 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500 transition-colors resize-none"
-
-// Checkbox/Radio
-className="h-4 w-4 text-forvis-blue-500 border-forvis-gray-300 rounded focus:ring-forvis-blue-500"
-
-// Error Message
-className="mt-1 text-xs text-red-600"
-
-// Help Text
-className="mt-1 text-xs text-forvis-gray-600"
+// Label: className="block text-sm font-medium text-forvis-gray-700"
+// Input: className="block w-full px-4 py-2 border border-forvis-gray-300 rounded-lg text-sm text-forvis-gray-900 placeholder:text-forvis-gray-400 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500 transition-colors disabled:opacity-50"
+// Error: className="mt-1 text-xs text-red-600"
 ```
 
-**Form Guidelines**:
-- Use `input-field` CSS class (defined in globals.css)
-- Always include focus states with blue ring
-- Disabled states should have 50% opacity
-- Error states use red-600 for text
-- Consistent padding: px-4 py-2
-
-### Tables
+### Tables (Grid-Based)
 
 ```typescript
-// Table Container (with horizontal scroll)
-className="overflow-x-auto"
-
-// Standard HTML Table
-className="min-w-full divide-y divide-forvis-gray-200"
-
-// Table Head (standard)
-className="bg-forvis-gray-50"
-
-// Table Header Cell (standard)
-className="px-4 py-3 text-left text-xs font-semibold text-forvis-gray-900 uppercase tracking-wider"
-
-// Table Body
-className="bg-white divide-y divide-forvis-gray-200"
-
-// Table Row
-className="hover:bg-forvis-gray-50 transition-colors"
-
-// Table Cell
-className="px-4 py-3 text-sm text-forvis-gray-800 whitespace-nowrap"
-
-// Striped Table (alternate row colors)
-className="even:bg-forvis-gray-50"
-
-// --- GRID-BASED TABLE (modern, flexible layout) ---
-
-// Grid Table Container
-className="overflow-x-auto"
-
-// Grid Header Row with Gradient
-<div 
-  className="grid py-2 shadow-sm"
-  style={{ 
-    background: 'linear-gradient(to right, #2E5AAC, #25488A)',
-    gridTemplateColumns: '80px 200px 120px 150px 120px 120px 1fr'
-  }}
->
-  <div className="px-3 text-left text-xs font-bold text-white uppercase tracking-wider">
-    Column 1
-  </div>
-  {/* Repeat for each column */}
+// Header with Gradient
+<div className="grid py-2 shadow-sm"
+     style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)', gridTemplateColumns: '80px 200px 120px 1fr' }}>
+  <div className="px-3 text-xs font-bold text-white uppercase tracking-wider">Column</div>
 </div>
 
-// Grid Data Rows Container
-className="divide-y divide-forvis-gray-100"
-
-// Grid Data Row (with striping and hover)
-<div 
-  className={`grid cursor-pointer hover:bg-forvis-blue-50 transition-colors duration-150 ${
-    index % 2 === 0 ? 'bg-white' : 'bg-forvis-gray-50'
-  }`}
-  style={{ gridTemplateColumns: '80px 200px 120px 150px 120px 120px 1fr' }}
->
-  <div className="px-3 py-1.5 text-xs font-medium text-forvis-gray-900">
-    Cell content
-  </div>
-  {/* Repeat for each column */}
+// Data Row (striping + hover)
+<div className={`grid cursor-pointer hover:bg-forvis-blue-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-forvis-gray-50'}`}
+     style={{ gridTemplateColumns: '80px 200px 120px 1fr' }}>
+  <div className="px-3 py-1.5 text-xs font-medium text-forvis-gray-900">Cell</div>
 </div>
 
-// Grid Cell with Badge
-<div className="px-3 py-1.5 text-xs">
-  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-forvis-blue-100 text-forvis-blue-800">
-    Badge Text
-  </span>
-</div>
-
-// Grid Cell with Number (right-aligned, tabular)
-<div className={`px-3 py-1.5 text-xs text-right tabular-nums font-medium ${
-  value < 0 ? 'text-red-600' : 'text-forvis-gray-900'
-}`}>
+// Number Cell (right-aligned, tabular)
+<div className={`px-3 py-1.5 text-xs text-right tabular-nums font-medium ${value < 0 ? 'text-red-600' : 'text-forvis-gray-900'}`}>
   {value < 0 ? `(${formatAmount(Math.abs(value))})` : formatAmount(value)}
 </div>
-
-// Table Wrapper with Border
-<div className="border-2 rounded-lg overflow-hidden shadow-sm" style={{ borderColor: '#25488A' }}>
-  <div 
-    className="px-3 py-2 shadow-sm"
-    style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
-  >
-    <h3 className="text-sm font-bold text-white">Table Title</h3>
-  </div>
-  <div className="bg-white">
-    {/* Grid table here */}
-  </div>
-</div>
 ```
 
-**Table Guidelines**:
-- Headers always uppercase with tracking-wider
-- Use gray-50 for standard header background, gradient for emphasis
-- Hover effect on rows for interactive tables
-- Consistent cell padding: px-4 py-3 for standard, px-3 py-1.5 for compact
-- Consider striping for dense data tables
-- **Grid-based tables**: More flexible than HTML tables, better for complex layouts
-- Grid columns use explicit widths via `gridTemplateColumns`
-- Use `cursor-pointer` for clickable rows
-- Use `tabular-nums` for aligned number columns
-- Red text with parentheses for negative numbers
-- Use `hover:bg-forvis-blue-50` for interactive grid tables
-- Gradient headers (`linear-gradient(to right, #2E5AAC, #25488A)`) with white text
+Use explicit widths via `gridTemplateColumns`, `cursor-pointer` for clickable rows, `tabular-nums` for numbers, red with parentheses for negatives.
 
-### Badges & Status Indicators
+### Badges
 
 ```typescript
-// Status Badge (base)
-className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-
-// Success/Active
-className="bg-green-100 text-green-800"
-
-// Warning/Pending
-className="bg-yellow-100 text-yellow-800"
-
-// Error/Rejected
-className="bg-red-100 text-red-800"
-
-// Info/In Progress
-className="bg-forvis-blue-100 text-forvis-blue-800"
-
-// Neutral/Default
-className="bg-forvis-gray-100 text-forvis-gray-800"
+// Base: className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+// Variants: bg-green-100 text-green-800 (success), bg-yellow-100 text-yellow-800 (warning), bg-red-100 text-red-800 (error), bg-forvis-blue-100 text-forvis-blue-800 (info)
 ```
 
-### File Upload Areas
+### File Upload
 
 ```typescript
-// File Upload Container (dashed border with gradient background)
-className="flex justify-center px-6 pt-5 pb-6 border-3 border-dashed rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl"
+className="flex justify-center px-6 pt-5 pb-6 border-3 border-dashed rounded-xl transition-all shadow-lg hover:shadow-xl"
 style={{ borderColor: '#2E5AAC', borderWidth: '3px', background: 'linear-gradient(135deg, #F0F7FD 0%, #E5F1FB 100%)' }}
-
-// Upload Icon
-<svg className="mx-auto h-10 w-10" style={{ color: '#2E5AAC' }} stroke="currentColor" fill="none" viewBox="0 0 48 48">
-  {/* SVG path */}
-</svg>
-
-// Upload Text
-className="text-sm" style={{ color: '#1C3667' }}
-
-// Upload Link/Button
-className="font-bold transition-all" style={{ color: '#2E5AAC' }}
-
-// Upload Helper Text
-className="text-xs font-bold" style={{ color: '#2E5AAC' }}
 ```
 
-**File Upload Guidelines**:
-- Use 3px dashed border with brand blue (#2E5AAC)
-- Light gradient background for visual appeal
-- Brand blue for icon and text highlights
-- Include hover shadow effect (shadow-lg to shadow-xl)
-- Use rounded-xl for softer corners
-- Provide clear visual affordance for drag-and-drop
-
-### Expandable Sections (Details/Summary)
+### Modals
 
 ```typescript
-// Details Container (expandable section)
-<details className="group">
-  <summary className="cursor-pointer text-xs font-bold flex items-center gap-1 px-2 py-1" style={{ color: '#2E5AAC' }}>
-    <svg className="w-4 h-4 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-    </svg>
-    Section Title
-  </summary>
-  <div className="mt-2 p-4 rounded-lg border-2 text-xs space-y-3" style={{ background: 'linear-gradient(135deg, #F8FBFE 0%, #EEF6FC 100%)', borderColor: '#2E5AAC' }}>
-    {/* Content */}
-  </div>
-</details>
-
-// Section Title in Expandable Content
-<p className="font-bold mb-2" style={{ color: '#1C3667' }}>Subsection Title</p>
-
-// List in Expandable Content
-<ul className="list-disc list-inside text-forvis-gray-700 space-y-1 ml-2">
-  <li><span className="font-semibold">Label:</span> Description</li>
-</ul>
-```
-
-**Expandable Section Guidelines**:
-- Use `group` class for parent-child state management
-- Chevron icon rotates 90deg when open
-- Brand blue for summary text
-- Light gradient background for content area
-- Border-2 with brand color for emphasis
-- Font-bold for labels, regular for descriptions
-
-### Modals & Dialogs
-
-```typescript
-// Modal Overlay
-className="fixed inset-0 bg-black bg-opacity-50 transition-opacity z-50"
-
-// Modal Container
-className="fixed inset-0 z-50 overflow-y-auto"
-
-// Modal Panel
-className="flex min-h-full items-center justify-center p-4"
-
-// Modal Content
-className="relative bg-white rounded-lg shadow-corporate-lg max-w-lg w-full p-6"
-
-// Modal Header
-className="mb-4"
-
-// Modal Title
-className="text-lg font-semibold text-forvis-gray-900"
-
-// Modal Close Button
-className="absolute top-4 right-4 text-forvis-gray-400 hover:text-forvis-gray-600 transition-colors"
-
-// Modal Footer
-className="mt-6 flex justify-end gap-3"
+// Overlay: className="fixed inset-0 bg-black bg-opacity-50 transition-opacity z-50"
+// Content: className="relative bg-white rounded-lg shadow-corporate-lg max-w-lg w-full p-6"
+// Title: className="text-lg font-semibold text-forvis-gray-900"
 ```
 
 ### Navigation
 
 ```typescript
-// Sidebar Navigation
-className="bg-white border-r border-forvis-gray-200 h-full"
-
-// Nav Item (inactive)
-className="flex items-center px-4 py-2 text-sm font-medium text-forvis-gray-700 hover:bg-forvis-gray-50 hover:text-forvis-gray-900 rounded-lg transition-colors"
-
-// Nav Item (active)
-className="flex items-center px-4 py-2 text-sm font-medium text-forvis-blue-600 bg-forvis-blue-50 rounded-lg"
-
-// Nav Icon
-className="mr-3 h-5 w-5"
+// Inactive: className="flex items-center px-4 py-2 text-sm font-medium text-forvis-gray-700 hover:bg-forvis-gray-50 hover:text-forvis-gray-900 rounded-lg transition-colors"
+// Active: className="flex items-center px-4 py-2 text-sm font-medium text-forvis-blue-600 bg-forvis-blue-50 rounded-lg"
 ```
 
 ## Layout & Spacing
 
-### Container Widths
+**Containers**: `max-w-7xl mx-auto px-4 sm:px-6 lg:px-8` (main), `max-w-2xl mx-auto px-4` (forms)
 
-```typescript
-// Full width container
-className="w-full"
+**Spacing Scale**: gap-2 (8px), gap-3 (12px), gap-4 (16px), gap-6 (24px), p-2/4/6 (8/16/24px), mb-2/4/6/8 (8/16/24/32px)
 
-// Constrained container (main content)
-className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
-
-// Narrow container (forms, single column)
-className="max-w-2xl mx-auto px-4"
-
-// Wide container (dashboards, tables)
-className="max-w-full px-4 sm:px-6 lg:px-8"
-```
-
-### Spacing Scale
-
-Use Tailwind's default spacing scale consistently:
-
-```typescript
-// Common spacing patterns
-gap-2:    8px   // Tight grouping (button groups)
-gap-3:    12px  // Related items
-gap-4:    16px  // Standard spacing
-gap-6:    24px  // Section spacing
-gap-8:    32px  // Major section dividers
-
-// Padding patterns
-p-2:      8px   // Tight (badges, small buttons)
-p-4:      16px  // Standard (cards, containers)
-p-6:      24px  // Generous (modals, headers)
-
-// Margin patterns
-mb-2:     8px   // Between label and input
-mb-4:     16px  // Between form fields
-mb-6:     24px  // Between sections
-mb-8:     32px  // Between major sections
-```
-
-### Grid & Flex Layouts
-
-```typescript
-// Two column layout
-className="grid grid-cols-1 md:grid-cols-2 gap-6"
-
-// Three column layout
-className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-
-// Responsive stack
-className="flex flex-col md:flex-row gap-4"
-
-// Space between items
-className="flex items-center justify-between"
-
-// Center content
-className="flex items-center justify-center"
-```
+**Grid/Flex**: Two column `grid grid-cols-1 md:grid-cols-2 gap-6`, Three column `grid-cols-1 md:grid-cols-2 lg:grid-cols-3`, Responsive stack `flex flex-col md:flex-row gap-4`
 
 ## Shadows & Elevation
 
-```typescript
-// Subtle elevation (cards, inputs)
-shadow-corporate:    '0 1px 3px 0 rgba(46, 90, 172, 0.1), 0 1px 2px 0 rgba(46, 90, 172, 0.06)'
+Use Forvis-branded shadows: `shadow-corporate` (subtle), `shadow-corporate-md` (medium), `shadow-corporate-lg` (high)
 
-// Medium elevation (dropdowns, hover states)
-shadow-corporate-md: '0 4px 6px -1px rgba(46, 90, 172, 0.1), 0 2px 4px -1px rgba(46, 90, 172, 0.06)'
+## Borders & Rounded
 
-// High elevation (modals, popovers)
-shadow-corporate-lg: '0 10px 15px -3px rgba(46, 90, 172, 0.1), 0 4px 6px -2px rgba(46, 90, 172, 0.05)'
-```
+**Radius**: `rounded-lg` (8px) for most, `rounded-full` for badges
 
-Use Forvis-branded shadows (defined in tailwind.config.ts) instead of default Tailwind shadows.
-
-## Borders & Rounded Corners
-
-### Border Radius
-
-```typescript
-// Standard rounding (cards, buttons, inputs)
-rounded-lg:    8px   // Primary radius for most elements
-
-// Pill shape (badges)
-rounded-full:  999px
-
-// No rounding (specific cases only)
-rounded-none:  0px
-```
-
-### Border Colors
-
-```typescript
-// Default borders (dividers, card borders)
-border-forvis-gray-200
-
-// Input borders
-border-forvis-gray-300
-
-// Focus borders
-border-forvis-blue-500
-
-// Error borders
-border-red-500
-```
+**Colors**: `border-forvis-gray-200` (default), `border-forvis-gray-300` (inputs), `border-forvis-blue-500` (focus)
 
 ## State Styles
 
-### Interactive States
-
 ```typescript
-// Hover
-hover:bg-forvis-gray-50
-hover:text-forvis-blue-600
-hover:shadow-corporate-md
-
-// Focus (for accessibility)
-focus:outline-none
-focus:ring-2
-focus:ring-forvis-blue-500
-focus:ring-offset-2
-
-// Active
-active:bg-forvis-blue-700
-active:scale-95
-
-// Disabled
-disabled:opacity-50
-disabled:cursor-not-allowed
+// Hover: hover:bg-forvis-gray-50, hover:text-forvis-blue-600, hover:shadow-corporate-md
+// Focus: focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2
+// Disabled: disabled:opacity-50 disabled:cursor-not-allowed
+// Loading: className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-500"
 ```
-
-### Loading States
-
-```typescript
-// Loading indicator container
-className="flex items-center justify-center p-8"
-
-// Spinner
-className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-500"
-
-// Skeleton loader
-className="animate-pulse bg-forvis-gray-200 rounded"
-```
-
-## Animations & Transitions
-
-```typescript
-// Standard transitions
-transition-colors:  'color, background-color, border-color'
-transition-shadow:  'box-shadow'
-transition-all:     'all properties'
-
-// Duration (use standard)
-duration-200:       200ms  // Default for most interactions
-
-// Custom animations (defined in globals.css)
-animate-fadeIn:     'fadeIn 0.2s ease-out'
-animate-scaleIn:    'scaleIn 0.2s ease-out'
-```
-
-**Animation Guidelines**:
-- Keep animations subtle and professional
-- Use 200ms for most transitions
-- Avoid excessive motion
 
 ## Accessibility
 
-### Focus Indicators
+**Focus**: Always `focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2`
+**Contrast**: WCAG AA - text on white use gray-700+, text on blue-500 use white
+**Screen Reader**: `className="sr-only"` for hidden content, ARIA labels for icons
 
-Always include visible focus indicators:
+## Responsive
 
-```typescript
-focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2
-```
+**Breakpoints**: sm (640px), md (768px), lg (1024px), xl (1280px), 2xl (1536px)
 
-### Color Contrast
-
-Maintain WCAG AA compliance:
-- Text on white: Use gray-700 or darker
-- Text on blue-500: Use white
-- Links: Use blue-500 with underline for clarity
-
-### Screen Reader Support
-
-```typescript
-// Hidden visually, available to screen readers
-className="sr-only"
-
-// ARIA labels for icons
-<button aria-label="Close modal">
-  <XIcon className="h-5 w-5" />
-</button>
-```
-
-## Responsive Design
-
-### Breakpoints
-
-```typescript
-sm:  640px   // Small tablets
-md:  768px   // Tablets
-lg:  1024px  // Laptops
-xl:  1280px  // Desktops
-2xl: 1536px  // Large screens
-```
-
-### Mobile-First Patterns
-
-```typescript
-// Mobile: stack, Desktop: row
-className="flex flex-col md:flex-row"
-
-// Mobile: 1 column, Tablet: 2 columns, Desktop: 3 columns
-className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
-
-// Mobile: full width, Desktop: auto width
-className="w-full md:w-auto"
-
-// Hide on mobile, show on desktop
-className="hidden md:block"
-
-// Show on mobile, hide on desktop
-className="block md:hidden"
-```
-
-## Print Styles
-
-Print styles are defined in globals.css and automatically applied.
-
-**Print Considerations**:
-- Navigation and buttons are hidden
-- Shadows removed for clean printing
-- Page breaks optimized for tables
-- Colors adjusted for readability
+**Mobile-First**: `flex flex-col md:flex-row`, `grid grid-cols-1 md:grid-cols-2`, `hidden md:block`
 
 ## Common Patterns
-
-### Page Header
-
-```typescript
-<div className="mb-8">
-  <h1 className="text-3xl font-semibold text-forvis-gray-900 mb-2">
-    Page Title
-  </h1>
-  <p className="text-sm text-forvis-gray-600">
-    Optional description or breadcrumb
-  </p>
-</div>
-```
-
-### Section Header
-
-```typescript
-<div className="mb-4">
-  <h2 className="text-xl font-semibold text-forvis-gray-900 mb-1">
-    Section Title
-  </h2>
-  <p className="text-sm text-forvis-gray-600">
-    Optional description
-  </p>
-</div>
-
-// Section Header with Gradient (prominent)
-<h2 className="text-lg font-bold text-white">Section Title</h2>
-// Parent div should have gradient background
-```
 
 ### Stats Dashboard
 
 ```typescript
-// Stats Grid (4 columns on desktop)
 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-  {/* Stats Card 1 - Primary */}
-  <div 
-    className="rounded-lg p-3 shadow-corporate text-white"
-    style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #25488A)' }}
-  >
+  <div className="rounded-lg p-3 shadow-corporate text-white"
+       style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #25488A)' }}>
     <div className="flex items-center justify-between">
       <div>
         <p className="text-xs font-medium opacity-90">Total Accounts</p>
         <p className="text-2xl font-bold mt-1">124</p>
       </div>
       <div className="rounded-full p-2" style={{ backgroundColor: 'rgba(28, 54, 103, 0.5)' }}>
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          {/* Icon */}
-        </svg>
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">{/* Icon */}</svg>
       </div>
     </div>
   </div>
-
-  {/* Stats Card 2 - with Progress */}
-  <div 
-    className="rounded-lg p-3 shadow-corporate text-white"
-    style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
-  >
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-xs font-medium opacity-90">Completion Rate</p>
-        <p className="text-2xl font-bold mt-1">85%</p>
-      </div>
-      <div className="rounded-full p-2" style={{ backgroundColor: 'rgba(37, 72, 138, 0.5)' }}>
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          {/* Icon */}
-        </svg>
-      </div>
-    </div>
-    <div className="mt-2 rounded-full h-1.5" style={{ backgroundColor: 'rgba(28, 54, 103, 0.3)' }}>
-      <div 
-        className="bg-white h-1.5 rounded-full transition-all duration-500"
-        style={{ width: '85%' }}
-      />
-    </div>
-  </div>
-
-  {/* Continue with darker gradients for visual variety */}
+  {/* Vary gradient darkness across cards */}
 </div>
 ```
 
-**Stats Dashboard Guidelines**:
-- Use 4-column grid on desktop (md:grid-cols-4)
-- Vary gradient darkness across cards for visual interest
-- Always white text on gradient backgrounds
-- Icon containers use semi-transparent dark blue background
-- Progress bars optional but useful for completion metrics
-- Compact padding (p-3) for density
-
-### Empty State (Standard)
+### Empty State
 
 ```typescript
-<div className="text-center py-12">
-  <div className="text-forvis-gray-400 mb-4">
-    <Icon className="h-12 w-12 mx-auto" />
-  </div>
-  <h3 className="text-lg font-medium text-forvis-gray-900 mb-1">
-    No items found
-  </h3>
-  <p className="text-sm text-forvis-gray-600 mb-4">
-    Get started by creating a new item.
-  </p>
-  <button className="btn-primary">
-    Create New Item
-  </button>
-</div>
-```
-
-### Empty State (with Dashed Border)
-
-```typescript
-<div className="mx-4 mb-4 text-center py-16 rounded-xl border-3 border-dashed shadow-lg" style={{ borderColor: '#2E5AAC', borderWidth: '3px', background: 'linear-gradient(135deg, #F8FBFE 0%, #EEF6FC 100%)' }}>
-  <svg className="mx-auto h-16 w-16" style={{ color: '#2E5AAC' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    {/* Icon */}
-  </svg>
+<div className="mx-4 mb-4 text-center py-16 rounded-xl border-3 border-dashed shadow-lg" 
+     style={{ borderColor: '#2E5AAC', borderWidth: '3px', background: 'linear-gradient(135deg, #F8FBFE 0%, #EEF6FC 100%)' }}>
+  <svg className="mx-auto h-16 w-16" style={{ color: '#2E5AAC' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">{/* Icon */}</svg>
   <h3 className="mt-4 text-lg font-bold" style={{ color: '#1C3667' }}>No data available</h3>
   <p className="mt-2 text-sm font-medium" style={{ color: '#2E5AAC' }}>Get started by uploading a file above.</p>
 </div>
 ```
 
-**Empty State Guidelines**:
-- Standard empty state for general use
-- Dashed border empty state for data upload scenarios
-- Use gradient background with dashed border for visual appeal
-- Brand colors for icon and text
-- Larger icon (h-16 w-16) for dashed border variant
-- Clear call-to-action message
-
-### Loading State
-
-```typescript
-<div className="flex items-center justify-center py-12">
-  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-500"></div>
-</div>
-```
-
-### Financial Totals Display
+### Financial Totals
 
 ```typescript
 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 px-4 pb-4 pt-5 border-t-2" style={{ borderColor: '#2E5AAC' }}>
-  <div className="rounded-xl p-4 border-2 shadow-corporate" style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)', borderColor: '#2E5AAC' }}>
+  <div className="rounded-xl p-4 border-2 shadow-corporate" 
+       style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)', borderColor: '#2E5AAC' }}>
     <div className="flex items-center justify-between">
       <div>
         <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: '#1C3667' }}>Balance Sheet Total</h3>
-        <p className="text-2xl font-bold tabular-nums" style={{ color: '#2E5AAC' }}>
-          R 1,234,567
-        </p>
+        <p className="text-2xl font-bold tabular-nums" style={{ color: '#2E5AAC' }}>R 1,234,567</p>
       </div>
       <div className="rounded-full p-3 shadow-lg" style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}>
-        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          {/* Icon */}
-        </svg>
+        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">{/* Icon */}</svg>
       </div>
     </div>
   </div>
-  {/* Repeat for other totals */}
 </div>
 ```
 
-**Financial Totals Guidelines**:
-- Use 2-column grid on desktop
-- Light gradient background with brand border
-- Uppercase labels with tracking-wide
-- Large, bold tabular numbers
-- Icon in gradient circle for visual interest
-- Use red-600 for negative values with parentheses
-
 ## Best Practices
 
-1. **Consistency**: Use defined color palette, don't introduce new colors
-2. **Spacing**: Use standard spacing scale (4, 8, 16, 24, 32px)
-3. **Typography**: Stick to Inter font, use defined text sizes
-4. **Shadows**: Use corporate shadows for brand consistency
-5. **Borders**: Use gray-200/300 for subtle borders, border-2 with #2E5AAC for emphasis
-6. **Transitions**: Always include for interactive elements
+1. **Consistency**: Use defined color palette only
+2. **Spacing**: Standard scale (4, 8, 12, 16, 24, 32px)
+3. **Typography**: Inter font, defined text sizes
+4. **Shadows**: Corporate shadows only
+5. **Borders**: gray-200/300 subtle, border-2 + #2E5AAC emphasis
+6. **Transitions**: Always include (200ms default)
 7. **Focus States**: Required for accessibility
 8. **Responsive**: Mobile-first approach
-9. **Professional**: Clean, corporate aesthetic
-10. **Performance**: Avoid heavy animations or large images
-11. **Gradients**: Use inline styles for gradients, maintain consistent direction
-12. **White on Gradients**: Always use white text on gradient backgrounds
-13. **Border Width**: Use border-2 or border-3 for emphasis, standard border for subtle
-14. **Inline Styles**: Use for gradients and brand colors that aren't in Tailwind config
+9. **Gradients**: Inline styles, consistent direction (135deg diagonal, `to right` horizontal)
+10. **White on Gradients**: Always use white text
 
-### When to Use Inline Styles vs Tailwind Classes
+### Inline Styles vs Tailwind
 
-**Use Inline Styles For**:
-- Gradient backgrounds (`background: 'linear-gradient(...)'`)
-- Specific brand colors not in Tailwind config (`style={{ color: '#2E5AAC' }}`)
-- Border colors for emphasis (`style={{ borderColor: '#2E5AAC' }}`)
-- Semi-transparent backgrounds (`style={{ backgroundColor: 'rgba(28, 54, 103, 0.5)' }}`)
-- Dynamic grid templates (`style={{ gridTemplateColumns: '80px 200px...' }}`)
+**Inline Styles**: Gradients, brand colors not in Tailwind (#2E5AAC), emphasis borders, semi-transparent backgrounds, dynamic grid templates
 
-**Use Tailwind Classes For**:
-- Standard spacing, sizing, and layout
-- Typography (except when using specific hex colors)
-- Responsive design
-- State variants (hover, focus, active)
-- Standard colors from the forvis-* palette
-- Shadows (shadow-corporate, shadow-corporate-md, shadow-corporate-lg)
+**Tailwind Classes**: Spacing/sizing/layout, typography (except hex colors), responsive, state variants, forvis-* palette colors, shadows
 
-### Gradient Usage Guidelines
+### CSS Classes
 
-1. **Header Sections**: Use `linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)` for major section headers
-2. **Table Headers**: Use `linear-gradient(to right, #2E5AAC, #25488A)` for horizontal headers
-3. **Stats Cards**: Use `linear-gradient(to bottom right, ...)` with varying shades for visual variety
-4. **Light Backgrounds**: Use light blue gradients for content areas and info sections
-5. **Button Backgrounds**: Use `linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)` for primary gradient buttons
-
-### Border Guidelines
-
-1. **Subtle Borders**: `border border-forvis-gray-200` for cards and containers
-2. **Emphasis Borders**: `border-2` with `style={{ borderColor: '#2E5AAC' }}` for important sections
-3. **Dashed Borders**: `border-3 border-dashed` with `borderWidth: '3px'` for upload areas
-4. **Left Accent**: `borderLeft: '4px solid #2E5AAC'` for info sections
-5. **Top Dividers**: `border-t-2` with brand color for major section breaks
-
-## CSS Classes to Use
-
-Prefer these predefined classes (from globals.css):
-
-```css
-.btn-primary      // Primary button styling
-.btn-secondary    // Secondary button styling
-.card             // Card container
-.card-hover       // Hoverable card
-.input-field      // Form input styling
-.animate-fadeIn   // Fade in animation
-.animate-scaleIn  // Scale in animation
-```
+Prefer predefined (globals.css): `.btn-primary`, `.btn-secondary`, `.card`, `.card-hover`, `.input-field`, `.animate-fadeIn`, `.animate-scaleIn`
 
 ## Avoid
 
-❌ Don't use arbitrary values unless absolutely necessary (gradients and brand colors are exceptions)
-❌ Don't introduce new color schemes outside the defined palette
-❌ Avoid default Tailwind shadows (use corporate shadows: shadow-corporate, shadow-corporate-md, shadow-corporate-lg)
-❌ Don't use bold text everywhere (reserve for emphasis, use font-bold on gradients, font-medium on standard backgrounds)
-❌ Avoid inconsistent spacing (stick to 4, 8, 12, 16, 24, 32px scale)
-❌ Don't mix px values with Tailwind classes (use Tailwind spacing classes)
-❌ Avoid excessive animations (use duration-200 or duration-300 for most transitions)
-❌ Don't use Tailwind classes for gradients (always use inline styles)
-❌ Avoid mixing gradient directions inconsistently (use 135deg for diagonal, `to right` for horizontal)
-❌ Don't use black text on gradient backgrounds (always use white)
-❌ Avoid heavy borders everywhere (use border-2 or border-3 only for emphasis)
-❌ Don't use rounded-full for cards or containers (use rounded-lg or rounded-xl)
-❌ Avoid mixing border colors (use gray-200/300 for subtle, #2E5AAC for emphasis)
+❌ Arbitrary values (except gradients/brand colors) ❌ New color schemes ❌ Default Tailwind shadows ❌ Bold everywhere (font-bold on gradients, font-medium on standard) ❌ Inconsistent spacing ❌ Tailwind for gradients ❌ Black text on gradients ❌ Heavy borders everywhere
 
 ## Summary
 
-This styling guide reflects the current implementation patterns in the Forvis Mazars application, particularly the mapping page. Key principles:
-
-- **Gradients are prominent**: Used for headers, stats cards, and emphasis areas
-- **Brand blue is central**: #2E5AAC is the core color, used throughout
-- **Visual hierarchy through gradients**: Darker gradients for more important elements
-- **Inline styles for brand consistency**: Gradients and specific brand colors use inline styles
-- **Grid-based layouts**: Modern table layouts use CSS Grid with gradient headers
-- **Professional aesthetic**: Clean, corporate design with appropriate use of color and spacing
-- **Accessibility maintained**: Focus states, color contrast, and semantic HTML throughout
+**Key Principles**: Gradients prominent (headers, stats, emphasis), Brand blue central (#2E5AAC), Visual hierarchy through gradients (darker = important), Inline styles for brand consistency, Grid-based layouts (CSS Grid for tables), Professional aesthetic (clean, corporate), Accessibility maintained (focus states, color contrast, semantic HTML)

@@ -13,6 +13,57 @@ import { logger } from '@/lib/utils/logger';
  */
 export async function getUserServiceLines(userId: string): Promise<ServiceLineWithStats[]> {
   try {
+    // Check if user is a SYSTEM_ADMIN - they get access to all service lines
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+
+    const isSystemAdmin = user?.role === 'SYSTEM_ADMIN';
+
+    if (isSystemAdmin) {
+      // SYSTEM_ADMIN gets access to all service lines with ADMINISTRATOR role
+      const allServiceLines = ['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'BUSINESS_DEV', 'IT', 'FINANCE', 'HR'];
+      
+      // Get project counts for all service lines
+      const [allProjectCounts, activeProjectCounts] = await Promise.all([
+        prisma.project.groupBy({
+          by: ['serviceLine'],
+          _count: {
+            id: true,
+          },
+        }),
+        prisma.project.groupBy({
+          by: ['serviceLine'],
+          where: {
+            status: 'ACTIVE',
+            archived: false,
+          },
+          _count: {
+            id: true,
+          },
+        }),
+      ]);
+
+      // Create lookup maps for fast access
+      const projectCountMap = new Map(
+        allProjectCounts.map(item => [item.serviceLine, item._count.id])
+      );
+      const activeProjectCountMap = new Map(
+        activeProjectCounts.map(item => [item.serviceLine, item._count.id])
+      );
+
+      // Return all service lines with ADMINISTRATOR role for SYSTEM_ADMIN
+      return allServiceLines.map((sl, index) => ({
+        id: -(index + 1), // Use negative IDs for virtual service line access
+        serviceLine: sl,
+        role: 'ADMINISTRATOR',
+        projectCount: projectCountMap.get(sl) || 0,
+        activeProjectCount: activeProjectCountMap.get(sl) || 0,
+      }));
+    }
+
+    // For regular users, get their explicit service line assignments
     const serviceLineUsers = await prisma.serviceLineUser.findMany({
       where: { userId },
       select: {
@@ -84,6 +135,16 @@ export async function checkServiceLineAccess(
   requiredRole?: ServiceLineRole | string
 ): Promise<boolean> {
   try {
+    // Check if user is a SYSTEM_ADMIN - they have access to all service lines with ADMINISTRATOR role
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+
+    if (user?.role === 'SYSTEM_ADMIN') {
+      return true; // SYSTEM_ADMIN has access to everything
+    }
+
     const serviceLineUser = await prisma.serviceLineUser.findUnique({
       where: {
         userId_serviceLine: {
@@ -102,18 +163,9 @@ export async function checkServiceLineAccess(
       return true;
     }
 
-    // Check role hierarchy
-    const roleHierarchy: Record<string, number> = {
-      VIEWER: 1,
-      USER: 2,
-      MANAGER: 3,
-      ADMIN: 4,
-    };
-
-    const userRoleLevel = roleHierarchy[serviceLineUser.role] || 0;
-    const requiredRoleLevel = roleHierarchy[requiredRole as string] || 0;
-
-    return userRoleLevel >= requiredRoleLevel;
+    // Check role hierarchy using centralized utility
+    const { hasServiceLineRole } = await import('@/lib/utils/roleHierarchy');
+    return hasServiceLineRole(serviceLineUser.role, requiredRole as string);
   } catch (error) {
     logger.error('Error checking service line access', { userId, serviceLine, error });
     return false;
@@ -128,6 +180,16 @@ export async function getServiceLineRole(
   serviceLine: ServiceLine | string
 ): Promise<ServiceLineRole | string | null> {
   try {
+    // Check if user is a SYSTEM_ADMIN - they have ADMINISTRATOR role in all service lines
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+
+    if (user?.role === 'SYSTEM_ADMIN') {
+      return 'ADMINISTRATOR';
+    }
+
     const serviceLineUser = await prisma.serviceLineUser.findUnique({
       where: {
         userId_serviceLine: {
@@ -321,4 +383,3 @@ export async function getServiceLineStats(serviceLine: ServiceLine | string) {
     throw error;
   }
 }
-

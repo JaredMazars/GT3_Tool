@@ -29,7 +29,7 @@ export async function POST(
     const projectId = toProjectId(id);
 
     // Check if user can generate engagement letter
-    // Rules: SUPERUSER OR Partner (ServiceLineUser.role = ADMIN for project's service line)
+    // Rules: SYSTEM_ADMIN OR Partner/Administrator (ServiceLineUser.role = ADMINISTRATOR or PARTNER for project's service line)
     const hasApprovalPermission = await canApproveEngagementLetter(user.id, projectId);
 
     if (!hasApprovalPermission) {

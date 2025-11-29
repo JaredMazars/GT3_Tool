@@ -97,7 +97,7 @@ export async function getTemplates(filter?: TemplateFilter) {
     const templates = await prisma.template.findMany({
       where,
       include: {
-        sections: {
+        TemplateSection: {
           orderBy: { order: 'asc' },
         },
       },
@@ -119,7 +119,7 @@ export async function getTemplateById(id: number) {
     const template = await prisma.template.findUnique({
       where: { id },
       include: {
-        sections: {
+        TemplateSection: {
           orderBy: { order: 'asc' },
         },
       },
@@ -149,7 +149,7 @@ export async function createTemplate(data: CreateTemplateData) {
         createdBy: data.createdBy,
       },
       include: {
-        sections: {
+        TemplateSection: {
           orderBy: { order: 'asc' },
         },
       },
@@ -180,7 +180,7 @@ export async function updateTemplate(id: number, data: UpdateTemplateData) {
         ...(data.active !== undefined && { active: data.active }),
       },
       include: {
-        sections: {
+        TemplateSection: {
           orderBy: { order: 'asc' },
         },
       },
@@ -393,7 +393,7 @@ export async function getApplicableTemplates(
     const templates = await prisma.template.findMany({
       where,
       include: {
-        sections: {
+        TemplateSection: {
           orderBy: { order: 'asc' },
         },
       },

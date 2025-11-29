@@ -29,16 +29,16 @@ export default async function ServiceLineLayout({
     redirect('/dashboard?error=invalid_service_line');
   }
 
-  // Check if user is SUPERUSER or ADMIN (automatic access to all service lines)
+  // Check if user is SYSTEM_ADMIN (automatic access to all service lines)
   const dbUser = await prisma.user.findUnique({
     where: { id: user.id },
     select: { role: true },
   });
 
-  const isSuperuser = dbUser?.role === 'SUPERUSER' || dbUser?.role === 'ADMIN';
+  const isSystemAdmin = dbUser?.role === 'SYSTEM_ADMIN';
 
   // For regular users, check service line access
-  if (!isSuperuser) {
+  if (!isSystemAdmin) {
     const hasAccess = await checkServiceLineAccess(user.id, serviceLineUpper);
     
     if (!hasAccess) {
@@ -49,4 +49,5 @@ export default async function ServiceLineLayout({
   // User has access, render the page
   return <>{children}</>;
 }
+
 

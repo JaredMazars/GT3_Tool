@@ -63,10 +63,10 @@ export enum ProjectType {
 }
 
 // System-level roles (User.role)
-// SUPERUSER: System-wide access to all features and service lines
+// SYSTEM_ADMIN: System-wide access to all features and service lines
 // USER: Regular user, requires service line access
 export enum SystemRole {
-  SUPERUSER = 'SUPERUSER',
+  SYSTEM_ADMIN = 'SYSTEM_ADMIN',
   USER = 'USER',
 }
 
@@ -81,10 +81,12 @@ export enum ProjectRole {
 // Service line roles (ServiceLineUser.role)
 // ADMIN = Partner, MANAGER = Manager, USER = Staff, VIEWER = Viewer
 export enum ServiceLineRole {
-  ADMIN = 'ADMIN',
-  MANAGER = 'MANAGER',
-  USER = 'USER',
-  VIEWER = 'VIEWER',
+  ADMINISTRATOR = 'ADMINISTRATOR', // Service line administrator (highest)
+  PARTNER = 'PARTNER',   // Partner level (same as ADMIN)
+  MANAGER = 'MANAGER',   // Manager level
+  SUPERVISOR = 'SUPERVISOR', // Supervisor level  
+  USER = 'USER',         // Staff level
+  VIEWER = 'VIEWER',     // View-only access
 }
 
 // Client/Organization

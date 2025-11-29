@@ -38,6 +38,7 @@ export async function GET(request: NextRequest) {
         id: true,
         name: true,
         email: true,
+        role: true, // System role (SYSTEM_ADMIN or USER)
         createdAt: true,
         updatedAt: true,
         ProjectUser: {

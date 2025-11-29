@@ -177,6 +177,19 @@ export async function DELETE(request: NextRequest) {
 
     // Delete by ServiceLineUser id
     const { prisma } = await import('@/lib/db/prisma');
+    
+    // Check if the record exists before attempting deletion
+    const existingRecord = await prisma.serviceLineUser.findUnique({
+      where: { id },
+    });
+
+    if (!existingRecord) {
+      return NextResponse.json(
+        { error: 'Service line access record not found' },
+        { status: 404 }
+      );
+    }
+
     await prisma.serviceLineUser.delete({
       where: { id },
     });

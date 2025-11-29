@@ -50,7 +50,7 @@ export async function generateFromTemplate(
     }
 
     // Filter sections applicable to this project
-    const applicableSections = template.sections.filter((section) => {
+    const applicableSections = template.TemplateSection.filter((section) => {
       // If section has no applicability constraints, it's always included
       if (!section.applicableServiceLines && !section.applicableProjectTypes) {
         return true;

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/services/auth/auth';
-import { isSystemSuperuser } from '@/lib/services/auth/authorization';
+import { isSystemAdmin } from '@/lib/services/auth/authorization';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { UpdateTemplateSchema } from '@/lib/validation/schemas';
@@ -24,7 +24,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const hasAdminAccess = await isSystemSuperuser(user.id);
+    const hasAdminAccess = await isSystemAdmin(user.id);
     if (!hasAdminAccess) {
       return NextResponse.json(
         { error: 'Admin access required' },
@@ -65,7 +65,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const hasAdminAccess = await isSystemSuperuser(user.id);
+    const hasAdminAccess = await isSystemAdmin(user.id);
     if (!hasAdminAccess) {
       return NextResponse.json(
         { error: 'Admin access required' },
@@ -105,7 +105,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const hasAdminAccess = await isSystemSuperuser(user.id);
+    const hasAdminAccess = await isSystemAdmin(user.id);
     if (!hasAdminAccess) {
       return NextResponse.json(
         { error: 'Admin access required' },

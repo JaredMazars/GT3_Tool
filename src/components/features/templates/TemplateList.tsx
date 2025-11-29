@@ -141,7 +141,7 @@ export function TemplateList({ templates, onDelete, onToggleActive }: TemplateLi
               <div className="flex items-center justify-between text-sm">
                 <span className="text-forvis-gray-600">Sections:</span>
                 <span className="font-medium text-forvis-gray-900">
-                  {template.sections.length}
+                  {template.TemplateSection.length}
                 </span>
               </div>
 
@@ -207,6 +207,7 @@ export function TemplateList({ templates, onDelete, onToggleActive }: TemplateLi
     </div>
   );
 }
+
 
 
 

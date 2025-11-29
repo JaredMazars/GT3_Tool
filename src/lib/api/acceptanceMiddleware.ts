@@ -10,7 +10,7 @@ export type ProjectRole = 'VIEWER' | 'USER' | 'MANAGER' | 'ADMIN';
 
 /**
  * Validate that a user has access to a project
- * Returns true if user has access (either through project membership or SUPERUSER role)
+ * Returns true if user has access (either through project membership or SYSTEM_ADMIN role)
  */
 export async function validateAcceptanceAccess(
   projectId: number,
@@ -35,22 +35,22 @@ export async function validateAcceptanceAccess(
     });
 
     if (!access) {
-      // Check if user is SUPERUSER
+      // Check if user is SYSTEM_ADMIN
       const user = await prisma.user.findUnique({
         where: { id: userId },
         select: { role: true },
       });
 
-      if (user?.role !== 'SUPERUSER') {
+      if (user?.role !== 'SYSTEM_ADMIN') {
         logger.warn('User access denied', {
           userId,
           projectId,
-          reason: 'No project membership and not SUPERUSER',
+          reason: 'No project membership and not SYSTEM_ADMIN',
         });
         return false;
       }
 
-      // SUPERUSER has access
+      // SYSTEM_ADMIN has access
       return true;
     }
 
@@ -89,24 +89,24 @@ export async function validateAcceptanceAccess(
 }
 
 /**
- * Validate that a user can approve acceptance (Partner or SUPERUSER only)
+ * Validate that a user can approve acceptance (Partner/Administrator or SYSTEM_ADMIN only)
  */
 export async function canApproveAcceptanceValidation(
   projectId: number,
   userId: string
 ): Promise<boolean> {
   try {
-    // Check if user is SUPERUSER
+    // Check if user is SYSTEM_ADMIN
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { role: true },
     });
 
-    if (user?.role === 'SUPERUSER') {
+    if (user?.role === 'SYSTEM_ADMIN') {
       return true;
     }
 
-    // Check if user is Partner (ADMIN role) for the project's service line
+    // Check if user is Partner/Administrator for the project's service line
     const project = await prisma.project.findUnique({
       where: { id: projectId },
       select: { serviceLine: true },
@@ -126,7 +126,7 @@ export async function canApproveAcceptanceValidation(
       select: { role: true },
     });
 
-    return serviceLineAccess?.role === 'ADMIN';
+    return serviceLineAccess?.role === 'ADMINISTRATOR';
   } catch (error) {
     logger.error('Error checking approval permission', {
       error,
@@ -174,6 +174,7 @@ export async function validateDocumentAccess(
     return { hasAccess: false };
   }
 }
+
 
 
 

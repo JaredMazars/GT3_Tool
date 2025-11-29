@@ -85,11 +85,46 @@ export async function POST(
     
     const projectId = parseProjectId(params?.id);
 
-    // Check if user has ADMIN role on project
-    const hasAccess = await checkProjectAccess(user.id, projectId, 'ADMIN');
-    if (!hasAccess) {
+    // Get project details
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { serviceLine: true },
+    });
+
+    if (!project) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    }
+
+    // Check authorization: user must be a project member OR service line admin
+    const currentUserOnProject = await prisma.projectUser.findUnique({
+      where: {
+        projectId_userId: { projectId, userId: user.id },
+      },
+    });
+
+    // Check if user is service line admin
+    const serviceLineAccess = await prisma.serviceLineUser.findUnique({
+      where: {
+        userId_serviceLine: {
+          userId: user.id,
+          serviceLine: project.serviceLine,
+        },
+      },
+    });
+
+    const isServiceLineAdmin = serviceLineAccess?.role === 'ADMINISTRATOR' || serviceLineAccess?.role === 'PARTNER';
+    
+    // Get user from earlier check for role
+    const currentUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { role: true },
+    });
+    const isSystemAdmin = currentUser?.role === 'SYSTEM_ADMIN';
+
+    // Allow if user is: System Admin OR project member OR service line admin
+    if (!currentUserOnProject && !isServiceLineAdmin && !isSystemAdmin) {
       return NextResponse.json(
-        { error: 'Only project admins can add users' },
+        { error: 'You must be a project member or service line admin to add users' },
         { status: 403 }
       );
     }

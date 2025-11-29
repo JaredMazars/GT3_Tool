@@ -10,7 +10,7 @@ This folder contains one-time migration scripts that have already been executed 
 **Date Archived:** 2025-11-25
 
 ### migrate-admin-to-superuser.ts
-**Purpose:** One-time migration to update User role from 'ADMIN' to 'SUPERUSER'
+**Purpose:** One-time migration to update User role from 'ADMIN' to 'SUPERUSER' (now called 'SYSTEM_ADMIN')
 **Status:** Executed - can be safely ignored  
 **Date Archived:** 2025-11-25
 

@@ -12,7 +12,7 @@ import { z } from 'zod';
 const BulkUpdateSchema = z.object({
   updates: z.array(
     z.object({
-      role: z.enum(['PARTNER', 'MANAGER', 'SUPERVISOR', 'ADMIN', 'USER', 'VIEWER']),
+      role: z.enum(['PARTNER', 'MANAGER', 'SUPERVISOR', 'ADMINISTRATOR', 'USER', 'VIEWER']),
       permissionId: z.number(),
       actions: z.array(z.enum(['CREATE', 'READ', 'UPDATE', 'DELETE'])),
     })
@@ -22,7 +22,7 @@ const BulkUpdateSchema = z.object({
 /**
  * POST /api/permissions/bulk-update
  * Bulk update role permissions
- * Requires SUPERUSER or ADMIN role
+ * Requires SYSTEM_ADMIN role
  */
 export async function POST(request: NextRequest) {
   try {
@@ -31,8 +31,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if user is SUPERUSER or ADMIN
-    if (user.role !== 'SUPERUSER' && user.role !== 'ADMIN') {
+    // Check if user is SYSTEM_ADMIN
+    if (user.role !== 'SYSTEM_ADMIN') {
       return NextResponse.json(
         { error: 'Forbidden - Admin access required' },
         { status: 403 }
@@ -61,5 +61,6 @@ export async function POST(request: NextRequest) {
     return handleApiError(error, 'POST /api/permissions/bulk-update');
   }
 }
+
 
 

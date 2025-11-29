@@ -482,11 +482,12 @@ export default function ServiceLineWorkspacePage() {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-forvis-gray-200">
-                      {(activeTab === 'projects' ? projects : myProjects).map((project) => (
-                          <tr key={project.id} className="hover:bg-forvis-gray-50 transition-colors">
+                      {(activeTab === 'projects' ? projects : myProjects).map((project) => {
+                        return (
+                          <tr key={project.id} className="transition-colors hover:bg-forvis-gray-50">
                             <td className="px-6 py-4">
                               <div className="flex items-center space-x-3">
-                                <div className="w-8 h-8 rounded-lg bg-forvis-blue-100 flex items-center justify-center flex-shrink-0">
+                                <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-forvis-blue-100">
                                   <FolderIcon className="h-4 w-4 text-forvis-blue-600" />
                                 </div>
                                 <div>
@@ -540,7 +541,8 @@ export default function ServiceLineWorkspacePage() {
                               </Link>
                             </td>
                           </tr>
-                        ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

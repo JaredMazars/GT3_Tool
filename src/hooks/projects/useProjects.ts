@@ -28,6 +28,8 @@ export interface ProjectListItem {
     clientNameFull: string | null;
     clientCode: string | null;
   } | null;
+  canAccess?: boolean; // Whether user can access project details
+  userRole?: string | null; // User's role on project (if team member)
   _count: {
     mappings: number;
     taxAdjustments: number;

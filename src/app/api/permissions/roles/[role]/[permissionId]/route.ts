@@ -16,7 +16,7 @@ const UpdatePermissionSchema = z.object({
 /**
  * PUT /api/permissions/roles/[role]/[permissionId]
  * Update or create a role permission
- * Requires SUPERUSER or ADMIN role
+ * Requires SYSTEM_ADMIN role
  */
 export async function PUT(
   request: NextRequest,
@@ -28,8 +28,8 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if user is SUPERUSER or ADMIN
-    if (user.role !== 'SUPERUSER' && user.role !== 'ADMIN') {
+    // Check if user is SYSTEM_ADMIN
+    if (user.role !== 'SYSTEM_ADMIN') {
       return NextResponse.json(
         { error: 'Forbidden - Admin access required' },
         { status: 403 }
@@ -39,7 +39,7 @@ export async function PUT(
     const { role, permissionId } = await context.params;
     
     // Validate role
-    const validRoles: UserRole[] = ['SUPERUSER', 'ADMIN', 'PARTNER', 'MANAGER', 'SUPERVISOR', 'USER', 'VIEWER'];
+    const validRoles: UserRole[] = ['SYSTEM_ADMIN', 'ADMINISTRATOR', 'PARTNER', 'MANAGER', 'SUPERVISOR', 'USER', 'VIEWER'];
     if (!validRoles.includes(role as UserRole)) {
       return NextResponse.json(
         { error: 'Invalid role' },

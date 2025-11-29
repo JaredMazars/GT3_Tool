@@ -127,6 +127,14 @@ export async function GET(request: NextRequest) {
             clientCode: true,
           },
         },
+        ProjectUser: {
+          where: {
+            userId: user.id,
+          },
+          select: {
+            role: true,
+          },
+        },
         _count: {
           select: {
             MappedAccount: true,
@@ -136,16 +144,39 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Get user's service line roles
+    const userServiceLineRoles = await prisma.serviceLineUser.findMany({
+      where: { userId: user.id },
+      select: { serviceLine: true, role: true },
+    });
+    const serviceLineRoleMap = new Map(
+      userServiceLineRoles.map(sl => [sl.serviceLine, sl.role])
+    );
+
+    // Check if user is SYSTEM_ADMIN
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { role: true },
+    });
+    const isSystemAdmin = dbUser?.role === 'SYSTEM_ADMIN';
+
     // Transform _count and Client to match expected format
-    const projectsWithCounts = projects.map(project => ({
-      ...project,
-      client: project.Client, // Transform Client → client for consistency
-      Client: undefined, // Remove original Client field
-      _count: {
-        mappings: project._count.MappedAccount,
-        taxAdjustments: project._count.TaxAdjustment,
-      },
-    }));
+    const projectsWithCounts = projects.map(project => {
+      const isTeamMember = project.ProjectUser.length > 0;
+
+      return {
+        ...project,
+        client: project.Client, // Transform Client → client for consistency
+        Client: undefined, // Remove original Client field
+        ProjectUser: undefined, // Remove from response
+        userRole: project.ProjectUser[0]?.role || null, // User's role on project
+        canAccess: true, // All projects in accessible service lines are accessible
+        _count: {
+          mappings: project._count.MappedAccount,
+          taxAdjustments: project._count.TaxAdjustment,
+        },
+      };
+    });
     
     return NextResponse.json(
       successResponse({
@@ -223,6 +254,7 @@ export async function POST(request: NextRequest) {
         assessmentYear: validatedData.assessmentYear,
         submissionDeadline: validatedData.submissionDeadline,
         clientId: validatedData.clientId,
+        createdBy: user.id,
         status: 'ACTIVE',
         ProjectUser: {
           create: {

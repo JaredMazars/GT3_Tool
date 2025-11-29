@@ -8,69 +8,53 @@ Next.js 14 (App Router) | TypeScript (strict) | Prisma | React Query | Azure Ope
 
 ## TypeScript
 
-**Strict mode enabled**: No implicit any, check nulls/undefined, handle array access, return from all paths
-
-**Path aliases**: Always use `@/*` imports
-```typescript
-import { prisma } from '@/lib/db/prisma';
-import { ProjectCard } from '@/components/features/projects/ProjectCard';
-```
-
-**Branded types** (`@/types/branded.ts`): Prevent ID type mixing
-```typescript
-import { toProjectId, ProjectId } from '@/types/branded';
-const projectId = toProjectId(params.id); // Validates and brands
-```
+- **Strict mode**: No implicit any, check nulls/undefined, handle array access, return from all paths
+- **Path aliases**: Always use `@/*` imports
+- **Branded types** (`@/types/branded.ts`): Prevent ID type mixing with `toProjectId()`, `toClientId()`, etc.
 
 ## Validation
 
-**All input validated with Zod** (schemas in `/src/lib/validation/schemas.ts`):
-```typescript
-import { CreateProjectSchema } from '@/lib/validation/schemas';
-const validated = CreateProjectSchema.parse(body); // Throws if invalid
-```
+All input validated with Zod schemas in `/src/lib/validation/schemas.ts`
 
 ## API Routes
 
 ### Standard Pattern
+
 ```typescript
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/services/auth/auth';
+import { checkUserPermission } from '@/lib/services/permissions/permissionService';
+import { getUserServiceLines } from '@/lib/services/service-lines/serviceLineService';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 
 export async function GET(request: NextRequest) {
   try {
+    // 1. Authenticate
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    // 2. Check permission
+    const hasPermission = await checkUserPermission(user.id, 'resource-key', 'READ');
+    if (!hasPermission) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+    // 3. Filter by service line access (for list endpoints)
+    const userServiceLines = await getUserServiceLines(user.id);
+    const accessibleServiceLines = userServiceLines.map(sl => sl.serviceLine);
     
-    const data = await prisma.resource.findMany({ where: { userId: user.id } });
+    const data = await prisma.resource.findMany({
+      where: { serviceLine: { in: accessibleServiceLines } },
+    });
+
     return NextResponse.json(successResponse(data));
   } catch (error) {
     return handleApiError(error, 'GET /api/resource');
   }
 }
-
-export async function POST(request: NextRequest) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    
-    const body = await request.json();
-    const validated = Schema.parse(body);
-    
-    const resource = await prisma.resource.create({
-      data: { ...validated, userId: user.id }
-    });
-    
-    return NextResponse.json(successResponse(resource), { status: 201 });
-  } catch (error) {
-    return handleApiError(error, 'POST /api/resource');
-  }
-}
 ```
 
 ### Dynamic Routes
+
 ```typescript
 export async function GET(
   request: NextRequest,
@@ -80,79 +64,31 @@ export async function GET(
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   
   const { id } = await context.params; // Always await params
-  const resourceId = toResourceId(id);
-  
-  const hasAccess = await checkAccess(user.id, resourceId);
+  const hasAccess = await checkProjectAccess(user.id, parseInt(id));
   if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   
-  const resource = await prisma.resource.findUnique({ where: { id: resourceId } });
-  if (!resource) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  
-  return NextResponse.json(successResponse(resource));
+  // ... fetch and return data
 }
 ```
 
-### Authentication
-Manual check in each route (preferred):
-```typescript
-const user = await getCurrentUser();
-if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-```
+### Key Patterns
 
-Optional middleware (`@/lib/api/middleware`):
-```typescript
-import { withAuth, withProjectAccess } from '@/lib/api/middleware';
-export const GET = withAuth(async (request, { user }) => { ... });
-```
-
-### Authorization
-```typescript
-import { checkProjectAccess } from '@/lib/services/auth/auth';
-const hasAccess = await checkProjectAccess(user.id, projectId, 'ADMIN'); // Optional role
-```
-
-### Request/Response
-```typescript
-// Parse body
-const body = await request.json();
-const formData = await request.formData();
-
-// Query params
-const { searchParams } = new URL(request.url);
-const filter = searchParams.get('filter');
-
-// Success response format
-{ success: true, data: {...} }
-
-// Error response format
-{ success: false, error: "Message", code: "ERROR_CODE" }
-```
-
-### Status Codes
-200 (GET/PUT/DELETE), 201 (POST), 400 (validation), 401 (unauthorized), 403 (forbidden), 404 (not found), 409 (conflict), 500 (server error)
+- **Authentication**: `getCurrentUser()` at start of every protected route
+- **Request/Response**: Success `{ success: true, data: {...} }`, Error `{ success: false, error: "Message", code: "CODE" }`
+- **Status Codes**: 200 (GET/PUT/DELETE), 201 (POST), 400 (validation), 401 (unauthorized), 403 (forbidden), 404 (not found), 500 (server error)
 
 ## Database (Prisma)
 
-**Singleton**: `import { prisma } from '@/lib/db/prisma'`
-
 ```typescript
-// Query
+import { prisma } from '@/lib/db/prisma'; // Singleton
+
+// Query - select only needed fields
 const items = await prisma.resource.findMany({
   where: { userId },
-  select: { id: true, name: true }, // Select only needed fields
-  include: { relation: true }
+  select: { id: true, name: true },
 });
 
-// Create
-await prisma.resource.create({ data: {...} });
-
-// Update
-await prisma.resource.update({ where: { id }, data: {...} });
-
-// Delete
-await prisma.resource.delete({ where: { id } });
-
-// Transactions
+// Transactions for multi-step operations
 await prisma.$transaction(async (tx) => {
   await tx.resource.update({...});
   await tx.auditLog.create({...});
@@ -177,194 +113,172 @@ catch (error) {
 
 Business logic in `/src/lib/services/<domain>/`. Pure functions or classes, no request/response handling.
 
-```typescript
-// services/documents/blobStorage.ts
-export async function uploadToBlob(buffer: Buffer, fileName: string): Promise<string> {
-  // Implementation
-}
-
-// services/opinions/ragEngine.ts
-export class RAGEngine {
-  async search(query: string) { ... }
-}
-```
-
 ## Components
 
 ### Organization
-```
-components/
-├── features/       # Feature-specific (domain-grouped)
-│   ├── clients/
-│   ├── projects/
-│   ├── opinions/
-│   └── tax-adjustments/
-├── shared/         # Reusable across features
-├── layout/         # Nav, headers, sidebars
-└── ui/             # Base components (shadcn/ui)
-```
+- `components/ui/` - Base components (shadcn/ui)
+- `components/layout/` - Nav, headers, sidebars
+- `components/shared/` - Reusable across features
+- `components/features/<domain>/` - Feature-specific
 
-**Decision tree**:
-- Base UI (button, input)? → `ui/`
-- Layout structure? → `layout/`
-- Used by 2+ features? → `shared/`
-- Feature-specific? → `features/<domain>/`
-
-### Component Patterns
-```typescript
-// Use named exports (avoid default)
-export function ComponentName({ prop }: Props) {
-  // Client component if uses hooks/events
-  // Add 'use client' directive at top
-}
-
-export interface Props { ... } // Export if reusable
-```
-
-### Server vs Client
-Default: Server Components
-
-Use `'use client'` when:
-- Uses React hooks (useState, useEffect, etc.)
-- Handles browser events (onClick, onChange)
-- Uses React Query hooks
+### Patterns
+- Use named exports (avoid default)
+- Default: Server Components. Add `'use client'` when using hooks/events/React Query
 
 ## State Management
 
-**React Query** for server state:
-```typescript
-// hooks/<domain>/useResource.ts
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-
-export function useResource(id: number) {
-  return useQuery({
-    queryKey: ['resource', id],
-    queryFn: async () => {
-      const res = await fetch(`/api/resource/${id}`);
-      if (!res.ok) throw new Error('Failed');
-      return res.json();
-    },
-  });
-}
-
-export function useCreateResource() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (data) => {
-      const res = await fetch('/api/resource', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error('Failed');
-      return res.json();
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['resource'] }),
-  });
-}
-```
-
-**useState** for: form state, UI state (modals, toggles), component-specific temporary state
+- **React Query** for server state (caching, mutations, invalidation)
+- **useState** for form state, UI state (modals, toggles), component-specific state
 
 ## Logging
 
 ```typescript
 import { logger } from '@/lib/utils/logger';
-logger.info('Event', { context, data });
-logger.error('Error', { error: error.message, context });
-logger.warn('Warning', { context });
+logger.info('Event', { context });
+logger.error('Error', { error: error.message });
 ```
 
-Don't log secrets/PII. Use structured objects for context.
-
-## Directory Structure
-
-```
-src/
-├── app/                    # Next.js pages & API routes
-│   ├── page.tsx
-│   ├── layout.tsx
-│   ├── auth/              # Auth pages
-│   ├── dashboard/         # Main app
-│   │   ├── clients/
-│   │   ├── projects/[id]/
-│   │   └── admin/
-│   └── api/               # API routes (RESTful)
-│       ├── auth/
-│       ├── clients/
-│       ├── projects/
-│       └── users/
-├── components/
-│   ├── features/          # Domain-specific
-│   ├── shared/            # Cross-feature reusable
-│   ├── layout/            # Nav, headers
-│   └── ui/                # Base components
-├── lib/
-│   ├── agents/            # AI orchestration
-│   ├── ai/                # Azure OpenAI config
-│   ├── api/               # API utilities
-│   ├── auth.ts            # Auth core (MSAL, JWT)
-│   ├── config/            # Env, React Query config
-│   ├── db/                # Prisma singleton
-│   ├── services/          # Business logic
-│   │   ├── auth/
-│   │   ├── documents/
-│   │   ├── export/
-│   │   ├── opinions/
-│   │   └── tax/
-│   ├── utils/             # Helpers
-│   └── validation/        # Zod schemas
-├── types/                 # TypeScript types
-│   ├── branded.ts
-│   ├── api.ts
-│   └── dto.ts
-├── constants/             # App constants
-├── hooks/                 # React hooks
-└── middleware.ts          # Next.js middleware
-
-prisma/
-├── schema.prisma
-└── migrations/
-```
+Don't log secrets/PII. Use structured objects.
 
 ## Best Practices
 
-**API Routes**:
-- Always authenticate manually in each route
-- Validate all input with Zod
-- Use `successResponse` and `handleApiError`
-- Await `context.params` in dynamic routes
-- Use branded types for IDs
-- Select only needed DB fields
-- Use transactions for multi-step operations
+**API Routes**: Always authenticate, validate input with Zod, use `successResponse`/`handleApiError`, await `context.params`, use branded types, select only needed DB fields, use transactions for multi-step operations
 
-**Components**:
-- Use `@/` imports
-- Named exports over default
-- Start with Server Components, add `'use client'` only when needed
-- Co-locate feature-specific hooks
-- Extract to `shared/` when used by 2+ features
+**Components**: Use `@/` imports, named exports, Server Components by default, co-locate hooks, extract to `shared/` when used by 2+ features
 
-**TypeScript**:
-- Strict mode - no implicit any
-- Check undefined/null before access
-- Use branded types for IDs
-- Type all function parameters and return values
-- Always check the build and echo when you make a change and correct errors
-- The build should be vissible
+**TypeScript**: Strict mode, check undefined/null before access, use branded types for IDs, type all parameters/returns, always verify build passes
 
-**Security**:
-- Validate all input
-- Check authentication in every protected route
-- Verify authorization for resource access
-- Never expose secrets in client code
-- Use Prisma (parameterized queries)
+**Security**: Validate all input, check authentication in every protected route, verify authorization, never expose secrets in client code, use Prisma (parameterized queries)
 
-**Performance**:
-- React Query for caching
-- Select specific DB fields
-- Use DB indexes for frequent queries
-- Implement pagination for large datasets
-- Server Components by default
-- Ensure react query is consistantly used
-- Ensure the performance when loading pages and re-loading is optimized
+**Performance**: React Query for caching, select specific DB fields, use DB indexes, implement pagination, Server Components by default, optimize loading/reloading
+
+## Security & Authorization
+
+**CRITICAL**: All new code MUST follow these security patterns. Security checks are NOT optional.
+
+### Three-Tier Security Model
+
+1. **System Level** - Global roles (User.role): `SYSTEM_ADMIN` (full access), `USER` (requires service line + permissions)
+2. **Service Line Level** - Department roles (ServiceLineUser.role): `ADMINISTRATOR/PARTNER` > `MANAGER` > `SUPERVISOR` > `USER` > `VIEWER`
+3. **Project Level** - Project roles (ProjectUser.role): `ADMIN` > `REVIEWER` > `EDITOR` > `VIEWER`
+
+Plus **granular permission system**: `PAGE` (dashboard, clients, projects, admin, etc.) and `FEATURE` (clients.create, projects.edit, etc.)
+
+### Backend Security Pattern
+
+```typescript
+export async function GET(request: NextRequest) {
+  try {
+    // 1. Authenticate
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    // 2. Check permission
+    const hasPermission = await checkUserPermission(user.id, 'resource-key', 'READ');
+    if (!hasPermission) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+    // 3. Filter by service line access (list endpoints)
+    const userServiceLines = await getUserServiceLines(user.id);
+    const accessibleServiceLines = userServiceLines.map(sl => sl.serviceLine);
+    
+    const data = await prisma.resource.findMany({
+      where: { serviceLine: { in: accessibleServiceLines } },
+    });
+
+    return NextResponse.json(successResponse(data));
+  } catch (error) {
+    return handleApiError(error, 'GET /api/resource');
+  }
+}
+```
+
+### Frontend Security Patterns
+
+```typescript
+// Component-Level Protection
+import { PermissionGate } from '@/components/shared/PermissionGate';
+
+<PermissionGate resource="clients.create" action="CREATE">
+  <button onClick={handleCreate}>Create Client</button>
+</PermissionGate>
+
+// Hook-Based Checks
+import { usePermission } from '@/hooks/permissions/usePermission';
+
+function MyComponent() {
+  const { hasPermission, isLoading } = usePermission('clients.edit', 'UPDATE');
+  if (isLoading) return <LoadingSpinner />;
+  return hasPermission ? <EditButton /> : null;
+}
+
+// Page-Level Protection
+export default function AdminPage() {
+  const router = useRouter();
+  const { hasPermission, isLoading } = usePermission('admin.users', 'READ');
+
+  useEffect(() => {
+    if (!isLoading && !hasPermission) router.push('/dashboard');
+  }, [hasPermission, isLoading, router]);
+
+  if (isLoading) return <LoadingSpinner />;
+  if (!hasPermission) return null;
+  return <AdminContent />;
+}
+```
+
+### Security Checklist
+
+**Backend (API Routes)**
+- [ ] Authenticate with `getCurrentUser()` at start
+- [ ] Check permission with `checkUserPermission()`
+- [ ] Filter data by service line access (`getUserServiceLines()`)
+- [ ] For project routes, verify `checkProjectAccess()`
+- [ ] For approvals, use `canApproveAcceptance()` or `canApproveEngagementLetter()`
+- [ ] Return 401/403/404 appropriately
+- [ ] Use `handleApiError()` in catch blocks
+
+**Frontend (Components & Pages)**
+- [ ] Wrap sensitive UI with `<PermissionGate>`
+- [ ] Use `usePermission()` for conditional rendering
+- [ ] Protect pages with permission checks + redirect
+- [ ] Show loading states, provide clear fallback messages
+
+**Database Queries**
+- [ ] Filter by accessible service lines for list queries
+- [ ] Verify project membership before accessing project data
+- [ ] Select only needed fields
+- [ ] Use transactions for multi-step operations
+
+### Common Permission Resources
+
+**Pages**: `dashboard`, `clients`, `projects`, `analytics`, `bd`, `admin`, `admin.users`, `admin.templates`, `admin.service-lines`, `admin.permissions`
+
+**Features**: `clients.create/edit/delete/view`, `projects.create/edit/delete/archive/assign-users`, `documents.upload/download/delete`, `acceptance.create/approve/view`, `mapping.create/edit/delete`, `adjustments.create/approve/delete`, `opinions.create/edit/generate/publish`, `reports.generate/export`, `bd.opportunities.create/edit/delete`
+
+### Authorization Utilities
+
+| Utility | Purpose |
+|---------|---------|
+| `getCurrentUser()` | Get current session user |
+| `checkProjectAccess(userId, projectId, role?)` | Check project access |
+| `checkUserPermission(userId, resource, action)` | Check granular permission |
+| `getUserServiceLines(userId)` | Get accessible service lines with stats |
+| `canApproveAcceptance(userId, projectId)` | Check approval permission |
+| `isSystemAdmin(userId)` | Check if SYSTEM_ADMIN or legacy ADMIN |
+
+**From `@/lib/services/auth/authorization`**: `isSystemAdmin()`, `getUserSystemRole()`, `getServiceLineRole()`, `isPartner()`, `isManager()`, `hasServiceLineAccess()`, `canApproveEngagementLetter()`, `checkFeaturePermission()`
+
+**From `@/lib/services/permissions/permissionService`**: `getUserPermissions()`, `getRolePermissions()`, `getPermissionMatrix()`, `checkUserPermissions()`, `checkUserHasAnyPermission()`
+
+### Security Best Practices
+
+1. **Defense in Depth**: Check permissions at multiple levels (system, service line, project)
+2. **Fail Secure**: Default to deny access if checks fail
+3. **Explicit Checks**: Never assume permission
+4. **Granular Permissions**: Use specific resource keys (e.g., `clients.edit` not `clients`)
+5. **Service Line Isolation**: Users only see data from their service lines (unless SYSTEM_ADMIN)
+6. **Project Membership**: Users must be assigned to projects (unless Partner/Admin in service line)
+7. **Audit Trail**: Track actions (createdBy, updatedBy fields)
+8. **Input Validation**: Always validate/sanitize (use Zod schemas)
+9. **Error Messages**: Don't leak information (generic "Forbidden")
+10. **Loading States**: Handle permission loading gracefully in UI

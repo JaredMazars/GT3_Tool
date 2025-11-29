@@ -1,7 +1,9 @@
 /**
- * Migration Script: Update ADMIN users to SUPERUSER
- * This script updates existing User records with role='ADMIN' to role='SUPERUSER'
- * to align with the new three-level permission model.
+ * ARCHIVED Migration Script: Update ADMIN users to SUPERUSER
+ * 
+ * NOTE: This script is archived and historical. SUPERUSER has been renamed to SYSTEM_ADMIN.
+ * This script was used to migrate existing User records with role='ADMIN' to role='SUPERUSER'
+ * to align with the three-level permission model. The current role name is SYSTEM_ADMIN.
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -9,8 +11,8 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🔄 Starting migration: ADMIN -> SUPERUSER');
-  console.log('=====================================\n');
+  console.log('🔄 Starting migration: ADMIN -> SUPERUSER (Now called SYSTEM_ADMIN)');
+  console.log('=======================================================================\n');
 
   try {
     // Find all users with ADMIN role
@@ -83,8 +85,8 @@ async function main() {
 
     console.log('Summary:');
     console.log(`- Users migrated: ${updateResult.count}`);
-    console.log('- All former ADMIN users are now SUPERUSER');
-    console.log('- SUPERUSER: System-wide access to all features and service lines');
+    console.log('- All former ADMIN users are now SUPERUSER (now called SYSTEM_ADMIN)');
+    console.log('- SYSTEM_ADMIN: System-wide access to all features and service lines');
     console.log('- These users will bypass service line access checks');
     console.log('- They can approve all acceptance and engagement letters\n');
 

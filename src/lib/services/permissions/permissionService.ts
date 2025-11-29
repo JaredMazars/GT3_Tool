@@ -12,8 +12,10 @@ export type ResourceType = 'PAGE' | 'FEATURE';
 
 /**
  * User roles supported by the system
+ * SYSTEM_ADMIN is the system level admin (full access)
+ * ADMINISTRATOR is the service line level admin (highest service line role)
  */
-export type UserRole = 'SUPERUSER' | 'ADMIN' | 'PARTNER' | 'MANAGER' | 'SUPERVISOR' | 'USER' | 'VIEWER';
+export type UserRole = 'SYSTEM_ADMIN' | 'ADMINISTRATOR' | 'PARTNER' | 'MANAGER' | 'SUPERVISOR' | 'USER' | 'VIEWER';
 
 /**
  * Permission resource definition
@@ -77,8 +79,8 @@ export async function checkUserPermission(
       return false;
     }
 
-    // SUPERUSER bypasses all permission checks
-    if (user.role === 'SUPERUSER') {
+    // SYSTEM_ADMIN bypasses all permission checks
+    if (user.role === 'SYSTEM_ADMIN') {
       return true;
     }
 
@@ -142,8 +144,8 @@ export async function getUserPermissions(userId: string): Promise<PermissionMatr
       return [];
     }
 
-    // SUPERUSER has all permissions
-    if (user.role === 'SUPERUSER') {
+    // SYSTEM_ADMIN has all permissions
+    if (user.role === 'SYSTEM_ADMIN') {
       const allPermissions = await prisma.permission.findMany({
         orderBy: [
           { resourceType: 'asc' },
@@ -163,7 +165,7 @@ export async function getUserPermissions(userId: string): Promise<PermissionMatr
           updatedAt: permission.updatedAt,
         },
         rolePermissions: {
-          SUPERUSER: {
+          SYSTEM_ADMIN: {
             isActive: true,
             allowedActions: JSON.parse(permission.availableActions) as PermissionAction[],
           },
@@ -293,7 +295,11 @@ export async function getPermissionMatrix(): Promise<PermissionMatrixEntry[]> {
       ],
     });
 
-    const roles: UserRole[] = ['PARTNER', 'MANAGER', 'SUPERVISOR', 'ADMIN', 'USER', 'VIEWER'];
+    // NOTE: These are SERVICE LINE roles, not system roles
+    // Permission matrix shows service line role permissions
+    // System roles are only: SYSTEM_ADMIN, USER
+    // SYSTEM_ADMIN bypasses all checks, so only service line roles shown in matrix
+    const roles: UserRole[] = ['ADMINISTRATOR', 'PARTNER', 'MANAGER', 'SUPERVISOR', 'USER', 'VIEWER'];
 
     return permissions.map(permission => {
       const rolePermissions: PermissionMatrixEntry['rolePermissions'] = {};
@@ -416,4 +422,3 @@ export async function bulkUpdateRolePermissions(
     throw new Error('Failed to bulk update role permissions');
   }
 }
-

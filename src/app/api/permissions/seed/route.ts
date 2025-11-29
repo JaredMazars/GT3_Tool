@@ -11,7 +11,7 @@ const execAsync = promisify(exec);
 /**
  * POST /api/permissions/seed
  * Re-seed default permissions
- * Requires SUPERUSER role
+ * Requires SYSTEM_ADMIN role
  */
 export async function POST(request: NextRequest) {
   try {
@@ -20,10 +20,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Only SUPERUSER can re-seed permissions
-    if (user.role !== 'SUPERUSER') {
+    // Only SYSTEM_ADMIN can re-seed permissions
+    if (user.role !== 'SYSTEM_ADMIN') {
       return NextResponse.json(
-        { error: 'Forbidden - SUPERUSER access required' },
+        { error: 'Forbidden - SYSTEM_ADMIN access required' },
         { status: 403 }
       );
     }
@@ -46,5 +46,6 @@ export async function POST(request: NextRequest) {
     return handleApiError(error, 'POST /api/permissions/seed');
   }
 }
+
 
 

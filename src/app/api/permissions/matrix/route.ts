@@ -7,7 +7,7 @@ import { handleApiError } from '@/lib/utils/errorHandler';
 /**
  * GET /api/permissions/matrix
  * Get the full permission matrix for admin UI
- * Requires SUPERUSER or ADMIN role
+ * Requires SYSTEM_ADMIN or ADMINISTRATOR role
  */
 export async function GET(request: NextRequest) {
   try {
@@ -16,8 +16,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if user is SUPERUSER or ADMIN
-    if (user.role !== 'SUPERUSER' && user.role !== 'ADMIN') {
+    // Check if user is SYSTEM_ADMIN
+    if (user.role !== 'SYSTEM_ADMIN') {
       return NextResponse.json(
         { error: 'Forbidden - Admin access required' },
         { status: 403 }
@@ -30,5 +30,6 @@ export async function GET(request: NextRequest) {
     return handleApiError(error, 'GET /api/permissions/matrix');
   }
 }
+
 
 

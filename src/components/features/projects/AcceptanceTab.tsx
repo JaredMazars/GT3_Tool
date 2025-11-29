@@ -22,7 +22,7 @@ export function AcceptanceTab({ project, currentUserRole, onApprovalComplete }: 
   const [viewMode, setViewMode] = useState<'questionnaire' | 'review'>('questionnaire');
   const queryClient = useQueryClient();
 
-  // Check if user can approve acceptance (Partners and Superusers only)
+  // Check if user can approve acceptance (Partners and System Admins only)
   const { data: canApprove = false, isLoading: isCheckingPermission } = useCanApproveAcceptance(project);
 
   // Get questionnaire status

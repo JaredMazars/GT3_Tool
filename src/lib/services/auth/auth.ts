@@ -110,7 +110,7 @@ export async function handleCallback(code: string, redirectUri: string) {
     email: dbUser.email,
     name: dbUser.name || dbUser.email,
     role: dbUser.role || 'USER', // Legacy - kept for backward compatibility
-    systemRole: dbUser.role || 'USER', // SUPERUSER or USER
+    systemRole: dbUser.role || 'USER', // SYSTEM_ADMIN or USER
   };
 
   log.info('User authenticated successfully', { userId: user.id, email: user.email, systemRole: user.systemRole });
@@ -300,13 +300,13 @@ export async function checkProjectAccess(
   requiredRole?: string
 ): Promise<boolean> {
   try {
-    // Check if user is a superuser (bypasses service line check)
+    // Check if user is a System Admin (bypasses service line check)
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { role: true },
     });
 
-    const isSuperuser = user?.role === 'SUPERUSER';
+    const isSystemAdmin = user?.role === 'SYSTEM_ADMIN';
 
     // Get the project's service line
     const project = await prisma.project.findUnique({
@@ -318,20 +318,28 @@ export async function checkProjectAccess(
       return false;
     }
 
-    // Non-superusers must have service line access
-    if (!isSuperuser) {
-      const serviceLineAccess = await prisma.serviceLineUser.findUnique({
-        where: {
-          userId_serviceLine: {
-            userId,
-            serviceLine: project.serviceLine,
-          },
-        },
-      });
+    // System Admins have full access to all projects
+    if (isSystemAdmin) {
+      return true;
+    }
 
-      if (!serviceLineAccess) {
-        return false;
-      }
+    // Non-System Admins must have service line access
+    const serviceLineAccess = await prisma.serviceLineUser.findUnique({
+      where: {
+        userId_serviceLine: {
+          userId,
+          serviceLine: project.serviceLine,
+        },
+      },
+    });
+
+    if (!serviceLineAccess) {
+      return false;
+    }
+
+    // Service line ADMINs and PARTNERs can access all projects in their service line
+    if (serviceLineAccess.role === 'ADMINISTRATOR' || serviceLineAccess.role === 'PARTNER') {
+      return true;
     }
 
     // Get user's project membership
@@ -364,7 +372,7 @@ export async function checkProjectAccess(
 /**
  * Check if user has access to a client
  * A user has access to a client if:
- * 1. They are a SUPERUSER, or
+ * 1. They are a SYSTEM_ADMIN, or
  * 2. They have access to any service line that has projects for this client, or
  * 3. They are assigned to any project for that client
  */
@@ -379,7 +387,7 @@ export async function checkClientAccess(
       select: { role: true },
     });
 
-    if (user?.role === 'SUPERUSER') {
+    if (user?.role === 'SYSTEM_ADMIN') {
       return true;
     }
 
@@ -457,7 +465,7 @@ export async function getUserProjectRole(
 }
 
 /**
- * Check if user is a system admin (SUPERUSER or legacy ADMIN role)
+ * Check if user is a System Admin (SYSTEM_ADMIN or legacy ADMIN role)
  */
 export async function isSystemAdmin(userId: string): Promise<boolean> {
   try {
@@ -466,8 +474,8 @@ export async function isSystemAdmin(userId: string): Promise<boolean> {
       select: { role: true },
     });
 
-    // Check for SUPERUSER (current) or ADMIN (legacy support)
-    return user?.role === 'SUPERUSER' || user?.role === 'ADMIN';
+    // Check for SYSTEM_ADMIN (current) or ADMIN (legacy support)
+    return user?.role === 'SYSTEM_ADMIN' || user?.role === 'ADMIN';
   } catch (error) {
     return false;
   }

@@ -17,13 +17,13 @@ Stores all available permissions in the system (both page-level and feature-leve
 
 #### RolePermission
 Links roles to permissions with specific allowed actions.
-- `role`: User role (PARTNER, MANAGER, SUPERVISOR, ADMIN, USER, VIEWER, SUPERUSER)
+- `role`: User role (PARTNER, MANAGER, SUPERVISOR, ADMIN, USER, VIEWER, SYSTEM_ADMIN)
 - `permissionId`: Foreign key to Permission table
 - `allowedActions`: JSON array of allowed CRUD operations for this role-permission pair
 
 ## Supported Roles
 
-1. **SUPERUSER**: System admin with full access (bypasses all permission checks)
+1. **SYSTEM_ADMIN**: System admin with full access (bypasses all permission checks)
 2. **ADMIN**: Full CRUD + admin pages (users, templates, service lines)
 3. **PARTNER**: Full CRUD across service lines, limited admin access
 4. **MANAGER**: Full CRUD on service line, READ on other areas
@@ -47,8 +47,9 @@ DROP TABLE [Permission];
 ```
 
 ## Notes
-- SUPERUSER role maintains backward compatibility with existing behavior
+- SYSTEM_ADMIN role maintains backward compatibility with existing behavior
 - Existing role field in User table supports all new role types
 - Permission checks are enforced in API routes and UI components
+
 
 

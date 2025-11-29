@@ -8,7 +8,7 @@ export interface SessionUser {
   email: string;
   name: string;
   role?: string; // Deprecated - use systemRole instead
-  systemRole?: string; // SUPERUSER or USER
+  systemRole?: string; // SYSTEM_ADMIN or USER
 }
 
 export interface Session {

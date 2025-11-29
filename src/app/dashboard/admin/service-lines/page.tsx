@@ -114,14 +114,11 @@ export default function ServiceLineAdminPage() {
     }
   };
 
-  const handleRevokeAccess = async (userId: string) => {
+  const handleRevokeAccess = async (serviceLineUserId: number) => {
     if (!confirm('Are you sure you want to revoke access?')) return;
 
     try {
-      await revokeAccessMutation.mutateAsync({
-        userId,
-        serviceLine: selectedServiceLine,
-      });
+      await revokeAccessMutation.mutateAsync(serviceLineUserId);
       await fetchServiceLineData();
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Failed to revoke access');
@@ -288,7 +285,7 @@ export default function ServiceLineAdminPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                       <button
-                        onClick={() => handleRevokeAccess(user.userId)}
+                        onClick={() => handleRevokeAccess(user.id)}
                         className="text-red-600 hover:text-red-900"
                       >
                         <TrashIcon className="h-5 w-5" />
@@ -332,7 +329,7 @@ export default function ServiceLineAdminPage() {
                           Grant User
                         </button>
                         <button
-                          onClick={() => handleGrantAccess(user.id, ServiceLineRole.ADMIN)}
+                          onClick={() => handleGrantAccess(user.id, ServiceLineRole.ADMINISTRATOR)}
                           className="px-3 py-1 text-sm bg-forvis-gray-600 text-white rounded hover:bg-forvis-gray-700"
                         >
                           Grant Admin

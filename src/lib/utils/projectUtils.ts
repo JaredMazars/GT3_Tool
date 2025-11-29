@@ -110,7 +110,7 @@ export function formatRole(role: string): string {
  */
 export function formatSystemRole(role: string): string {
   const roleMap: Record<string, string> = {
-    SUPERUSER: 'System Administrator',
+    SYSTEM_ADMIN: 'System Administrator',
     USER: 'User',
   };
 
@@ -123,7 +123,7 @@ export function formatSystemRole(role: string): string {
  */
 export function getSystemRoleDescription(role: string): string {
   const descriptionMap: Record<string, string> = {
-    SUPERUSER: 'System-wide access to all features and service lines',
+    SYSTEM_ADMIN: 'System-wide access to all features and service lines',
     USER: 'Regular user - requires service line access',
   };
 

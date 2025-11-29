@@ -115,7 +115,7 @@ export function TemplateSelector({
                   </p>
                 )}
                 <div className="flex items-center gap-4 text-xs text-forvis-gray-500">
-                  <span>{template.sections.length} sections</span>
+                  <span>{template.TemplateSection.length} sections</span>
                   {template.serviceLine && <span>• {template.serviceLine}</span>}
                   {template.projectType && (
                     <span>• {template.projectType.replace(/_/g, ' ')}</span>
@@ -149,6 +149,7 @@ export function TemplateSelector({
     </div>
   );
 }
+
 
 
 

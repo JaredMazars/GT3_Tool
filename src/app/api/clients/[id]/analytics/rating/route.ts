@@ -44,13 +44,26 @@ export async function GET(
 
     // VALIDATION: Validate and parse query parameters
     const { searchParams } = new URL(request.url);
-    const queryValidation = CreditRatingQuerySchema.safeParse({
-      limit: searchParams.get('limit'),
-      ...(searchParams.get('startDate') && { startDate: searchParams.get('startDate') }),
-      ...(searchParams.get('endDate') && { endDate: searchParams.get('endDate') }),
-    });
+    const queryParams: Record<string, string | null> = {};
+    
+    if (searchParams.has('limit')) {
+      queryParams.limit = searchParams.get('limit');
+    }
+    if (searchParams.has('startDate')) {
+      queryParams.startDate = searchParams.get('startDate');
+    }
+    if (searchParams.has('endDate')) {
+      queryParams.endDate = searchParams.get('endDate');
+    }
+    
+    const queryValidation = CreditRatingQuerySchema.safeParse(queryParams);
 
     if (!queryValidation.success) {
+      logger.warn('Credit rating query validation failed', {
+        clientId,
+        queryParams,
+        errors: queryValidation.error.errors,
+      });
       return NextResponse.json(
         { error: 'Invalid query parameters', details: queryValidation.error.errors },
         { status: 400 }
@@ -81,9 +94,9 @@ export async function GET(
       orderBy: { ratingDate: 'desc' },
       take: limit,
       include: {
-        Documents: {
+        CreditRatingDocument: {
           include: {
-            AnalyticsDocument: true,
+            ClientAnalyticsDocument: true,
           },
         },
       },
@@ -103,7 +116,8 @@ export async function GET(
           ...rating,
           analysisReport: parseCreditAnalysisReport(rating.analysisReport),
           financialRatios: parseFinancialRatios(rating.financialRatios),
-          documents: rating.Documents.map((d) => d.AnalyticsDocument),
+          documents: rating.CreditRatingDocument.map((d) => d.ClientAnalyticsDocument),
+          CreditRatingDocument: undefined, // Remove from response
         };
       } catch (error) {
         logger.error('Error transforming rating', {
@@ -291,9 +305,9 @@ export async function POST(
       const complete = await tx.clientCreditRating.findUnique({
         where: { id: rating.id },
         include: {
-          Documents: {
+          CreditRatingDocument: {
             include: {
-              AnalyticsDocument: true,
+              ClientAnalyticsDocument: true,
             },
           },
         },
@@ -311,7 +325,8 @@ export async function POST(
       ...completeRating,
       analysisReport: parseCreditAnalysisReport(completeRating.analysisReport),
       financialRatios: parseFinancialRatios(completeRating.financialRatios),
-      documents: completeRating.Documents.map((d) => d.AnalyticsDocument),
+      documents: completeRating.CreditRatingDocument.map((d) => d.ClientAnalyticsDocument),
+      CreditRatingDocument: undefined, // Remove from response
     };
 
     // Verify data was saved correctly
@@ -322,7 +337,7 @@ export async function POST(
       ratingScore: completeRating.ratingScore,
       confidence: completeRating.confidence,
       analyzedBy: completeRating.analyzedBy,
-      documentsLinked: completeRating.Documents.length,
+      documentsLinked: completeRating.CreditRatingDocument.length,
       analysisReportSize: completeRating.analysisReport.length,
       financialRatiosSize: completeRating.financialRatios.length,
       parsedAnalysisFields: Object.keys(transformedRating.analysisReport),

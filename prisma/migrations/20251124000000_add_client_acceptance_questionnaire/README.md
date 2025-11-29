@@ -58,8 +58,8 @@ This migration integrates with the existing client acceptance workflow:
 1. User completes questionnaire
 2. System calculates risk assessment
 3. User submits for review
-4. Partner/Superuser reviews answers and risk
-5. Partner/Superuser approves (sets `Project.acceptanceApproved = true`)
+4. Partner/System Admin reviews answers and risk
+5. Partner/System Admin approves (sets `Project.acceptanceApproved = true`)
 
 ## Post-Migration Steps
 
@@ -77,6 +77,7 @@ To roll back: Drop the four new tables in reverse order (AcceptanceDocument, Acc
 - Prisma Client must be regenerated after this migration
 - Seeding script required to populate question definitions
 - API routes and UI components deployed to use the new tables
+
 
 
 

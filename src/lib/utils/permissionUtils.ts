@@ -23,7 +23,7 @@ export function formatServiceLineRole(role: string): string {
  */
 export function formatSystemRole(role: string): string {
   const roleMap: Record<string, string> = {
-    SUPERUSER: 'System Administrator',
+    SYSTEM_ADMIN: 'System Administrator',
     USER: 'User',
   };
 
@@ -49,7 +49,7 @@ export function getServiceLineRoleDescription(role: string): string {
  */
 export function getSystemRoleDescription(role: string): string {
   const descriptionMap: Record<string, string> = {
-    SUPERUSER: 'System-wide access to all features and service lines',
+    SYSTEM_ADMIN: 'System-wide access to all features and service lines',
     USER: 'Regular user - requires service line access',
   };
 
@@ -64,7 +64,7 @@ export function getServiceLineRoleOptions() {
     { value: 'VIEWER', label: 'Viewer (View-only)', description: 'Read-only access' },
     { value: 'USER', label: 'Staff', description: 'Can complete work' },
     { value: 'MANAGER', label: 'Manager', description: 'Can manage projects' },
-    { value: 'ADMIN', label: 'Partner', description: 'Can approve acceptance and engagement letters' },
+    { value: 'ADMINISTRATOR', label: 'Service Line Administrator', description: 'Full service line access, can approve letters' },
   ];
 }
 
@@ -74,7 +74,7 @@ export function getServiceLineRoleOptions() {
 export function getSystemRoleOptions() {
   return [
     { value: 'USER', label: 'User', description: 'Regular user - requires service line access' },
-    { value: 'SUPERUSER', label: 'System Administrator', description: 'System-wide access to all features' },
+    { value: 'SYSTEM_ADMIN', label: 'System Administrator', description: 'System-wide access to all features' },
   ];
 }
 
@@ -84,7 +84,7 @@ export function getSystemRoleOptions() {
 export function getRoleBadgeColor(role: string): string {
   const colorMap: Record<string, string> = {
     // System roles
-    SUPERUSER: 'bg-purple-100 text-purple-800 border-purple-200',
+    SYSTEM_ADMIN: 'bg-purple-100 text-purple-800 border-purple-200',
     // Service line roles
     ADMIN: 'bg-blue-100 text-blue-800 border-blue-200',
     MANAGER: 'bg-green-100 text-green-800 border-green-200',

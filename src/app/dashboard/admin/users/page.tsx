@@ -8,7 +8,8 @@ import {
   TrashIcon,
   PencilIcon,
   UserPlusIcon,
-  FolderIcon
+  FolderIcon,
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 import { formatRole, formatDate } from '@/lib/utils/projectUtils';
 import { getRoleBadgeColor } from '@/lib/utils/permissionUtils';
@@ -16,6 +17,7 @@ import { UserSearchModal } from '@/components/features/projects/UserManagement/U
 import { ADUser, ServiceLine, ServiceLineRole } from '@/types';
 import { ServiceLineUser } from '@/types';
 import { SERVICE_LINE_DETAILS } from '@/types/service-line';
+import { useUserSystemRole } from '@/hooks/auth/usePermissions';
 
 interface SystemUser {
   id: string;
@@ -26,6 +28,7 @@ interface SystemUser {
   projectCount: number;
   lastActivity: string;
   roles: string[];
+  role?: string; // System role (SYSTEM_ADMIN or USER)
   projects: Array<{
     id: number;
     role: string;
@@ -57,6 +60,11 @@ export default function UserManagementPage() {
   const [loadingServiceLines, setLoadingServiceLines] = useState(false);
   const [showAddServiceLineDropdown, setShowAddServiceLineDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  // System Role Management
+  const [updatingSystemRole, setUpdatingSystemRole] = useState(false);
+  const { data: currentUserSystemRole } = useUserSystemRole();
+  const isCurrentUserSystemAdmin = currentUserSystemRole === 'SYSTEM_ADMIN';
   
   // AD Search
   const [adSearchQuery, setAdSearchQuery] = useState('');
@@ -248,6 +256,43 @@ export default function UserManagementPage() {
       }
     } catch (error) {
       // Failed to remove user
+    }
+  };
+
+  const handleUpdateSystemRole = async (userId: string, newRole: 'USER' | 'SYSTEM_ADMIN') => {
+    const action = newRole === 'SYSTEM_ADMIN' ? 'promote' : 'demote';
+    const confirmMessage = newRole === 'SYSTEM_ADMIN' 
+      ? 'Are you sure you want to make this user a System Administrator? They will have full access to all features and service lines.'
+      : 'Are you sure you want to remove System Administrator privileges from this user?';
+    
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    setUpdatingSystemRole(true);
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/system-role`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ systemRole: newRole }),
+      });
+
+      if (response.ok) {
+        // Refresh the user list
+        await fetchSystemUsers();
+        // Update the selected user
+        if (selectedUser) {
+          setSelectedUser({ ...selectedUser, role: newRole });
+        }
+      } else {
+        const data = await response.json();
+        alert(data.error || `Failed to ${action} user`);
+      }
+    } catch (error) {
+      alert(`An error occurred while trying to ${action} the user`);
+    } finally {
+      setUpdatingSystemRole(false);
     }
   };
 
@@ -548,6 +593,69 @@ export default function UserManagementPage() {
                     <div className="text-sm font-medium text-forvis-gray-900">{formatDate(selectedUser.lastActivity)}</div>
                   </div>
                 </div>
+
+                {/* System Role Management Section - Only visible to System Admins */}
+                {isCurrentUserSystemAdmin && (
+                  <div className="mb-6">
+                    <div className="rounded-xl border-2 overflow-hidden shadow-corporate" style={{ borderColor: '#2E5AAC' }}>
+                      <div 
+                        className="px-4 py-3 flex items-center justify-between"
+                        style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)' }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <ShieldCheckIcon className="h-5 w-5 text-white" />
+                          <h3 className="text-base font-bold text-white">System Role</h3>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {selectedUser.role === 'SYSTEM_ADMIN' ? (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-white/20 text-white border-2 border-white/40">
+                              <ShieldCheckIcon className="h-4 w-4 mr-1" />
+                              System Administrator
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-white/10 text-white border border-white/30">
+                              Regular User
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="p-4 bg-white">
+                        <p className="text-sm text-forvis-gray-700 mb-4">
+                          {selectedUser.role === 'SYSTEM_ADMIN' ? (
+                            <>
+                              This user has <span className="font-bold text-forvis-blue-600">System Administrator</span> privileges 
+                              with full access to all features, service lines, and projects.
+                            </>
+                          ) : (
+                            <>
+                              This user has <span className="font-bold">regular user</span> access. They require 
+                              service line assignments and project assignments to access features.
+                            </>
+                          )}
+                        </p>
+                        
+                        {selectedUser.role === 'SYSTEM_ADMIN' ? (
+                          <button
+                            onClick={() => handleUpdateSystemRole(selectedUser.id, 'USER')}
+                            disabled={updatingSystemRole}
+                            className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 hover:bg-forvis-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-forvis-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {updatingSystemRole ? 'Updating...' : 'Remove System Administrator'}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleUpdateSystemRole(selectedUser.id, 'SYSTEM_ADMIN')}
+                            disabled={updatingSystemRole}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white bg-forvis-blue-500 hover:bg-forvis-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-forvis-blue-500 transition-colors shadow-corporate disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <ShieldCheckIcon className="h-4 w-4" />
+                            {updatingSystemRole ? 'Updating...' : 'Make System Administrator'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Service Line Access Section */}
                 <div className="mb-6">

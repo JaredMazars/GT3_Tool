@@ -21,7 +21,7 @@ interface AcceptanceReviewProps {
 interface AnswerData {
   answer: string | null;
   comment: string | null;
-  Question: {
+  AcceptanceQuestion: {
     questionKey: string;
   };
 }
@@ -43,7 +43,7 @@ export function AcceptanceReview({ projectId, onApprove, canApprove, isApproving
 
   // Create answer lookup
   const answerMap = new Map<string, AnswerData>(
-    existingAnswers.map((ans: AnswerData) => [ans.Question.questionKey, ans])
+    existingAnswers.map((ans: AnswerData) => [ans.AcceptanceQuestion.questionKey, ans])
   );
 
   if (isLoading) {

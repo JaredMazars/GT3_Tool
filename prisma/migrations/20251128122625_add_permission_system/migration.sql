@@ -40,3 +40,4 @@ CREATE NONCLUSTERED INDEX [RolePermission_permissionId_idx] ON [RolePermission](
 ALTER TABLE [RolePermission] ADD CONSTRAINT [RolePermission_permissionId_fkey] FOREIGN KEY ([permissionId]) REFERENCES [Permission]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
 
 
+

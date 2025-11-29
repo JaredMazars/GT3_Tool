@@ -104,7 +104,7 @@ export async function POST(
     const [answers, documents] = await Promise.all([
       prisma.acceptanceAnswer.findMany({
         where: { responseId: response.id },
-        include: { Question: true },
+        include: { AcceptanceQuestion: true },
       }),
       prisma.acceptanceDocument.findMany({
         where: { responseId: response.id },

@@ -50,7 +50,7 @@ export function EngagementLetterTab({ project, currentUserRole, onUploadComplete
     }
   }, [project]);
 
-  // Check if user can manage engagement letters (Partners and Superusers only)
+  // Check if user can manage engagement letters (Partners and System Admins only)
   const { data: canManage = false, isLoading: isCheckingPermission } = useCanApproveAcceptance(project);
   const isGenerated = project.engagementLetterGenerated || letterContent !== null;
   const isUploaded = project.engagementLetterUploaded;

@@ -196,7 +196,7 @@ export async function getOrCreateResponse(
     include: {
       AcceptanceAnswer: {
         include: {
-          Question: true,
+          AcceptanceQuestion: true,
         },
       },
       AcceptanceDocument: true,
@@ -217,7 +217,7 @@ export async function getOrCreateResponse(
     include: {
       AcceptanceAnswer: {
         include: {
-          Question: true,
+          AcceptanceQuestion: true,
         },
       },
       AcceptanceDocument: true,

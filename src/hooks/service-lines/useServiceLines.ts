@@ -101,12 +101,9 @@ export function useRevokeServiceLineAccess() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: {
-      userId: string;
-      serviceLine: string;
-    }) => {
+    mutationFn: async (serviceLineUserId: number) => {
       const response = await fetch(
-        `/api/admin/service-line-access?userId=${data.userId}&serviceLine=${data.serviceLine}`,
+        `/api/admin/service-line-access?id=${serviceLineUserId}`,
         { method: 'DELETE' }
       );
       if (!response.ok) {

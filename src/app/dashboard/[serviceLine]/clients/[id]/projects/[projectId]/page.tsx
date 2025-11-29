@@ -521,7 +521,7 @@ export default function ClientProjectPage() {
                     </p>
                   </div>
 
-                  {currentUserRole === 'ADMIN' ? (
+                  {currentUserRole ? (
                     <button
                       onClick={() => setShowAddUserModal(true)}
                       className="inline-flex items-center px-5 py-2.5 text-sm font-semibold text-white rounded-lg transition-all shadow-corporate hover:shadow-corporate-md"
@@ -532,12 +532,12 @@ export default function ClientProjectPage() {
                       </svg>
                       Add Team Member
                     </button>
-                  ) : currentUserRole && (
+                  ) : (
                     <div className="text-sm text-forvis-gray-600 bg-forvis-gray-100 px-4 py-2 rounded-lg border-2 border-forvis-gray-300 shadow-corporate">
                       <svg className="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                       </svg>
-                      Only admins can add members
+                      Only project members can add team members
                     </div>
                   )}
                 </div>

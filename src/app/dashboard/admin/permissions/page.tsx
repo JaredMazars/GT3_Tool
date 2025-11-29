@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 type PermissionAction = 'CREATE' | 'READ' | 'UPDATE' | 'DELETE';
 type ResourceType = 'PAGE' | 'FEATURE';
-type UserRole = 'SUPERUSER' | 'ADMIN' | 'PARTNER' | 'MANAGER' | 'SUPERVISOR' | 'USER' | 'VIEWER';
+type UserRole = 'SYSTEM_ADMIN' | 'ADMINISTRATOR' | 'PARTNER' | 'MANAGER' | 'SUPERVISOR' | 'USER' | 'VIEWER';
 
 interface Permission {
   id: number;
@@ -67,7 +67,7 @@ export default function PermissionsPage() {
     },
   });
 
-  const roles: UserRole[] = ['SUPERUSER', 'ADMIN', 'PARTNER', 'MANAGER', 'SUPERVISOR', 'USER', 'VIEWER'];
+  const roles: UserRole[] = ['SYSTEM_ADMIN', 'ADMINISTRATOR', 'PARTNER', 'MANAGER', 'SUPERVISOR', 'USER', 'VIEWER'];
 
   // Filter and search
   const filteredMatrix = useMemo(() => {
@@ -369,7 +369,7 @@ export default function PermissionsPage() {
             <div><span className="font-bold">D</span> - Delete</div>
           </div>
           <p className="text-xs text-forvis-gray-600 mt-3">
-            <span className="font-bold">Note:</span> SUPERUSER role has full access to all permissions and bypasses these checks.
+            <span className="font-bold">Note:</span> SYSTEM_ADMIN role has full access to all permissions and bypasses these checks.
           </p>
         </div>
       </div>

@@ -1,19 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { getCurrentUser } from '@/lib/services/auth/auth';
-import { isSystemSuperuser } from '@/lib/services/auth/authorization';
+import { isSystemAdmin } from '@/lib/services/auth/authorization';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { z } from 'zod';
 
 const UpdateSystemRoleSchema = z.object({
-  systemRole: z.enum(['USER', 'SUPERUSER']),
+  systemRole: z.enum(['USER', 'SYSTEM_ADMIN']),
 });
 
 /**
  * PUT /api/admin/users/[userId]/system-role
  * Update a user's system role
- * Only callable by existing SUPERUSERs
+ * Only callable by existing SYSTEM_ADMINs
  */
 export async function PUT(
   request: NextRequest,
@@ -26,9 +26,9 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Only SUPERUSERs can modify system roles
-    const isSuperuser = await isSystemSuperuser(currentUser.id);
-    if (!isSuperuser) {
+    // Only SYSTEM_ADMINs can modify system roles
+    const isAdmin = await isSystemAdmin(currentUser.id);
+    if (!isAdmin) {
       return NextResponse.json(
         { error: 'Forbidden - Only System Administrators can modify system roles' },
         { status: 403 }
@@ -57,9 +57,9 @@ export async function PUT(
     }
 
     // Prevent users from demoting themselves
-    if (userId === currentUser.id && validatedData.systemRole !== 'SUPERUSER') {
+    if (userId === currentUser.id && validatedData.systemRole !== 'SYSTEM_ADMIN') {
       return NextResponse.json(
-        { error: 'You cannot demote yourself from SUPERUSER' },
+        { error: 'You cannot demote yourself from SYSTEM_ADMIN' },
         { status: 400 }
       );
     }

@@ -312,7 +312,7 @@ export const UploadDocumentSchema = z.object({
   responseId: z.number().int().positive().optional(), // Optional if response not created yet
 });
 
-// Review and approve questionnaire (Partner/Superuser)
+// Review and approve questionnaire (Partner/System Admin)
 export const ReviewQuestionnaireSchema = z.object({
   responseId: z.number().int().positive(),
   approved: z.boolean(),
@@ -360,7 +360,7 @@ export const CreditRatingQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(100).optional().default(10),
   startDate: z.coerce.date().optional(),
   endDate: z.coerce.date().optional(),
-}).strict();
+});
 
 export type UploadAnalyticsDocumentInput = z.infer<typeof UploadAnalyticsDocumentSchema>;
 export type GenerateCreditRatingInput = z.infer<typeof GenerateCreditRatingSchema>;

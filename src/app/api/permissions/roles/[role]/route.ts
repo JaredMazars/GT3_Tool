@@ -7,7 +7,7 @@ import { handleApiError } from '@/lib/utils/errorHandler';
 /**
  * GET /api/permissions/roles/[role]
  * Get all permissions for a specific role
- * Requires SUPERUSER or ADMIN role
+ * Requires SYSTEM_ADMIN role
  */
 export async function GET(
   request: NextRequest,
@@ -19,8 +19,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if user is SUPERUSER or ADMIN
-    if (user.role !== 'SUPERUSER' && user.role !== 'ADMIN') {
+    // Check if user is SYSTEM_ADMIN
+    if (user.role !== 'SYSTEM_ADMIN') {
       return NextResponse.json(
         { error: 'Forbidden - Admin access required' },
         { status: 403 }
@@ -30,7 +30,7 @@ export async function GET(
     const { role } = await context.params;
     
     // Validate role
-    const validRoles: UserRole[] = ['PARTNER', 'MANAGER', 'SUPERVISOR', 'ADMIN', 'USER', 'VIEWER'];
+    const validRoles: UserRole[] = ['PARTNER', 'MANAGER', 'SUPERVISOR', 'ADMINISTRATOR', 'USER', 'VIEWER'];
     if (!validRoles.includes(role as UserRole)) {
       return NextResponse.json(
         { error: 'Invalid role' },
@@ -44,5 +44,6 @@ export async function GET(
     return handleApiError(error, 'GET /api/permissions/roles/[role]');
   }
 }
+
 
 

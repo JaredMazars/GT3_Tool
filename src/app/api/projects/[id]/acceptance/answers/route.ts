@@ -122,7 +122,7 @@ export async function PATCH(
       select: {
         answer: true,
         comment: true,
-        Question: {
+        AcceptanceQuestion: {
           select: {
             questionKey: true,
           },
@@ -133,7 +133,7 @@ export async function PATCH(
     // Calculate risk assessment
     const questionDefs = getAllQuestions(response.questionnaireType as any);
     const answerData = allAnswers.map((a) => ({
-      questionKey: a.Question.questionKey,
+      questionKey: a.AcceptanceQuestion.questionKey,
       answer: a.answer || '',
       comment: a.comment || undefined,
     }));

@@ -89,29 +89,34 @@ export function useHasFeaturePermission(
 }
 
 /**
- * Check if user is a system superuser
+ * Check if user is a System Admin
  */
-export function useIsSuperuser() {
+export function useIsSystemAdmin() {
   return useQuery({
-    queryKey: ['isSuperuser'],
+    queryKey: ['isSystemAdmin'],
     queryFn: async () => {
       const response = await fetch('/api/auth/me');
       if (!response.ok) return false;
 
       const data = await response.json();
       const systemRole = data.data?.systemRole || data.data?.role;
-      return systemRole === 'SUPERUSER';
+      return systemRole === 'SYSTEM_ADMIN';
     },
     staleTime: 10 * 60 * 1000, // 10 minutes
   });
 }
 
 /**
+ * @deprecated Use useIsSystemAdmin instead
+ */
+export const useIsSuperuser = useIsSystemAdmin;
+
+/**
  * Check if user is a Partner (service line ADMIN) for a specific service line
  */
 export function useIsPartner(serviceLine: string | null | undefined) {
   const { data: role } = useUserServiceLineRole(serviceLine);
-  return role === 'ADMIN';
+  return role === 'ADMINISTRATOR';
 }
 
 /**

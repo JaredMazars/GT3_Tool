@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/services/auth/auth';
-import { isSystemSuperuser } from '@/lib/services/auth/authorization';
+import { isSystemAdmin } from '@/lib/services/auth/authorization';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { CreateTemplateSchema } from '@/lib/validation/schemas';
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if user is superuser (admin access required)
-    const hasAdminAccess = await isSystemSuperuser(user.id);
+    const hasAdminAccess = await isSystemAdmin(user.id);
     if (!hasAdminAccess) {
       return NextResponse.json(
         { error: 'Admin access required' },
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user is superuser (admin access required)
-    const hasAdminAccess = await isSystemSuperuser(user.id);
+    const hasAdminAccess = await isSystemAdmin(user.id);
     if (!hasAdminAccess) {
       return NextResponse.json(
         { error: 'Admin access required' },
