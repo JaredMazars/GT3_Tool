@@ -65,6 +65,16 @@ export async function GET(request: NextRequest) {
             createdAt: 'desc',
           },
         },
+        ServiceLineUser: {
+          select: {
+            id: true,
+            serviceLine: true,
+            role: true,
+          },
+          orderBy: {
+            serviceLine: 'asc',
+          },
+        },
         Session: {
           select: {
             expires: true,
@@ -82,7 +92,12 @@ export async function GET(request: NextRequest) {
 
     // Transform data to include useful metrics
     const usersWithMetrics = users.map(user => ({
-      ...user,
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
       projects: user.ProjectUser.map(pu => ({
         ...pu,
         project: {
@@ -96,6 +111,7 @@ export async function GET(request: NextRequest) {
           } : null,
         },
       })),
+      serviceLines: user.ServiceLineUser,
       projectCount: user.ProjectUser.length,
       lastActivity: user.Session[0]?.expires || user.updatedAt,
       roles: [...new Set(user.ProjectUser.map(p => p.role))],

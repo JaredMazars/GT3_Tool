@@ -29,6 +29,11 @@ interface SystemUser {
   lastActivity: string;
   roles: string[];
   role?: string; // System role (SYSTEM_ADMIN or USER)
+  serviceLines?: Array<{
+    id: number;
+    serviceLine: string;
+    role: string;
+  }>;
   projects: Array<{
     id: number;
     role: string;
@@ -303,7 +308,25 @@ export default function UserManagementPage() {
     fetchUserServiceLines(user.id);
   };
 
-  const unassignedUsers = systemUsers.filter(u => u.projectCount === 0);
+  const unassignedUsers = systemUsers.filter(u => {
+    // Exclude SYSTEM_ADMIN users (they have full access regardless)
+    if (u.role === 'SYSTEM_ADMIN') return false;
+    // Include users without service line access
+    const hasNoServiceLines = !u.serviceLines || u.serviceLines.length === 0;
+    
+    // Debug logging for walter.admin
+    if (u.email?.includes('walter.admin')) {
+      console.log('walter.admin debug:', {
+        email: u.email,
+        role: u.role,
+        serviceLines: u.serviceLines,
+        hasNoServiceLines,
+        willBeIncluded: hasNoServiceLines
+      });
+    }
+    
+    return hasNoServiceLines;
+  });
 
   return (
     <div className="min-h-screen bg-forvis-gray-50">
@@ -350,6 +373,7 @@ export default function UserManagementPage() {
                     ? 'border-forvis-blue-600 text-forvis-blue-600'
                     : 'border-transparent text-forvis-gray-500 hover:text-forvis-gray-700 hover:border-forvis-gray-300'
                 }`}
+                title="Users without service line access"
               >
                 Unassigned Users ({unassignedUsers.length})
               </button>
@@ -399,17 +423,77 @@ export default function UserManagementPage() {
                           <h3 className="text-lg font-semibold text-forvis-gray-900">
                             {user.name || user.email}
                           </h3>
-                          {user.roles.map(role => (
-                            <span
-                              key={role}
-                              className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleBadgeColor(role)}`}
-                            >
-                              {formatRole(role)}
+                          {user.role === 'SYSTEM_ADMIN' && (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold text-white shadow-corporate" style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}>
+                              <ShieldCheckIcon className="h-4 w-4 mr-1" />
+                              System Admin
                             </span>
-                          ))}
+                          )}
                         </div>
-                        <p className="text-sm text-forvis-gray-600 mb-2">{user.email}</p>
-                        <div className="flex items-center space-x-4 text-sm text-forvis-gray-500">
+                        <p className="text-sm text-forvis-gray-600 mb-3">{user.email}</p>
+                        
+                        {/* Security Details */}
+                        <div className="mb-3">
+                          <div className="text-xs font-bold text-forvis-gray-700 uppercase tracking-wide mb-1.5">Security Access</div>
+                          
+                          {/* System Role */}
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-xs font-medium text-forvis-gray-600">System:</span>
+                            {user.role === 'SYSTEM_ADMIN' ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-300">
+                                <ShieldCheckIcon className="h-3 w-3 mr-1" />
+                                Administrator
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-forvis-gray-100 text-forvis-gray-700 border border-forvis-gray-300">
+                                Regular User
+                              </span>
+                            )}
+                          </div>
+                          
+                          {/* Service Lines */}
+                          {user.serviceLines && user.serviceLines.length > 0 ? (
+                            <div className="flex items-start gap-2">
+                              <span className="text-xs font-medium text-forvis-gray-600 mt-0.5">Service Lines:</span>
+                              <div className="flex flex-wrap gap-1.5">
+                                {user.serviceLines.map((sl) => {
+                                  const details = SERVICE_LINE_DETAILS[sl.serviceLine as ServiceLine];
+                                  const Icon = details?.icon;
+                                  
+                                  // Role badge colors
+                                  const roleBadgeColors: Record<string, string> = {
+                                    VIEWER: 'bg-gray-100 text-gray-700 border-gray-300',
+                                    USER: 'bg-blue-100 text-blue-700 border-blue-300',
+                                    SUPERVISOR: 'bg-green-100 text-green-700 border-green-300',
+                                    MANAGER: 'bg-purple-100 text-purple-700 border-purple-300',
+                                    PARTNER: 'bg-orange-100 text-orange-700 border-orange-300',
+                                    ADMIN: 'bg-red-100 text-red-700 border-red-300',
+                                  };
+                                  const badgeColor = roleBadgeColors[sl.role] || 'bg-blue-100 text-blue-700 border-blue-300';
+                                  
+                                  return (
+                                    <span 
+                                      key={sl.id} 
+                                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${badgeColor}`}
+                                      title={`${details?.name || sl.serviceLine} - ${sl.role}`}
+                                    >
+                                      {Icon && <Icon className="h-3 w-3 mr-1" />}
+                                      {details?.name || sl.serviceLine} ({sl.role})
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-medium text-forvis-gray-600">Service Lines:</span>
+                              <span className="text-xs text-forvis-gray-500 italic">No service line access</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Project Stats */}
+                        <div className="flex items-center space-x-4 text-sm text-forvis-gray-500 pt-2 border-t border-forvis-gray-200">
                           <span className="flex items-center">
                             <FolderIcon className="h-4 w-4 mr-1" />
                             {user.projectCount} projects
@@ -514,33 +598,118 @@ export default function UserManagementPage() {
         {/* Unassigned Users Tab */}
         {activeTab === 'unassigned' && (
           <div>
+            <div className="mb-6 rounded-lg border-2 border-yellow-200 bg-yellow-50 p-4">
+              <div className="flex items-start gap-3">
+                <svg className="h-5 w-5 text-yellow-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div className="flex-1">
+                  <h3 className="text-sm font-bold text-yellow-800 mb-1">Users Without Service Line Access</h3>
+                  <p className="text-xs text-yellow-700">
+                    These regular users are in the system but have not been assigned to any service lines. 
+                    They will not have access to any features until assigned. System Administrators are excluded from this list as they have full access regardless.
+                    Click on a user to assign them to service lines.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
             {unassignedUsers.length === 0 ? (
               <div className="text-center py-12 text-forvis-gray-500">
-                All users are assigned to at least one project
+                All users have service line access assigned
               </div>
             ) : (
               <div className="space-y-4">
                 {unassignedUsers.map(user => (
-                  <div key={user.id} className="card p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-semibold text-forvis-gray-900">
-                          {user.name || user.email}
-                        </h3>
-                        <p className="text-sm text-forvis-gray-600">{user.email}</p>
-                        <p className="text-xs text-forvis-gray-500 mt-1">
-                          Joined: {formatDate(user.createdAt)}
+                  <div key={user.id} className="card card-hover p-6 cursor-pointer" onClick={() => handleOpenUserDetail(user)}>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <h3 className="text-lg font-semibold text-forvis-gray-900">
+                            {user.name || user.email}
+                          </h3>
+                          {user.role === 'SYSTEM_ADMIN' && (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold text-white shadow-corporate" style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}>
+                              <ShieldCheckIcon className="h-4 w-4 mr-1" />
+                              System Admin
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-forvis-gray-600 mb-3">{user.email}</p>
+                        
+                        {/* Security Details */}
+                        <div className="mb-3">
+                          <div className="text-xs font-bold text-forvis-gray-700 uppercase tracking-wide mb-1.5">Security Access</div>
+                          
+                          {/* System Role */}
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-xs font-medium text-forvis-gray-600">System:</span>
+                            {user.role === 'SYSTEM_ADMIN' ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-300">
+                                <ShieldCheckIcon className="h-3 w-3 mr-1" />
+                                Administrator
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-forvis-gray-100 text-forvis-gray-700 border border-forvis-gray-300">
+                                Regular User
+                              </span>
+                            )}
+                          </div>
+                          
+                          {/* Service Lines */}
+                          {user.serviceLines && user.serviceLines.length > 0 ? (
+                            <div className="flex items-start gap-2">
+                              <span className="text-xs font-medium text-forvis-gray-600 mt-0.5">Service Lines:</span>
+                              <div className="flex flex-wrap gap-1.5">
+                                {user.serviceLines.map((sl) => {
+                                  const details = SERVICE_LINE_DETAILS[sl.serviceLine as ServiceLine];
+                                  const Icon = details?.icon;
+                                  
+                                  // Role badge colors
+                                  const roleBadgeColors: Record<string, string> = {
+                                    VIEWER: 'bg-gray-100 text-gray-700 border-gray-300',
+                                    USER: 'bg-blue-100 text-blue-700 border-blue-300',
+                                    SUPERVISOR: 'bg-green-100 text-green-700 border-green-300',
+                                    MANAGER: 'bg-purple-100 text-purple-700 border-purple-300',
+                                    PARTNER: 'bg-orange-100 text-orange-700 border-orange-300',
+                                    ADMIN: 'bg-red-100 text-red-700 border-red-300',
+                                  };
+                                  const badgeColor = roleBadgeColors[sl.role] || 'bg-blue-100 text-blue-700 border-blue-300';
+                                  
+                                  return (
+                                    <span 
+                                      key={sl.id} 
+                                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${badgeColor}`}
+                                      title={`${details?.name || sl.serviceLine} - ${sl.role}`}
+                                    >
+                                      {Icon && <Icon className="h-3 w-3 mr-1" />}
+                                      {details?.name || sl.serviceLine} ({sl.role})
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-medium text-forvis-gray-600">Service Lines:</span>
+                              <span className="text-xs text-forvis-gray-500 italic">No service line access</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <p className="text-xs text-forvis-gray-500 pt-2 border-t border-forvis-gray-200">
+                          Joined: {formatDate(user.createdAt)} • Last active: {formatDate(user.lastActivity)}
                         </p>
                       </div>
                       <button
-                        className="btn-primary"
-                        onClick={() => {
-                          // Would open a modal to add user to projects
-                          alert('Add to projects feature - would open modal to select projects and role');
+                        className="btn-primary ml-4"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenUserDetail(user);
                         }}
                       >
                         <UserPlusIcon className="h-5 w-5 mr-2" />
-                        Assign to Projects
+                        Assign Service Line
                       </button>
                     </div>
                   </div>
