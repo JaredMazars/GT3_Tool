@@ -9,6 +9,7 @@ import {
   PencilIcon,
   TrashIcon,
 } from '@heroicons/react/24/outline';
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
 
 interface TemplateSection {
   id: number;
@@ -38,6 +39,8 @@ export function TemplateList({ templates, onDelete, onToggleActive }: TemplateLi
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('');
   const [filterServiceLine, setFilterServiceLine] = useState<string>('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [templateToDelete, setTemplateToDelete] = useState<number | null>(null);
 
   const filteredTemplates = templates.filter((template) => {
     const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -177,9 +180,8 @@ export function TemplateList({ templates, onDelete, onToggleActive }: TemplateLi
 
               <button
                 onClick={() => {
-                  if (confirm('Are you sure you want to delete this template?')) {
-                    onDelete(template.id);
-                  }
+                  setTemplateToDelete(template.id);
+                  setShowDeleteModal(true);
                 }}
                 className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
                 title="Delete template"
@@ -204,6 +206,26 @@ export function TemplateList({ templates, onDelete, onToggleActive }: TemplateLi
           </p>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setTemplateToDelete(null);
+        }}
+        onConfirm={() => {
+          if (templateToDelete !== null) {
+            onDelete(templateToDelete);
+            setShowDeleteModal(false);
+            setTemplateToDelete(null);
+          }
+        }}
+        title="Delete Template"
+        message="Are you sure you want to delete this template?"
+        confirmText="Delete"
+        variant="danger"
+      />
     </div>
   );
 }

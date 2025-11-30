@@ -10,6 +10,7 @@ import {
   CheckIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
 
 interface TemplateSection {
   id: number;
@@ -40,6 +41,8 @@ export function TemplateSectionManager({
 }: TemplateSectionManagerProps) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [sectionToDelete, setSectionToDelete] = useState<number | null>(null);
   const [formData, setFormData] = useState<Partial<TemplateSection>>({
     sectionKey: '',
     title: '',
@@ -297,9 +300,8 @@ export function TemplateSectionManager({
 
                 <button
                   onClick={() => {
-                    if (confirm('Are you sure you want to delete this section?')) {
-                      onDeleteSection(section.id);
-                    }
+                    setSectionToDelete(section.id);
+                    setShowDeleteModal(true);
                   }}
                   disabled={showAddForm || editingId !== null}
                   className="p-2 text-red-600 hover:bg-red-50 rounded disabled:opacity-30"
@@ -320,6 +322,26 @@ export function TemplateSectionManager({
           </p>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setSectionToDelete(null);
+        }}
+        onConfirm={() => {
+          if (sectionToDelete !== null) {
+            onDeleteSection(sectionToDelete);
+            setShowDeleteModal(false);
+            setSectionToDelete(null);
+          }
+        }}
+        title="Delete Section"
+        message="Are you sure you want to delete this section?"
+        confirmText="Delete"
+        variant="danger"
+      />
     </div>
   );
 }

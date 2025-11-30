@@ -19,6 +19,7 @@ import ChatInterface from '@/components/features/opinions/OpinionAssistant/ChatI
 import DocumentManager from '@/components/features/opinions/OpinionAssistant/DocumentManager';
 import SectionEditor from '@/components/features/opinions/OpinionAssistant/SectionEditor';
 import OpinionPreview from '@/components/features/opinions/OpinionAssistant/OpinionPreview';
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
 
 interface OpinionDraftingPageProps {
   params: { id: string };
@@ -395,35 +396,15 @@ export default function OpinionDraftingPage({ params }: OpinionDraftingPageProps
       </div>
 
       {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && draftToDelete && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full m-4">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-forvis-gray-900 mb-2">
-                Delete Opinion Draft
-              </h3>
-              <p className="text-sm text-forvis-gray-600 mb-4">
-                Are you sure you want to delete "{draftToDelete.title}"? This action cannot be undone.
-                All sections, documents, and chat history associated with this draft will be permanently deleted.
-              </p>
-              <div className="flex gap-3 justify-end">
-                <button
-                  onClick={handleCancelDelete}
-                  className="px-4 py-2 text-sm font-semibold text-forvis-gray-700 bg-forvis-gray-100 rounded-lg hover:bg-forvis-gray-200 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDeleteDraft}
-                  className="px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        onClose={handleCancelDelete}
+        onConfirm={handleDeleteDraft}
+        title="Delete Opinion Draft"
+        message={`Are you sure you want to delete "${draftToDelete?.title}"? All sections, documents, and chat history associated with this draft will be permanently deleted.`}
+        confirmText="Delete"
+        variant="danger"
+      />
     </div>
   );
 }
