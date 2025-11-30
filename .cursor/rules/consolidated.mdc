@@ -445,6 +445,43 @@ export const GET = withPermission(
 - Use named exports (avoid default)
 - Default: Server Components. Add `'use client'` when using hooks/events/React Query
 
+### User Confirmations (REQUIRED)
+
+**Use Modals, Not Browser Popups**
+
+All user confirmations for destructive or important actions must use custom modal components, never native browser dialogs (`window.confirm`, `window.alert`, `window.prompt`).
+
+**When to Use Modals:**
+- Delete confirmations
+- Create/update approvals
+- Archive/restore actions
+- Bulk operations
+- Any action requiring user acknowledgment
+
+**Pattern:**
+
+```typescript
+// ✅ GOOD - Custom modal component
+const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+<ConfirmModal
+  isOpen={showDeleteModal}
+  onClose={() => setShowDeleteModal(false)}
+  onConfirm={handleDelete}
+  title="Delete Project"
+  message="Are you sure you want to delete this project? This action cannot be undone."
+  confirmText="Delete"
+  variant="danger"
+/>
+
+// ❌ BAD - Browser popup
+if (window.confirm('Delete project?')) {
+  handleDelete();
+}
+```
+
+**Benefits:** Consistent branding, better UX, accessible, customizable, mobile-friendly, non-blocking
+
 ## State Management
 
 - **React Query** for server state (caching, mutations, invalidation)
@@ -482,6 +519,7 @@ Don't log secrets/PII. Use structured objects.
 - Extract to `shared/` when used by 2+ features
 - Wrap sensitive UI with `<PermissionGate>`
 - Use `usePermission()` for conditional rendering
+- Use custom modals for confirmations, never browser popups (`window.confirm/alert/prompt`)
 
 **TypeScript**: 
 - Strict mode enabled (check nulls/undefined)
