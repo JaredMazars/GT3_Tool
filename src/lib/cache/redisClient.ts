@@ -32,11 +32,25 @@ export function getRedisClient(): Redis | null {
         
         redis = new Redis({
           host: host || 'localhost',
-          port: parseInt(port || '6379'),
+          port: parseInt(port || '6380'), // Default Azure Redis SSL port
           password,
-          tls: { servername: host || 'localhost' },
+          // Enhanced TLS Security
+          tls: {
+            servername: host || 'localhost',
+            minVersion: 'TLSv1.2', // Enforce minimum TLS version for security
+          },
+          // Connection pooling and limits
           maxRetriesPerRequest: 3,
           enableReadyCheck: true,
+          connectTimeout: parseInt(process.env.REDIS_CONNECT_TIMEOUT || '10000'),
+          maxLoadingRetryTime: 5000,
+          lazyConnect: false,
+          // Security: Fail fast if Redis is unavailable
+          enableOfflineQueue: false,
+          // Performance: Enable auto pipelining for better throughput
+          enableAutoPipelining: true,
+          // ACL username for Redis 6.0+ (Azure Redis supports this)
+          username: process.env.REDIS_USERNAME,
           retryStrategy(times) {
             const delay = Math.min(times * 50, 2000);
             return delay;
@@ -57,8 +71,18 @@ export function getRedisClient(): Redis | null {
           host: host || 'localhost',
           port: parseInt(port || '6379'),
           password,
+          // Connection pooling and limits
           maxRetriesPerRequest: 3,
           enableReadyCheck: true,
+          connectTimeout: parseInt(process.env.REDIS_CONNECT_TIMEOUT || '10000'),
+          maxLoadingRetryTime: 5000,
+          lazyConnect: false,
+          // Security: Fail fast if Redis is unavailable
+          enableOfflineQueue: false,
+          // Performance: Enable auto pipelining
+          enableAutoPipelining: true,
+          // ACL username for Redis 6.0+
+          username: process.env.REDIS_USERNAME,
           retryStrategy(times) {
             const delay = Math.min(times * 50, 2000);
             return delay;

@@ -1,10 +1,14 @@
 import { NextRequest } from 'next/server';
+import { randomBytes } from 'crypto';
 import { AppError, ErrorCodes } from './errorHandler';
 import { env } from '../config/env';
+import { getRedisClient, isRedisAvailable } from '@/lib/cache/redisClient';
+import { logger } from './logger';
+import { prisma } from '../db/prisma';
 
 /**
- * Simple in-memory rate limiter
- * For production, consider using Redis-based rate limiting
+ * Redis-backed rate limiter with in-memory fallback
+ * Uses sliding window algorithm for accurate rate limiting across instances
  */
 
 interface RateLimitEntry {
@@ -12,7 +16,7 @@ interface RateLimitEntry {
   resetTime: number;
 }
 
-// Store rate limit data in memory
+// In-memory fallback store (when Redis not available)
 // Key format: "ip:endpoint" or "identifier:endpoint"
 const rateLimitStore = new Map<string, RateLimitEntry>();
 
@@ -136,24 +140,115 @@ if (typeof setInterval !== 'undefined') {
 }
 
 /**
- * Check rate limit for a request
+ * Check rate limit using Redis (distributed) or in-memory (fallback)
+ * Uses sliding window algorithm for accurate rate limiting
+ * 
  * @param request - Next.js request object
  * @param config - Rate limit configuration
  * @returns Object with allowed status and remaining requests
  */
-export function checkRateLimit(
+export async function checkRateLimit(
   request: NextRequest,
   config: RateLimitConfig = RateLimitPresets.STANDARD
+): Promise<{
+  allowed: boolean;
+  remaining: number;
+  resetTime: number;
+  limit: number;
+}> {
+  const identifier = getClientIdentifier(request);
+  const endpoint = request.nextUrl.pathname;
+  const key = getRateLimitKey(identifier, endpoint, config.keyPrefix);
+  
+  const redis = getRedisClient();
+  
+  // Use Redis if available (distributed across instances)
+  if (redis && isRedisAvailable()) {
+    return checkRateLimitRedis(redis, key, config, identifier, endpoint);
+  }
+  
+  // Fallback to in-memory (single instance only)
+  return checkRateLimitMemory(key, config);
+}
+
+/**
+ * Redis-based rate limiting with sliding window
+ */
+async function checkRateLimitRedis(
+  redis: any,
+  key: string,
+  config: RateLimitConfig,
+  identifier: string,
+  endpoint: string
+): Promise<{
+  allowed: boolean;
+  remaining: number;
+  resetTime: number;
+  limit: number;
+}> {
+  const now = Date.now();
+  const windowStart = now - config.windowMs;
+  
+  try {
+    // Use Redis sorted set for sliding window
+    // Each request is added with timestamp as score
+    const multi = redis.multi();
+    
+    // Remove old entries outside the window
+    multi.zremrangebyscore(key, 0, windowStart);
+    
+    // Add current request with unique member to avoid collisions
+    multi.zadd(key, now, `${now}:${randomBytes(8).toString('hex')}`);
+    
+    // Count requests in current window
+    multi.zcard(key);
+    
+    // Set expiration to window size + buffer
+    multi.expire(key, Math.ceil(config.windowMs / 1000) + 60);
+    
+    const results = await multi.exec();
+    const count = (results?.[2]?.[1] as number) || 0;
+    
+    const allowed = count <= config.maxRequests;
+    const remaining = Math.max(0, config.maxRequests - count);
+    const resetTime = now + config.windowMs;
+    
+    // Log rate limit violations
+    if (!allowed) {
+      logger.warn('Rate limit exceeded', {
+        identifier,
+        endpoint,
+        count,
+        limit: config.maxRequests,
+        windowMs: config.windowMs,
+      });
+    }
+    
+    return {
+      allowed,
+      remaining,
+      resetTime,
+      limit: config.maxRequests,
+    };
+  } catch (error) {
+    logger.error('Redis rate limit error, falling back to memory', { error });
+    // Fallback to in-memory on Redis error
+    return checkRateLimitMemory(key, config);
+  }
+}
+
+/**
+ * In-memory rate limiting (fallback)
+ */
+function checkRateLimitMemory(
+  key: string,
+  config: RateLimitConfig
 ): {
   allowed: boolean;
   remaining: number;
   resetTime: number;
   limit: number;
 } {
-  const identifier = getClientIdentifier(request);
-  const endpoint = request.nextUrl.pathname;
-  const key = getRateLimitKey(identifier, endpoint, config.keyPrefix);
-  
   const now = Date.now();
   const entry = rateLimitStore.get(key);
   
@@ -202,11 +297,11 @@ export function checkRateLimit(
  * @param config - Rate limit configuration
  * @throws AppError if rate limit exceeded
  */
-export function enforceRateLimit(
+export async function enforceRateLimit(
   request: NextRequest,
   config: RateLimitConfig = RateLimitPresets.STANDARD
-): void {
-  const result = checkRateLimit(request, config);
+): Promise<void> {
+  const result = await checkRateLimit(request, config);
   
   if (!result.allowed) {
     const resetTimeSeconds = Math.ceil((result.resetTime - Date.now()) / 1000);
@@ -225,7 +320,53 @@ export function enforceRateLimit(
 }
 
 /**
+ * Check rate limit with bypass for system admins
+ * System admins are exempt from rate limiting
+ * 
+ * @param request - Next.js request object
+ * @param userId - Optional user ID to check for admin bypass
+ * @param config - Rate limit configuration
+ * @returns Rate limit result
+ */
+export async function checkRateLimitWithBypass(
+  request: NextRequest,
+  userId?: string,
+  config: RateLimitConfig = RateLimitPresets.STANDARD
+): Promise<{
+  allowed: boolean;
+  remaining: number;
+  resetTime: number;
+  limit: number;
+}> {
+  // Check if user is system admin (bypass rate limits)
+  if (userId && process.env.RATE_LIMIT_BYPASS_ADMIN === 'true') {
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true },
+      });
+      
+      if (user?.role === 'SYSTEM_ADMIN') {
+        return {
+          allowed: true,
+          remaining: 999,
+          resetTime: Date.now() + config.windowMs,
+          limit: 999,
+        };
+      }
+    } catch (error) {
+      // If check fails, don't bypass - apply normal rate limiting
+      logger.error('Error checking admin bypass', { error });
+    }
+  }
+  
+  return checkRateLimit(request, config);
+}
+
+/**
  * Get rate limit headers for response
+ * Standard headers following IETF draft standard
+ * 
  * @param result - Rate limit check result
  * @returns Headers object with rate limit information
  */
@@ -234,11 +375,43 @@ export function getRateLimitHeaders(result: {
   remaining: number;
   resetTime: number;
 }): Record<string, string> {
-  return {
+  const headers: Record<string, string> = {
     'X-RateLimit-Limit': result.limit.toString(),
     'X-RateLimit-Remaining': result.remaining.toString(),
     'X-RateLimit-Reset': Math.ceil(result.resetTime / 1000).toString(),
   };
+  
+  // Add Retry-After header if rate limited
+  if (result.remaining === 0) {
+    const retryAfterSeconds = Math.ceil((result.resetTime - Date.now()) / 1000);
+    headers['Retry-After'] = Math.max(retryAfterSeconds, 1).toString();
+  }
+  
+  return headers;
+}
+
+/**
+ * Add rate limit headers to a NextResponse
+ * 
+ * @param response - NextResponse object
+ * @param result - Rate limit check result
+ * @returns NextResponse with rate limit headers added
+ */
+export function addRateLimitHeaders(
+  response: any,
+  result: {
+    limit: number;
+    remaining: number;
+    resetTime: number;
+  }
+): any {
+  const headers = getRateLimitHeaders(result);
+  
+  for (const [key, value] of Object.entries(headers)) {
+    response.headers.set(key, value);
+  }
+  
+  return response;
 }
 
 /**

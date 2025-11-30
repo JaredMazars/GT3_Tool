@@ -1,11 +1,12 @@
 import { ConfidentialClientApplication, CryptoProvider } from '@azure/msal-node';
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
-import { randomBytes } from 'crypto';
+import { randomBytes, createHash } from 'crypto';
 import { prisma } from '../../db/prisma';
 import { withRetry, RetryPresets } from '../../utils/retryUtils';
 import type { Session, SessionUser } from './types';
 import { cache } from '@/lib/services/cache/CacheService';
+import type { NextRequest } from 'next/server';
 
 // Helper for conditional logging (avoid importing logger to prevent Edge Runtime issues)
 const log = {
@@ -39,6 +40,36 @@ const JWT_SECRET = new TextEncoder().encode(process.env.NEXTAUTH_SECRET);
 
 // Import types from shared types file
 export type { SessionUser, Session } from './types';
+
+/**
+ * Generate session fingerprint from user agent + IP
+ * This helps prevent session hijacking by binding the session to specific client characteristics
+ */
+function generateFingerprint(userAgent: string, ipAddress: string): string {
+  return createHash('sha256')
+    .update(`${userAgent}:${ipAddress}:${process.env.NEXTAUTH_SECRET}`)
+    .digest('hex');
+}
+
+/**
+ * Get client IP address from request-like headers
+ * Used for session fingerprinting
+ */
+function getClientIP(headers: { get: (name: string) => string | null }): string {
+  const forwarded = headers.get('x-forwarded-for');
+  const realIp = headers.get('x-real-ip');
+  const cfConnectingIp = headers.get('cf-connecting-ip');
+  
+  if (forwarded) {
+    const firstIp = forwarded.split(',')[0];
+    if (firstIp) return firstIp.trim();
+  }
+  
+  if (realIp) return realIp;
+  if (cfConnectingIp) return cfConnectingIp;
+  
+  return 'unknown';
+}
 
 /**
  * Generate authorization URL for Azure AD login
@@ -121,19 +152,40 @@ export async function handleCallback(code: string, redirectUri: string) {
 
 /**
  * Create a session token (JWT) and store in database
+ * Now includes session fingerprinting for enhanced security
  */
-export async function createSession(user: SessionUser): Promise<string> {
-  const token = await new SignJWT({ user })
+export async function createSession(
+  user: SessionUser,
+  userAgent?: string,
+  ipAddress?: string
+): Promise<string> {
+  // Generate session fingerprint if fingerprinting is enabled
+  const fingerprintEnabled = process.env.SESSION_FINGERPRINT_ENABLED === 'true';
+  const fingerprint = fingerprintEnabled && userAgent && ipAddress
+    ? generateFingerprint(userAgent, ipAddress)
+    : undefined;
+  
+  // Create unique session ID (jti - JWT ID)
+  const sessionJti = randomBytes(16).toString('hex');
+  
+  // Include fingerprint in JWT payload for validation
+  const payload: any = { user };
+  if (fingerprint) {
+    payload.fingerprint = fingerprint;
+  }
+  
+  const token = await new SignJWT(payload)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('1d')
+    .setJti(sessionJti) // Unique token ID for tracking
     .sign(JWT_SECRET);
 
   // Store session in database with retry logic for Azure SQL cold-start
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 1 day
-  const sessionId = `sess_${randomBytes(16).toString('hex')}`;
+  const sessionId = `sess_${sessionJti}`;
   
-  log.info('Creating session in database', { userId: user.id, sessionId });
+  log.info('Creating session in database', { userId: user.id, sessionId, hasFingerprint: !!fingerprint });
   
   await withRetry(
     async () => {
@@ -149,6 +201,22 @@ export async function createSession(user: SessionUser): Promise<string> {
     RetryPresets.AZURE_SQL_COLD_START,
     'Create session'
   );
+
+  // Cache session with fingerprint (1 hour TTL)
+  const sessionData = {
+    id: sessionId,
+    sessionToken: token,
+    userId: user.id,
+    expires: expiresAt,
+    fingerprint,
+    User: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.systemRole,
+    },
+  };
+  await cache.set(`session:${token}`, sessionData, 3600);
 
   log.info('Session created successfully', { userId: user.id, sessionId });
 
@@ -260,12 +328,29 @@ export async function verifySessionJWTOnly(token: string): Promise<Session | nul
 /**
  * Verify and decode session token
  * Also checks if session exists in database
+ * Validates session fingerprint if enabled
  * Use this in API routes where Prisma is available
  */
-export async function verifySession(token: string): Promise<Session | null> {
+export async function verifySession(
+  token: string,
+  userAgent?: string,
+  ipAddress?: string
+): Promise<Session | null> {
   try {
     // First verify JWT signature and expiration
     const verified = await jwtVerify(token, JWT_SECRET);
+    
+    // Validate fingerprint if enabled and present in token
+    const fingerprintEnabled = process.env.SESSION_FINGERPRINT_ENABLED === 'true';
+    if (fingerprintEnabled && verified.payload.fingerprint && userAgent && ipAddress) {
+      const currentFingerprint = generateFingerprint(userAgent, ipAddress);
+      if (verified.payload.fingerprint !== currentFingerprint) {
+        log.error('Session fingerprint mismatch - possible session hijacking attempt', {
+          userId: (verified.payload as any).user?.id,
+        });
+        return null;
+      }
+    }
     
     // Then check if session exists in database
     const dbSession = await getSessionFromDatabase(token);
