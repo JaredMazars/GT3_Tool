@@ -5,6 +5,18 @@ import { useRouter } from 'next/navigation';
 import { DocumentTextIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { TemplateList } from '@/components/features/templates/TemplateList';
 
+interface TemplateSection {
+  id: number;
+  sectionKey: string;
+  title: string;
+  content: string;
+  isRequired: boolean;
+  isAiAdaptable: boolean;
+  order: number;
+  applicableServiceLines: string | null;
+  applicableProjectTypes: string | null;
+}
+
 interface Template {
   id: number;
   name: string;
@@ -15,7 +27,8 @@ interface Template {
   active: boolean;
   createdAt: string;
   updatedAt: string;
-  sections: any[];
+  sections?: TemplateSection[];
+  TemplateSection?: TemplateSection[];
 }
 
 export default function TemplatesPage() {
@@ -48,7 +61,12 @@ export default function TemplatesPage() {
       }
 
       if (data.success) {
-        setTemplates(data.data);
+        // Normalize template data - map TemplateSection to sections for consistency
+        const normalizedTemplates = data.data.map((template: Template) => ({
+          ...template,
+          sections: template.TemplateSection || template.sections || [],
+        }));
+        setTemplates(normalizedTemplates);
       } else {
         setError('Failed to load templates');
       }

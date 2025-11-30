@@ -15,7 +15,8 @@ interface Template {
   type: string;
   serviceLine: string | null;
   projectType: string | null;
-  sections: TemplateSection[];
+  sections?: TemplateSection[];
+  TemplateSection?: TemplateSection[];
 }
 
 interface TemplateSelectorProps {
@@ -51,11 +52,16 @@ export function TemplateSelector({
       const data = await response.json();
 
       if (data.success) {
-        setTemplates(data.data);
+        // Normalize template data - map TemplateSection to sections for consistency
+        const normalizedTemplates = data.data.map((template: Template) => ({
+          ...template,
+          sections: template.TemplateSection || template.sections || [],
+        }));
+        setTemplates(normalizedTemplates);
         
         // Auto-select first template if none selected
-        if (!selectedTemplateId && data.data.length > 0) {
-          onSelect(data.data[0].id);
+        if (!selectedTemplateId && normalizedTemplates.length > 0) {
+          onSelect(normalizedTemplates[0].id);
         }
       }
     } catch (error) {
@@ -115,7 +121,7 @@ export function TemplateSelector({
                   </p>
                 )}
                 <div className="flex items-center gap-4 text-xs text-forvis-gray-500">
-                  <span>{template.sections.length} sections</span>
+                  <span>{(template.sections || template.TemplateSection || []).length} sections</span>
                   {template.serviceLine && <span>• {template.serviceLine}</span>}
                   {template.projectType && (
                     <span>• {template.projectType.replace(/_/g, ' ')}</span>

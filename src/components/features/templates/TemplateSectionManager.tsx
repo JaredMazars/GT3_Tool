@@ -32,7 +32,7 @@ interface TemplateSectionManagerProps {
 }
 
 export function TemplateSectionManager({
-  sections,
+  sections = [],
   onAddSection,
   onUpdateSection,
   onDeleteSection,

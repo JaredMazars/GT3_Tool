@@ -15,7 +15,8 @@ interface Template {
   projectType: string | null;
   content: string;
   active: boolean;
-  sections: TemplateSection[];
+  sections?: TemplateSection[];
+  TemplateSection?: TemplateSection[];
 }
 
 interface TemplateSection {
@@ -65,7 +66,12 @@ export default function TemplateEditorPage() {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        setTemplate(data.data);
+        // Normalize template data - map TemplateSection to sections for consistency
+        const normalizedTemplate = {
+          ...data.data,
+          sections: data.data.TemplateSection || data.data.sections || [],
+        };
+        setTemplate(normalizedTemplate);
       } else {
         setError('Failed to load template');
       }
@@ -107,7 +113,12 @@ export default function TemplateEditorPage() {
         if (isNew) {
           router.push(`/dashboard/admin/templates/${data.data.id}`);
         } else {
-          setTemplate(data.data);
+          // Normalize template data
+          const normalizedTemplate = {
+            ...data.data,
+            sections: data.data.TemplateSection || data.data.sections || [],
+          };
+          setTemplate(normalizedTemplate);
         }
       } else {
         setError(data.error || 'Failed to save template');
@@ -350,7 +361,7 @@ export default function TemplateEditorPage() {
             {!isNew && (
               <div className="card p-6">
                 <TemplateSectionManager
-                  sections={template.sections}
+                  sections={template.sections || []}
                   onAddSection={handleAddSection}
                   onUpdateSection={handleUpdateSection}
                   onDeleteSection={handleDeleteSection}
