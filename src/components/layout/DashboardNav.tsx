@@ -31,6 +31,7 @@ export default function DashboardNav() {
   const { hasPermission: hasAdminAccess } = usePermission('admin', 'READ');
   const { hasPermission: hasUsersAccess } = usePermission('admin.users', 'READ');
   const { hasPermission: hasServiceLineAccess } = usePermission('admin.service-lines', 'READ');
+  const { hasPermission: hasServiceLineMappingAccess } = usePermission('admin.service-line-mapping', 'READ');
   const { hasPermission: hasTemplatesAccess } = usePermission('admin.templates', 'READ');
   const { hasPermission: hasPermissionsAccess } = usePermission('admin.permissions', 'READ');
 
@@ -66,6 +67,13 @@ export default function DashboardNav() {
       label: 'Service Line Access',
       href: '/dashboard/admin/service-lines',
       description: 'Manage service line permissions',
+    });
+  }
+  if (hasServiceLineMappingAccess) {
+    adminMenuItems.push({
+      label: 'Service Line Mapping',
+      href: '/dashboard/admin/service-line-mapping',
+      description: 'Map external to master service lines',
     });
   }
   if (hasTemplatesAccess) {

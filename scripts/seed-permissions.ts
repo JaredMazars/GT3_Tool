@@ -105,6 +105,13 @@ const permissions: PermissionDefinition[] = [
     description: 'Manage role permissions matrix',
     availableActions: ['READ', 'UPDATE'],
   },
+  {
+    resourceType: 'PAGE',
+    resourceKey: 'admin.service-line-mapping',
+    displayName: 'Admin - Service Line Mapping',
+    description: 'Map external service lines to master service lines',
+    availableActions: ['READ', 'UPDATE'],
+  },
 
   // FEATURE PERMISSIONS - Clients
   {
@@ -569,6 +576,7 @@ const rolePermissions: RolePermissionDefinition[] = [
   { role: 'ADMINISTRATOR', resourceKey: 'admin.templates', allowedActions: ['CREATE', 'READ', 'UPDATE', 'DELETE'] },
   { role: 'ADMINISTRATOR', resourceKey: 'admin.service-lines', allowedActions: ['CREATE', 'READ', 'UPDATE', 'DELETE'] },
   { role: 'ADMINISTRATOR', resourceKey: 'admin.permissions', allowedActions: ['READ', 'UPDATE'] },
+  { role: 'ADMINISTRATOR', resourceKey: 'admin.service-line-mapping', allowedActions: ['READ', 'UPDATE'] },
   { role: 'ADMINISTRATOR', resourceKey: 'clients.create', allowedActions: ['CREATE'] },
   { role: 'ADMINISTRATOR', resourceKey: 'clients.view', allowedActions: ['READ'] },
   { role: 'ADMINISTRATOR', resourceKey: 'clients.edit', allowedActions: ['UPDATE'] },
@@ -620,6 +628,7 @@ const rolePermissions: RolePermissionDefinition[] = [
   { role: 'SYSTEM_ADMIN', resourceKey: 'admin.templates', allowedActions: ['CREATE', 'READ', 'UPDATE', 'DELETE'] },
   { role: 'SYSTEM_ADMIN', resourceKey: 'admin.service-lines', allowedActions: ['CREATE', 'READ', 'UPDATE', 'DELETE'] },
   { role: 'SYSTEM_ADMIN', resourceKey: 'admin.permissions', allowedActions: ['READ', 'UPDATE'] },
+  { role: 'SYSTEM_ADMIN', resourceKey: 'admin.service-line-mapping', allowedActions: ['READ', 'UPDATE'] },
   { role: 'SYSTEM_ADMIN', resourceKey: 'clients.create', allowedActions: ['CREATE'] },
   { role: 'SYSTEM_ADMIN', resourceKey: 'clients.view', allowedActions: ['READ'] },
   { role: 'SYSTEM_ADMIN', resourceKey: 'clients.edit', allowedActions: ['UPDATE'] },

@@ -1,4 +1,5 @@
 ---
+description: Used to create AI tool calling, functions and any other ai related tasks
 alwaysApply: false
 ---
 # AI and Agent Patterns
