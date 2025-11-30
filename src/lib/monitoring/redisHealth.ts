@@ -135,9 +135,12 @@ export async function getRedisHealth(): Promise<RedisHealthCheck> {
     let totalKeys = 0;
     Object.keys(keyspace).forEach(key => {
       if (key.startsWith('db')) {
-        const match = keyspace[key].match(/keys=(\d+)/);
-        if (match) {
-          totalKeys += parseInt(match[1]);
+        const value = keyspace[key];
+        if (value) {
+          const match = value.match(/keys=(\d+)/);
+          if (match && match[1]) {
+            totalKeys += parseInt(match[1], 10);
+          }
         }
       }
     });

@@ -26,7 +26,7 @@ if (process.env.NEXTAUTH_SECRET_OLD) {
 }
 
 // Primary secret for signing new tokens
-const JWT_SECRET = JWT_SECRETS[0];
+const JWT_SECRET = JWT_SECRETS[0]!; // Safe: always at least one secret
 
 /**
  * Verify session token (JWT only - no database lookup)

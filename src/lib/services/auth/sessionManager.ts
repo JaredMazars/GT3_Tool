@@ -214,7 +214,6 @@ export class SessionManager {
    */
   static async getUserSessions(userId: string): Promise<Array<{
     id: string;
-    createdAt: Date;
     expires: Date;
     lastActivity?: SessionActivity;
   }>> {
@@ -230,10 +229,9 @@ export class SessionManager {
           id: true,
           sessionToken: true,
           expires: true,
-          createdAt: true,
         },
         orderBy: {
-          createdAt: 'desc',
+          expires: 'desc',
         },
       });
       
@@ -243,7 +241,6 @@ export class SessionManager {
           const activity = await this.getSessionActivity(session.sessionToken);
           return {
             id: session.id,
-            createdAt: session.createdAt,
             expires: session.expires,
             lastActivity: activity || undefined,
           };

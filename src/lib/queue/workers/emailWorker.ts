@@ -109,22 +109,21 @@ export class EmailWorker {
       });
 
       // Import email service dynamically
-      const { sendEmail } = await import('@/lib/services/email/emailService');
+      const { emailService } = await import('@/lib/services/email/emailService');
+
+      // Validate required fields
+      const toAddress = Array.isArray(to) ? to[0] : to;
+      if (!toAddress || !subject) {
+        throw new Error('Missing required email fields: to and subject are required');
+      }
 
       // Send the email
-      await sendEmail({
-        to,
+      await emailService.sendEmail(
+        toAddress,
         subject,
-        body,
-        html,
-        template,
-        templateData,
-        from: job.data.from,
-        replyTo: job.data.replyTo,
-        cc: job.data.cc,
-        bcc: job.data.bcc,
-        attachments: job.data.attachments,
-      });
+        html || body || '',
+        body || ''
+      );
 
       // Mark job as complete
       await queue.complete('emails', job.id);

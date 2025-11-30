@@ -95,7 +95,7 @@ export class DocumentWorker {
       });
 
       // Import DocumentExtractor dynamically to avoid circular dependencies
-      const { DocumentExtractor } = await import('@/lib/ai/documentExtractor');
+      const { DocumentExtractor } = await import('@/lib/services/documents/documentExtractor');
 
       // Extract data from document
       const extractedData = await DocumentExtractor.extractFromDocument(

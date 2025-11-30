@@ -165,6 +165,9 @@ export class QueueService {
       }
 
       const jobId = results[0];
+      if (!jobId) {
+        return null;
+      }
 
       // Atomically remove from pending and add to processing
       const removed = await this.redis.zrem(`queue:${queueName}:pending`, jobId);
