@@ -48,3 +48,6 @@ logs/
 
 # uploads
 uploads/
+
+# sonarqube
+.scannerwork/
