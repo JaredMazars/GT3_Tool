@@ -106,7 +106,7 @@ jobs:
           
           for i in {1..10}; do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" $HEALTH_URL)
-            if [ "$STATUS" -eq 200 ]; then
+            if [[ "$STATUS" -eq 200 ]]; then
               echo "✓ Health check passed!"
               exit 0
             fi
@@ -120,7 +120,7 @@ jobs:
       - name: Notify deployment status
         if: always()
         run: |
-          if [ "${{ job.status }}" == "success" ]; then
+          if [[ "${{ job.status }}" == "success" ]]; then
             echo "✓ Deployment successful!"
           else
             echo "✗ Deployment failed!"

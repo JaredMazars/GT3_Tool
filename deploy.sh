@@ -13,10 +13,10 @@ ACR_NAME="mappertaxregistry"
 IMAGE_NAME="mapper-tax-app"
 
 # Get version from command line argument or auto-increment
-if [ -z "$1" ]; then
+if [[ -z "$1" ]]; then
     # Get the latest tag number and increment
     LATEST_TAG=$(docker images "${ACR_NAME}.azurecr.io/${IMAGE_NAME}" --format "{{.Tag}}" | grep -E '^v[0-9]+$' | sed 's/v//' | sort -n | tail -1)
-    if [ -z "$LATEST_TAG" ]; then
+    if [[ -z "$LATEST_TAG" ]]; then
         VERSION="v1"
     else
         VERSION="v$((LATEST_TAG + 1))"
@@ -41,7 +41,7 @@ echo ""
 echo "Step 1/4: Building Docker image..."
 docker build --platform linux/amd64 -t "$IMAGE_TAG" .
 
-if [ $? -ne 0 ]; then
+if [[ $? -ne 0 ]]; then
     echo "❌ Docker build failed!"
     exit 1
 fi
@@ -52,7 +52,7 @@ echo ""
 echo "Step 2/4: Logging into Azure Container Registry..."
 az acr login --name "$ACR_NAME"
 
-if [ $? -ne 0 ]; then
+if [[ $? -ne 0 ]]; then
     echo "❌ ACR login failed!"
     exit 1
 fi
@@ -63,7 +63,7 @@ echo ""
 echo "Step 3/4: Pushing image to Azure Container Registry..."
 docker push "$IMAGE_TAG"
 
-if [ $? -ne 0 ]; then
+if [[ $? -ne 0 ]]; then
     echo "❌ Docker push failed!"
     exit 1
 fi
@@ -77,7 +77,7 @@ az containerapp update \
     --resource-group "$RESOURCE_GROUP" \
     --image "$IMAGE_TAG"
 
-if [ $? -ne 0 ]; then
+if [[ $? -ne 0 ]]; then
     echo "❌ Container App update failed!"
     exit 1
 fi
@@ -114,7 +114,7 @@ APP_URL=$(az containerapp show \
 echo "Testing application endpoint..."
 HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://${APP_URL}/api/health")
 
-if [ "$HTTP_CODE" = "200" ]; then
+if [[ "$HTTP_CODE" = "200" ]]; then
     echo "✅ Health check passed (HTTP $HTTP_CODE)"
 else
     echo "⚠️  Health check returned HTTP $HTTP_CODE"
