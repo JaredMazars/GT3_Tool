@@ -1,0 +1,264 @@
+---
+alwaysApply: true
+---
+
+# Forvis Mazars Styling Guide
+
+Professional, corporate styling consistent with Forvis Mazars brand guidelines.
+
+## Brand Colors
+
+**Primary Blues**: forvis-blue-500 (#2E5AAC - primary), 600 (#25488A - hover), 700 (#1C3667 - active), 50 (#EBF2FA), 100 (#D6E4F5)
+**Extended Blues**: #5B93D7 (gradient starts), #132445 (gradient ends)
+**Grays**: 900 (#212529 - headings), 800 (#343A40 - body), 700 (#495057 - secondary), 600 (#6C757D - muted), 300 (#DEE2E6 - borders), 200 (#E9ECEF - dividers), 100 (#F1F3F5), 50 (#F8F9FA - backgrounds)
+**Light Gradients**: #E0EDFB, #C7DDEF, #F0F7FD, #E5F1FB, #F8FBFE, #EEF6FC
+
+## Typography
+
+**Font**: Inter (from Google Fonts, in globals.css)
+
+**Hierarchy**: h1 `text-3xl font-semibold text-forvis-gray-900`, h2 `text-2xl`, h3 `text-xl`, body `text-sm text-forvis-gray-800`, muted `text-sm text-forvis-gray-600`, label `text-sm font-medium text-forvis-gray-700`
+
+**Weights**: 400 (body), 500 (labels), 600 (headings), 700 (emphasis)
+
+## Gradients
+
+Always use inline styles (not Tailwind). Use 135deg for diagonal, `to right` for horizontal.
+
+```typescript
+// Primary: style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)' }}
+// Horizontal: style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
+// Stats Cards: 'linear-gradient(to bottom right, #2E5AAC, #25488A)' (vary darkness)
+// Buttons: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)'
+// Light Backgrounds: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)'
+```
+
+## Component Styling
+
+### Stats Cards
+
+```typescript
+<div className="rounded-lg p-3 shadow-corporate text-white"
+     style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #25488A)' }}>
+  <div className="flex items-center justify-between">
+    <div>
+      <p className="text-xs font-medium opacity-90">Label</p>
+      <p className="text-2xl font-bold mt-1">Value</p>
+    </div>
+    <div className="rounded-full p-2" style={{ backgroundColor: 'rgba(28, 54, 103, 0.5)' }}>
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">{/* Icon */}</svg>
+    </div>
+  </div>
+</div>
+```
+
+White text on gradient, opacity-90 for labels, icon containers use `rgba(28, 54, 103, 0.5)`, vary gradient darkness
+
+### Buttons
+
+```typescript
+// Primary: className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium text-white bg-forvis-blue-500 hover:bg-forvis-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-forvis-blue-500 transition-colors shadow-corporate"
+
+// Gradient: className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-bold text-white rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
+// style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+
+// Secondary: className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 hover:bg-forvis-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-forvis-blue-500 transition-colors"
+```
+
+Icons 16px (h-4 w-4) small, 20px (h-5 w-5) regular. Always include hover/focus states.
+
+### Cards
+
+```typescript
+// Standard: className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate"
+
+// Gradient Header: className="flex justify-between items-center p-4"
+// style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)' }}
+
+// Light with Accent Border: className="rounded-xl p-4 border-2 shadow-corporate"
+// style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)', borderColor: '#2E5AAC' }}
+```
+
+p-4 body, px-4 py-3 header/footer. Use gray-50 OR gradient for emphasis. Emphasis borders: border-2 with #2E5AAC.
+
+### Forms
+
+```typescript
+// Label: className="block text-sm font-medium text-forvis-gray-700"
+// Input: className="block w-full px-4 py-2 border border-forvis-gray-300 rounded-lg text-sm text-forvis-gray-900 placeholder:text-forvis-gray-400 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500 transition-colors disabled:opacity-50"
+// Error: className="mt-1 text-xs text-red-600"
+```
+
+### Tables (Grid-Based)
+
+```typescript
+// Header with Gradient
+<div className="grid py-2 shadow-sm"
+     style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)', gridTemplateColumns: '80px 200px 120px 1fr' }}>
+  <div className="px-3 text-xs font-bold text-white uppercase tracking-wider">Column</div>
+</div>
+
+// Data Row (striping + hover)
+<div className={`grid cursor-pointer hover:bg-forvis-blue-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-forvis-gray-50'}`}
+     style={{ gridTemplateColumns: '80px 200px 120px 1fr' }}>
+  <div className="px-3 py-1.5 text-xs font-medium text-forvis-gray-900">Cell</div>
+</div>
+
+// Number Cell (right-aligned, tabular)
+<div className={`px-3 py-1.5 text-xs text-right tabular-nums font-medium ${value < 0 ? 'text-red-600' : 'text-forvis-gray-900'}`}>
+  {value < 0 ? `(${formatAmount(Math.abs(value))})` : formatAmount(value)}
+</div>
+```
+
+Use explicit widths via `gridTemplateColumns`, `cursor-pointer` for clickable rows, `tabular-nums` for numbers, red with parentheses for negatives.
+
+### Badges
+
+```typescript
+// Base: className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+// Variants: bg-green-100 text-green-800 (success), bg-yellow-100 text-yellow-800 (warning), bg-red-100 text-red-800 (error), bg-forvis-blue-100 text-forvis-blue-800 (info)
+```
+
+### File Upload
+
+```typescript
+className="flex justify-center px-6 pt-5 pb-6 border-3 border-dashed rounded-xl transition-all shadow-lg hover:shadow-xl"
+style={{ borderColor: '#2E5AAC', borderWidth: '3px', background: 'linear-gradient(135deg, #F0F7FD 0%, #E5F1FB 100%)' }}
+```
+
+### Modals
+
+```typescript
+// Overlay: className="fixed inset-0 bg-black bg-opacity-50 transition-opacity z-50"
+// Content: className="relative bg-white rounded-lg shadow-corporate-lg max-w-lg w-full p-6"
+// Title: className="text-lg font-semibold text-forvis-gray-900"
+```
+
+### Navigation
+
+```typescript
+// Inactive: className="flex items-center px-4 py-2 text-sm font-medium text-forvis-gray-700 hover:bg-forvis-gray-50 hover:text-forvis-gray-900 rounded-lg transition-colors"
+// Active: className="flex items-center px-4 py-2 text-sm font-medium text-forvis-blue-600 bg-forvis-blue-50 rounded-lg"
+```
+
+## Layout & Spacing
+
+**Containers**: `max-w-7xl mx-auto px-4 sm:px-6 lg:px-8` (main), `max-w-2xl mx-auto px-4` (forms)
+
+**Spacing Scale**: gap-2 (8px), gap-3 (12px), gap-4 (16px), gap-6 (24px), p-2/4/6 (8/16/24px), mb-2/4/6/8 (8/16/24/32px)
+
+**Grid/Flex**: Two column `grid grid-cols-1 md:grid-cols-2 gap-6`, Three column `grid-cols-1 md:grid-cols-2 lg:grid-cols-3`, Responsive stack `flex flex-col md:flex-row gap-4`
+
+## Shadows & Elevation
+
+Use Forvis-branded shadows: `shadow-corporate` (subtle), `shadow-corporate-md` (medium), `shadow-corporate-lg` (high)
+
+## Borders & Rounded
+
+**Radius**: `rounded-lg` (8px) for most, `rounded-full` for badges
+
+**Colors**: `border-forvis-gray-200` (default), `border-forvis-gray-300` (inputs), `border-forvis-blue-500` (focus)
+
+## State Styles
+
+```typescript
+// Hover: hover:bg-forvis-gray-50, hover:text-forvis-blue-600, hover:shadow-corporate-md
+// Focus: focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2
+// Disabled: disabled:opacity-50 disabled:cursor-not-allowed
+// Loading: className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-500"
+```
+
+## Accessibility
+
+**Focus**: Always `focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2`
+**Contrast**: WCAG AA - text on white use gray-700+, text on blue-500 use white
+**Screen Reader**: `className="sr-only"` for hidden content, ARIA labels for icons
+
+## Responsive
+
+**Breakpoints**: sm (640px), md (768px), lg (1024px), xl (1280px), 2xl (1536px)
+
+**Mobile-First**: `flex flex-col md:flex-row`, `grid grid-cols-1 md:grid-cols-2`, `hidden md:block`
+
+## Common Patterns
+
+### Stats Dashboard
+
+```typescript
+<div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+  <div className="rounded-lg p-3 shadow-corporate text-white"
+       style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #25488A)' }}>
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-xs font-medium opacity-90">Total Accounts</p>
+        <p className="text-2xl font-bold mt-1">124</p>
+      </div>
+      <div className="rounded-full p-2" style={{ backgroundColor: 'rgba(28, 54, 103, 0.5)' }}>
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">{/* Icon */}</svg>
+      </div>
+    </div>
+  </div>
+  {/* Vary gradient darkness across cards */}
+</div>
+```
+
+### Empty State
+
+```typescript
+<div className="mx-4 mb-4 text-center py-16 rounded-xl border-3 border-dashed shadow-lg" 
+     style={{ borderColor: '#2E5AAC', borderWidth: '3px', background: 'linear-gradient(135deg, #F8FBFE 0%, #EEF6FC 100%)' }}>
+  <svg className="mx-auto h-16 w-16" style={{ color: '#2E5AAC' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">{/* Icon */}</svg>
+  <h3 className="mt-4 text-lg font-bold" style={{ color: '#1C3667' }}>No data available</h3>
+  <p className="mt-2 text-sm font-medium" style={{ color: '#2E5AAC' }}>Get started by uploading a file above.</p>
+</div>
+```
+
+### Financial Totals
+
+```typescript
+<div className="grid grid-cols-1 md:grid-cols-2 gap-5 px-4 pb-4 pt-5 border-t-2" style={{ borderColor: '#2E5AAC' }}>
+  <div className="rounded-xl p-4 border-2 shadow-corporate" 
+       style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)', borderColor: '#2E5AAC' }}>
+    <div className="flex items-center justify-between">
+      <div>
+        <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: '#1C3667' }}>Balance Sheet Total</h3>
+        <p className="text-2xl font-bold tabular-nums" style={{ color: '#2E5AAC' }}>R 1,234,567</p>
+      </div>
+      <div className="rounded-full p-3 shadow-lg" style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}>
+        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">{/* Icon */}</svg>
+      </div>
+    </div>
+  </div>
+</div>
+```
+
+## Best Practices
+
+1. **Consistency**: Use defined color palette only
+2. **Spacing**: Standard scale (4, 8, 12, 16, 24, 32px)
+3. **Typography**: Inter font, defined text sizes
+4. **Shadows**: Corporate shadows only
+5. **Borders**: gray-200/300 subtle, border-2 + #2E5AAC emphasis
+6. **Transitions**: Always include (200ms default)
+7. **Focus States**: Required for accessibility
+8. **Responsive**: Mobile-first approach
+9. **Gradients**: Inline styles, consistent direction (135deg diagonal, `to right` horizontal)
+10. **White on Gradients**: Always use white text
+
+### Inline Styles vs Tailwind
+
+**Inline Styles**: Gradients, brand colors not in Tailwind (#2E5AAC), emphasis borders, semi-transparent backgrounds, dynamic grid templates
+
+**Tailwind Classes**: Spacing/sizing/layout, typography (except hex colors), responsive, state variants, forvis-* palette colors, shadows
+
+### CSS Classes
+
+Prefer predefined (globals.css): `.btn-primary`, `.btn-secondary`, `.card`, `.card-hover`, `.input-field`, `.animate-fadeIn`, `.animate-scaleIn`
+
+## Avoid
+
+❌ Arbitrary values (except gradients/brand colors) ❌ New color schemes ❌ Default Tailwind shadows ❌ Bold everywhere (font-bold on gradients, font-medium on standard) ❌ Inconsistent spacing ❌ Tailwind for gradients ❌ Black text on gradients ❌ Heavy borders everywhere
+
+## Summary
+
+**Key Principles**: Gradients prominent (headers, stats, emphasis), Brand blue central (#2E5AAC), Visual hierarchy through gradients (darker = important), Inline styles for brand consistency, Grid-based layouts (CSS Grid for tables), Professional aesthetic (clean, corporate), Accessibility maintained (focus states, color contrast, semantic HTML)

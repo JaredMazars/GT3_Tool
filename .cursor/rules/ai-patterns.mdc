@@ -1,0 +1,329 @@
+---
+description: Used to create AI tool calling, functions and any other ai related tasks
+alwaysApply: false
+---
+# AI and Agent Patterns
+
+This project uses Azure OpenAI for AI-powered tax analysis, opinion drafting, and document intelligence. Follow these patterns when working with AI features.
+
+## Azure OpenAI Integration
+
+### Configuration (`lib/ai/config.ts`)
+
+**Always** import models from `@/lib/ai/config`:
+
+```typescript
+import { models, defaultModel, getModelParams } from '@/lib/ai/config';
+```
+
+Available models:
+- `models.mini` - GPT-5 Mini for most AI generation tasks
+- `models.nano` - Same deployment for lightweight tasks (document extraction)
+- `models.embedding` - Text embedding model for RAG and semantic search
+
+### Model Parameter Handling
+
+Some models (o1/o3/gpt-5 series) don't support certain parameters. **Always use `getModelParams()`** when passing custom parameters:
+
+```typescript
+// Correct - handles reasoning models
+const params = getModelParams({
+  temperature: 0.7,
+  maxTokens: 2000
+});
+
+// Incorrect - may fail with reasoning models
+const params = { temperature: 0.7, maxTokens: 2000 };
+```
+
+### Using AI SDK
+
+Import from `ai` package for generation:
+
+```typescript
+import { generateText, generateObject, streamText } from 'ai';
+
+// Text generation
+const result = await generateText({
+  model: models.mini,
+  prompt: 'Your prompt here',
+  ...getModelParams({ temperature: 0.7 })
+});
+
+// Structured output with Zod schema
+const result = await generateObject({
+  model: models.mini,
+  schema: yourZodSchema,
+  prompt: 'Your prompt here'
+});
+```
+
+## Agent Orchestration
+
+### Agent Types and Responsibilities
+
+Located in `/src/lib/agents/`, each agent has a specific role:
+
+1. **InterviewAgent** (`interviewAgent.ts`)
+   - Asks questions to gather facts
+   - Assesses information completeness
+   - Determines when enough information is collected
+
+2. **ResearchAgent** (`researchAgent.ts`)
+   - Searches legal precedents and tax law
+   - Returns structured research findings
+   - Provides citations and references
+
+3. **AnalysisAgent** (`analysisAgent.ts`)
+   - Analyzes tax positions
+   - Identifies risks and considerations
+   - Provides structured tax analysis
+
+4. **DraftingAgent** (`draftingAgent.ts`)
+   - Drafts opinion sections
+   - Maintains professional tone and structure
+   - Incorporates research findings
+
+5. **ReviewAgent** (`reviewAgent.ts`)
+   - Reviews drafted content for quality
+   - Suggests improvements
+   - Ensures compliance with standards
+
+6. **SectionGenerator** (`sectionGenerator.ts`)
+   - Generates specific opinion sections
+   - Maintains consistency across sections
+   - Follows opinion structure templates
+
+### AgentOrchestrator Pattern
+
+**When to use**: Multi-step AI workflows that require coordination between different agents.
+
+The `AgentOrchestrator` manages workflow phases:
+
+```typescript
+import { AgentOrchestrator, WorkflowPhase } from '@/lib/agents/agentOrchestrator';
+
+// Workflow phases
+type WorkflowPhase =
+  | 'interview'    // Gathering facts
+  | 'research'     // Legal research
+  | 'analysis'     // Tax analysis
+  | 'drafting'     // Opinion drafting
+  | 'review'       // Quality review
+  | 'complete';    // Ready for export
+
+// Handle user message with orchestration
+const response = await AgentOrchestrator.handleMessage(
+  userMessage,
+  conversationHistory,
+  draftId,
+  currentPhase
+);
+```
+
+### Agent Orchestration Rules
+
+1. **Phase progression**: Agents work in sequence (interview → research → analysis → drafting → review)
+2. **State tracking**: Use `WorkflowState` to track progress
+3. **Context passing**: Pass conversation history between agents
+4. **Metadata**: Include phase and sources in responses
+
+Example agent invocation:
+
+```typescript
+// Interview phase
+const questions = await InterviewAgent.generateQuestions(
+  conversationHistory,
+  draftId
+);
+
+// Research phase
+const findings = await ResearchAgent.conductResearch(
+  query,
+  draftId,
+  context
+);
+
+// Analysis phase
+const analysis = await AnalysisAgent.analyzeTaxPosition(
+  facts,
+  researchFindings,
+  draftId
+);
+
+// Drafting phase
+const draft = await DraftingAgent.generateSection(
+  sectionType,
+  context,
+  draftId
+);
+
+// Review phase
+const feedback = await ReviewAgent.reviewSection(
+  content,
+  criteria,
+  draftId
+);
+```
+
+## RAG (Retrieval Augmented Generation)
+
+### RAGEngine Usage (`lib/services/opinions/ragEngine.ts`)
+
+**When to use**: Document-based AI tasks that need context from uploaded files.
+
+The RAG engine provides semantic search over documents:
+
+```typescript
+import { RAGEngine } from '@/lib/services/opinions/ragEngine';
+
+const ragEngine = new RAGEngine();
+
+// Check if configured
+if (!ragEngine.isReady()) {
+  // Fallback to non-RAG approach
+}
+
+// Index a document
+await ragEngine.indexDocument(
+  draftId,
+  documentId,
+  fileName,
+  category,
+  buffer,
+  fileType
+);
+
+// Search for relevant content
+const results = await ragEngine.search(
+  query,
+  draftId,
+  {
+    topK: 5,
+    minScore: 0.7
+  }
+);
+
+// Format context for AI
+const context = ragEngine.formatContext(results);
+
+// Get cited sources
+const sources = ragEngine.extractSources(results);
+```
+
+### RAG Best Practices
+
+1. **Check availability**: Always check `RAGEngine.isConfigured()` before using
+2. **Chunk appropriately**: Documents are automatically chunked (1000 chars with 200 overlap)
+3. **Filter by draft**: RAG searches are scoped to specific opinion drafts
+4. **Include sources**: Always return cited sources to users
+5. **Fallback gracefully**: Have non-RAG fallback for when search is unavailable
+
+### Azure AI Search Integration
+
+RAG uses Azure AI Search for vector search:
+- Index: Configured via `AZURE_SEARCH_INDEX_NAME` env var
+- Embeddings: Generated using `models.embedding`
+- Vector similarity: Cosine similarity for semantic search
+
+## Document Intelligence
+
+### Azure Document Intelligence (`lib/services/documents/documentIntelligence.ts`)
+
+**When to use**: Extract structured data from documents (PDFs, images, etc.)
+
+```typescript
+import { documentIntelligence } from '@/lib/services/documents/documentIntelligence';
+
+// Extract text and structure
+const result = await documentIntelligence.analyzeDocument(
+  buffer,
+  'pdf'
+);
+
+// Returns structured content, tables, key-value pairs
+const { content, tables, keyValuePairs } = result;
+```
+
+## AI Service Guidelines
+
+### When to Use Which Service
+
+1. **Agent Orchestrator** → Complex multi-step workflows (tax opinions)
+2. **Individual Agents** → Single-purpose AI tasks (one-off analysis)
+3. **RAG Engine** → Document-based context retrieval
+4. **Document Intelligence** → Structured data extraction from files
+5. **Direct AI SDK** → Simple text generation or structured output
+
+### Error Handling
+
+Always wrap AI calls in try-catch:
+
+```typescript
+try {
+  const result = await generateText({
+    model: models.mini,
+    prompt: userPrompt
+  });
+  return result.text;
+} catch (error) {
+  logger.error('AI generation failed', { error });
+  // Provide fallback or user-friendly error
+  throw new Error('Failed to generate response');
+}
+```
+
+### Logging
+
+Use structured logging for AI operations:
+
+```typescript
+import { logger } from '@/lib/utils/logger';
+
+logger.info('Starting AI generation', {
+  agent: 'DraftingAgent',
+  draftId,
+  sectionType
+});
+
+logger.error('AI generation failed', {
+  error: error.message,
+  agent: 'DraftingAgent'
+});
+```
+
+## Environment Variables
+
+Required for AI features:
+
+```bash
+# Azure OpenAI
+AZURE_OPENAI_API_KEY=your_key
+AZURE_OPENAI_DEPLOYMENT=gpt-5-mini
+AZURE_OPENAI_EMBEDDING_DEPLOYMENT=text-embedding-3-small
+
+# Azure AI Search (for RAG)
+AZURE_SEARCH_ENDPOINT=https://your-resource.search.windows.net
+AZURE_SEARCH_API_KEY=your_key
+AZURE_SEARCH_INDEX_NAME=opinion-documents
+
+# Azure Document Intelligence
+AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT=your_endpoint
+AZURE_DOCUMENT_INTELLIGENCE_KEY=your_key
+```
+
+## Cost Optimization
+
+1. **Use appropriate models**: Use `models.nano` for simple extractions
+2. **Limit token usage**: Set reasonable `maxTokens` limits
+3. **Cache when possible**: Use `CacheService` for repeated operations
+4. **Batch operations**: Process multiple items together when possible
+5. **Stream responses**: Use `streamText` for long-form generation to improve UX
+
+## Prompt Engineering Guidelines
+
+1. **Be specific**: Clear instructions yield better results
+2. **Provide context**: Include relevant background information
+3. **Use examples**: Few-shot prompting improves quality
+4. **Structure output**: Request specific formats (JSON, bullet points, etc.)
+5. **Iterate**: Refine prompts based on output quality

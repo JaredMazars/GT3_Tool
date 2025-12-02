@@ -1,0 +1,182 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/db/prisma';
+import { TaxAdjustmentEngine } from '@/lib/services/tax/taxAdjustmentEngine';
+import { handleApiError } from '@/lib/utils/errorHandler';
+import { getCurrentUser, checkProjectAccess } from '@/lib/services/auth/auth';
+import { toProjectId } from '@/types/branded';
+import { z } from 'zod';
+
+const GenerateSuggestionsSchema = z.object({
+  useAI: z.boolean().optional(),
+  autoSave: z.boolean().optional(),
+});
+
+/**
+ * POST /api/projects/[id]/tax-adjustments/suggestions
+ * Generate AI-powered tax adjustment suggestions
+ */
+export async function POST(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const params = await context.params;
+    const projectId = toProjectId(params.id);
+
+    // Check project access (requires EDITOR role or higher for generating suggestions)
+    const hasAccess = await checkProjectAccess(user.id, projectId, 'EDITOR');
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const validated = GenerateSuggestionsSchema.parse(body);
+    const { useAI = true, autoSave = false } = validated;
+
+    // Fetch mapped accounts for this project
+    const mappedAccounts = await prisma.mappedAccount.findMany({
+      where: { projectId },
+    });
+
+    if (mappedAccounts.length === 0) {
+      return NextResponse.json(
+        { error: 'No mapped accounts found. Please complete account mapping first.' },
+        { status: 400 }
+      );
+    }
+
+    // Fetch existing adjustments (excluding SUGGESTED to avoid checking against ones about to be replaced)
+    const existingAdjustments = await prisma.taxAdjustment.findMany({
+      where: {
+        projectId,
+        status: {
+          in: ['APPROVED', 'MODIFIED', 'REJECTED']
+        }
+      },
+      select: {
+        id: true,
+        type: true,
+        description: true,
+        amount: true,
+        sarsSection: true,
+        status: true,
+      }
+    });
+
+    // Generate suggestions using the tax adjustment engine
+    // Convert null to undefined for sarsSection
+    const existingAdjustmentsFormatted = existingAdjustments.map(adj => ({
+      ...adj,
+      sarsSection: adj.sarsSection ?? undefined
+    }));
+    
+    const suggestions = await TaxAdjustmentEngine.analyzeMappedAccounts(
+      mappedAccounts,
+      useAI,
+      existingAdjustmentsFormatted
+    );
+
+    // Optionally save suggestions to database
+    if (autoSave) {
+      // Delete existing SUGGESTED adjustments to avoid duplicates
+      await prisma.taxAdjustment.deleteMany({
+        where: {
+          projectId,
+          status: 'SUGGESTED',
+        },
+      });
+
+      // Create new suggestions
+      for (const suggestion of suggestions) {
+        await prisma.taxAdjustment.create({
+          data: {
+            projectId,
+            type: suggestion.type,
+            description: suggestion.description,
+            amount: suggestion.amount,
+            status: 'SUGGESTED',
+            sarsSection: suggestion.sarsSection,
+            confidenceScore: suggestion.confidenceScore,
+            calculationDetails: JSON.stringify(suggestion.calculationDetails),
+            notes: suggestion.reasoning,
+          },
+        });
+      }
+
+      // Fetch and return the saved adjustments
+      const savedAdjustments = await prisma.taxAdjustment.findMany({
+        where: {
+          projectId,
+          status: 'SUGGESTED',
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+
+      return NextResponse.json({
+        suggestions: savedAdjustments,
+        count: savedAdjustments.length,
+        saved: true,
+      });
+    }
+
+    // Return suggestions without saving
+    return NextResponse.json({
+      suggestions,
+      count: suggestions.length,
+      saved: false,
+    });
+  } catch (error) {
+    return handleApiError(error, 'POST /api/projects/[id]/tax-adjustments/suggestions');
+  }
+}
+
+/**
+ * GET /api/projects/[id]/tax-adjustments/suggestions
+ * Get existing suggested adjustments
+ */
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const params = await context.params;
+    const projectId = toProjectId(params.id);
+
+    // Check project access
+    const hasAccess = await checkProjectAccess(user.id, projectId);
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const suggestions = await prisma.taxAdjustment.findMany({
+      where: {
+        projectId,
+        status: 'SUGGESTED',
+      },
+      orderBy: {
+        confidenceScore: 'desc',
+      },
+    });
+
+    return NextResponse.json({
+      suggestions,
+      count: suggestions.length,
+    });
+  } catch (error) {
+    return handleApiError(error, 'GET /api/projects/[id]/tax-adjustments/suggestions');
+  }
+}
+
+

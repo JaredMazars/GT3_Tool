@@ -1,0 +1,340 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { ProjectType, ServiceLine } from '@/types';
+import { ClientSelector } from '../../features/clients/ClientSelector';
+import { ProjectTypeSelector } from './ProjectTypeSelector';
+import { ProjectTimelineInput } from '../../shared/ProjectTimelineInput';
+import { useServiceLine } from '@/components/providers/ServiceLineProvider';
+import { getProjectTypesForServiceLine } from '@/lib/utils/serviceLineUtils';
+import { useCreateProject } from '@/hooks/projects/useCreateProject';
+
+interface ProjectCreatedResult {
+  id: number;
+  name: string;
+  serviceLine: string;
+  [key: string]: unknown;
+}
+
+interface CreateProjectModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: (project: ProjectCreatedResult) => void;
+  initialClientId?: number | null;
+  initialServiceLine?: ServiceLine | null;
+}
+
+export function CreateProjectModal({ isOpen, onClose, onSuccess, initialClientId, initialServiceLine }: CreateProjectModalProps) {
+  const [step, setStep] = useState(1);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const { currentServiceLine } = useServiceLine();
+  const createProjectMutation = useCreateProject();
+  
+  // Use initialServiceLine if provided, otherwise fall back to currentServiceLine
+  const effectiveServiceLine = initialServiceLine || currentServiceLine || ServiceLine.TAX;
+  const isServiceLineLocked = !!initialServiceLine; // Lock when explicitly provided
+  
+  // Get default project type based on service line
+  const getDefaultProjectType = (serviceLine?: ServiceLine): ProjectType => {
+    const sl = serviceLine || effectiveServiceLine;
+    const types = getProjectTypesForServiceLine(sl);
+    return types[0] || ProjectType.TAX_CALCULATION;
+  };
+
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    clientId: initialClientId || null,
+    projectType: getDefaultProjectType(effectiveServiceLine),
+    serviceLine: effectiveServiceLine,
+    taxYear: new Date().getFullYear(),
+    taxPeriodStart: null as Date | null,
+    taxPeriodEnd: null as Date | null,
+    assessmentYear: '',
+    submissionDeadline: null as Date | null,
+  });
+
+  // Update clientId when initialClientId changes
+  useEffect(() => {
+    if (initialClientId !== undefined) {
+      setFormData(prev => ({ ...prev, clientId: initialClientId }));
+    }
+  }, [initialClientId]);
+
+  // Update service line and project type when modal opens or service line changes
+  useEffect(() => {
+    if (isOpen) {
+      const sl = initialServiceLine || currentServiceLine || ServiceLine.TAX;
+      const defaultType = getDefaultProjectType(sl);
+      setFormData(prev => ({
+        ...prev,
+        serviceLine: sl,
+        projectType: defaultType,
+      }));
+    }
+  }, [isOpen, initialServiceLine, currentServiceLine]);
+
+  const handleFieldChange = (field: string, value: string | number | Date | null | ProjectType | ServiceLine) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleNextStep = () => {
+    if (isTransitioning) return;
+    
+    setIsTransitioning(true);
+    setStep(prev => prev + 1);
+    
+    // Reset transition state after a short delay
+    setTimeout(() => setIsTransitioning(false), 300);
+  };
+
+  const handlePrevStep = () => {
+    if (isTransitioning) return;
+    
+    setIsTransitioning(true);
+    setStep(prev => prev - 1);
+    
+    // Reset transition state after a short delay
+    setTimeout(() => setIsTransitioning(false), 300);
+  };
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+    
+    // Only allow submission on step 3
+    if (step !== 3) {
+      return;
+    }
+    
+    if (!formData.name.trim()) {
+      return;
+    }
+
+    try {
+      // Use mutateAsync to await the mutation and cache invalidation
+      const createdProject = await createProjectMutation.mutateAsync(formData);
+      
+      // Reset form
+      const sl = initialServiceLine || currentServiceLine || ServiceLine.TAX;
+      const defaultType = getDefaultProjectType(sl);
+      setFormData({
+        name: '',
+        description: '',
+        clientId: initialClientId || null,
+        projectType: defaultType,
+        serviceLine: sl,
+        taxYear: new Date().getFullYear(),
+        taxPeriodStart: null,
+        taxPeriodEnd: null,
+        assessmentYear: '',
+        submissionDeadline: null,
+      });
+      setStep(1);
+      setIsTransitioning(false);
+      
+      // Call parent's onSuccess only after cache has been invalidated
+      onSuccess(createdProject);
+    } catch (error) {
+      // Error is handled by the mutation hook
+      console.error('Failed to create project:', error);
+    }
+  };
+
+  const handleClose = () => {
+    const sl = initialServiceLine || currentServiceLine || ServiceLine.TAX;
+    const defaultType = getDefaultProjectType(sl);
+    setFormData({
+      name: '',
+      description: '',
+      clientId: initialClientId || null,
+      projectType: defaultType,
+      serviceLine: sl,
+      taxYear: new Date().getFullYear(),
+      taxPeriodStart: null,
+      taxPeriodEnd: null,
+      assessmentYear: '',
+      submissionDeadline: null,
+    });
+    setStep(1);
+    setIsTransitioning(false);
+    createProjectMutation.reset(); // Reset mutation state
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 z-10">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-gray-900">Create New Project</h2>
+            {isServiceLineLocked && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                {formData.serviceLine}
+              </span>
+            )}
+          </div>
+          
+          {/* Step Indicator */}
+          <div className="flex items-center mt-4 space-x-2">
+            <div className={`flex-1 h-2 rounded-full ${step >= 1 ? 'bg-blue-600' : 'bg-gray-200'}`} />
+            <div className={`flex-1 h-2 rounded-full ${step >= 2 ? 'bg-blue-600' : 'bg-gray-200'}`} />
+            <div className={`flex-1 h-2 rounded-full ${step >= 3 ? 'bg-blue-600' : 'bg-gray-200'}`} />
+          </div>
+          
+          <div className="flex justify-between text-xs text-gray-600 mt-1">
+            <span>Basic Info</span>
+            <span>Project Type</span>
+            <span>Timeline</span>
+          </div>
+        </div>
+
+        <div className="p-6">
+          {createProjectMutation.error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+              {createProjectMutation.error.message}
+            </div>
+          )}
+
+          {/* Step 1: Basic Information */}
+          {step === 1 && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Project Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => handleFieldChange('name', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter project name"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Description
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => handleFieldChange('description', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={3}
+                  placeholder="Optional project description"
+                />
+              </div>
+
+              {!initialClientId ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Client
+                  </label>
+                  <ClientSelector
+                    value={formData.clientId}
+                    onChange={(clientId) => handleFieldChange('clientId', clientId)}
+                    allowCreate={false}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Optional: Associate this project with a client
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Client
+                  </label>
+                  <div className="px-3 py-2 bg-forvis-gray-50 border border-forvis-gray-300 rounded-md text-sm text-forvis-gray-700">
+                    Project will be created for the current client
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step 2: Project Type */}
+          {step === 2 && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Project Type <span className="text-red-500">*</span>
+                </label>
+                <ProjectTypeSelector
+                  value={formData.projectType}
+                  onChange={(type) => handleFieldChange('projectType', type)}
+                  serviceLine={formData.serviceLine}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Timeline */}
+          {step === 3 && (
+            <div className="space-y-4">
+              <ProjectTimelineInput
+                serviceLine={formData.serviceLine}
+                taxYear={formData.taxYear}
+                taxPeriodStart={formData.taxPeriodStart}
+                taxPeriodEnd={formData.taxPeriodEnd}
+                assessmentYear={formData.assessmentYear}
+                submissionDeadline={formData.submissionDeadline}
+                onChange={handleFieldChange}
+              />
+            </div>
+          )}
+
+          {/* Navigation Buttons */}
+          <div className="flex justify-between mt-6 pt-4 border-t border-gray-200">
+            <div>
+              {step > 1 && (
+                <button
+                  type="button"
+                  onClick={handlePrevStep}
+                  disabled={isTransitioning}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Back
+                </button>
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={handleClose}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+
+              {step < 3 ? (
+                <button
+                  type="button"
+                  onClick={handleNextStep}
+                  disabled={isTransitioning || (step === 1 && !formData.name.trim())}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+                >
+                  Next
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleSubmit()}
+                  disabled={createProjectMutation.isPending}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+                >
+                  {createProjectMutation.isPending ? 'Creating...' : 'Create Project'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+

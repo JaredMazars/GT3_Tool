@@ -1,0 +1,20 @@
+# Quick Deployment Reference
+# Resource Group: walter_sandbox
+# Container App: mapper-tax-app
+# Registry: mappertaxregistry.azurecr.io
+# App URL: https://mapper-tax-app.greenpebble-86483b9f.westeurope.azurecontainerapps.io
+
+# Quick deploy (auto-increment version):
+./deploy.sh
+
+# Deploy specific version:
+./deploy.sh v10
+
+# Manual commands:
+# 1. Build: docker build --platform linux/amd64 -t mappertaxregistry.azurecr.io/mapper-tax-app:v10 .
+# 2. Login: az acr login --name mappertaxregistry
+# 3. Push: docker push mappertaxregistry.azurecr.io/mapper-tax-app:v10
+# 4. Update: az containerapp update --name mapper-tax-app --resource-group walter_sandbox --image mappertaxregistry.azurecr.io/mapper-tax-app:v10
+
+# Monitor: az containerapp logs show --name mapper-tax-app --resource-group walter_sandbox --follow
+# Status: az containerapp revision list --name mapper-tax-app --resource-group walter_sandbox -o table
