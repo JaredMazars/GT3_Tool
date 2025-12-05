@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
-import { ProjectType, Project } from '@/types';
+import { ProjectType, Task } from '@/types';
 import { 
   ChevronRightIcon,
   TableCellsIcon,
@@ -36,9 +36,9 @@ import { formatDate } from '@/lib/utils/projectUtils';
 import { getProjectTypeColor, formatProjectType } from '@/lib/utils/serviceLineUtils';
 import { isSharedService, formatServiceLineName } from '@/lib/utils/serviceLineUtils';
 import { ClientSelector } from '@/components/features/clients/ClientSelector';
-import { ProjectTypeSelector } from '@/components/features/tasks/ProjectTypeSelector';
+import { TaskTypeSelector } from '@/components/features/tasks/TaskTypeSelector';
 import { TaxYearInput } from '@/components/shared/TaxYearInput';
-import { ProjectUserList } from '@/components/features/tasks/UserManagement/ProjectUserList';
+import { TaskUserList } from '@/components/features/tasks/UserManagement/TaskUserList';
 import { UserSearchModal } from '@/components/features/tasks/UserManagement/UserSearchModal';
 import { AcceptanceTab } from '@/components/features/tasks/AcceptanceTab';
 import { EngagementLetterTab } from '@/components/features/tasks/EngagementLetterTab';
@@ -90,7 +90,7 @@ function Tab({ selected, children, onClick, icon: Icon, disabled = false, toolti
 }
 
 interface SettingsTabProps {
-  project: Project;
+  project: Task;
   onUpdate: () => void;
 }
 
@@ -200,7 +200,7 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
                 <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
                   Project Type
                 </label>
-                <ProjectTypeSelector
+                <TaskTypeSelector
                   value={editData.projectType}
                   onChange={(projectType) => setEditData({ ...editData, projectType })}
                 />
@@ -551,7 +551,7 @@ export default function ClientProjectPage() {
                   <div className="h-20 bg-forvis-gray-200 rounded-lg"></div>
                 </div>
               ) : (
-                <ProjectUserList
+                <TaskUserList
                   projectId={parseInt(projectId)}
                   users={teamMembers}
                   currentUserId={currentUserId}

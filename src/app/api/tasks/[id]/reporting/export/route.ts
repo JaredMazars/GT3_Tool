@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateReportingPackPDF } from '@/lib/services/export/serverPdfExporter';
-import { getCurrentUser, checkTaskAccess } from "@/lib/services/tasks/taskAuthorization';
+import { getCurrentUser, checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { toTaskId } from '@/types/branded';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { z } from 'zod';

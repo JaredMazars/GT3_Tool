@@ -51,10 +51,21 @@ export function parseNumericId(
 }
 
 /**
+ * Parse and validate task ID from route params
+ * @param id - String ID from route params
+ * @returns Validated numeric task ID
+ * @throws AppError if ID is invalid
+ */
+export function parseTaskId(id: string | undefined): number {
+  return parseNumericId(id, 'Task');
+}
+
+/**
  * Parse and validate project ID from route params
  * @param id - String ID from route params
  * @returns Validated numeric project ID
  * @throws AppError if ID is invalid
+ * @deprecated Use parseTaskId instead
  */
 export function parseProjectId(id: string | undefined): number {
   return parseNumericId(id, 'Project');
@@ -81,31 +92,46 @@ export function parseDocumentId(id: string): number {
 }
 
 /**
+ * Fetch task by ID or throw 404 error
+ * @param taskId - Task ID
+ * @param include - Optional Prisma include object
+ * @returns Task object
+ * @throws AppError if task not found
+ */
+export async function getTaskOrThrow(
+  taskId: number,
+  include?: Prisma.TaskInclude
+) {
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    include,
+  });
+  
+  if (!task) {
+    throw new AppError(
+      404,
+      'Task not found',
+      ErrorCodes.NOT_FOUND,
+      { taskId }
+    );
+  }
+  
+  return task;
+}
+
+/**
  * Fetch project by ID or throw 404 error
  * @param projectId - Project ID
  * @param include - Optional Prisma include object
  * @returns Project object
  * @throws AppError if project not found
+ * @deprecated Use getTaskOrThrow instead
  */
 export async function getProjectOrThrow(
   projectId: number,
-  include?: Prisma.ProjectInclude
+  include?: Prisma.TaskInclude
 ) {
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
-    include,
-  });
-  
-  if (!project) {
-    throw new AppError(
-      404,
-      'Project not found',
-      ErrorCodes.NOT_FOUND,
-      { projectId }
-    );
-  }
-  
-  return project;
+  return getTaskOrThrow(projectId, include);
 }
 
 /**
@@ -193,40 +219,51 @@ export async function getMappedAccountOrThrow(
 }
 
 /**
- * Verify that a project exists and is accessible
+ * Verify that a task exists and is accessible
  * Useful for authorization checks
- * @param projectId - Project ID to verify
- * @throws AppError if project doesn't exist
+ * @param taskId - Task ID to verify
+ * @throws AppError if task doesn't exist
  */
-export async function verifyProjectExists(projectId: number): Promise<void> {
-  const exists = await prisma.project.findUnique({
-    where: { id: projectId },
+export async function verifyTaskExists(taskId: number): Promise<void> {
+  const exists = await prisma.task.findUnique({
+    where: { id: taskId },
     select: { id: true },
   });
   
   if (!exists) {
     throw new AppError(
       404,
-      'Project not found',
+      'Task not found',
       ErrorCodes.NOT_FOUND,
-      { projectId }
+      { taskId }
     );
   }
 }
 
 /**
- * Verify that an adjustment belongs to a specific project
- * @param adjustmentId - Adjustment ID
- * @param projectId - Expected project ID
- * @throws AppError if adjustment doesn't belong to project
+ * Verify that a project exists and is accessible
+ * Useful for authorization checks
+ * @param projectId - Project ID to verify
+ * @throws AppError if project doesn't exist
+ * @deprecated Use verifyTaskExists instead
  */
-export async function verifyAdjustmentBelongsToProject(
+export async function verifyProjectExists(projectId: number): Promise<void> {
+  return verifyTaskExists(projectId);
+}
+
+/**
+ * Verify that an adjustment belongs to a specific task
+ * @param adjustmentId - Adjustment ID
+ * @param taskId - Expected task ID
+ * @throws AppError if adjustment doesn't belong to task
+ */
+export async function verifyAdjustmentBelongsToTask(
   adjustmentId: number,
-  projectId: number
+  taskId: number
 ): Promise<void> {
   const adjustment = await prisma.taxAdjustment.findUnique({
     where: { id: adjustmentId },
-    select: { projectId: true },
+    select: { taskId: true },
   });
   
   if (!adjustment) {
@@ -238,14 +275,28 @@ export async function verifyAdjustmentBelongsToProject(
     );
   }
   
-  if (adjustment.projectId !== projectId) {
+  if (adjustment.taskId !== taskId) {
     throw new AppError(
       403,
-      'Tax adjustment does not belong to this project',
+      'Tax adjustment does not belong to this task',
       ErrorCodes.FORBIDDEN,
-      { adjustmentId, projectId, actualProjectId: adjustment.projectId }
+      { adjustmentId, taskId, actualTaskId: adjustment.taskId }
     );
   }
+}
+
+/**
+ * Verify that an adjustment belongs to a specific project
+ * @param adjustmentId - Adjustment ID
+ * @param projectId - Expected project ID
+ * @throws AppError if adjustment doesn't belong to project
+ * @deprecated Use verifyAdjustmentBelongsToTask instead
+ */
+export async function verifyAdjustmentBelongsToProject(
+  adjustmentId: number,
+  projectId: number
+): Promise<void> {
+  return verifyAdjustmentBelongsToTask(adjustmentId, projectId);
 }
 
 /**

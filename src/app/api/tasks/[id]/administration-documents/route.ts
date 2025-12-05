@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, checkTaskAccess } from "@/lib/services/tasks/taskAuthorization';
+import { getCurrentUser, checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { prisma } from '@/lib/db/prisma';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';

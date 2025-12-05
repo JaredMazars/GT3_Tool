@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
-import { getCurrentUser, checkTaskAccess } from "@/lib/services/tasks/taskAuthorization';
+import { getCurrentUser, checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { enhancedSearchService } from '@/lib/services/search/enhancedSearchService';
 import { logger } from '@/lib/utils/logger';
 import { SearchFilters } from '@/types/search';

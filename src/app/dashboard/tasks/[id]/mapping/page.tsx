@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { formatAmount } from '@/lib/utils/formatters';
 import { MappedData } from '@/types';
 import ExcelJS from 'exceljs';
-import { mappingGuide } from '@/lib/services/tasks/mappingGuide';
+import { mappingGuide } from '@/lib/services/projects/mappingGuide';
 import { ProcessingModal } from '@/components/shared/ProcessingModal';
 import RemappingModal from '@/components/features/tax-adjustments/RemappingModal';
 import { useMappedAccounts, useUpdateMappedAccount, useTask } from '@/hooks/tasks/useTaskData';

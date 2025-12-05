@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { getCurrentUser } from '@/lib/services/auth/auth';
-import { checkTaskAccess } from "@/lib/services/tasks/taskAuthorization';
+import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { toTaskId } from '@/types/branded';
 import { readFile } from 'fs/promises';

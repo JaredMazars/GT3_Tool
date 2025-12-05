@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { mappingGuide } from '@/lib/services/tasks/mappingGuide';
+import { mappingGuide } from '@/lib/services/projects/mappingGuide';
 import { formatAmount } from '@/lib/utils/formatters';
 import { MappedData } from '@/types';
 import { ChevronRightIcon } from '@heroicons/react/24/outline';

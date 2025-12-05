@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { parseTaskId, successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
-import { getCurrentUser, checkTaskAccess } from "@/lib/services/tasks/taskAuthorization';
+import { getCurrentUser } from '@/lib/services/auth/auth';
+import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
+import { toTaskId } from '@/types/branded';
 import { Prisma } from '@prisma/client';
 import { sanitizeText } from '@/lib/utils/sanitization';
 
@@ -24,17 +26,17 @@ export async function GET(
     
     const params = await context.params;
     
-    // Handle "new" route - this is not a valid project ID
+    // Handle "new" route - this is not a valid task ID
     if (params?.id === 'new') {
       return NextResponse.json(
-        { error: 'Invalid route - use POST /api/tasks to create a new project' },
+        { error: 'Invalid route - use POST /api/tasks to create a new task' },
         { status: 404 }
       );
     }
     
-    const taskId = parseTaskId(params?.id);
+    const taskId = toTaskId(parseTaskId(params?.id));
 
-    // Check project access (any role can view)
+    // Check task access (any role can view)
     const hasAccess = await checkTaskAccess(user.id, taskId);
     if (!hasAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -44,20 +46,24 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const includeTeam = searchParams.get('includeTeam') === 'true';
 
-    const project = await prisma.project.findUnique({
+    const task = await prisma.task.findUnique({
       where: { id: taskId },
       select: {
         id: true,
-        name: true,
-        description: true,
-        projectType: true,
-        serviceLine: true,
-        taxYear: true,
-        taxPeriodStart: true,
-        taxPeriodEnd: true,
-        assessmentYear: true,
-        submissionDeadline: true,
-        clientId: true,
+        TaskDesc: true,
+        ClientCode: true,
+        TaskCode: true,
+        ServLineCode: true,
+        ServLineDesc: true,
+        TaskPartner: true,
+        TaskPartnerName: true,
+        TaskManager: true,
+        TaskManagerName: true,
+        OfficeCode: true,
+        SLGroup: true,
+        Active: true,
+        TaskDateOpen: true,
+        TaskDateTerminate: true,
         Client: {
           select: {
             id: true,
@@ -73,21 +79,29 @@ export async function GET(
         },
         createdAt: true,
         updatedAt: true,
-        status: true,
-        archived: true,
-        // Client Acceptance and Engagement Letter Workflow fields
-        acceptanceApproved: true,
-        acceptanceApprovedBy: true,
-        acceptanceApprovedAt: true,
-        engagementLetterGenerated: true,
-        engagementLetterContent: true,
-        engagementLetterTemplateId: true,
-        engagementLetterGeneratedBy: true,
-        engagementLetterGeneratedAt: true,
-        engagementLetterUploaded: true,
-        engagementLetterPath: true,
-        engagementLetterUploadedBy: true,
-        engagementLetterUploadedAt: true,
+        TaskAcceptance: {
+          select: {
+            acceptanceApproved: true,
+            approvedBy: true,
+            approvedAt: true,
+            questionnaireType: true,
+            overallRiskScore: true,
+            riskRating: true,
+          },
+        },
+        TaskEngagementLetter: {
+          select: {
+            generated: true,
+            uploaded: true,
+            filePath: true,
+            content: true,
+            templateId: true,
+            generatedAt: true,
+            generatedBy: true,
+            uploadedAt: true,
+            uploadedBy: true,
+          },
+        },
         _count: {
           select: {
             MappedAccount: true,
@@ -115,27 +129,55 @@ export async function GET(
       },
     });
 
-    if (!project) {
+    if (!task) {
       return NextResponse.json(
-        { error: 'Project not found' },
+        { error: 'Task not found' },
         { status: 404 }
       );
     }
 
     // Transform data to match expected format
-    const transformedProject = {
-      ...project,
-      client: project.Client, // Transform Client → client for consistency
-      Client: undefined, // Remove original Client field
+    const { Client, TaskAcceptance, TaskEngagementLetter, ...taskData } = task;
+    const transformedTask = {
+      ...taskData,
+      name: task.TaskDesc,
+      description: task.TaskDesc,
+      clientId: Client?.id || null,
+      ClientCode: task.ClientCode,
+      client: Client, // Transform Client → client for consistency
+      serviceLine: task.ServLineCode,
+      projectType: 'TAX_CALCULATION', // Default based on service line
+      taxYear: null,
+      taxPeriodStart: null,
+      taxPeriodEnd: null,
+      assessmentYear: null,
+      submissionDeadline: null,
+      status: task.Active === 'Yes' ? 'ACTIVE' : 'INACTIVE',
+      archived: task.Active !== 'Yes',
+      // Flatten acceptance data
+      acceptanceApproved: TaskAcceptance?.acceptanceApproved || false,
+      acceptanceApprovedBy: TaskAcceptance?.approvedBy || null,
+      acceptanceApprovedAt: TaskAcceptance?.approvedAt || null,
+      // Flatten engagement letter data
+      engagementLetterGenerated: TaskEngagementLetter?.generated || false,
+      engagementLetterContent: TaskEngagementLetter?.content || null,
+      engagementLetterTemplateId: TaskEngagementLetter?.templateId || null,
+      engagementLetterGeneratedBy: TaskEngagementLetter?.generatedBy || null,
+      engagementLetterGeneratedAt: TaskEngagementLetter?.generatedAt || null,
+      engagementLetterUploaded: TaskEngagementLetter?.uploaded || false,
+      engagementLetterPath: TaskEngagementLetter?.filePath || null,
+      engagementLetterUploadedBy: TaskEngagementLetter?.uploadedBy || null,
+      engagementLetterUploadedAt: TaskEngagementLetter?.uploadedAt || null,
       _count: {
-        mappings: project._count.MappedAccount,
-        taxAdjustments: project._count.TaxAdjustment,
+        mappings: task._count.MappedAccount,
+        taxAdjustments: task._count.TaxAdjustment,
       },
+      ...(includeTeam && { users: task.TaskTeam }),
     };
 
-    return NextResponse.json(successResponse(transformedProject));
+    return NextResponse.json(successResponse(transformedTask));
   } catch (error) {
-    return handleApiError(error, 'Get Project');
+    return handleApiError(error, 'Get Task');
   }
 }
 
@@ -160,14 +202,14 @@ export async function PUT(
     // Handle "new" route
     if (params?.id === 'new') {
       return NextResponse.json(
-        { error: 'Invalid route - use POST /api/tasks to create a new project' },
+        { error: 'Invalid route - use POST /api/tasks to create a new task' },
         { status: 404 }
       );
     }
     
-    const taskId = parseTaskId(params?.id);
+    const taskId = toTaskId(parseTaskId(params?.id));
 
-    // Check project access (requires EDITOR role or higher)
+    // Check task access (requires EDITOR role or higher)
     const hasAccess = await checkTaskAccess(user.id, taskId, 'EDITOR');
     if (!hasAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -176,64 +218,50 @@ export async function PUT(
     const body = await request.json();
 
     // Build update data object
-    const updateData: Prisma.ProjectUpdateInput = {};
+    const updateData: Prisma.TaskUpdateInput = {};
     
     if (body.name !== undefined) {
       const sanitizedName = sanitizeText(body.name, { maxLength: 200 });
       if (!sanitizedName) {
         return NextResponse.json(
-          { error: 'Project name is required' },
+          { error: 'Task name is required' },
           { status: 400 }
         );
       }
-      updateData.name = sanitizedName;
+      updateData.TaskDesc = sanitizedName;
     }
     
     if (body.description !== undefined) {
-      updateData.description = sanitizeText(body.description, { 
+      updateData.TaskDesc = sanitizeText(body.description, { 
         maxLength: 1000,
         allowHTML: false,
         allowNewlines: true 
       });
     }
     
-    if (body.projectType !== undefined) {
-      updateData.projectType = body.projectType;
-    }
-    
-    if (body.taxYear !== undefined) {
-      updateData.taxYear = body.taxYear;
-    }
-    
-    if (body.taxPeriodStart !== undefined) {
-      updateData.taxPeriodStart = body.taxPeriodStart ? new Date(body.taxPeriodStart) : null;
-    }
-    
-    if (body.taxPeriodEnd !== undefined) {
-      updateData.taxPeriodEnd = body.taxPeriodEnd ? new Date(body.taxPeriodEnd) : null;
-    }
-    
-    if (body.assessmentYear !== undefined) {
-      updateData.assessmentYear = body.assessmentYear;
-    }
-    
-    if (body.submissionDeadline !== undefined) {
-      updateData.submissionDeadline = body.submissionDeadline ? new Date(body.submissionDeadline) : null;
-    }
+    // Note: Task model doesn't have these fields, they should be in TaskAcceptance or TaskEngagementLetter
+    // For now, we'll just acknowledge them but not update
     
     if (body.clientId !== undefined) {
-      if (body.clientId === null) {
-        updateData.Client = { disconnect: true };
-      } else {
-        updateData.Client = { connect: { id: body.clientId } };
+      // Need to get clientCode from the client ID
+      if (body.clientId !== null) {
+        const client = await prisma.client.findUnique({
+          where: { id: body.clientId },
+          select: { clientCode: true },
+        });
+        if (client) {
+          updateData.ClientCode = client.clientCode;
+        }
       }
     }
 
-    const project = await prisma.project.update({
+    const task = await prisma.task.update({
       where: { id: taskId },
       data: updateData,
       include: {
         Client: true,
+        TaskAcceptance: true,
+        TaskEngagementLetter: true,
         _count: {
           select: {
             MappedAccount: true,
@@ -244,19 +272,44 @@ export async function PUT(
     });
 
     // Transform data to match expected format
-    const transformedProject = {
-      ...project,
-      client: project.Client, // Transform Client → client for consistency
-      Client: undefined, // Remove original Client field
-      _count: project._count ? {
-        mappings: project._count.MappedAccount,
-        taxAdjustments: project._count.TaxAdjustment,
+    const { Client, TaskAcceptance, TaskEngagementLetter, ...taskData } = task;
+    const transformedTask = {
+      ...taskData,
+      name: task.TaskDesc,
+      description: task.TaskDesc,
+      clientId: Client?.id || null,
+      ClientCode: task.ClientCode,
+      client: Client,
+      serviceLine: task.ServLineCode,
+      projectType: 'TAX_CALCULATION',
+      taxYear: null,
+      taxPeriodStart: null,
+      taxPeriodEnd: null,
+      assessmentYear: null,
+      submissionDeadline: null,
+      status: task.Active === 'Yes' ? 'ACTIVE' : 'INACTIVE',
+      archived: task.Active !== 'Yes',
+      acceptanceApproved: TaskAcceptance?.acceptanceApproved || false,
+      acceptanceApprovedBy: TaskAcceptance?.approvedBy || null,
+      acceptanceApprovedAt: TaskAcceptance?.approvedAt || null,
+      engagementLetterGenerated: TaskEngagementLetter?.generated || false,
+      engagementLetterContent: TaskEngagementLetter?.content || null,
+      engagementLetterTemplateId: TaskEngagementLetter?.templateId || null,
+      engagementLetterGeneratedBy: TaskEngagementLetter?.generatedBy || null,
+      engagementLetterGeneratedAt: TaskEngagementLetter?.generatedAt || null,
+      engagementLetterUploaded: TaskEngagementLetter?.uploaded || false,
+      engagementLetterPath: TaskEngagementLetter?.filePath || null,
+      engagementLetterUploadedBy: TaskEngagementLetter?.uploadedBy || null,
+      engagementLetterUploadedAt: TaskEngagementLetter?.uploadedAt || null,
+      _count: task._count ? {
+        mappings: task._count.MappedAccount,
+        taxAdjustments: task._count.TaxAdjustment,
       } : undefined,
     };
 
-    return NextResponse.json(successResponse(transformedProject));
+    return NextResponse.json(successResponse(transformedTask));
   } catch (error) {
-    return handleApiError(error, 'Update Project');
+    return handleApiError(error, 'Update Task');
   }
 }
 
@@ -281,14 +334,14 @@ export async function PATCH(
     // Handle "new" route
     if (params?.id === 'new') {
       return NextResponse.json(
-        { error: 'Invalid route - use POST /api/tasks to create a new project' },
+        { error: 'Invalid route - use POST /api/tasks to create a new task' },
         { status: 404 }
       );
     }
     
-    const taskId = parseTaskId(params?.id);
+    const taskId = parseProjectId(params?.id);
 
-    // Check project access (requires ADMIN role)
+    // Check task access (requires ADMIN role)
     const hasAccess = await checkTaskAccess(user.id, taskId, 'ADMIN');
     if (!hasAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -298,15 +351,15 @@ export async function PATCH(
     const { action } = body;
 
     if (action === 'restore') {
-      // Restore archived project to active status
-      const project = await prisma.project.update({
+      // Restore archived task to active status
+      const task = await prisma.task.update({
         where: { id: taskId },
-        data: { archived: false },
+        data: { Active: 'Yes' },
       });
 
       return NextResponse.json(successResponse({ 
-        message: 'Project restored successfully',
-        project 
+        message: 'Task restored successfully',
+        task 
       }));
     }
 
@@ -315,7 +368,7 @@ export async function PATCH(
       { status: 400 }
     );
   } catch (error) {
-    return handleApiError(error, 'Process Project Action');
+    return handleApiError(error, 'Process Task Action');
   }
 }
 
@@ -340,30 +393,30 @@ export async function DELETE(
     // Handle "new" route
     if (params?.id === 'new') {
       return NextResponse.json(
-        { error: 'Invalid route - use POST /api/tasks to create a new project' },
+        { error: 'Invalid route - use POST /api/tasks to create a new task' },
         { status: 404 }
       );
     }
     
-    const taskId = parseTaskId(params?.id);
+    const taskId = parseProjectId(params?.id);
 
-    // Check project access (requires ADMIN role)
+    // Check task access (requires ADMIN role)
     const hasAccess = await checkTaskAccess(user.id, taskId, 'ADMIN');
     if (!hasAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Archive the project instead of deleting
-    const project = await prisma.project.update({
+    // Archive the task instead of deleting
+    const task = await prisma.task.update({
       where: { id: taskId },
-      data: { archived: true },
+      data: { Active: 'No' },
     });
 
     return NextResponse.json(successResponse({ 
-      message: 'Project archived successfully',
-      project 
+      message: 'Task archived successfully',
+      task 
     }));
   } catch (error) {
-    return handleApiError(error, 'Archive Project');
+    return handleApiError(error, 'Archive Task');
   }
 } 

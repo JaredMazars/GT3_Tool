@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { DocumentExtractor } from '@/lib/services/documents/documentExtractor';
 import { handleApiError } from '@/lib/utils/errorHandler';
-import { getCurrentUser, checkTaskAccess } from "@/lib/services/tasks/taskAuthorization';
+import { getCurrentUser, checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { toTaskId } from '@/types/branded';
 import { z } from 'zod';
 

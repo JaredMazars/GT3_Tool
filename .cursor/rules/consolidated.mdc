@@ -10,7 +10,7 @@ Next.js 14 (App Router) | TypeScript (strict) | Prisma | React Query | Azure Ope
 
 - **Strict mode**: No implicit any, check nulls/undefined, handle array access, return from all paths
 - **Path aliases**: Always use `@/*` imports
-- **Branded types** (`@/types/branded.ts`): Prevent ID type mixing with `toProjectId()`, `toClientId()`, etc.
+- **Branded types** (`@/types/branded.ts`): Prevent ID type mixing with `toTaskId()`, `toClientId()`, etc.
 
 ### Branded Types (REQUIRED)
 
@@ -18,19 +18,23 @@ Use branded types for all entity IDs throughout the codebase.
 
 ```typescript
 // Import and convert
-import { toProjectId, ProjectId } from '@/types/branded';
+import { toTaskId, TaskId } from '@/types/branded';
 const { id } = await context.params;
-const projectId = toProjectId(id);
+const taskId = toTaskId(id);
+
+// Alternative: Use parseTaskId() from apiUtils for API routes
+import { parseTaskId } from '@/lib/utils/apiUtils';
+const taskId = parseTaskId(id);
 
 // Service layer
-async function getProject(id: ProjectId): Promise<Project> {
+async function getTask(id: TaskId): Promise<Project> {
   return prisma.project.findUnique({ where: { id } });
 }
 ```
 
 **Requirements:**
 - All ID parameters use branded types
-- Route params converted using `toXxxId()` converters
+- Route params converted using `toXxxId()` converters or `parseXxxId()` utilities
 - Service functions accept branded types, not raw numbers
 
 ### Type Organization
@@ -57,6 +61,31 @@ async function getProject(id: ProjectId): Promise<Project> {
 
 All input validated with Zod schemas in `/src/lib/validation/schemas.ts`
 
+## URL Structure & Routing
+
+The application uses a hierarchical URL structure with dynamic routing segments:
+
+**Pattern:**
+```
+/dashboard/[serviceLine]/[subServiceLineGroup]/clients/[id]/tasks/[taskId]
+```
+
+**Segments:**
+- `[serviceLine]` - Master service line (TAX, AUDIT, ACCOUNTING, ADVISORY, or shared services)
+- `[subServiceLineGroup]` - Dynamic grouping from database (varies by service line)
+- `[id]` - Client ID
+- `[taskId]` - Task ID (also referred to as `projectId` in some route params for backward compatibility)
+
+**Examples:**
+- `/dashboard/tax/corporate-tax/clients/123/tasks/456`
+- `/dashboard/audit/financial-audit/clients/789/tasks/101`
+- `/dashboard/tax/internal/tasks/202` - Internal tasks without client context
+
+**API Routes:**
+- `/api/tasks/[id]` - Task operations
+- `/api/tasks/[id]/mapped-accounts` - Task-specific resources
+- `/api/clients/[id]` - Client operations
+
 ## API Routes
 
 ### Standard Pattern (REQUIRED)
@@ -68,10 +97,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { checkUserPermission } from '@/lib/services/permissions/permissionService';
 import { getUserServiceLines } from '@/lib/services/service-lines/serviceLineService';
-import { successResponse } from '@/lib/utils/apiUtils';
+import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { sanitizeObject } from '@/lib/utils/sanitization';
-import { toProjectId } from '@/types/branded';
 
 export async function GET(
   request: NextRequest,
@@ -84,10 +112,10 @@ export async function GET(
 
     // 2. Parse and validate IDs using branded types
     const { id } = await context.params;
-    const projectId = toProjectId(id);
+    const taskId = parseTaskId(id);
 
     // 3. Check permission (REQUIRED)
-    const hasPermission = await checkUserPermission(user.id, 'projects', 'READ');
+    const hasPermission = await checkUserPermission(user.id, 'tasks', 'READ');
     if (!hasPermission) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -197,7 +225,7 @@ await cache.invalidate(`${CACHE_PREFIXES.USER}${userId}:`);
 - `PERMISSION` - User permissions (300s)
 - `RATE_LIMIT` - Rate limit counters
 - `USER` - User data (600s)
-- `PROJECT` - Project data (600s)
+- `TASK` - Task data (600s)
 - `SERVICE_LINE` - Service line data (600s)
 - `NOTIFICATION` - Notifications
 - `ANALYTICS` - Analytics data (1800s)
@@ -241,7 +269,7 @@ import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 
 // Throw specific errors
 throw new AppError(400, 'Invalid input', ErrorCodes.VALIDATION_ERROR, { field: 'name' });
-throw new AppError(404, 'Project not found', ErrorCodes.NOT_FOUND, { projectId });
+throw new AppError(404, 'Task not found', ErrorCodes.NOT_FOUND, { taskId });
 throw new AppError(403, 'Insufficient permissions', ErrorCodes.FORBIDDEN);
 
 // In catch blocks
@@ -258,9 +286,9 @@ catch (error) {
 
 1. **System Level** - User.role: `SYSTEM_ADMIN` (full access), `USER` (requires service line + permissions)
 2. **Service Line Level** - ServiceLineUser.role: `ADMINISTRATOR/PARTNER` > `MANAGER` > `SUPERVISOR` > `USER` > `VIEWER`
-3. **Project Level** - ProjectUser.role: `ADMIN` > `REVIEWER` > `EDITOR` > `VIEWER`
+3. **Task Level** - TaskTeam.role: `ADMIN` > `REVIEWER` > `EDITOR` > `VIEWER`
 
-Plus **granular permission system**: `PAGE` (dashboard, clients, projects, admin) and `FEATURE` (clients.create, projects.edit, etc.)
+Plus **granular permission system**: `PAGE` (dashboard, clients, tasks, admin) and `FEATURE` (clients.create, tasks.edit, etc.)
 
 ### Backend Security Pattern
 
@@ -312,7 +340,7 @@ return hasPermission ? <EditButton /> : null;
 - [ ] `getCurrentUser()` at start
 - [ ] `checkUserPermission()` before business logic
 - [ ] Filter by service line access (`getUserServiceLines()`)
-- [ ] For projects: `checkProjectAccess()`
+- [ ] For tasks: `checkTaskAccess(userId, taskId, role?)`
 - [ ] For approvals: `canApproveAcceptance()` or `canApproveEngagementLetter()`
 - [ ] Return 401/403/404 appropriately
 - [ ] Use `handleApiError()` in catch blocks
@@ -325,26 +353,31 @@ return hasPermission ? <EditButton /> : null;
 
 **Database:**
 - [ ] Filter by accessible service lines
-- [ ] Verify project membership
+- [ ] Verify task team membership (TaskTeam table)
 - [ ] Select only needed fields
 - [ ] Use transactions for multi-step operations
 
 ### Common Permission Resources
 
-**Pages**: `dashboard`, `clients`, `projects`, `analytics`, `bd`, `admin`, `admin.users`, `admin.templates`, `admin.service-lines`, `admin.permissions`
+**Pages**: `dashboard`, `clients`, `tasks`, `analytics`, `bd`, `admin`, `admin.users`, `admin.templates`, `admin.service-lines`, `admin.permissions`
 
-**Features**: `clients.create/edit/delete/view`, `projects.create/edit/delete/archive/assign-users`, `documents.upload/download/delete`, `acceptance.create/approve/view`, `mapping.create/edit/delete`, `adjustments.create/approve/delete`, `opinions.create/edit/generate/publish`, `reports.generate/export`, `bd.opportunities.create/edit/delete`
+**Features**: `clients.create/edit/delete/view`, `tasks.create/edit/delete/archive/assign-users`, `documents.upload/download/delete`, `acceptance.create/approve/view`, `mapping.create/edit/delete`, `adjustments.create/approve/delete`, `opinions.create/edit/generate/publish`, `reports.generate/export`, `bd.opportunities.create/edit/delete`
 
 ### Authorization Utilities
 
 | Utility | Purpose |
 |---------|---------|
 | `getCurrentUser()` | Get current session user |
-| `checkProjectAccess(userId, projectId, role?)` | Check project access |
+| `checkTaskAccess(userId, taskId, role?)` | Check task team membership and role |
+| `getTaskRole(userId, taskId)` | Get user's role on task |
+| `canModifyTask(userId, taskId)` | Check if user can edit task (ADMIN/EDITOR) |
+| `canApproveTask(userId, taskId)` | Check if user can approve task actions |
 | `checkUserPermission(userId, resource, action)` | Check granular permission |
 | `getUserServiceLines(userId)` | Get accessible service lines |
-| `canApproveAcceptance(userId, projectId)` | Check approval permission |
+| `canApproveAcceptance(userId, taskId)` | Check acceptance approval permission |
 | `isSystemAdmin(userId)` | Check if SYSTEM_ADMIN |
+
+**From `@/lib/services/tasks/taskAuthorization`**: `checkTaskAccess()`, `getTaskRole()`, `canModifyTask()`, `canApproveTask()`
 
 **From `@/lib/services/auth/authorization`**: `isSystemAdmin()`, `getUserSystemRole()`, `getServiceLineRole()`, `isPartner()`, `isManager()`, `hasServiceLineAccess()`, `canApproveEngagementLetter()`, `checkFeaturePermission()`
 
@@ -352,12 +385,12 @@ return hasPermission ? <EditButton /> : null;
 
 ### Security Best Practices
 
-1. **Defense in Depth**: Check permissions at multiple levels (system, service line, project)
+1. **Defense in Depth**: Check permissions at multiple levels (system, service line, task)
 2. **Fail Secure**: Default to deny access
 3. **Explicit Checks**: Never assume permission
-4. **Granular Permissions**: Use specific resource keys (e.g., `clients.edit` not `clients`)
+4. **Granular Permissions**: Use specific resource keys (e.g., `tasks.edit` not `tasks`)
 5. **Service Line Isolation**: Users only see data from their service lines (unless SYSTEM_ADMIN)
-6. **Project Membership**: Users must be assigned to projects (unless Partner/Admin)
+6. **Task Team Membership**: Users must be on task team (TaskTeam table) unless Partner/Admin
 7. **Input Validation**: Always validate/sanitize with Zod schemas
 8. **Error Messages**: Don't leak information (generic "Forbidden")
 
@@ -400,7 +433,7 @@ return hasPermission ? <EditButton /> : null;
 - Never expose secrets in client code
 - Use Prisma (parameterized queries)
 - Filter by service line access
-- Verify project membership
+- Verify task team membership (TaskTeam table)
 - Use granular permission checks
 - Don't leak implementation details in error messages
 - Session fingerprinting prevents hijacking

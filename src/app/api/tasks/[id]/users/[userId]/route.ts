@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db/prisma';
 import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { UpdateTaskTeamSchema } from '@/lib/validation/schemas';
 import { parseTaskId, successResponse } from '@/lib/utils/apiUtils';
-import { getCurrentUser, checkTaskAccess } from "@/lib/services/tasks/taskAuthorization';
+import { getCurrentUser, checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { emailService } from '@/lib/services/email/emailService';
 import { notificationService } from '@/lib/services/notifications/notificationService';
 import { createUserRemovedNotification, createUserRoleChangedNotification } from '@/lib/services/notifications/templates';

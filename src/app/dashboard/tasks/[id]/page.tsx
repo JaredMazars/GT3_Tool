@@ -22,11 +22,11 @@ export default function ProjectRedirect() {
 
   useEffect(() => {
     if (project && !isLoading) {
-      const serviceLine = project.serviceLine?.toLowerCase() || 'tax';
+      const serviceLine = project.ServLineCode?.toLowerCase() || 'tax';
       
-      if (project.clientId && project.client) {
+      if (project.ClientCode && project.client) {
         // Redirect to client project URL
-        router.replace(`/dashboard/${serviceLine}/clients/${project.clientId}/tasks/${taskId}`);
+        router.replace(`/dashboard/${serviceLine}/clients/${project.ClientCode}/tasks/${taskId}`);
       } else {
         // Redirect to internal project URL
         router.replace(`/dashboard/${serviceLine}/internal/tasks/${taskId}`);
