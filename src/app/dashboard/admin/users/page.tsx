@@ -949,7 +949,8 @@ export default function UserManagementPage() {
                                     e.target.value as ServiceLineRole
                                   )
                                 }
-                                className="px-3 py-2 border-2 border-forvis-gray-300 rounded-lg text-sm font-medium focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500 transition-colors"
+                                disabled={slUser.id < 0}
+                                className="px-3 py-2 border-2 border-forvis-gray-300 rounded-lg text-sm font-medium focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 style={{ minWidth: '140px' }}
                               >
                                 <option value="VIEWER">Viewer</option>
@@ -959,13 +960,22 @@ export default function UserManagementPage() {
                                 <option value="PARTNER">Partner</option>
                                 <option value="ADMIN">Admin</option>
                               </select>
-                              <button
-                                onClick={() => handleRemoveServiceLine(slUser.id)}
-                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                title="Remove access"
-                              >
-                                <TrashIcon className="h-5 w-5" />
-                              </button>
+                              {/* Only show delete button for real database records (positive IDs) */}
+                              {/* Virtual service lines for SYSTEM_ADMIN have negative IDs and cannot be deleted */}
+                              {slUser.id > 0 && (
+                                <button
+                                  onClick={() => handleRemoveServiceLine(slUser.id)}
+                                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                  title="Remove access"
+                                >
+                                  <TrashIcon className="h-5 w-5" />
+                                </button>
+                              )}
+                              {slUser.id < 0 && (
+                                <div className="px-2 py-1 text-xs text-gray-500 italic" title="System-granted access cannot be removed">
+                                  Auto-granted
+                                </div>
+                              )}
                             </div>
                           </div>
                         );
