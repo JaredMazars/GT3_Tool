@@ -8,6 +8,7 @@ import {
   MagnifyingGlassIcon,
   PencilIcon,
   TrashIcon,
+  DocumentDuplicateIcon,
 } from '@heroicons/react/24/outline';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 
@@ -33,14 +34,16 @@ interface TemplateListProps {
   templates: Template[];
   onDelete: (id: number) => void;
   onToggleActive: (id: number, active: boolean) => void;
+  onCopy: (id: number) => void;
 }
 
-export function TemplateList({ templates, onDelete, onToggleActive }: TemplateListProps) {
+export function TemplateList({ templates, onDelete, onToggleActive, onCopy }: TemplateListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('');
   const [filterServiceLine, setFilterServiceLine] = useState<string>('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [templateToDelete, setTemplateToDelete] = useState<number | null>(null);
+  const [copyingId, setCopyingId] = useState<number | null>(null);
 
   const filteredTemplates = templates.filter((template) => {
     const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -171,6 +174,19 @@ export function TemplateList({ templates, onDelete, onToggleActive }: TemplateLi
                 Edit
               </Link>
               
+              <button
+                onClick={async () => {
+                  setCopyingId(template.id);
+                  await onCopy(template.id);
+                  setCopyingId(null);
+                }}
+                disabled={copyingId === template.id}
+                className="p-2 text-forvis-blue-600 hover:bg-forvis-blue-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Copy template"
+              >
+                <DocumentDuplicateIcon className="h-5 w-5" />
+              </button>
+
               <button
                 onClick={() => onToggleActive(template.id, !template.active)}
                 className="px-3 py-2 text-sm font-medium border border-forvis-gray-300 rounded-lg hover:bg-forvis-gray-50"

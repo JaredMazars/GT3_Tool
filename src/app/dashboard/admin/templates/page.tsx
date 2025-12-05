@@ -127,6 +127,28 @@ export default function TemplatesPage() {
     router.push('/dashboard/admin/templates/new');
   };
 
+  const handleCopy = async (id: number) => {
+    try {
+      const response = await fetch(`/api/admin/templates/${id}/copy`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          // Add the new template to the list
+          const normalizedTemplate = {
+            ...data.data,
+            sections: data.data.TemplateSection || [],
+          };
+          setTemplates([normalizedTemplate, ...templates]);
+        }
+      }
+    } catch (error) {
+      console.error('Error copying template:', error);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-forvis-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -167,6 +189,7 @@ export default function TemplatesPage() {
             templates={templates}
             onDelete={handleDelete}
             onToggleActive={handleToggleActive}
+            onCopy={handleCopy}
           />
         )}
       </div>

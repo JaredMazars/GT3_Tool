@@ -407,4 +407,62 @@ export async function getApplicableTemplates(
   }
 }
 
+/**
+ * Copy an existing template with all its sections
+ */
+export async function copyTemplate(id: number, createdBy: string) {
+  try {
+    // Get the original template with all sections
+    const originalTemplate = await prisma.template.findUnique({
+      where: { id },
+      include: {
+        TemplateSection: {
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+
+    if (!originalTemplate) {
+      throw new Error('Template not found');
+    }
+
+    // Create the new template with copied data
+    const copiedTemplate = await prisma.template.create({
+      data: {
+        name: `${originalTemplate.name} (Copy)`,
+        description: originalTemplate.description,
+        type: originalTemplate.type,
+        serviceLine: originalTemplate.serviceLine,
+        projectType: originalTemplate.projectType,
+        content: originalTemplate.content,
+        active: false, // Set to inactive by default
+        createdBy,
+        TemplateSection: {
+          create: originalTemplate.TemplateSection.map((section) => ({
+            sectionKey: section.sectionKey,
+            title: section.title,
+            content: section.content,
+            isRequired: section.isRequired,
+            isAiAdaptable: section.isAiAdaptable,
+            order: section.order,
+            applicableServiceLines: section.applicableServiceLines,
+            applicableProjectTypes: section.applicableProjectTypes,
+          })),
+        },
+      },
+      include: {
+        TemplateSection: {
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+
+    logger.info(`Copied template: ${originalTemplate.name} -> ${copiedTemplate.name} (ID: ${copiedTemplate.id})`);
+    return copiedTemplate;
+  } catch (error) {
+    logger.error('Error copying template:', error);
+    throw new Error('Failed to copy template');
+  }
+}
+
 
