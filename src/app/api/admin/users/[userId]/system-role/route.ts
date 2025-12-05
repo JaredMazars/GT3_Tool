@@ -5,6 +5,10 @@ import { isSystemAdmin } from '@/lib/services/auth/authorization';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { z } from 'zod';
+import { notificationService } from '@/lib/services/notifications/notificationService';
+import { createSystemRoleChangedNotification } from '@/lib/services/notifications/templates';
+import { NotificationType } from '@/types/notification';
+import { logger } from '@/lib/utils/logger';
 
 const UpdateSystemRoleSchema = z.object({
   systemRole: z.enum(['USER', 'SYSTEM_ADMIN']),
@@ -64,6 +68,9 @@ export async function PUT(
       );
     }
 
+    // Capture old role for notification
+    const oldRole = targetUser.role;
+
     // Update the user's system role
     const updatedUser = await prisma.user.update({
       where: { id: userId },
@@ -77,6 +84,27 @@ export async function PUT(
         role: true,
       },
     });
+
+    // Create in-app notification (non-blocking)
+    try {
+      const notification = createSystemRoleChangedNotification(
+        currentUser.name || currentUser.email,
+        oldRole,
+        validatedData.systemRole
+      );
+
+      await notificationService.createNotification(
+        userId,
+        NotificationType.SYSTEM_ROLE_CHANGED,
+        notification.title,
+        notification.message,
+        undefined,
+        notification.actionUrl,
+        currentUser.id
+      );
+    } catch (notificationError) {
+      logger.error('Failed to create system role changed notification:', notificationError);
+    }
 
     return NextResponse.json(
       successResponse({

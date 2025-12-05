@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/db/prisma';
 import { getCurrentUser, isSystemAdmin } from '@/lib/services/auth/auth';
 import { 
   getUserServiceLines,
@@ -10,6 +11,14 @@ import {
 import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { ServiceLine, ServiceLineRole } from '@/types';
+import { notificationService } from '@/lib/services/notifications/notificationService';
+import { 
+  createServiceLineAddedNotification, 
+  createServiceLineRemovedNotification,
+  createServiceLineRoleChangedNotification 
+} from '@/lib/services/notifications/templates';
+import { NotificationType } from '@/types/notification';
+import { logger } from '@/lib/utils/logger';
 
 // Force dynamic rendering (uses cookies)
 export const dynamic = 'force-dynamic';
@@ -88,6 +97,34 @@ export async function POST(request: NextRequest) {
 
     await grantServiceLineAccess(userId, serviceLine, role || 'USER');
 
+    // Create in-app notification (non-blocking)
+    try {
+      const targetUser = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, name: true, email: true },
+      });
+
+      if (targetUser) {
+        const notification = createServiceLineAddedNotification(
+          serviceLine,
+          user.name || user.email,
+          role || 'USER'
+        );
+
+        await notificationService.createNotification(
+          userId,
+          NotificationType.SERVICE_LINE_ADDED,
+          notification.title,
+          notification.message,
+          undefined,
+          notification.actionUrl,
+          user.id
+        );
+      }
+    } catch (notificationError) {
+      logger.error('Failed to create service line added notification:', notificationError);
+    }
+
     return NextResponse.json(
       successResponse({ message: 'Access granted successfully' }),
       { status: 201 }
@@ -125,11 +162,53 @@ export async function PUT(request: NextRequest) {
     }
 
     // Update by ServiceLineUser id
-    const { prisma } = await import('@/lib/db/prisma');
+    // Get existing record to capture old role and user details
+    const existingRecord = await prisma.serviceLineUser.findUnique({
+      where: { id },
+      include: {
+        User: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    });
+
+    if (!existingRecord) {
+      return NextResponse.json(
+        { error: 'Service line access record not found' },
+        { status: 404 }
+      );
+    }
+
+    const oldRole = existingRecord.role;
+
     await prisma.serviceLineUser.update({
       where: { id },
       data: { role },
     });
+
+    // Create in-app notification (non-blocking)
+    try {
+      if (existingRecord.User) {
+        const notification = createServiceLineRoleChangedNotification(
+          existingRecord.serviceLine,
+          user.name || user.email,
+          oldRole,
+          role
+        );
+
+        await notificationService.createNotification(
+          existingRecord.userId,
+          NotificationType.SERVICE_LINE_ROLE_CHANGED,
+          notification.title,
+          notification.message,
+          undefined,
+          notification.actionUrl,
+          user.id
+        );
+      }
+    } catch (notificationError) {
+      logger.error('Failed to create service line role changed notification:', notificationError);
+    }
 
     return NextResponse.json(
       successResponse({ message: 'Role updated successfully' })
@@ -176,11 +255,14 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete by ServiceLineUser id
-    const { prisma } = await import('@/lib/db/prisma');
-    
     // Check if the record exists before attempting deletion
     const existingRecord = await prisma.serviceLineUser.findUnique({
       where: { id },
+      include: {
+        User: {
+          select: { id: true, name: true, email: true },
+        },
+      },
     });
 
     if (!existingRecord) {
@@ -193,6 +275,28 @@ export async function DELETE(request: NextRequest) {
     await prisma.serviceLineUser.delete({
       where: { id },
     });
+
+    // Create in-app notification (non-blocking)
+    try {
+      if (existingRecord.User) {
+        const notification = createServiceLineRemovedNotification(
+          existingRecord.serviceLine,
+          user.name || user.email
+        );
+
+        await notificationService.createNotification(
+          existingRecord.userId,
+          NotificationType.SERVICE_LINE_REMOVED,
+          notification.title,
+          notification.message,
+          undefined,
+          notification.actionUrl,
+          user.id
+        );
+      }
+    } catch (notificationError) {
+      logger.error('Failed to create service line removed notification:', notificationError);
+    }
 
     return NextResponse.json(
       successResponse({ message: 'Access revoked successfully' })

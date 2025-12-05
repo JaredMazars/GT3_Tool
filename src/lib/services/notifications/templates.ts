@@ -48,11 +48,12 @@ export function createUserRoleChangedNotification(
   projectName: string,
   projectId: number,
   changedByName: string,
+  oldRole: string,
   newRole: string
 ): NotificationTemplate {
   return {
     title: `Role Changed in ${projectName}`,
-    message: `${changedByName} changed your role to ${formatRole(newRole)}.`,
+    message: `${changedByName} changed your role from ${formatRole(oldRole)} to ${formatRole(newRole)}.`,
     actionUrl: `${ROUTES.DASHBOARD.PROJECTS}/${projectId}`,
   };
 }
@@ -129,6 +130,66 @@ export function createUserMessageNotification(
     title: `${senderName}: ${title}`,
     message,
     actionUrl,
+  };
+}
+
+/**
+ * Create service line added notification
+ */
+export function createServiceLineAddedNotification(
+  serviceLine: string,
+  addedByName: string,
+  role: string
+): NotificationTemplate {
+  return {
+    title: `Added to ${serviceLine} Service Line`,
+    message: `${addedByName} granted you access to the ${serviceLine} service line as ${formatRole(role)}.`,
+    actionUrl: ROUTES.DASHBOARD.ROOT,
+  };
+}
+
+/**
+ * Create service line removed notification
+ */
+export function createServiceLineRemovedNotification(
+  serviceLine: string,
+  removedByName: string
+): NotificationTemplate {
+  return {
+    title: `Removed from ${serviceLine} Service Line`,
+    message: `${removedByName} revoked your access to the ${serviceLine} service line.`,
+    actionUrl: ROUTES.DASHBOARD.ROOT,
+  };
+}
+
+/**
+ * Create service line role changed notification
+ */
+export function createServiceLineRoleChangedNotification(
+  serviceLine: string,
+  changedByName: string,
+  oldRole: string,
+  newRole: string
+): NotificationTemplate {
+  return {
+    title: `Role Changed in ${serviceLine} Service Line`,
+    message: `${changedByName} changed your role from ${formatRole(oldRole)} to ${formatRole(newRole)}.`,
+    actionUrl: ROUTES.DASHBOARD.ROOT,
+  };
+}
+
+/**
+ * Create system role changed notification
+ */
+export function createSystemRoleChangedNotification(
+  changedByName: string,
+  oldRole: string,
+  newRole: string
+): NotificationTemplate {
+  return {
+    title: 'System Role Changed',
+    message: `${changedByName} changed your system role from ${formatRole(oldRole)} to ${formatRole(newRole)}.`,
+    actionUrl: ROUTES.DASHBOARD.ROOT,
   };
 }
 

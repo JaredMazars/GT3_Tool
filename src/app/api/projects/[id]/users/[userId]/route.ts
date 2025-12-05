@@ -6,7 +6,7 @@ import { parseProjectId, successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser, checkProjectAccess } from '@/lib/services/auth/auth';
 import { emailService } from '@/lib/services/email/emailService';
 import { notificationService } from '@/lib/services/notifications/notificationService';
-import { createUserRemovedNotification } from '@/lib/services/notifications/templates';
+import { createUserRemovedNotification, createUserRoleChangedNotification } from '@/lib/services/notifications/templates';
 import { NotificationType } from '@/types/notification';
 import { logger } from '@/lib/utils/logger';
 import { z } from 'zod';
@@ -147,6 +147,9 @@ export async function PUT(
       }
     }
 
+    // Capture old role for notification
+    const oldRole = existingProjectUser.role;
+
     // Update user role
     const projectUser = await prisma.projectUser.update({
       where: {
@@ -169,6 +172,36 @@ export async function PUT(
         },
       },
     });
+
+    // Create in-app notification (non-blocking)
+    try {
+      const project = await prisma.project.findUnique({
+        where: { id: projectId },
+        select: { name: true },
+      });
+
+      if (project) {
+        const notification = createUserRoleChangedNotification(
+          project.name,
+          projectId,
+          user.name || user.email,
+          oldRole,
+          validatedData.role
+        );
+
+        await notificationService.createNotification(
+          targetUserId,
+          NotificationType.USER_ROLE_CHANGED,
+          notification.title,
+          notification.message,
+          projectId,
+          notification.actionUrl,
+          user.id
+        );
+      }
+    } catch (notificationError) {
+      logger.error('Failed to create project role changed notification:', notificationError);
+    }
 
     return NextResponse.json(successResponse(projectUser));
   } catch (error) {
