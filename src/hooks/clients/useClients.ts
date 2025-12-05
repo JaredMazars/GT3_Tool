@@ -142,6 +142,9 @@ export function useClients(params: UseClientsParams = {}) {
     enabled,
     staleTime: 5 * 60 * 1000, // 5 minutes - clients don't change frequently
     gcTime: 10 * 60 * 1000, // 10 minutes cache retention
+    refetchOnMount: false, // Don't refetch if data is fresh
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+    refetchOnReconnect: false, // Don't refetch on reconnect
     placeholderData: (previousData) => previousData, // Keep previous data while fetching
   });
 }

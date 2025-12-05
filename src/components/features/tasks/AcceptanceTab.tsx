@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { CheckCircleIcon, ClockIcon, PlayIcon, DocumentCheckIcon } from '@heroicons/react/24/outline';
 import { Project } from '@/types';
 import { useQueryClient } from '@tanstack/react-query';
-import { projectKeys } from '@/hooks/tasks/useProjectData';
+import { taskKeys } from '@/hooks/tasks/useTaskData';
 import { useCanApproveAcceptance } from '@/hooks/auth/usePermissions';
 import { useQuestionnaireStatus } from '@/hooks/acceptance/useAcceptanceQuestionnaire';
 import { AcceptanceQuestionnaire } from './acceptance/AcceptanceQuestionnaire';
@@ -50,7 +50,7 @@ export function AcceptanceTab({ project, currentUserRole, onApprovalComplete }: 
       // Invalidate all related queries to ensure fresh data
       await Promise.all([
         queryClient.invalidateQueries({ 
-          queryKey: projectKeys.detail(project.id.toString()) 
+          queryKey: taskKeys.detail(project.id.toString()) 
         }),
         queryClient.invalidateQueries({ 
           queryKey: ['acceptance', 'status', project.id.toString()] 

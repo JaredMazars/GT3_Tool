@@ -12,7 +12,7 @@ import {
 import { Project } from '@/types';
 import { MarkdownRenderer } from '@/components/shared/MarkdownRenderer';
 import { useQueryClient } from '@tanstack/react-query';
-import { projectKeys } from '@/hooks/tasks/useProjectData';
+import { taskKeys } from '@/hooks/tasks/useTaskData';
 import { useCanApproveAcceptance } from '@/hooks/auth/usePermissions';
 import { TemplateSelector } from '@/components/features/templates/TemplateSelector';
 
@@ -125,7 +125,7 @@ export function EngagementLetterTab({ project, currentUserRole, onUploadComplete
 
       // Invalidate and refetch the project data
       await queryClient.invalidateQueries({ 
-        queryKey: projectKeys.detail(project.id.toString()) 
+        queryKey: taskKeys.detail(project.id.toString()) 
       });
 
       setSelectedFile(null);

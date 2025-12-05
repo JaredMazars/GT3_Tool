@@ -72,7 +72,7 @@ export default function SubServiceLineWorkspacePage() {
     internalOnly: false,
     clientTasksOnly: false,
     myTasksOnly: false,
-    enabled: activeTab === 'tasks' && !!serviceLine && !!subServiceLineGroup,
+    enabled: !!serviceLine && !!subServiceLineGroup,
   });
   const tasks = tasksData?.tasks || [];
   const tasksPagination = tasksData?.pagination;
@@ -92,7 +92,7 @@ export default function SubServiceLineWorkspacePage() {
     internalOnly: false,
     clientTasksOnly: false,
     myTasksOnly: true,
-    enabled: activeTab === 'my-tasks' && !!serviceLine && !!subServiceLineGroup,
+    enabled: !!serviceLine && !!subServiceLineGroup,
   });
   const myTasks = myTasksData?.tasks || [];
   const myTasksPagination = myTasksData?.pagination;
@@ -217,7 +217,7 @@ export default function SubServiceLineWorkspacePage() {
                     ? 'bg-forvis-blue-100 text-forvis-blue-700'
                     : 'bg-forvis-gray-100 text-forvis-gray-600'
                 }`}>
-                  {isFetchingTasks && !tasksPagination ? '...' : (tasksPagination?.total ?? 0)}
+                  {isLoadingTasks && !tasksPagination ? '...' : (tasksPagination?.total ?? 0)}
                 </span>
               </div>
             </button>
@@ -237,7 +237,7 @@ export default function SubServiceLineWorkspacePage() {
                     ? 'bg-forvis-blue-100 text-forvis-blue-700'
                     : 'bg-forvis-gray-100 text-forvis-gray-600'
                 }`}>
-                  {isFetchingMyTasks && !myTasksPagination ? '...' : (myTasksPagination?.total ?? 0)}
+                  {isLoadingMyTasks && !myTasksPagination ? '...' : (myTasksPagination?.total ?? 0)}
                 </span>
               </div>
             </button>

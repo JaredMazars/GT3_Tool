@@ -30,8 +30,8 @@ import MappingPage from '@/app/dashboard/tasks/[id]/mapping/page';
 import TaxCalculationPage from '@/app/dashboard/tasks/[id]/tax-calculation/page';
 import ReportingPage from '@/app/dashboard/tasks/[id]/reporting/page';
 import OpinionDraftingPage from '@/app/dashboard/tasks/[id]/opinion-drafting/page';
-import { useProject } from '@/hooks/tasks/useProjectData';
-import { useProjectTeam } from '@/hooks/tasks/useProjectTeam';
+import { useTask } from '@/hooks/tasks/useTaskData';
+import { useTaskTeam } from '@/hooks/tasks/useTaskTeam';
 import { formatDate } from '@/lib/utils/projectUtils';
 import { getProjectTypeColor, formatProjectType } from '@/lib/utils/serviceLineUtils';
 import { isSharedService, formatServiceLineName } from '@/lib/utils/serviceLineUtils';
@@ -360,7 +360,7 @@ export default function ClientProjectPage() {
   const clientId = params.id as string;
   const projectId = params.projectId as string;
   
-  const { data: project, isLoading, refetch: fetchProject } = useProject(projectId);
+  const { data: project, isLoading, refetch: fetchProject } = useTask(projectId);
   
   // Set default active tab based on project type and workflow status
   const getDefaultTab = () => {
@@ -401,7 +401,7 @@ export default function ClientProjectPage() {
     data: teamMembersData = [],
     isLoading: loadingTeam,
     refetch: refetchTeam 
-  } = useProjectTeam(projectId, activeTab === 'team');
+  } = useTaskTeam(projectId, activeTab === 'team');
   
   // Convert ProjectTeamMember[] to ProjectUser[] format
   const teamMembers: ProjectUser[] = teamMembersData.map(member => ({
