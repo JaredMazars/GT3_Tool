@@ -29,9 +29,7 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
       const [allProjectCounts, activeProjectCounts] = await Promise.all([
         prisma.project.groupBy({
           by: ['serviceLine'],
-          _count: {
-            id: true,
-          },
+          _count: true,
         }),
         prisma.project.groupBy({
           by: ['serviceLine'],
@@ -39,18 +37,16 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
             status: 'ACTIVE',
             archived: false,
           },
-          _count: {
-            id: true,
-          },
+          _count: true,
         }),
       ]);
 
       // Create lookup maps for fast access
       const projectCountMap = new Map(
-        allProjectCounts.map(item => [item.serviceLine, item._count.id])
+        allProjectCounts.map(item => [item.serviceLine, item._count])
       );
       const activeProjectCountMap = new Map(
-        activeProjectCounts.map(item => [item.serviceLine, item._count.id])
+        activeProjectCounts.map(item => [item.serviceLine, item._count])
       );
 
       // Return all service lines with ADMINISTRATOR role for SYSTEM_ADMIN
@@ -87,9 +83,7 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
         where: {
           serviceLine: { in: serviceLines },
         },
-        _count: {
-          id: true,
-        },
+        _count: true,
       }),
       prisma.project.groupBy({
         by: ['serviceLine'],
@@ -98,18 +92,16 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
           status: 'ACTIVE',
           archived: false,
         },
-        _count: {
-          id: true,
-        },
+        _count: true,
       }),
     ]);
 
     // Create lookup maps for fast access
     const projectCountMap = new Map(
-      allProjectCounts.map(item => [item.serviceLine, item._count.id])
+      allProjectCounts.map(item => [item.serviceLine, item._count])
     );
     const activeProjectCountMap = new Map(
-      activeProjectCounts.map(item => [item.serviceLine, item._count.id])
+      activeProjectCounts.map(item => [item.serviceLine, item._count])
     );
 
     // Combine service line data with counts

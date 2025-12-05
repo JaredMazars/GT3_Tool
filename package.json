@@ -13,7 +13,11 @@
     "reindex-documents": "npx tsx scripts/reindex-documents.ts",
     "diagnose-search": "npx tsx scripts/diagnose-search-issue.ts",
     "seed:permissions": "npx tsx scripts/seed-permissions.ts",
-    "add:admin": "npx tsx scripts/add-admin-user.ts"
+    "add:admin": "npx tsx scripts/add-admin-user.ts",
+    "db:validate": "bun scripts/validate-db-schema.ts",
+    "db:sync": "bun scripts/sync-db-to-schema.ts",
+    "db:sync:push": "bun scripts/sync-db-to-schema.ts --mode=push",
+    "db:sync:migrate": "bun scripts/sync-db-to-schema.ts --mode=migrate"
   },
   "dependencies": {
     "@ai-sdk/azure": "^2.0.66",

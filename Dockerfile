@@ -24,14 +24,14 @@ COPY next.config.js tsconfig.json tailwind.config.ts postcss.config.js ./
 RUN npx prisma generate
 
 # Build Next.js application (with dummy env vars for build)
-ENV NEXT_PHASE=phase-production-build
-ENV DATABASE_URL="sqlserver://dummy:dummy@dummy.database.windows.net:1433;database=dummy;encrypt=true"
-ENV OPENAI_API_KEY="sk-dummy-key-for-build-only"
-ENV NEXTAUTH_SECRET="dummy-secret-for-build-only"
-ENV NEXTAUTH_URL="http://localhost:3000"
-ENV AZURE_AD_CLIENT_ID="dummy-client-id"
-ENV AZURE_AD_CLIENT_SECRET="dummy-client-secret"
-ENV AZURE_AD_TENANT_ID="dummy-tenant-id"
+ARG NEXT_PHASE=phase-production-build
+ARG DATABASE_URL="sqlserver://dummy:dummy@dummy.database.windows.net:1433;database=dummy;encrypt=true"
+ARG OPENAI_API_KEY="sk-dummy-key-for-build-only"
+ARG NEXTAUTH_SECRET="dummy-secret-for-build-only"
+ARG NEXTAUTH_URL="http://localhost:3000"
+ARG AZURE_AD_CLIENT_ID="dummy-client-id"
+ARG AZURE_AD_CLIENT_SECRET="dummy-client-secret"
+ARG AZURE_AD_TENANT_ID="dummy-tenant-id"
 RUN npm run build
 
 # Stage 2: Runner
