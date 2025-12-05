@@ -1,13 +1,6 @@
 'use client';
 
-import { Corinthia } from 'next/font/google';
-import styles from './gt3-text.module.css';
-
-const corinthia = Corinthia({ 
-  weight: ['400', '700'],
-  subsets: ['latin'],
-  display: 'swap',
-});
+import Image from 'next/image';
 
 export function GT3Logo() {
   return (
@@ -18,7 +11,7 @@ export function GT3Logo() {
         overflow: 'visible',
         minWidth: '600px',
         minHeight: '350px',
-        transform: 'rotate(-15deg)',
+        transform: 'rotate(-12deg)',
         position: 'relative',
       }}
     >
@@ -28,11 +21,19 @@ export function GT3Logo() {
           animation: 'drawIn 1.5s ease-out forwards',
           opacity: 0,
           position: 'relative',
+          width: '500px',
+          height: '280px',
         }}
       >
-        <h1 className={`${corinthia.className} ${styles.gt3Text}`}>
-          Gt3
-        </h1>
+        <Image
+          src="/GT3.png"
+          alt="GT3 Logo"
+          fill
+          style={{
+            objectFit: 'contain',
+          }}
+          priority
+        />
       </div>
     </div>
   );
