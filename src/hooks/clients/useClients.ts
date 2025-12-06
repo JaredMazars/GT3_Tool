@@ -130,8 +130,8 @@ export function useClients(params: UseClientsParams = {}) {
       return result.success ? result.data : result;
     },
     enabled,
-    staleTime: 5 * 60 * 1000, // 5 minutes - clients don't change frequently
-    gcTime: 10 * 60 * 1000, // 10 minutes cache retention
+    staleTime: 10 * 60 * 1000, // 10 minutes - clients don't change frequently (increased from 5)
+    gcTime: 15 * 60 * 1000, // 15 minutes cache retention (increased from 10)
     refetchOnMount: false, // Don't refetch if data is fresh
     refetchOnWindowFocus: false, // Don't refetch on window focus
     refetchOnReconnect: false, // Don't refetch on reconnect
@@ -184,8 +184,11 @@ export function useClient(
       return result.success ? result.data : result;
     },
     enabled: enabled && !!clientId,
-    staleTime: 5 * 60 * 1000, // 5 minutes - standardized
-    gcTime: 10 * 60 * 1000,
+    staleTime: 10 * 60 * 1000, // 10 minutes - aligned with Redis cache TTL (increased from 5)
+    gcTime: 15 * 60 * 1000, // 15 minutes cache retention (increased from 10)
+    refetchOnMount: false, // Don't refetch if data is fresh
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+    refetchOnReconnect: false, // Don't refetch on reconnect
     placeholderData: (previousData) => previousData, // Keep previous data while fetching new data
   });
 }

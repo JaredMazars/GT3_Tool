@@ -113,8 +113,8 @@ export function useTasks(params: UseTasksParams = {}) {
       return result.success ? result.data : result;
     },
     enabled,
-    staleTime: 5 * 60 * 1000, // 5 minutes - data stays fresh
-    gcTime: 10 * 60 * 1000, // 10 minutes cache retention
+    staleTime: 10 * 60 * 1000, // 10 minutes - aligned with backend cache (increased from 5)
+    gcTime: 15 * 60 * 1000, // 15 minutes cache retention (increased from 10)
     refetchOnMount: false, // Don't refetch if data is fresh
     refetchOnWindowFocus: false, // Don't refetch on window focus
     refetchOnReconnect: false, // Don't refetch on reconnect

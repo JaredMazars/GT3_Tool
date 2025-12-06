@@ -8,7 +8,17 @@ import { logger } from '@/lib/utils/logger';
 import { SystemRole, ServiceLineRole } from '@/types';
 
 /**
- * Check if user is a System Admin
+ * Check if user is a System Admin (database lookup)
+ * 
+ * Use this variant when you need to check system admin status by user ID via database lookup.
+ * For other use cases:
+ * - For simple role string checks: use `isSystemAdmin()` from `@/lib/utils/roleHierarchy`
+ * - For user objects in memory: use `isSystemAdmin()` from `@/lib/utils/systemAdmin`
+ * 
+ * @param userId - User ID to check
+ * @returns true if user is SYSTEM_ADMIN
+ * @see {@link roleHierarchy.isSystemAdmin} for role string checks
+ * @see {@link systemAdmin.isSystemAdmin} for user object checks
  */
 export async function isSystemAdmin(userId: string): Promise<boolean> {
   try {
@@ -187,86 +197,5 @@ export async function canApproveEngagementLetter(
   return canApproveAcceptance(userId, taskId);
 }
 
-/**
- * Get all service lines a user has access to
- * @deprecated Use getUserServiceLines from serviceLineService instead (returns enhanced data with stats)
- * This simplified version is kept for internal authorization use only
- */
-export async function getUserServiceLines(userId: string): Promise<
-  Array<{
-    serviceLine: string;
-    role: string;
-  }>
-> {
-  try {
-    // System Admins have access to all service lines
-    const isAdmin = await isSystemAdmin(userId);
-    if (isAdmin) {
-      // Load all active service lines from database
-      const activeServiceLines = await prisma.serviceLineMaster.findMany({
-        where: { active: true },
-        orderBy: { sortOrder: 'asc' },
-        select: { code: true },
-      });
-      
-      // Return all active service lines with ADMINISTRATOR role
-      return activeServiceLines.map(sl => ({
-        serviceLine: sl.code,
-        role: ServiceLineRole.ADMINISTRATOR,
-      }));
-    }
 
-    // Get user's service line assignments
-    const serviceLineUsers = await prisma.serviceLineUser.findMany({
-      where: { userId },
-      select: {
-        serviceLine: true,
-        role: true,
-      },
-    });
-
-    return serviceLineUsers;
-  } catch (error) {
-    logger.error('Error getting user service lines', { userId, error });
-    return [];
-  }
-}
-
-/**
- * Format service line role for display
- * @deprecated Use formatServiceLineRole from roleHierarchy instead
- */
-export function formatServiceLineRole(role: string): string {
-  switch (role) {
-    case ServiceLineRole.ADMINISTRATOR:
-      return 'Administrator';
-    case ServiceLineRole.PARTNER:
-      return 'Partner';
-    case ServiceLineRole.MANAGER:
-      return 'Manager';
-    case ServiceLineRole.SUPERVISOR:
-      return 'Supervisor';
-    case ServiceLineRole.USER:
-      return 'Staff';
-    case ServiceLineRole.VIEWER:
-      return 'Viewer';
-    default:
-      return role;
-  }
-}
-
-/**
- * Format system role for display
- * @deprecated Use formatSystemRole from roleHierarchy instead
- */
-export function formatSystemRole(role: string): string {
-  switch (role) {
-    case SystemRole.SYSTEM_ADMIN:
-      return 'System Administrator';
-    case SystemRole.USER:
-      return 'User';
-    default:
-      return role;
-  }
-}
 

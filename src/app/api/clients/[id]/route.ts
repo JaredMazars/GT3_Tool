@@ -6,6 +6,8 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { z } from 'zod';
 import { getExternalServiceLinesByMaster } from '@/lib/utils/serviceLineExternal';
+import { getTaskCountsByServiceLine, getTotalTaskCount } from '@/lib/services/tasks/taskAggregation';
+import { getCachedClient, setCachedClient, invalidateClientCache } from '@/lib/services/clients/clientCache';
 
 export async function GET(
   request: NextRequest,
@@ -37,6 +39,12 @@ export async function GET(
     const taskLimit = Math.min(Number.parseInt(searchParams.get('taskLimit') || '20'), 50);
     const serviceLine = searchParams.get('serviceLine') || undefined;
     const includeArchived = searchParams.get('includeArchived') === 'true';
+    
+    // Try to get cached client data
+    const cached = await getCachedClient(clientID, serviceLine, includeArchived);
+    if (cached) {
+      return NextResponse.json(successResponse(cached));
+    }
     
     const taskSkip = (taskPage - 1) * taskLimit;
 
@@ -109,74 +117,45 @@ export async function GET(
     // Set the ClientCode (now GUID) in the where clause
     taskWhere.ClientCode = client.ClientID;
 
-    // Get tasks for this client
-    const tasks = await prisma.task.findMany({
-      where: taskWhere,
-      orderBy: { updatedAt: 'desc' },
-      skip: taskSkip,
-      take: taskLimit,
-      select: {
-        id: true,
-        TaskDesc: true,
-        TaskCode: true,
-        Active: true,
-        createdAt: true,
-        updatedAt: true,
-        ServLineCode: true, // Include to derive serviceLine
-        ExternalTaskID: true,
-        TaskDateOpen: true,
-        TaskDateTerminate: true,
-        TaskPartner: true,
-        TaskPartnerName: true,
-        TaskManager: true,
-        TaskManagerName: true,
-        _count: {
-          select: {
-            MappedAccount: true,
-            TaxAdjustment: true,
+    // Get tasks for this client and task counts in parallel
+    const [tasks, totalTasks, taskCountsByServiceLine] = await Promise.all([
+      prisma.task.findMany({
+        where: taskWhere,
+        orderBy: { updatedAt: 'desc' },
+        skip: taskSkip,
+        take: taskLimit,
+        select: {
+          id: true,
+          TaskDesc: true,
+          TaskCode: true,
+          Active: true,
+          createdAt: true,
+          updatedAt: true,
+          ServLineCode: true, // Include to derive serviceLine
+          ExternalTaskID: true,
+          TaskDateOpen: true,
+          TaskDateTerminate: true,
+          TaskPartner: true,
+          TaskPartnerName: true,
+          TaskManager: true,
+          TaskManagerName: true,
+          _count: {
+            select: {
+              MappedAccount: true,
+              TaxAdjustment: true,
+            },
           },
         },
-      },
-    });
-
-    // Get total task count with filters
-    const totalTasks = await prisma.task.count({
-      where: taskWhere,
-    });
-
-    // Helper function to get ServLineCodes for a master code
-    const getServLineCodesForMaster = async (masterCode: string): Promise<string[]> => {
-      const externals = await getExternalServiceLinesByMaster(masterCode);
-      return externals.map(sl => sl.ServLineCode).filter((code): code is string => code !== null);
-    };
-
-    // Get task counts per service line for tab display (all 9 service lines)
-    const [taxCodes, auditCodes, accountingCodes, advisoryCodes, qrmCodes, bdCodes, itCodes, financeCodes, hrCodes] = await Promise.all([
-      getServLineCodesForMaster('TAX'),
-      getServLineCodesForMaster('AUDIT'),
-      getServLineCodesForMaster('ACCOUNTING'),
-      getServLineCodesForMaster('ADVISORY'),
-      getServLineCodesForMaster('QRM'),
-      getServLineCodesForMaster('BUSINESS_DEV'),
-      getServLineCodesForMaster('IT'),
-      getServLineCodesForMaster('FINANCE'),
-      getServLineCodesForMaster('HR'),
-    ]);
-
-    const taskCountsByServiceLine = await Promise.all([
-      prisma.task.count({ where: { ClientCode: client.ClientID, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: taxCodes.length > 0 ? { in: taxCodes } : undefined } }),
-      prisma.task.count({ where: { ClientCode: client.ClientID, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: auditCodes.length > 0 ? { in: auditCodes } : undefined } }),
-      prisma.task.count({ where: { ClientCode: client.ClientID, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: accountingCodes.length > 0 ? { in: accountingCodes } : undefined } }),
-      prisma.task.count({ where: { ClientCode: client.ClientID, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: advisoryCodes.length > 0 ? { in: advisoryCodes } : undefined } }),
-      prisma.task.count({ where: { ClientCode: client.ClientID, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: qrmCodes.length > 0 ? { in: qrmCodes } : undefined } }),
-      prisma.task.count({ where: { ClientCode: client.ClientID, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: bdCodes.length > 0 ? { in: bdCodes } : undefined } }),
-      prisma.task.count({ where: { ClientCode: client.ClientID, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: itCodes.length > 0 ? { in: itCodes } : undefined } }),
-      prisma.task.count({ where: { ClientCode: client.ClientID, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: financeCodes.length > 0 ? { in: financeCodes } : undefined } }),
-      prisma.task.count({ where: { ClientCode: client.ClientID, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: hrCodes.length > 0 ? { in: hrCodes } : undefined } }),
+      }),
+      prisma.task.count({
+        where: taskWhere,
+      }),
+      // OPTIMIZED: Single aggregated query instead of 9 separate counts
+      getTaskCountsByServiceLine(client.ClientID, includeArchived),
     ]);
 
     // Calculate total across all service lines
-    const totalAcrossAllServiceLines = taskCountsByServiceLine.reduce((sum, count) => sum + count, 0);
+    const totalAcrossAllServiceLines = Object.values(taskCountsByServiceLine).reduce((sum, count) => sum + count, 0);
 
     // Get mapping from ServLineCode to masterCode for deriving masterServiceLine
     const allServLineCodes = tasks.map(t => t.ServLineCode);
@@ -211,18 +190,11 @@ export async function GET(
         total: totalTasks, // Filtered count for pagination
         totalPages: Math.ceil(totalTasks / taskLimit),
       },
-      taskCountsByServiceLine: {
-        TAX: taskCountsByServiceLine[0],
-        AUDIT: taskCountsByServiceLine[1],
-        ACCOUNTING: taskCountsByServiceLine[2],
-        ADVISORY: taskCountsByServiceLine[3],
-        QRM: taskCountsByServiceLine[4],
-        BUSINESS_DEV: taskCountsByServiceLine[5],
-        IT: taskCountsByServiceLine[6],
-        FINANCE: taskCountsByServiceLine[7],
-        HR: taskCountsByServiceLine[8],
-      },
+      taskCountsByServiceLine,
     };
+
+    // Cache the response
+    await setCachedClient(clientID, responseData, serviceLine, includeArchived);
 
     return NextResponse.json(successResponse(responseData));
   } catch (error) {
@@ -289,6 +261,9 @@ export async function PUT(
       where: { ClientID: clientID },
       data: validatedData,
     });
+
+    // Invalidate cache after update
+    await invalidateClientCache(clientID);
 
     return NextResponse.json(successResponse(client));
   } catch (error) {
@@ -371,6 +346,9 @@ export async function DELETE(
     await prisma.client.delete({
       where: { ClientID: clientID },
     });
+
+    // Invalidate cache after delete
+    await invalidateClientCache(clientID);
 
     return NextResponse.json(
       successResponse({ message: 'Client deleted successfully' })

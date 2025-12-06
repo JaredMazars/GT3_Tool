@@ -7,6 +7,8 @@ import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { toTaskId } from '@/types/branded';
 import { Prisma } from '@prisma/client';
 import { sanitizeText } from '@/lib/utils/sanitization';
+import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
+import { invalidateClientCache } from '@/lib/services/clients/clientCache';
 
 export async function GET(
   request: NextRequest,
@@ -45,6 +47,13 @@ export async function GET(
     // Check if team members should be included
     const { searchParams } = new URL(request.url);
     const includeTeam = searchParams.get('includeTeam') === 'true';
+
+    // Try to get cached task data
+    const cacheKey = `${CACHE_PREFIXES.TASK}detail:${taskId}:${includeTeam}`;
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      return NextResponse.json(successResponse(cached));
+    }
 
     const task = await prisma.task.findUnique({
       where: { id: taskId },
@@ -176,6 +185,9 @@ export async function GET(
       ...(includeTeam && { users: task.TaskTeam }),
     };
 
+    // Cache the response for 5 minutes
+    await cache.set(cacheKey, transformedTask, 300);
+
     return NextResponse.json(successResponse(transformedTask));
   } catch (error) {
     return handleApiError(error, 'Get Task');
@@ -278,6 +290,14 @@ export async function PUT(
       },
     });
 
+    // Invalidate cache after update
+    await cache.invalidate(`${CACHE_PREFIXES.TASK}detail:${taskId}`);
+    
+    // Invalidate client cache if client association changed
+    if (task.ClientCode) {
+      await invalidateClientCache(task.ClientCode);
+    }
+
     // Transform data to match expected format
     const { Client, TaskAcceptance, TaskEngagementLetter, ...taskData } = task;
     const transformedTask = {
@@ -364,6 +384,12 @@ export async function PATCH(
         data: { Active: 'Yes' },
       });
 
+      // Invalidate cache after restore
+      await cache.invalidate(`${CACHE_PREFIXES.TASK}detail:${taskId}`);
+      if (task.ClientCode) {
+        await invalidateClientCache(task.ClientCode);
+      }
+
       return NextResponse.json(successResponse({ 
         message: 'Task restored successfully',
         task 
@@ -418,6 +444,12 @@ export async function DELETE(
       where: { id: taskId },
       data: { Active: 'No' },
     });
+
+    // Invalidate cache after archive
+    await cache.invalidate(`${CACHE_PREFIXES.TASK}detail:${taskId}`);
+    if (task.ClientCode) {
+      await invalidateClientCache(task.ClientCode);
+    }
 
     return NextResponse.json(successResponse({ 
       message: 'Task archived successfully',

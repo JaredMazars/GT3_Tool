@@ -17,9 +17,17 @@ export interface UserLike {
 }
 
 /**
- * Check if a user is a System Admin
+ * Check if a user is a System Admin (in-memory check)
+ * 
+ * Use this variant when you have a user object or role string in memory.
+ * For other use cases:
+ * - For simple role string checks: use `isSystemAdmin()` from `@/lib/utils/roleHierarchy`
+ * - For database lookups by user ID: use `isSystemAdmin()` from `@/lib/services/auth/authorization`
+ * 
  * @param user - User object or role string
  * @returns true if user is SYSTEM_ADMIN
+ * @see {@link roleHierarchy.isSystemAdmin} for role string checks
+ * @see {@link authorization.isSystemAdmin} for database lookups
  */
 export function isSystemAdmin(user: UserLike | string | null | undefined): boolean {
   if (!user) return false;

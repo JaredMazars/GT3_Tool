@@ -582,8 +582,57 @@ export default function ClientProjectPage() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-600"></div>
+      <div className="min-h-screen bg-forvis-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Breadcrumb skeleton */}
+          <nav className="flex items-center space-x-2 text-sm mb-6 py-4">
+            <div className="h-4 w-20 bg-forvis-gray-200 rounded animate-pulse"></div>
+            <div className="h-4 w-4 bg-forvis-gray-200 rounded animate-pulse"></div>
+            <div className="h-4 w-24 bg-forvis-gray-200 rounded animate-pulse"></div>
+            <div className="h-4 w-4 bg-forvis-gray-200 rounded animate-pulse"></div>
+            <div className="h-4 w-32 bg-forvis-gray-200 rounded animate-pulse"></div>
+          </nav>
+
+          {/* Task header skeleton */}
+          <div className="card mb-4">
+            <div className="px-4 py-3">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-3 mb-2">
+                    <div className="h-8 w-64 bg-forvis-gray-200 rounded animate-pulse"></div>
+                    <div className="h-6 w-32 bg-forvis-gray-200 rounded-full animate-pulse"></div>
+                  </div>
+                  <div className="h-4 w-48 bg-forvis-gray-200 rounded animate-pulse mb-2"></div>
+                  <div className="flex items-center gap-4 mt-3">
+                    <div className="h-3 w-24 bg-forvis-gray-200 rounded animate-pulse"></div>
+                    <div className="h-3 w-24 bg-forvis-gray-200 rounded animate-pulse"></div>
+                    <div className="h-3 w-24 bg-forvis-gray-200 rounded animate-pulse"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Tabs skeleton */}
+            <div className="border-t border-forvis-gray-200">
+              <nav className="flex space-x-6 px-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="py-3">
+                    <div className="h-4 w-20 bg-forvis-gray-200 rounded animate-pulse"></div>
+                  </div>
+                ))}
+              </nav>
+            </div>
+          </div>
+
+          {/* Content skeleton */}
+          <div className="card p-6">
+            <div className="space-y-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="h-24 bg-forvis-gray-200 rounded animate-pulse"></div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

@@ -207,10 +207,10 @@ export default function ServiceLineSubGroupsPage() {
                   {/* Content */}
                   <div>
                     <h3 className="text-lg font-bold text-forvis-gray-900 mb-1 group-hover:text-forvis-blue-600 transition-colors">
-                      {group.code}
+                      {group.description || 'No description available'}
                     </h3>
                     <p className="text-sm text-forvis-gray-600 mb-4 line-clamp-2">
-                      {group.description || 'No description available'}
+                      {group.code}
                     </p>
 
                     {/* Stats */}

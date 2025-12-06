@@ -209,11 +209,61 @@ export default function ServiceLineClientDetailPage() {
     });
   }, [debouncedSearch, client]);
 
-  // Only show full-page loader on initial load, not when switching tabs
+  // Show skeleton loader on initial load for better perceived performance
   if (isLoading && !client) {
     return (
-      <div className="min-h-screen bg-forvis-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-forvis-blue-600"></div>
+      <div className="min-h-screen bg-forvis-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Breadcrumb skeleton */}
+          <div className="flex items-center space-x-2 mb-6">
+            <div className="h-4 w-20 bg-forvis-gray-200 rounded animate-pulse"></div>
+            <div className="h-4 w-4 bg-forvis-gray-200 rounded animate-pulse"></div>
+            <div className="h-4 w-24 bg-forvis-gray-200 rounded animate-pulse"></div>
+            <div className="h-4 w-4 bg-forvis-gray-200 rounded animate-pulse"></div>
+            <div className="h-4 w-32 bg-forvis-gray-200 rounded animate-pulse"></div>
+          </div>
+
+          {/* Header skeleton */}
+          <div className="card mb-6">
+            <div className="px-6 py-4">
+              <div className="h-8 w-64 bg-forvis-gray-200 rounded animate-pulse mb-2"></div>
+              <div className="h-4 w-48 bg-forvis-gray-200 rounded animate-pulse"></div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left column skeleton */}
+            <div className="lg:col-span-1">
+              <div className="card h-full">
+                <div className="px-4 py-3 border-b border-forvis-gray-200">
+                  <div className="h-5 w-40 bg-forvis-gray-200 rounded animate-pulse"></div>
+                </div>
+                <div className="px-4 py-3 space-y-4">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="space-y-2">
+                      <div className="h-3 w-24 bg-forvis-gray-200 rounded animate-pulse"></div>
+                      <div className="h-4 w-full bg-forvis-gray-200 rounded animate-pulse"></div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Right column skeleton */}
+            <div className="lg:col-span-2">
+              <div className="card" style={{ height: '600px' }}>
+                <div className="px-4 py-3 border-b border-forvis-gray-200">
+                  <div className="h-5 w-32 bg-forvis-gray-200 rounded animate-pulse"></div>
+                </div>
+                <div className="p-4 space-y-3">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="h-20 bg-forvis-gray-200 rounded animate-pulse"></div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

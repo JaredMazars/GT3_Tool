@@ -8,7 +8,7 @@ import { SaveAnswersByKeySchema } from '@/lib/validation/schemas';
 import { calculateRiskAssessment } from '@/lib/services/acceptance/riskCalculation';
 import { getAllQuestions } from '@/constants/acceptance-questions';
 import { sanitizeComment } from '@/lib/utils/sanitization';
-import { checkRateLimit } from '@/lib/api/rateLimit';
+import { enforceRateLimit, RateLimitPresets } from '@/lib/utils/rateLimit';
 import { validateAcceptanceAccess } from '@/lib/api/acceptanceMiddleware';
 import { logAnswersSaved } from '@/lib/services/acceptance/auditLog';
 
@@ -30,8 +30,7 @@ export async function PATCH(
     const taskId = toTaskId(id);
 
     // Rate limit autosave to prevent abuse
-    const rateLimitResponse = checkRateLimit(request, `autosave:${user.id}`, 30, 60000);
-    if (rateLimitResponse) return rateLimitResponse;
+    await enforceRateLimit(request, RateLimitPresets.STANDARD);
 
     // Validate user has access to task
     const hasAccess = await validateAcceptanceAccess(taskId, user.id);

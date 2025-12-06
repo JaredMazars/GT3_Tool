@@ -81,6 +81,12 @@ export function useTask(taskId: string) {
       return normalizeTaskData(data);
     },
     enabled: !!taskId,
+    staleTime: 5 * 60 * 1000, // 5 minutes - aligned with Redis cache TTL
+    gcTime: 10 * 60 * 1000, // 10 minutes cache retention
+    refetchOnMount: false, // Don't refetch if data is fresh
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+    refetchOnReconnect: false, // Don't refetch on reconnect
+    placeholderData: (previousData) => previousData, // Keep previous data while fetching
   });
 }
 
@@ -98,6 +104,11 @@ export function useMappedAccounts(taskId: string) {
       return Array.isArray(data) ? data : [];
     },
     enabled: !!taskId,
+    staleTime: 3 * 60 * 1000, // 3 minutes - mapped accounts change more frequently
+    gcTime: 5 * 60 * 1000, // 5 minutes cache retention
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    placeholderData: (previousData) => previousData,
   });
 }
 
@@ -155,6 +166,11 @@ export function useTaxAdjustments(taskId: string, status?: string) {
       return result.success ? result.data : result;
     },
     enabled: !!taskId,
+    staleTime: 3 * 60 * 1000, // 3 minutes - tax adjustments change frequently
+    gcTime: 5 * 60 * 1000, // 5 minutes cache retention
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    placeholderData: (previousData) => previousData,
   });
 }
 

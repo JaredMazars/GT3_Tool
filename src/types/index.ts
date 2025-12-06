@@ -9,9 +9,6 @@ export interface MappedData {
   sarsItem: string;
 }
 
-// Re-export task stages
-export { TaskStage } from './task-stages';
-
 // Enums matching Prisma schema
 export enum ServiceLine {
   TAX = 'TAX',

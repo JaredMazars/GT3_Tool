@@ -6,6 +6,7 @@ import { RoleSelector } from './RoleSelector';
 import { SendMessageModal } from '@/components/features/notifications/SendMessageModal';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { AlertModal } from '@/components/shared/AlertModal';
+import { getRoleBadgeColor } from '@/lib/utils/permissionUtils';
 import { UserCircleIcon, EnvelopeIcon, BriefcaseIcon, BuildingOfficeIcon, CalendarIcon, XMarkIcon, ChatBubbleLeftIcon } from '@heroicons/react/24/outline';
 
 interface TaskUserListProps {

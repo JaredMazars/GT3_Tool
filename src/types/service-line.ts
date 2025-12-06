@@ -182,6 +182,22 @@ export function getServiceLineConfig(serviceLine: ServiceLine): ServiceLineConfi
 }
 
 /**
+ * Icon component mapping - maps icon names to React components
+ * Single source of truth for service line icons
+ */
+const ICON_COMPONENTS: Record<string, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
+  DocumentTextIcon,
+  ClipboardDocumentCheckIcon,
+  CalculatorIcon,
+  LightBulbIcon,
+  ShieldCheckIcon,
+  MegaphoneIcon,
+  ComputerDesktopIcon,
+  BanknotesIcon,
+  UserGroupIcon,
+};
+
+/**
  * Service line details with React components (for UI usage)
  */
 export interface ServiceLineDetails {
@@ -195,125 +211,46 @@ export interface ServiceLineDetails {
 }
 
 /**
+ * Get service line details with React icon component
+ * Derives from SERVICE_LINE_CONFIGS to maintain single source of truth
+ * 
+ * @param serviceLine - Service line to get details for
+ * @returns Service line details with React component icon
+ */
+export function getServiceLineDetails(serviceLine: ServiceLine): ServiceLineDetails {
+  const config = SERVICE_LINE_CONFIGS[serviceLine];
+  const iconComponent = ICON_COMPONENTS[config.icon];
+  
+  if (!iconComponent) {
+    throw new Error(`Icon component not found for ${config.icon}`);
+  }
+  
+  return {
+    name: config.name,
+    description: config.description,
+    icon: iconComponent,
+    taskTypes: config.taskTypes,
+    colorClass: config.color,
+    bgColorClass: config.bgColor,
+    borderColorClass: config.borderColor,
+  };
+}
+
+/**
  * Service line details map (for direct UI usage with React components)
+ * Derived from SERVICE_LINE_CONFIGS to ensure consistency
+ * 
+ * @deprecated Use getServiceLineDetails() instead for better type safety
  */
 export const SERVICE_LINE_DETAILS: Record<ServiceLine, ServiceLineDetails> = {
-  [ServiceLine.TAX]: {
-    name: 'Tax',
-    description: 'Tax compliance, calculations, opinions, and administration',
-    icon: DocumentTextIcon,
-    taskTypes: [
-      TaskType.TAX_CALCULATION,
-      TaskType.TAX_OPINION,
-      TaskType.TAX_ADMINISTRATION,
-    ],
-    colorClass: 'text-blue-600',
-    bgColorClass: 'bg-blue-50',
-    borderColorClass: 'border-blue-200',
-  },
-  [ServiceLine.AUDIT]: {
-    name: 'Audit',
-    description: 'Audit engagements, reviews, and reporting',
-    icon: ClipboardDocumentCheckIcon,
-    taskTypes: [
-      TaskType.AUDIT_ENGAGEMENT,
-      TaskType.AUDIT_REVIEW,
-      TaskType.AUDIT_REPORT,
-    ],
-    colorClass: 'text-green-600',
-    bgColorClass: 'bg-green-50',
-    borderColorClass: 'border-green-200',
-  },
-  [ServiceLine.ACCOUNTING]: {
-    name: 'Accounting',
-    description: 'Financial statements, bookkeeping, and management accounts',
-    icon: CalculatorIcon,
-    taskTypes: [
-      TaskType.FINANCIAL_STATEMENTS,
-      TaskType.BOOKKEEPING,
-      TaskType.MANAGEMENT_ACCOUNTS,
-    ],
-    colorClass: 'text-purple-600',
-    bgColorClass: 'bg-purple-50',
-    borderColorClass: 'border-purple-200',
-  },
-  [ServiceLine.ADVISORY]: {
-    name: 'Advisory',
-    description: 'Consulting, strategy, and advisory services',
-    icon: LightBulbIcon,
-    taskTypes: [
-      TaskType.ADVISORY_PROJECT,
-      TaskType.CONSULTING_ENGAGEMENT,
-      TaskType.STRATEGY_REVIEW,
-    ],
-    colorClass: 'text-orange-600',
-    bgColorClass: 'bg-orange-50',
-    borderColorClass: 'border-orange-200',
-  },
-  [ServiceLine.QRM]: {
-    name: 'Quality & Risk Management',
-    description: 'Quality assurance, risk management, and compliance oversight',
-    icon: ShieldCheckIcon,
-    taskTypes: [
-      TaskType.QRM_AUDIT,
-      TaskType.QRM_COMPLIANCE,
-      TaskType.QRM_RISK_ASSESSMENT,
-    ],
-    colorClass: 'text-red-600',
-    bgColorClass: 'bg-red-50',
-    borderColorClass: 'border-red-200',
-  },
-  [ServiceLine.BUSINESS_DEV]: {
-    name: 'Business Development & Marketing',
-    description: 'Marketing campaigns, proposals, and market research',
-    icon: MegaphoneIcon,
-    taskTypes: [
-      TaskType.BD_CAMPAIGN,
-      TaskType.BD_PROPOSAL,
-      TaskType.BD_MARKET_RESEARCH,
-    ],
-    colorClass: 'text-teal-600',
-    bgColorClass: 'bg-teal-50',
-    borderColorClass: 'border-teal-200',
-  },
-  [ServiceLine.IT]: {
-    name: 'Information Technology',
-    description: 'IT implementations, support, and infrastructure management',
-    icon: ComputerDesktopIcon,
-    taskTypes: [
-      TaskType.IT_IMPLEMENTATION,
-      TaskType.IT_SUPPORT,
-      TaskType.IT_INFRASTRUCTURE,
-    ],
-    colorClass: 'text-indigo-600',
-    bgColorClass: 'bg-indigo-50',
-    borderColorClass: 'border-indigo-200',
-  },
-  [ServiceLine.FINANCE]: {
-    name: 'Finance',
-    description: 'Financial reporting, budgeting, and analysis',
-    icon: BanknotesIcon,
-    taskTypes: [
-      TaskType.FINANCE_REPORTING,
-      TaskType.FINANCE_BUDGETING,
-      TaskType.FINANCE_ANALYSIS,
-    ],
-    colorClass: 'text-yellow-600',
-    bgColorClass: 'bg-yellow-50',
-    borderColorClass: 'border-yellow-200',
-  },
-  [ServiceLine.HR]: {
-    name: 'Human Resources',
-    description: 'Recruitment, training, and policy development',
-    icon: UserGroupIcon,
-    taskTypes: [
-      TaskType.HR_RECRUITMENT,
-      TaskType.HR_TRAINING,
-      TaskType.HR_POLICY,
-    ],
-    colorClass: 'text-pink-600',
-    bgColorClass: 'bg-pink-50',
-    borderColorClass: 'border-pink-200',
-  },
+  [ServiceLine.TAX]: getServiceLineDetails(ServiceLine.TAX),
+  [ServiceLine.AUDIT]: getServiceLineDetails(ServiceLine.AUDIT),
+  [ServiceLine.ACCOUNTING]: getServiceLineDetails(ServiceLine.ACCOUNTING),
+  [ServiceLine.ADVISORY]: getServiceLineDetails(ServiceLine.ADVISORY),
+  [ServiceLine.QRM]: getServiceLineDetails(ServiceLine.QRM),
+  [ServiceLine.BUSINESS_DEV]: getServiceLineDetails(ServiceLine.BUSINESS_DEV),
+  [ServiceLine.IT]: getServiceLineDetails(ServiceLine.IT),
+  [ServiceLine.FINANCE]: getServiceLineDetails(ServiceLine.FINANCE),
+  [ServiceLine.HR]: getServiceLineDetails(ServiceLine.HR),
 };
 

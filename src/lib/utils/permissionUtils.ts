@@ -4,33 +4,6 @@
  */
 
 /**
- * Format service line role for display
- * Maps technical role names to business titles
- */
-export function formatServiceLineRole(role: string): string {
-  const roleMap: Record<string, string> = {
-    ADMIN: 'Partner',
-    MANAGER: 'Manager',
-    USER: 'Staff',
-    VIEWER: 'Viewer',
-  };
-
-  return roleMap[role] || role;
-}
-
-/**
- * Format system role for display
- */
-export function formatSystemRole(role: string): string {
-  const roleMap: Record<string, string> = {
-    SYSTEM_ADMIN: 'System Administrator',
-    USER: 'User',
-  };
-
-  return roleMap[role] || role;
-}
-
-/**
  * Get service line role description
  */
 export function getServiceLineRoleDescription(role: string): string {

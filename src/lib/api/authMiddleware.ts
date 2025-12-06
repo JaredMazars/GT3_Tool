@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { checkUserPermission, PermissionAction } from '@/lib/services/permissions/permissionService';
 import { getServiceLineWhereClause, verifyServiceLineAccess } from '@/lib/utils/serviceLineFilter';
-import { canAccessTask } from '@/lib/utils/taskAccess';
+import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { isSystemAdmin } from '@/lib/utils/systemAdmin';
 import { handleApiError } from '@/lib/utils/errorHandler';
 
@@ -231,7 +231,7 @@ export function withProjectAccess<T extends { id: string }>(
         );
       }
 
-      const access = await canAccessTask(user.id, taskId, requiredRole);
+      const access = await checkTaskAccess(user.id, taskId, requiredRole);
       
       if (!access.canAccess) {
         return NextResponse.json(

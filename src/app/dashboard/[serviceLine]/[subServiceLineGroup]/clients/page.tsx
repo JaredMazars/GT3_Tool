@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { 
   MagnifyingGlassIcon,
   BuildingOfficeIcon,
@@ -13,14 +14,15 @@ import {
 import { isValidServiceLine, formatServiceLineName, isSharedService, formatTaskType, getTaskTypeColor } from '@/lib/utils/serviceLineUtils';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { ServiceLine } from '@/types';
-import { useClients, type Client } from '@/hooks/clients/useClients';
-import { useTasks, type TaskListItem } from '@/hooks/tasks/useTasks';
+import { useClients, type Client, clientKeys } from '@/hooks/clients/useClients';
+import { useTasks, type TaskListItem, taskListKeys } from '@/hooks/tasks/useTasks';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/utils/taskUtils';
 
 export default function ServiceLineClientsPage() {
   const router = useRouter();
   const params = useParams();
+  const queryClient = useQueryClient();
   const serviceLine = (params.serviceLine as string)?.toUpperCase();
   const subServiceLineGroup = params.subServiceLineGroup as string;
   const { setCurrentServiceLine } = useServiceLine();
@@ -30,6 +32,45 @@ export default function ServiceLineClientsPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
+
+  // Prefetch client details on hover for faster navigation
+  const prefetchClient = (clientID: string) => {
+    queryClient.prefetchQuery({
+      queryKey: clientKeys.detail(clientID, {
+        taskPage: 1,
+        taskLimit: 20,
+        serviceLine,
+      }),
+      queryFn: async () => {
+        const searchParams = new URLSearchParams();
+        searchParams.set('taskPage', '1');
+        searchParams.set('taskLimit', '20');
+        if (serviceLine) searchParams.set('serviceLine', serviceLine);
+        
+        const response = await fetch(`/api/clients/${clientID}?${searchParams.toString()}`);
+        if (!response.ok) throw new Error('Failed to fetch client');
+        
+        const result = await response.json();
+        return result.success ? result.data : result;
+      },
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    });
+  };
+
+  // Prefetch task details on hover
+  const prefetchTask = (taskId: number) => {
+    queryClient.prefetchQuery({
+      queryKey: ['tasks', taskId.toString()],
+      queryFn: async () => {
+        const response = await fetch(`/api/tasks/${taskId}`);
+        if (!response.ok) throw new Error('Failed to fetch task');
+        
+        const result = await response.json();
+        return result.success ? result.data : result;
+      },
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    });
+  };
 
   // Debounce search input
   useEffect(() => {
@@ -394,6 +435,7 @@ export default function ServiceLineClientsPage() {
                             <Link
                               href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${client.ClientID}`}
                               className="text-forvis-blue-600 hover:text-forvis-blue-900 text-xs font-medium"
+                              onMouseEnter={() => prefetchClient(client.ClientID)}
                             >
                               View
                             </Link>
@@ -565,6 +607,7 @@ export default function ServiceLineClientsPage() {
                                   ? `/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${task.client.ClientID}/tasks/${task.id}`
                                   : `/dashboard/tasks/${task.id}`}
                                 className="text-forvis-blue-600 hover:text-forvis-blue-900 text-sm font-medium"
+                                onMouseEnter={() => prefetchTask(task.id)}
                               >
                                 View
                               </Link>
