@@ -17,6 +17,7 @@ import { ServiceLine } from '@/types';
 import { useClients, type Client } from '@/hooks/clients/useClients';
 import { useTasks, type TaskListItem } from '@/hooks/tasks/useTasks'; // Updated with ClientID
 import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLineGroups';
+import { useClientGroups } from '@/hooks/clients/useClientGroups';
 import { ServiceLineSelector } from '@/components/features/service-lines/ServiceLineSelector';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/utils/taskUtils';
@@ -28,7 +29,7 @@ export default function SubServiceLineWorkspacePage() {
   const subServiceLineGroup = params.subServiceLineGroup as string;
   const { setCurrentServiceLine } = useServiceLine();
   
-  const [activeTab, setActiveTab] = useState<'clients' | 'tasks' | 'my-tasks'>('clients');
+  const [activeTab, setActiveTab] = useState<'clients' | 'tasks' | 'my-tasks' | 'groups'>('clients');
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -108,9 +109,23 @@ export default function SubServiceLineWorkspacePage() {
   });
   const myTasks = myTasksData?.tasks || [];
   const myTasksPagination = myTasksData?.pagination;
+
+  // Fetch groups for the Groups tab
+  const {
+    data: groupsData,
+    isLoading: isLoadingGroups,
+    isFetching: isFetchingGroups
+  } = useClientGroups({
+    search: debouncedSearch,
+    page: currentPage,
+    limit: itemsPerPage,
+    enabled: true, // Always fetch for faster tab switching
+  });
+  const groups = groupsData?.groups || [];
+  const groupsPagination = groupsData?.pagination;
   
-  const isLoading = activeTab === 'clients' ? isLoadingClients : activeTab === 'tasks' ? isLoadingTasks : isLoadingMyTasks;
-  const isFetching = activeTab === 'clients' ? false : activeTab === 'tasks' ? isFetchingTasks : isFetchingMyTasks;
+  const isLoading = activeTab === 'clients' ? isLoadingClients : activeTab === 'tasks' ? isLoadingTasks : activeTab === 'my-tasks' ? isLoadingMyTasks : isLoadingGroups;
+  const isFetching = activeTab === 'clients' ? false : activeTab === 'tasks' ? isFetchingTasks : activeTab === 'my-tasks' ? isFetchingMyTasks : isFetchingGroups;
 
   // Validate service line
   useEffect(() => {
@@ -144,8 +159,8 @@ export default function SubServiceLineWorkspacePage() {
     );
   }
 
-  const currentData = activeTab === 'clients' ? clients : activeTab === 'tasks' ? tasks : myTasks;
-  const pagination = activeTab === 'clients' ? clientsPagination : activeTab === 'tasks' ? tasksPagination : myTasksPagination;
+  const currentData = activeTab === 'clients' ? clients : activeTab === 'tasks' ? tasks : activeTab === 'my-tasks' ? myTasks : groups;
+  const pagination = activeTab === 'clients' ? clientsPagination : activeTab === 'tasks' ? tasksPagination : activeTab === 'my-tasks' ? myTasksPagination : groupsPagination;
   const totalCount = isFetching && !pagination ? '...' : (pagination?.total ?? 0);
 
   return (
@@ -189,14 +204,16 @@ export default function SubServiceLineWorkspacePage() {
                 ? 'All clients across the organization'
                 : activeTab === 'tasks'
                 ? `Tasks in ${subServiceLineGroupDescription}`
-                : `Your tasks in ${subServiceLineGroupDescription}`}
+                : activeTab === 'my-tasks'
+                ? `Your tasks in ${subServiceLineGroupDescription}`
+                : 'Client groups across the organization'}
             </p>
           </div>
           
           <div className="text-right">
             <div className="text-2xl font-bold text-forvis-blue-600">{totalCount}</div>
             <div className="text-sm text-forvis-gray-600">
-              Total {activeTab === 'clients' ? 'Clients' : activeTab === 'tasks' ? 'Tasks' : 'My Tasks'}
+              Total {activeTab === 'clients' ? 'Clients' : activeTab === 'tasks' ? 'Tasks' : activeTab === 'my-tasks' ? 'My Tasks' : 'Groups'}
             </div>
           </div>
         </div>
@@ -264,6 +281,26 @@ export default function SubServiceLineWorkspacePage() {
                 </span>
               </div>
             </button>
+            <button
+              onClick={() => setActiveTab('groups')}
+              className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'groups'
+                  ? 'border-forvis-blue-600 text-forvis-blue-600'
+                  : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <UserGroupIcon className="h-5 w-5" />
+                <span>Groups</span>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  activeTab === 'groups'
+                    ? 'bg-forvis-blue-100 text-forvis-blue-700'
+                    : 'bg-forvis-gray-100 text-forvis-gray-600'
+                }`}>
+                  {isLoadingGroups && !groupsPagination ? '...' : (groupsPagination?.total ?? 0)}
+                </span>
+              </div>
+            </button>
           </nav>
         </div>
 
@@ -276,6 +313,8 @@ export default function SubServiceLineWorkspacePage() {
               placeholder={
                 activeTab === 'clients'
                   ? 'Search by name, code, group, or industry...'
+                  : activeTab === 'groups'
+                  ? 'Search by group name or code...'
                   : 'Search by task name, client, or service line...'
               }
               value={searchTerm}
@@ -305,12 +344,152 @@ export default function SubServiceLineWorkspacePage() {
         {debouncedSearch && pagination && (
           <div className="mb-4 text-sm text-forvis-gray-600">
             Found <span className="font-medium">{pagination.total}</span>{' '}
-            {activeTab === 'clients' ? 'client' : 'task'}{pagination.total !== 1 ? 's' : ''} matching "{debouncedSearch}"
+            {activeTab === 'clients' ? 'client' : activeTab === 'groups' ? 'group' : 'task'}{pagination.total !== 1 ? 's' : ''} matching "{debouncedSearch}"
           </div>
         )}
 
-        {/* Content - Clients, Projects, or My Projects */}
-        {activeTab === 'clients' ? (
+        {/* Content - Clients, Tasks, My Tasks, or Groups */}
+        {activeTab === 'groups' ? (
+          /* Groups List */
+          groups.length === 0 ? (
+            <div className="card text-center py-12">
+              <UserGroupIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No groups</h3>
+              <p className="mt-1 text-sm text-forvis-gray-600">
+                {searchTerm ? 'No groups match your search.' : 'No client groups available in the system.'}
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="card overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full divide-y divide-forvis-gray-200" style={{ tableLayout: 'fixed' }}>
+                    <colgroup>
+                      <col style={{ width: '45%' }} />
+                      <col style={{ width: '25%' }} />
+                      <col style={{ width: '20%' }} />
+                      <col style={{ width: '10%' }} />
+                    </colgroup>
+                    <thead className="bg-forvis-gray-50">
+                      <tr>
+                        <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
+                          Group Name
+                        </th>
+                        <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
+                          Group Code
+                        </th>
+                        <th scope="col" className="px-3 py-2 text-center text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
+                          Clients
+                        </th>
+                        <th scope="col" className="px-3 py-2 text-center text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-forvis-gray-200">
+                      {groups.map((group) => (
+                        <tr key={group.groupCode} className="hover:bg-forvis-gray-50 transition-colors">
+                          <td className="px-3 py-2 truncate">
+                            <div className="flex items-center space-x-2 min-w-0">
+                              <div className="w-7 h-7 rounded-lg bg-forvis-blue-100 flex items-center justify-center flex-shrink-0">
+                                <UserGroupIcon className="h-3.5 w-3.5 text-forvis-blue-600" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm font-medium text-forvis-gray-900 truncate" title={group.groupDesc}>
+                                  {group.groupDesc}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="text-sm text-forvis-gray-600 truncate" title={group.groupCode}>
+                              {group.groupCode}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-forvis-blue-100 text-forvis-blue-800">
+                              {group.clientCount}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            <Link
+                              href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/groups/${encodeURIComponent(group.groupCode)}`}
+                              className="text-forvis-blue-600 hover:text-forvis-blue-900 text-xs font-medium"
+                            >
+                              View
+                            </Link>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Pagination */}
+              {pagination && (
+                <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="text-sm text-forvis-gray-700">
+                    Showing <span className="font-medium">{pagination.total === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</span> to{' '}
+                    <span className="font-medium">
+                      {Math.min(currentPage * itemsPerPage, pagination.total)}
+                    </span>{' '}
+                    of <span className="font-medium">{pagination.total}</span> {debouncedSearch ? 'filtered ' : ''}group{pagination.total !== 1 ? 's' : ''}
+                  </div>
+                  
+                  {pagination.totalPages > 1 && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1.5 text-sm font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 rounded-md hover:bg-forvis-gray-50 disabled:bg-forvis-gray-100 disabled:text-forvis-gray-400 disabled:cursor-not-allowed transition-colors"
+                      >
+                        Previous
+                      </button>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
+                          .filter(page => {
+                            return (
+                              page === 1 ||
+                              page === pagination.totalPages ||
+                              (page >= currentPage - 1 && page <= currentPage + 1)
+                            );
+                          })
+                          .map((page, index, array) => {
+                            const prevPage = array[index - 1];
+                            const showEllipsis = prevPage && page - prevPage > 1;
+                            
+                            return (
+                              <div key={page} className="flex items-center">
+                                {showEllipsis && <span className="px-2 text-forvis-gray-500">...</span>}
+                                <button
+                                  onClick={() => setCurrentPage(page)}
+                                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                                    currentPage === page
+                                      ? 'bg-forvis-blue-600 text-white'
+                                      : 'text-forvis-gray-700 bg-white border border-forvis-gray-300 hover:bg-forvis-gray-50'
+                                  }`}
+                                >
+                                  {page}
+                                </button>
+                              </div>
+                            );
+                          })}
+                      </div>
+                      <button
+                        onClick={() => setCurrentPage(p => Math.min(pagination.totalPages, p + 1))}
+                        disabled={currentPage >= pagination.totalPages}
+                        className="px-3 py-1.5 text-sm font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 rounded-md hover:bg-forvis-gray-50 disabled:bg-forvis-gray-100 disabled:text-forvis-gray-400 disabled:cursor-not-allowed transition-colors"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )
+        ) : activeTab === 'clients' ? (
           /* Clients List */
           clients.length === 0 ? (
             <div className="card text-center py-12">
@@ -408,14 +587,15 @@ export default function SubServiceLineWorkspacePage() {
 
             {/* Pagination */}
             {pagination && (
-            <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="text-sm text-forvis-gray-700">
-                Showing <span className="font-medium">{pagination.total === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</span> to{' '}
-                <span className="font-medium">
-                  {Math.min(currentPage * itemsPerPage, pagination.total)}
-                </span>{' '}
-                of <span className="font-medium">{pagination.total}</span> {debouncedSearch ? 'filtered ' : ''}client{pagination.total !== 1 ? 's' : ''}
-              </div>
+              <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="text-sm text-forvis-gray-700">
+                  Showing <span className="font-medium">{pagination.total === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</span> to{' '}
+                  <span className="font-medium">
+                    {Math.min(currentPage * itemsPerPage, pagination.total)}
+                  </span>{' '}
+                  of <span className="font-medium">{pagination.total}</span> {debouncedSearch ? 'filtered ' : ''}
+                  {activeTab === 'clients' ? 'client' : activeTab === 'groups' ? 'group' : 'task'}{pagination.total !== 1 ? 's' : ''}
+                </div>
               
               {pagination.totalPages > 1 && (
                 <div className="flex gap-2">

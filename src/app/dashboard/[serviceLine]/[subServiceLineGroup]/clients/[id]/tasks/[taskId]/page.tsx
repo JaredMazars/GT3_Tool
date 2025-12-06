@@ -405,10 +405,8 @@ export default function ClientProjectPage() {
   
   // Team management state
   const [showAddUserModal, setShowAddUserModal] = useState(false);
-  
-  // Get current user role from task data (no separate API call needed)
-  const currentUserId = task?.currentUserId || '';
-  const currentUserRole = (task?.currentUserRole as TaskRole) || ('VIEWER' as TaskRole);
+  const [currentUserRole, setCurrentUserRole] = useState<TaskRole>('VIEWER' as TaskRole);
+  const [currentUserId, setCurrentUserId] = useState<string>('');
   
   // Lazy load team members only when team tab is active
   const { 
@@ -437,6 +435,27 @@ export default function ClientProjectPage() {
       setActiveTab(getDefaultTab());
     }
   }, [searchParams, task]);
+
+  // Fetch current user's task role
+  useEffect(() => {
+    const fetchCurrentUserRole = async () => {
+      try {
+        const response = await fetch(`/api/tasks/${taskId}/users/me`);
+        if (response.ok) {
+          const data = await response.json();
+          setCurrentUserRole((data.role as TaskRole) || 'VIEWER');
+          setCurrentUserId(data.userId || '');
+        }
+      } catch (error) {
+        // Default to VIEWER on error
+        setCurrentUserRole('VIEWER' as TaskRole);
+      }
+    };
+
+    if (taskId) {
+      fetchCurrentUserRole();
+    }
+  }, [taskId]);
 
   const renderContent = () => {
     // Create params object for child pages

@@ -14,7 +14,7 @@ const LIST_CACHE_TTL = 5 * 60;
 const MAX_CACHED_PAGES = 3;
 
 interface ListCacheParams {
-  endpoint: 'clients' | 'tasks';
+  endpoint: 'clients' | 'tasks' | 'groups';
   page?: number;
   limit?: number;
   serviceLine?: string;
@@ -26,6 +26,8 @@ interface ListCacheParams {
   internalOnly?: boolean;
   clientTasksOnly?: boolean;
   myTasksOnly?: boolean;
+  groupCode?: string;
+  type?: 'clients' | 'tasks';
 }
 
 /**
@@ -45,12 +47,23 @@ export function getListCacheKey(params: ListCacheParams): string {
     internalOnly,
     clientTasksOnly,
     myTasksOnly,
+    groupCode,
+    type,
   } = params;
 
   // Build key components
+  let prefix: string;
+  if (endpoint === 'clients') {
+    prefix = CACHE_PREFIXES.CLIENT;
+  } else if (endpoint === 'tasks') {
+    prefix = CACHE_PREFIXES.TASK;
+  } else {
+    prefix = CACHE_PREFIXES.CLIENT; // Groups use client prefix
+  }
+  
   const components: string[] = [
-    endpoint === 'clients' ? CACHE_PREFIXES.CLIENT : CACHE_PREFIXES.TASK,
-    'list',
+    prefix,
+    endpoint === 'groups' ? 'groups' : 'list',
     `p${page}`,
     `l${limit}`,
   ];
@@ -65,6 +78,8 @@ export function getListCacheKey(params: ListCacheParams): string {
   if (internalOnly) components.push('int');
   if (clientTasksOnly) components.push('client');
   if (myTasksOnly) components.push('my');
+  if (groupCode) components.push(`gc${groupCode}`);
+  if (type) components.push(`t${type}`);
 
   return components.join(':');
 }
@@ -116,14 +131,22 @@ export async function setCachedList<T>(
  * Invalidate all cached lists for a specific endpoint
  */
 export async function invalidateListCache(
-  endpoint: 'clients' | 'tasks',
+  endpoint: 'clients' | 'tasks' | 'groups',
   serviceLine?: string,
   subServiceLineGroup?: string
 ): Promise<void> {
-  const prefix = endpoint === 'clients' ? CACHE_PREFIXES.CLIENT : CACHE_PREFIXES.TASK;
+  let prefix: string;
+  if (endpoint === 'clients') {
+    prefix = CACHE_PREFIXES.CLIENT;
+  } else if (endpoint === 'tasks') {
+    prefix = CACHE_PREFIXES.TASK;
+  } else {
+    prefix = CACHE_PREFIXES.CLIENT; // Groups use client prefix
+  }
   
   // Build pattern for deletion
-  let pattern = `${prefix}:list`;
+  const listType = endpoint === 'groups' ? 'groups' : 'list';
+  let pattern = `${prefix}:${listType}`;
   
   if (serviceLine) {
     pattern = `${pattern}:*:sl${serviceLine}`;
@@ -159,6 +182,19 @@ export async function invalidateTaskListCache(taskId?: number): Promise<void> {
   // Also invalidate the specific task detail cache if provided
   if (taskId) {
     await cache.invalidate(`${CACHE_PREFIXES.TASK}:detail:${taskId}`);
+  }
+}
+
+/**
+ * Invalidate group lists when a client group is updated
+ */
+export async function invalidateGroupListCache(groupCode?: string): Promise<void> {
+  // Invalidate all group lists
+  await cache.invalidate(`${CACHE_PREFIXES.CLIENT}:groups`);
+  
+  // Also invalidate the specific group detail cache if provided
+  if (groupCode) {
+    await cache.invalidate(`${CACHE_PREFIXES.CLIENT}:groups:*:gc${groupCode}`);
   }
 }
 
