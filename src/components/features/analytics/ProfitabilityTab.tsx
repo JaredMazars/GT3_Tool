@@ -126,51 +126,16 @@ export function ProfitabilityTab({ clientId }: ProfitabilityTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Header Section */}
-      <div className="card overflow-hidden">
-        <div className="px-4 py-3" style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)' }}>
-          <h2 className="text-lg font-bold text-white">Client Profitability Analysis</h2>
-        </div>
-
-        <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex items-center gap-4">
-              <div className="flex-shrink-0 w-12 h-12 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #25488A)' }}>
-                <BriefcaseIcon className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-forvis-gray-600">Active Tasks</p>
-                <p className="text-2xl font-bold text-forvis-gray-900">{taskCount}</p>
-              </div>
-            </div>
-
-            {lastUpdated && (
-              <div className="flex items-center gap-4">
-                <div className="flex-shrink-0 w-12 h-12 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}>
-                  <CalendarIcon className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-forvis-gray-600">Last Updated</p>
-                  <p className="text-sm font-bold text-forvis-gray-900">
-                    {new Date(lastUpdated).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
       {/* Tab Navigation */}
       <div className="card overflow-hidden">
-        <div className="border-b border-forvis-gray-200">
-          <nav className="flex flex-wrap -mb-px">
+        <div className="px-6 py-4" style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)' }}>
+          <nav className="flex flex-wrap gap-3">
             <button
               onClick={() => setActiveTab('overall')}
-              className={`px-6 py-3 text-sm font-semibold border-b-2 transition-colors ${
+              className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm ${
                 activeTab === 'overall'
-                  ? 'border-forvis-blue-600 text-forvis-blue-600'
-                  : 'border-transparent text-forvis-gray-600 hover:text-forvis-blue-600 hover:border-forvis-gray-300'
+                  ? 'bg-white text-forvis-blue-600'
+                  : 'bg-white/20 text-white hover:bg-white/30'
               }`}
             >
               Overall
@@ -179,10 +144,10 @@ export function ProfitabilityTab({ clientId }: ProfitabilityTabProps) {
               <button
                 key={msl.code}
                 onClick={() => setActiveTab(msl.code)}
-                className={`px-6 py-3 text-sm font-semibold border-b-2 transition-colors ${
+                className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm ${
                   activeTab === msl.code
-                    ? 'border-forvis-blue-600 text-forvis-blue-600'
-                    : 'border-transparent text-forvis-gray-600 hover:text-forvis-blue-600 hover:border-forvis-gray-300'
+                    ? 'bg-white text-forvis-blue-600'
+                    : 'bg-white/20 text-white hover:bg-white/30'
                 }`}
               >
                 {msl.name}
@@ -190,36 +155,139 @@ export function ProfitabilityTab({ clientId }: ProfitabilityTabProps) {
             ))}
           </nav>
         </div>
+      </div>
 
-        {/* Profitability Metrics Section */}
-        <div className="p-6 space-y-6">
-          {/* Production Metrics */}
-          <div>
-            <h3 className="text-md font-semibold text-forvis-gray-900 mb-4 flex items-center gap-2">
-              <ChartBarIcon className="h-5 w-5 text-forvis-blue-600" />
-              Production Metrics
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <ProfitabilityCard
-                label="Gross Production"
-                value={currentMetrics.grossProduction}
-              />
-              <ProfitabilityCard
-                label="LTD Adjustment"
-                value={currentMetrics.ltdAdjustment}
-                showTrend
-              />
-              <ProfitabilityCard
-                label="Net Revenue"
-                value={currentMetrics.netRevenue}
-              />
+      {/* Key Performance Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="card p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #25488A)' }}>
+              <ChartBarIcon className="h-6 w-6 text-white" />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            <h3 className="text-lg font-bold text-forvis-gray-900">Net Revenue</h3>
+          </div>
+          <p className="text-3xl font-bold text-forvis-blue-600">{formatCurrency(currentMetrics.netRevenue)}</p>
+          <p className="text-xs text-forvis-gray-600 mt-2">Gross Production + Adjustments</p>
+        </div>
+
+        <div className="card p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+              currentMetrics.grossProfitPercentage >= 60
+                ? 'bg-green-600'
+                : currentMetrics.grossProfitPercentage >= 50
+                ? 'bg-yellow-600'
+                : 'bg-red-600'
+            }`}>
+              <CurrencyDollarIcon className="h-6 w-6 text-white" />
+            </div>
+            <h3 className="text-lg font-bold text-forvis-gray-900">Gross Profit</h3>
+          </div>
+          <p className={`text-3xl font-bold ${
+            currentMetrics.grossProfitPercentage >= 60
+              ? 'text-green-600'
+              : currentMetrics.grossProfitPercentage >= 50
+              ? 'text-yellow-600'
+              : 'text-red-600'
+          }`}>
+            {formatCurrency(currentMetrics.grossProfit)}
+          </p>
+          <p className="text-xs text-forvis-gray-600 mt-2">Net Revenue - Costs</p>
+        </div>
+
+        <div className="card p-6 relative">
+          <div className="flex items-center gap-3 mb-4">
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+              currentMetrics.grossProfitPercentage >= 60
+                ? 'bg-green-600'
+                : currentMetrics.grossProfitPercentage >= 50
+                ? 'bg-yellow-600'
+                : 'bg-red-600'
+            }`}>
+              <ChartBarIcon className="h-6 w-6 text-white" />
+            </div>
+            <h3 className="text-lg font-bold text-forvis-gray-900">Gross Profit %</h3>
+          </div>
+          <p className={`text-3xl font-bold ${
+            currentMetrics.grossProfitPercentage >= 60
+              ? 'text-green-600'
+              : currentMetrics.grossProfitPercentage >= 50
+              ? 'text-yellow-600'
+              : 'text-red-600'
+          }`}>
+            {currentMetrics.grossProfitPercentage.toFixed(2)}%
+          </p>
+          <div className="mt-3">
+            <div className={`inline-flex items-center text-xs font-bold px-3 py-1.5 rounded-full ${
+              currentMetrics.grossProfitPercentage >= 60
+                ? 'bg-green-100 text-green-700 border border-green-200'
+                : currentMetrics.grossProfitPercentage >= 50
+                ? 'bg-yellow-100 text-yellow-700 border border-yellow-200'
+                : 'bg-red-100 text-red-700 border border-red-200'
+            }`}>
+              {currentMetrics.grossProfitPercentage >= 60
+                ? '✓ Above 60% Benchmark'
+                : currentMetrics.grossProfitPercentage >= 50
+                ? '⚠ Near 60% Benchmark'
+                : '✗ Below 60% Benchmark'}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Detailed Metrics */}
+      <div className="card">
+        <div className="px-6 py-4 border-b border-forvis-gray-200">
+          <h3 className="text-lg font-bold text-forvis-gray-900">Detailed Breakdown</h3>
+        </div>
+        
+        <div className="p-6 space-y-8">
+          {/* Production & Revenue Flow */}
+          <div className="bg-forvis-gray-50 rounded-lg p-6 border border-forvis-gray-200">
+            <h3 className="text-md font-bold text-forvis-gray-900 mb-6">Revenue Flow</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div>
+                <ProfitabilityCard
+                  label="Gross Production"
+                  value={currentMetrics.grossProduction}
+                />
+                <p className="text-xs text-forvis-gray-500 mt-2 text-center">LTD Time</p>
+              </div>
+              <div>
+                <ProfitabilityCard
+                  label="LTD Adjustment"
+                  value={currentMetrics.ltdAdjustment}
+                  showTrend
+                />
+                <p className="text-xs text-forvis-gray-500 mt-2 text-center">Time + Disb Adjustments</p>
+              </div>
+              <div>
+                <ProfitabilityCard
+                  label="Adjustment %"
+                  value={currentMetrics.adjustmentPercentage}
+                  isPercentage
+                  showTrend
+                />
+                <p className="text-xs text-forvis-gray-500 mt-2 text-center">% of Production</p>
+              </div>
+              <div>
+                <ProfitabilityCard
+                  label="LTD Cost"
+                  value={-currentMetrics.ltdCost}
+                />
+                <p className="text-xs text-forvis-gray-500 mt-2 text-center">Cost Excluding CP</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Rate Metrics */}
+          <div>
+            <h3 className="text-md font-bold text-forvis-gray-900 mb-4">Hourly Rates</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <ProfitabilityCard
-                label="Adjustment %"
-                value={currentMetrics.adjustmentPercentage}
-                isPercentage
-                showTrend
+                label="Total Hours"
+                value={currentMetrics.ltdHours}
+                isCurrency={false}
               />
               <ProfitabilityCard
                 label="Average Chargeout Rate"
@@ -232,84 +300,29 @@ export function ProfitabilityTab({ clientId }: ProfitabilityTabProps) {
             </div>
           </div>
 
-          {/* Profit Metrics */}
+          {/* Additional Details */}
           <div>
-            <h3 className="text-md font-semibold text-forvis-gray-900 mb-4 flex items-center gap-2">
-              <CurrencyDollarIcon className="h-5 w-5 text-forvis-blue-600" />
-              Profitability Metrics
-              <span className="text-xs font-normal text-forvis-gray-600 ml-2">
-                (Benchmark: 60% Gross Profit)
-              </span>
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <ProfitabilityCard
-                label="LTD Cost"
-                value={currentMetrics.ltdCost}
-              />
-              <ProfitabilityCard
-                label="Gross Profit"
-                value={currentMetrics.grossProfit}
-                showTrend
-              />
-              <div className="relative">
-                <ProfitabilityCard
-                  label="Gross Profit %"
-                  value={currentMetrics.grossProfitPercentage}
-                  isPercentage
-                  customBgColor={
-                    currentMetrics.grossProfitPercentage >= 60
-                      ? 'bg-green-50'
-                      : currentMetrics.grossProfitPercentage >= 50
-                      ? 'bg-yellow-50'
-                      : 'bg-red-50'
-                  }
-                  customTextColor={
-                    currentMetrics.grossProfitPercentage >= 60
-                      ? 'text-green-700'
-                      : currentMetrics.grossProfitPercentage >= 50
-                      ? 'text-yellow-700'
-                      : 'text-red-700'
-                  }
-                />
-                {/* Benchmark Indicator */}
-                <div className="absolute -bottom-2 left-0 right-0 flex items-center justify-center gap-2">
-                  <div className={`text-xs font-semibold px-3 py-1 rounded-full ${
-                    currentMetrics.grossProfitPercentage >= 60
-                      ? 'bg-green-100 text-green-700 border border-green-200'
-                      : currentMetrics.grossProfitPercentage >= 50
-                      ? 'bg-yellow-100 text-yellow-700 border border-yellow-200'
-                      : 'bg-red-100 text-red-700 border border-red-200'
-                  }`}>
-                    {currentMetrics.grossProfitPercentage >= 60
-                      ? '✓ Above Benchmark'
-                      : currentMetrics.grossProfitPercentage >= 50
-                      ? '⚠ Near Benchmark'
-                      : '✗ Below Benchmark'}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Life to Date Details */}
-          <div>
-            <h3 className="text-md font-semibold text-forvis-gray-900 mb-4 flex items-center gap-2">
-              <ClockIcon className="h-5 w-5 text-forvis-blue-600" />
-              Life to Date Details
-            </h3>
+            <h3 className="text-md font-bold text-forvis-gray-900 mb-4">Additional Metrics</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <ProfitabilityCard label="LTD Time" value={currentMetrics.ltdTime} />
               <ProfitabilityCard label="LTD Adj Time" value={currentMetrics.ltdAdjTime} />
               <ProfitabilityCard label="LTD Adj Disb" value={currentMetrics.ltdAdjDisb} />
-              <ProfitabilityCard label="LTD Disbursements" value={currentMetrics.ltdDisb} />
+              <ProfitabilityCard label="LTD Fee Time" value={currentMetrics.ltdFeeTime} />
+              <ProfitabilityCard label="LTD Fee Disb" value={currentMetrics.ltdFeeDisb} />
             </div>
           </div>
 
-          {/* Additional LTD Metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <ProfitabilityCard label="LTD Fee Time" value={currentMetrics.ltdFeeTime} />
-            <ProfitabilityCard label="LTD Fee Disb" value={currentMetrics.ltdFeeDisb} />
-            <ProfitabilityCard label="LTD Hours" value={currentMetrics.ltdHours} isCurrency={false} />
+          {/* Footer Info */}
+          <div className="flex items-center justify-between pt-4 border-t border-forvis-gray-200 text-sm text-forvis-gray-600">
+            <div className="flex items-center gap-2">
+              <BriefcaseIcon className="h-4 w-4" />
+              <span><span className="font-semibold">{taskCount}</span> Active Tasks</span>
+            </div>
+            {lastUpdated && (
+              <div className="flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4" />
+                <span>Last Updated: <span className="font-semibold">{new Date(lastUpdated).toLocaleDateString()}</span></span>
+              </div>
+            )}
           </div>
         </div>
       </div>
