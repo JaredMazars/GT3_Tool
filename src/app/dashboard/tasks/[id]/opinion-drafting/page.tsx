@@ -15,10 +15,10 @@ import {
   XMarkIcon,
   CheckIcon,
 } from '@heroicons/react/24/outline';
-import ChatInterface from '@/components/features/opinions/OpinionAssistant/ChatInterface';
-import DocumentManager from '@/components/features/opinions/OpinionAssistant/DocumentManager';
-import SectionEditor from '@/components/features/opinions/OpinionAssistant/SectionEditor';
-import OpinionPreview from '@/components/features/opinions/OpinionAssistant/OpinionPreview';
+import ChatInterface from '@/components/tools/tax-opinion/components/ChatInterface';
+import DocumentManager from '@/components/tools/tax-opinion/components/DocumentManager';
+import SectionEditor from '@/components/tools/tax-opinion/components/SectionEditor';
+import OpinionPreview from '@/components/tools/tax-opinion/components/OpinionPreview';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 
 interface OpinionDraftingPageProps {

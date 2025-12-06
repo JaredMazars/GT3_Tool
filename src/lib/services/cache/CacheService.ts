@@ -9,7 +9,7 @@
  */
 
 import { getRedisClient, isRedisAvailable } from '@/lib/cache/redisClient';
-import { logger } from '@/lib/utils/logger';
+import { logger, logError } from '@/lib/utils/logger';
 
 interface CacheEntry<T> {
   data: T;
@@ -67,7 +67,7 @@ export class CacheService {
         logger.debug('Redis cache miss', { key: safeKey });
         return null;
       } catch (error) {
-        logger.error('Redis get error, falling back to memory', { key: safeKey, error });
+        logError('Redis get error, falling back to memory', error, { key: safeKey });
       }
     }
     
@@ -101,7 +101,7 @@ export class CacheService {
         logger.debug('Redis cache set', { key: safeKey, ttl: ttlSeconds });
         return;
       } catch (error) {
-        logger.error('Redis set error, falling back to memory', { key: safeKey, error });
+        logError('Redis set error, falling back to memory', error, { key: safeKey });
       }
     }
     
@@ -124,7 +124,7 @@ export class CacheService {
         logger.debug('Redis cache deleted', { key: safeKey });
         return true;
       } catch (error) {
-        logger.error('Redis delete error', { key: safeKey, error });
+        logError('Redis delete error', error, { key: safeKey });
       }
     }
     
@@ -149,7 +149,7 @@ export class CacheService {
         logger.info('Redis invalidated keys', { pattern: safePattern, count });
         return count;
       } catch (error) {
-        logger.error('Redis invalidate error', { pattern: safePattern, error });
+        logError('Redis invalidate error', error, { pattern: safePattern });
       }
     }
     
@@ -176,7 +176,7 @@ export class CacheService {
         logger.info('Redis cache cleared');
         return;
       } catch (error) {
-        logger.error('Redis clear error', error);
+        logError('Redis clear error', error);
       }
     }
     

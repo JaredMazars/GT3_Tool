@@ -28,7 +28,8 @@ export function getRedisClient(): Redis | null {
         const parts = connString.split(',');
         const [host, port] = (parts[0] || '').split(':');
         const passwordPart = parts.find(p => p.includes('password='));
-        const password = passwordPart ? passwordPart.split('=')[1] : undefined;
+        // Handle passwords with = characters (common in base64 keys)
+        const password = passwordPart ? passwordPart.substring('password='.length) : undefined;
         
         redis = new Redis({
           host: host || 'localhost',
@@ -65,7 +66,8 @@ export function getRedisClient(): Redis | null {
         const parts = connString.split(',');
         const [host, port] = (parts[0] || '').split(':');
         const passwordPart = parts.find(p => p.includes('password='));
-        const password = passwordPart ? passwordPart.split('=')[1] : undefined;
+        // Handle passwords with = characters (common in base64 keys)
+        const password = passwordPart ? passwordPart.substring('password='.length) : undefined;
         
         redis = new Redis({
           host: host || 'localhost',
@@ -101,7 +103,11 @@ export function getRedisClient(): Redis | null {
       });
 
       redis.on('error', (err) => {
-        logger.error('Redis client error', { error: err.message });
+        logger.error('Redis client error', {
+          errorMessage: err.message,
+          errorName: err.name,
+          errorCode: (err as any).code,
+        });
         isConnected = false;
       });
 
@@ -127,7 +133,24 @@ export function getRedisClient(): Redis | null {
  * Check if Redis is available
  */
 export function isRedisAvailable(): boolean {
-  return isConnected && redis !== null;
+  if (!redis) {
+    return false;
+  }
+  
+  // Check both our flag and the actual connection state
+  const status = redis.status;
+  const available = isConnected && (status === 'ready' || status === 'connecting');
+  
+  // If our flag says connected but Redis says otherwise, update the flag
+  if (isConnected && status !== 'ready' && status !== 'connecting') {
+    isConnected = false;
+    logger.warn('Redis connection state mismatch', { 
+      ourFlag: isConnected, 
+      redisStatus: status 
+    });
+  }
+  
+  return available;
 }
 
 /**
@@ -151,17 +174,48 @@ export async function closeRedis(): Promise<void> {
  */
 export async function pingRedis(): Promise<boolean> {
   const client = getRedisClient();
-  if (!client || !isRedisAvailable()) {
+  if (!client) {
+    logger.warn('Redis ping failed: no client instance');
+    return false;
+  }
+  
+  if (!isRedisAvailable()) {
+    logger.warn('Redis ping failed: not available', { status: client.status });
     return false;
   }
 
   try {
     const result = await client.ping();
-    return result === 'PONG';
+    const success = result === 'PONG';
+    if (success) {
+      logger.debug('Redis ping successful');
+    } else {
+      logger.warn('Redis ping returned unexpected result', { result });
+    }
+    return success;
   } catch (error) {
-    logger.error('Redis ping failed', error);
+    logger.error('Redis ping failed', {
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorName: error instanceof Error ? error.name : 'Unknown',
+      status: client.status,
+    });
     return false;
   }
+}
+
+/**
+ * Get Redis connection status
+ */
+export function getRedisStatus(): {
+  configured: boolean;
+  connected: boolean;
+  status: string | null;
+} {
+  return {
+    configured: !!process.env.REDIS_CONNECTION_STRING,
+    connected: isConnected,
+    status: redis?.status || null,
+  };
 }
 
 

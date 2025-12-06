@@ -6,3 +6,6 @@ CREATE INDEX [Task_updatedAt_idx] ON [dbo].[Task]([updatedAt] DESC);
 CREATE INDEX [TaskTeam_userId_taskId_idx] ON [dbo].[TaskTeam]([userId], [taskId]);
 
 
+
+
+

@@ -1,65 +1,61 @@
-/**
- * Redis Health Check API
- * 
- * GET /api/health/redis - Get comprehensive Redis health status
- * 
- * Returns detailed Redis metrics including:
- * - Connection status and latency
- * - Memory usage
- * - Cache hit rate
- * - Connected clients
- * - Queue statistics
- */
-
-import { NextRequest, NextResponse } from 'next/server';
-import { getRedisHealth, getQueueStats } from '@/lib/monitoring/redisHealth';
+import { NextResponse } from 'next/server';
+import { getRedisStatus, pingRedis } from '@/lib/cache/redisClient';
 import { getCurrentUser } from '@/lib/services/auth/auth';
-import { handleApiError } from '@/lib/utils/errorHandler';
-import { successResponse } from '@/lib/utils/apiUtils';
+import { isSystemAdmin } from '@/lib/services/auth/authorization';
 
 /**
  * GET /api/health/redis
- * Get Redis health status
- * 
- * Only accessible to SYSTEM_ADMIN users
+ * Check Redis connection health
+ * Requires SYSTEM_ADMIN role
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    // Authenticate user
+    // Security: Only system admins can check Redis health
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Only system admins can access health endpoints
-    if (user.systemRole !== 'SYSTEM_ADMIN') {
+    const isAdmin = await isSystemAdmin(user.id);
+    if (!isAdmin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Get Redis health
-    const health = await getRedisHealth();
+    // Get connection status
+    const status = getRedisStatus();
     
-    // Get queue stats
-    const queueStats = await getQueueStats();
+    // Try to ping Redis if connected
+    let pingResult = false;
+    let pingError: string | null = null;
+    
+    if (status.connected) {
+      try {
+        pingResult = await pingRedis();
+      } catch (error) {
+        pingError = error instanceof Error ? error.message : String(error);
+      }
+    }
 
-    const response = {
-      redis: health,
-      queues: queueStats,
-      timestamp: new Date().toISOString(),
-    };
-
-    return NextResponse.json(successResponse(response));
+    return NextResponse.json({
+      success: true,
+      data: {
+        configured: status.configured,
+        connected: status.connected,
+        status: status.status,
+        ping: {
+          success: pingResult,
+          error: pingError,
+        },
+        timestamp: new Date().toISOString(),
+      },
+    });
   } catch (error) {
-    return handleApiError(error, 'GET /api/health/redis');
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to check Redis health',
+      },
+      { status: 500 }
+    );
   }
 }
-
-
-
-
-
-
-
-
-
-

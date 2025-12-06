@@ -20,11 +20,12 @@ export function usePermission(
 ): UsePermissionResult {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['permission', resourceKey, action],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const res = await fetch('/api/permissions/check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ resourceKey, action }),
+        signal, // Pass abort signal from React Query
       });
       
       if (!res.ok) {
@@ -36,6 +37,7 @@ export function usePermission(
     },
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+    retry: 1, // Reduce retries for aborted requests
   });
 
   return {
@@ -58,11 +60,12 @@ export function usePermissionAny(
   const results = useQueries({
     queries: actions.map(action => ({
       queryKey: ['permission', resourceKey, action],
-      queryFn: async () => {
+      queryFn: async ({ signal }: { signal?: AbortSignal }) => {
         const res = await fetch('/api/permissions/check', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ resourceKey, action }),
+          signal, // Pass abort signal from React Query
         });
         
         if (!res.ok) {
@@ -74,6 +77,7 @@ export function usePermissionAny(
       },
       staleTime: 5 * 60 * 1000,
       gcTime: 10 * 60 * 1000,
+      retry: 1, // Reduce retries for aborted requests
     })),
   });
 
@@ -101,11 +105,12 @@ export function usePermissionAll(
   const results = useQueries({
     queries: actions.map(action => ({
       queryKey: ['permission', resourceKey, action],
-      queryFn: async () => {
+      queryFn: async ({ signal }: { signal?: AbortSignal }) => {
         const res = await fetch('/api/permissions/check', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ resourceKey, action }),
+          signal, // Pass abort signal from React Query
         });
         
         if (!res.ok) {
@@ -117,6 +122,7 @@ export function usePermissionAll(
       },
       staleTime: 5 * 60 * 1000,
       gcTime: 10 * 60 * 1000,
+      retry: 1, // Reduce retries for aborted requests
     })),
   });
 

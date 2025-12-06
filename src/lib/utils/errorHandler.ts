@@ -156,6 +156,26 @@ function handleOpenAIError(error: OpenAILikeError): AppError {
  * @returns NextResponse with appropriate error structure
  */
 export function handleApiError(error: unknown, context?: string): NextResponse {
+  // Check if this is an aborted request (client disconnected)
+  const isAborted = error instanceof Error && 
+    (error.message === 'aborted' || error.name === 'AbortError');
+  
+  // Don't log aborted requests as errors (they're expected when components unmount)
+  if (isAborted) {
+    if (context) {
+      logWarn(`Request aborted in ${context}`, { message: 'Client disconnected' });
+    }
+    // Return 499 Client Closed Request (nginx convention)
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Request cancelled',
+        code: 'REQUEST_CANCELLED',
+      },
+      { status: 499 }
+    );
+  }
+  
   // Log the error with structured logging
   if (context) {
     logError(`API Error in ${context}`, error);
