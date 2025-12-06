@@ -1,8 +1,8 @@
 import { generateObject } from 'ai';
-import { models } from '../../ai/config';
-import { TaxAdjustmentSuggestionsSchema } from '../../ai/schemas';
+import { models } from '@/lib/ai/config';
+import { TaxAdjustmentSuggestionsSchema } from '@/lib/ai/schemas';
 import { taxAdjustmentsGuide, type TaxAdjustmentDefinition } from './taxAdjustmentsGuide';
-import { withRetryAndCircuitBreaker, RetryPresets } from '../../utils/retryUtils';
+import { withRetryAndCircuitBreaker, RetryPresets } from '@/lib/utils/retryUtils';
 
 export interface MappedAccountData {
   accountCode: string;
@@ -391,6 +391,5 @@ Return a JSON object with the following structure:
     return allSuggestions;
   }
 }
-
 
 

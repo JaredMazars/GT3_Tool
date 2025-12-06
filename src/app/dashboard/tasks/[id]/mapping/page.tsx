@@ -6,7 +6,7 @@ import { MappedData } from '@/types';
 import ExcelJS from 'exceljs';
 import { mappingGuide } from '@/lib/services/tasks/mappingGuide';
 import { ProcessingModal } from '@/components/shared/ProcessingModal';
-import RemappingModal from '@/components/features/tax-adjustments/RemappingModal';
+import { RemappingModal } from '@/components/tools/tax-calculation';
 import { useMappedAccounts, useUpdateMappedAccount, useTask } from '@/hooks/tasks/useTaskData';
 import { useQueryClient } from '@tanstack/react-query';
 

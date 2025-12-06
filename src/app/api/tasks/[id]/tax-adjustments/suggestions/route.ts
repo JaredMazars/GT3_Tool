@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { TaxAdjustmentEngine } from '@/lib/services/tax/taxAdjustmentEngine';
+import { TaxAdjustmentEngine } from '@/lib/tools/tax-calculation/services/taxAdjustmentEngine';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';

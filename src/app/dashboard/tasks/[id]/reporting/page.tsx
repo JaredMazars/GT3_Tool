@@ -5,8 +5,8 @@ import { DocumentArrowDownIcon } from '@heroicons/react/24/outline';
 import TrialBalanceReport from '@/components/features/reports/TrialBalanceReport';
 import BalanceSheetReport from '@/components/features/reports/BalanceSheetReport';
 import IncomeStatementReport from '@/components/features/reports/IncomeStatementReport';
-import TaxCalculationReport from '@/components/features/reports/TaxCalculationReport';
-import AITaxReport from '@/components/features/reports/AITaxReport';
+import { TaxCalculationReport } from '@/components/tools/tax-calculation';
+import { AITaxReport } from '@/components/tools/tax-opinion';
 import { AlertModal } from '@/components/shared/AlertModal';
 
 import { MappedData } from '@/types';

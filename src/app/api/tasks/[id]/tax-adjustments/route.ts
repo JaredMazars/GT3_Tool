@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db/prisma';
-import { TaxAdjustmentEngine } from '@/lib/services/tax/taxAdjustmentEngine';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { toTaskId } from '@/types/branded';
+import {
+  getTaxAdjustments,
+  createTaxAdjustment,
+  deleteAllTaxAdjustments,
+} from '@/lib/tools/tax-calculation/api/adjustmentsHandler';
 
 /**
  * GET /api/tasks/[id]/tax-adjustments
@@ -37,29 +40,10 @@ export async function GET(
     }
     
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status');
+    const status = searchParams.get('status') || undefined;
 
-    const where: any = { taskId };
-    if (status) {
-      where.status = status;
-    }
-
-    const adjustments = await prisma.taxAdjustment.findMany({
-      where,
-      include: {
-        AdjustmentDocument: {
-          select: {
-            id: true,
-            fileName: true,
-            fileType: true,
-            extractionStatus: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+    // Get adjustments using tool handler
+    const adjustments = await getTaxAdjustments(taskId, status);
 
     return NextResponse.json(successResponse(adjustments));
   } catch (error) {
@@ -98,49 +82,8 @@ export async function POST(
     
     const body = await request.json();
 
-    const {
-      type,
-      description,
-      amount,
-      status = 'SUGGESTED',
-      sarsSection,
-      notes,
-      calculationDetails,
-      confidenceScore,
-    } = body;
-
-    // Validate required fields
-    if (!type || !description || amount === undefined) {
-      return NextResponse.json(
-        { error: 'Missing required fields: type, description, amount' },
-        { status: 400 }
-      );
-    }
-
-    // Validate type
-    if (!['DEBIT', 'CREDIT', 'ALLOWANCE', 'RECOUPMENT'].includes(type)) {
-      return NextResponse.json(
-        { error: 'Invalid type. Must be DEBIT, CREDIT, ALLOWANCE, or RECOUPMENT' },
-        { status: 400 }
-      );
-    }
-
-    const adjustment = await prisma.taxAdjustment.create({
-      data: {
-        taskId,
-        type,
-        description,
-        amount: parseFloat(amount),
-        status,
-        sarsSection,
-        notes,
-        calculationDetails: calculationDetails ? JSON.stringify(calculationDetails) : null,
-        confidenceScore: confidenceScore ? parseFloat(confidenceScore) : null,
-      },
-      include: {
-        AdjustmentDocument: true,
-      },
-    });
+    // Create adjustment using tool handler
+    const adjustment = await createTaxAdjustment(taskId, body);
 
     return NextResponse.json(successResponse(adjustment), { status: 201 });
   } catch (error) {
@@ -178,25 +121,12 @@ export async function DELETE(
     }
     
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status');
+    const status = searchParams.get('status') || undefined;
 
-    interface DeleteWhereClause {
-      taskId: number;
-      status?: string;
-    }
-    const where: DeleteWhereClause = { taskId };
-    if (status) {
-      where.status = status;
-    }
+    // Delete adjustments using tool handler
+    const result = await deleteAllTaxAdjustments(taskId, status);
 
-    const result = await prisma.taxAdjustment.deleteMany({
-      where,
-    });
-
-    return NextResponse.json(successResponse({ 
-      message: `Deleted ${result.count} tax adjustments`,
-      count: result.count 
-    }));
+    return NextResponse.json(successResponse(result));
   } catch (error) {
     return handleApiError(error, 'Delete Tax Adjustments');
   }

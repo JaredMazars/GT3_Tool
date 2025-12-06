@@ -6,7 +6,7 @@ import { formatAmount } from '@/lib/utils/formatters';
 import { MappedData } from '@/types';
 import { ChevronRightIcon } from '@heroicons/react/24/outline';
 import { useMappedAccounts, useUpdateMappedAccount } from '@/hooks/tasks/useTaskData';
-import RemappingModal from '@/components/features/tax-adjustments/RemappingModal';
+import { RemappingModal } from '@/components/tools/tax-calculation';
 const subsectionDisplayNames: Record<string, string> = {
   grossProfitOrLoss: 'Gross Profit/Loss',
   incomeItemsCreditAmounts: 'Income Items (Credit)',

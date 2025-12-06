@@ -3,24 +3,26 @@
 import { useState, Suspense } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRightIcon, ChartBarIcon, DocumentTextIcon, CalculatorIcon, CloudArrowUpIcon } from '@heroicons/react/24/outline';
+import { ChevronRightIcon, ChartBarIcon, DocumentTextIcon, CalculatorIcon, CloudArrowUpIcon, BriefcaseIcon, BanknotesIcon } from '@heroicons/react/24/outline';
 import { ClientHeader } from '@/components/features/clients/ClientHeader';
 import { useClient } from '@/hooks/clients/useClients';
 import { formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';
+import { ProfitabilityTab } from '@/components/features/analytics/ProfitabilityTab';
+import { RecoverabilityTab } from '@/components/features/analytics/RecoverabilityTab';
 import { UploadAnalyzeTab } from '@/components/features/analytics/UploadAnalyzeTab';
 import { CreditRatingsTab } from '@/components/features/analytics/CreditRatingsTab';
 import { FinancialRatiosTab } from '@/components/features/analytics/FinancialRatiosTab';
 import { AnalyticsDocumentsTab } from '@/components/features/analytics/AnalyticsDocumentsTab';
 import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLineGroups';
 
-type TabType = 'upload' | 'ratings' | 'ratios' | 'documents';
+type TabType = 'profitability' | 'recoverability' | 'upload' | 'ratings' | 'ratios' | 'documents';
 
 function ClientAnalyticsContent() {
   const params = useParams();
   const clientId = (params?.id as string) || '';
   const serviceLine = (params?.serviceLine as string)?.toUpperCase();
   const subServiceLineGroup = params?.subServiceLineGroup as string;
-  const [activeTab, setActiveTab] = useState<TabType>('upload');
+  const [activeTab, setActiveTab] = useState<TabType>('profitability');
 
   // Fetch sub-service line groups to get the description
   const { data: subGroups } = useSubServiceLineGroups({
@@ -80,6 +82,18 @@ function ClientAnalyticsContent() {
   const clientName = client.clientNameFull || client.clientCode;
 
   const tabs = [
+    {
+      id: 'profitability' as TabType,
+      name: 'Profitability',
+      icon: ChartBarIcon,
+      description: 'View client profitability analysis',
+    },
+    {
+      id: 'recoverability' as TabType,
+      name: 'Recoverability',
+      icon: BanknotesIcon,
+      description: 'View recoverability information',
+    },
     {
       id: 'upload' as TabType,
       name: 'Upload & Analyze',
@@ -177,6 +191,8 @@ function ClientAnalyticsContent() {
 
         {/* Tab Content */}
         <div className="mt-6">
+          {activeTab === 'profitability' && <ProfitabilityTab clientId={clientId} />}
+          {activeTab === 'recoverability' && <RecoverabilityTab clientId={clientId} />}
           {activeTab === 'upload' && (
             <UploadAnalyzeTab clientId={clientId} onGenerateComplete={() => setActiveTab('ratings')} />
           )}

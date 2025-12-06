@@ -3,10 +3,15 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatAmount } from '@/lib/utils/formatters';
-import TaxAdjustmentCard from '@/components/features/tax-adjustments/TaxAdjustmentCard';
 import ExportMenu from '@/components/shared/ExportMenu';
-import AddAdjustmentModal from '@/components/features/tax-adjustments/AddAdjustmentModal';
-import { useTaxAdjustments, useTaxCalculation, useUpdateTaxAdjustment, useGenerateTaxSuggestions } from '@/hooks/tasks/useTaskData';
+import {
+  TaxAdjustmentCard,
+  AddAdjustmentModal,
+  useTaxAdjustments,
+  useTaxCalculation,
+  useUpdateTaxAdjustment,
+  useGenerateTaxSuggestions,
+} from '@/components/tools/tax-calculation';
 
 interface TaxCalculationProps {
   params: Promise<{ id: string }>;

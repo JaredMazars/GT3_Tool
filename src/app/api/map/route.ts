@@ -6,7 +6,7 @@ import { AccountMappingSchema } from '@/lib/ai/schemas';
 import { mappingGuide } from '@/lib/services/tasks/mappingGuide';
 import { prisma } from '@/lib/db/prisma';
 import { logInfo, logError } from '@/lib/utils/logger';
-import { determineSectionAndSubsection } from '@/lib/services/opinions/sectionMapper';
+import { determineSectionAndSubsection } from '@/lib/tools/tax-opinion/services/sectionMapper';
 
 // Helper to convert worksheet to JSON
 function sheetToJson(worksheet: ExcelJS.Worksheet): Record<string, unknown>[] {

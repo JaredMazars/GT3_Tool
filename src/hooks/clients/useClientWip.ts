@@ -1,0 +1,85 @@
+'use client';
+
+import { useQuery } from '@tanstack/react-query';
+
+// Query Keys
+export const clientWipKeys = {
+  all: ['client-wip'] as const,
+  detail: (clientId: string) => [...clientWipKeys.all, clientId] as const,
+};
+
+// Types
+export interface ProfitabilityMetrics {
+  grossProduction: number;
+  ltdAdjustment: number;
+  netRevenue: number;
+  adjustmentPercentage: number;
+  ltdCost: number;
+  grossProfit: number;
+  grossProfitPercentage: number;
+  averageChargeoutRate: number;
+  averageRecoveryRate: number;
+  balWIP: number;
+  balTime: number;
+  balDisb: number;
+  wipProvision: number;
+  ltdTime: number;
+  ltdDisb: number;
+  ltdAdjTime: number;
+  ltdAdjDisb: number;
+  ltdFeeTime: number;
+  ltdFeeDisb: number;
+  ltdHours: number;
+  taskCount: number;
+}
+
+export interface MasterServiceLineInfo {
+  code: string;
+  name: string;
+}
+
+export interface ClientWipData {
+  clientId: string;
+  clientCode: string;
+  clientName: string | null;
+  overall: ProfitabilityMetrics;
+  byMasterServiceLine: Record<string, ProfitabilityMetrics>;
+  masterServiceLines: MasterServiceLineInfo[];
+  taskCount: number;
+  lastUpdated: string | null;
+}
+
+export interface UseClientWipParams {
+  enabled?: boolean;
+}
+
+/**
+ * Fetch Work in Progress data for a client
+ * Returns aggregated WIP balances across all client tasks
+ */
+export function useClientWip(
+  clientId: string,
+  params: UseClientWipParams = {}
+) {
+  const { enabled = true } = params;
+
+  return useQuery<ClientWipData>({
+    queryKey: clientWipKeys.detail(clientId),
+    queryFn: async () => {
+      const url = `/api/clients/${clientId}/wip`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch client WIP data');
+      
+      const result = await response.json();
+      return result.success ? result.data : result;
+    },
+    enabled: enabled && !!clientId,
+    staleTime: 10 * 60 * 1000, // 10 minutes - aligned with business rules cache TTL
+    gcTime: 15 * 60 * 1000, // 15 minutes cache retention
+    refetchOnMount: false, // Don't refetch if data is fresh
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+    refetchOnReconnect: false, // Don't refetch on reconnect
+  });
+}
+
+
