@@ -1,6 +1,7 @@
 'use client';
 
 import { UserGroupIcon } from '@heroicons/react/24/outline';
+import { useGroupWip } from '@/hooks/clients/useGroupWip';
 
 interface GroupHeaderProps {
   groupCode: string;
@@ -9,6 +10,17 @@ interface GroupHeaderProps {
 }
 
 export function GroupHeader({ groupCode, groupDesc, clientCount }: GroupHeaderProps) {
+  const { data: wipData } = useGroupWip(groupCode);
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-ZA', {
+      style: 'currency',
+      currency: 'ZAR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
   return (
     <div className="card mb-6">
       <div className="p-6">
@@ -27,6 +39,35 @@ export function GroupHeader({ groupCode, groupDesc, clientCount }: GroupHeaderPr
               </div>
             </div>
           </div>
+
+          {/* WIP Balances */}
+          {wipData && wipData.overall && (
+            <div className="ml-8 flex gap-4">
+              <div
+                className="rounded-lg px-4 py-3 shadow-corporate text-white min-w-[140px]"
+                style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #25488A)' }}
+              >
+                <p className="text-xs font-medium opacity-90">WIP Balance</p>
+                <p className="text-lg font-bold mt-1">{formatCurrency(wipData.overall.balWIP)}</p>
+              </div>
+
+              <div
+                className="rounded-lg px-4 py-3 shadow-corporate text-white min-w-[140px]"
+                style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
+              >
+                <p className="text-xs font-medium opacity-90">Time Balance</p>
+                <p className="text-lg font-bold mt-1">{formatCurrency(wipData.overall.balTime)}</p>
+              </div>
+
+              <div
+                className="rounded-lg px-4 py-3 shadow-corporate text-white min-w-[140px]"
+                style={{ background: 'linear-gradient(to bottom right, #25488A, #1C3667)' }}
+              >
+                <p className="text-xs font-medium opacity-90">Disb Balance</p>
+                <p className="text-lg font-bold mt-1">{formatCurrency(wipData.overall.balDisb)}</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

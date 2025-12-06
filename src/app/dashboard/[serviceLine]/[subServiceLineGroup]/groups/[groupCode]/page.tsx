@@ -601,13 +601,18 @@ export default function GroupDetailPage() {
               </div>
 
               {/* Analytics Card */}
-              <div className="card opacity-60">
+              <Link
+                href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/groups/${encodeURIComponent(groupCode)}/analytics`}
+                className="card hover:shadow-lg transition-shadow cursor-pointer"
+              >
                 <div className="p-4 text-center">
-                  <PresentationChartLineIcon className="mx-auto h-10 w-10 text-forvis-gray-300 mb-2" />
+                  <div className="mx-auto h-10 w-10 rounded-lg flex items-center justify-center mb-2" style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #25488A)' }}>
+                    <PresentationChartLineIcon className="h-6 w-6 text-white" />
+                  </div>
                   <h3 className="text-sm font-semibold text-forvis-gray-900 mb-1">Analytics</h3>
-                  <p className="text-xs text-forvis-gray-500">Coming Soon</p>
+                  <p className="text-xs text-forvis-gray-600">View profitability & recoverability</p>
                 </div>
-              </div>
+              </Link>
 
               {/* Contacts Card */}
               <div className="card opacity-60">

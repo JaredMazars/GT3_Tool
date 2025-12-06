@@ -3,9 +3,11 @@
 import { useState } from 'react';
 import { BriefcaseIcon, ClockIcon, CurrencyDollarIcon, CalendarIcon, ChartBarIcon, ArrowTrendingUpIcon, ArrowTrendingDownIcon } from '@heroicons/react/24/outline';
 import { useClientWip, ProfitabilityMetrics } from '@/hooks/clients/useClientWip';
+import { useGroupWip } from '@/hooks/clients/useGroupWip';
 
 interface ProfitabilityTabProps {
-  clientId: string;
+  clientId?: string;
+  groupCode?: string;
 }
 
 interface ProfitabilityCardProps {
@@ -65,8 +67,17 @@ function ProfitabilityCard({
   );
 }
 
-export function ProfitabilityTab({ clientId }: ProfitabilityTabProps) {
-  const { data: wipData, isLoading, error } = useClientWip(clientId);
+export function ProfitabilityTab({ clientId, groupCode }: ProfitabilityTabProps) {
+  // Use the appropriate hook based on props
+  const { data: clientWipData, isLoading: isLoadingClient, error: clientError } = useClientWip(clientId || '', { enabled: !!clientId });
+  const { data: groupWipData, isLoading: isLoadingGroup, error: groupError } = useGroupWip(groupCode || '', { enabled: !!groupCode });
+  
+  // Select the appropriate data based on which is available
+  const wipData = clientId ? clientWipData : groupWipData;
+  const isLoading = clientId ? isLoadingClient : isLoadingGroup;
+  const error = clientId ? clientError : groupError;
+  const entityType = clientId ? 'client' : 'group';
+  
   const [activeTab, setActiveTab] = useState<string>('overall');
 
   const formatCurrency = (amount: number) => {
@@ -111,7 +122,7 @@ export function ProfitabilityTab({ clientId }: ProfitabilityTabProps) {
         <ChartBarIcon className="mx-auto h-16 w-16" style={{ color: '#2E5AAC' }} />
         <h3 className="mt-4 text-lg font-bold" style={{ color: '#1C3667' }}>No profitability data available</h3>
         <p className="mt-2 text-sm font-medium" style={{ color: '#2E5AAC' }}>
-          No tasks with profitability data have been found for this client
+          No tasks with profitability data have been found for this {entityType}
         </p>
       </div>
     );
