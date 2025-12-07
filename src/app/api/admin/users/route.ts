@@ -70,11 +70,13 @@ export async function GET(request: NextRequest) {
         ServiceLineUser: {
           select: {
             id: true,
-            serviceLine: true,
+            subServiceLineGroup: true,
             role: true,
+            assignmentType: true,
+            parentAssignmentId: true,
           },
           orderBy: {
-            serviceLine: 'asc',
+            subServiceLineGroup: 'asc',
           },
         },
         Session: {

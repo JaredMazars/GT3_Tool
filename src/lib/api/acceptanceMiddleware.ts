@@ -119,18 +119,18 @@ export async function canApproveAcceptanceValidation(
     // Get master service line from ServLineCode
     const serviceLineMapping = await prisma.serviceLineExternal.findFirst({
       where: { ServLineCode: task.ServLineCode },
-      select: { masterCode: true },
+      select: { SubServlineGroupCode: true },
     });
 
-    if (!serviceLineMapping?.masterCode) {
+    if (!serviceLineMapping?.SubServlineGroupCode) {
       return false;
     }
 
     const serviceLineAccess = await prisma.serviceLineUser.findUnique({
       where: {
-        userId_serviceLine: {
+        userId_subServiceLineGroup: {
           userId,
-          serviceLine: serviceLineMapping.masterCode,
+          subServiceLineGroup: serviceLineMapping.SubServlineGroupCode,
         },
       },
       select: { role: true },

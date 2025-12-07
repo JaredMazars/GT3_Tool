@@ -442,11 +442,21 @@ export async function checkProjectAccess(
     }
 
     // Non-System Admins must have service line access
+    // First, map ServLineCode to SubServlineGroupCode
+    const serviceLineMapping = await prisma.serviceLineExternal.findFirst({
+      where: { ServLineCode: task.ServLineCode },
+      select: { SubServlineGroupCode: true },
+    });
+
+    if (!serviceLineMapping?.SubServlineGroupCode) {
+      return false;
+    }
+
     const serviceLineAccess = await prisma.serviceLineUser.findUnique({
       where: {
-        userId_serviceLine: {
+        userId_subServiceLineGroup: {
           userId,
-          serviceLine: task.ServLineCode,
+          subServiceLineGroup: serviceLineMapping.SubServlineGroupCode,
         },
       },
     });

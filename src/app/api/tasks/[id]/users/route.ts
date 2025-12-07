@@ -105,16 +105,24 @@ export async function POST(
     });
 
     // Check if user is service line admin
-    const serviceLineAccess = await prisma.serviceLineUser.findUnique({
-      where: {
-        userId_serviceLine: {
-          userId: user.id,
-          serviceLine: task.ServLineCode,
-        },
-      },
+    // First, map ServLineCode to SubServlineGroupCode
+    const serviceLineMapping = await prisma.serviceLineExternal.findFirst({
+      where: { ServLineCode: task.ServLineCode },
+      select: { SubServlineGroupCode: true },
     });
 
-    const isServiceLineAdmin = serviceLineAccess?.role === 'ADMINISTRATOR' || serviceLineAccess?.role === 'PARTNER';
+    let isServiceLineAdmin = false;
+    if (serviceLineMapping?.SubServlineGroupCode) {
+      const serviceLineAccess = await prisma.serviceLineUser.findUnique({
+        where: {
+          userId_subServiceLineGroup: {
+            userId: user.id,
+            subServiceLineGroup: serviceLineMapping.SubServlineGroupCode,
+          },
+        },
+      });
+      isServiceLineAdmin = serviceLineAccess?.role === 'ADMINISTRATOR' || serviceLineAccess?.role === 'PARTNER';
+    }
     
     // Get user from earlier check for role
     const currentUser = await prisma.user.findUnique({
