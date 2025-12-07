@@ -33,8 +33,10 @@ interface SystemUser {
   role?: string; // System role (SYSTEM_ADMIN or USER)
   serviceLines?: Array<{
     id: number;
-    serviceLine: string;
+    serviceLine: string; // This will be the masterCode from grouped sub-groups
     role: string;
+    subServiceLineGroup?: string;
+    assignmentType?: string;
   }>;
   tasks?: Array<{
     id: number;
@@ -229,7 +231,8 @@ export default function UserManagementPage() {
         credentials: 'include',
         body: JSON.stringify({
           userId: selectedUser.id,
-          serviceLine,
+          type: 'main', // Granting access to all sub-groups in the service line
+          masterCode: serviceLine,
           role,
         }),
       });
@@ -238,9 +241,13 @@ export default function UserManagementPage() {
         const updatedServiceLines = await fetchUserServiceLines(selectedUser.id);
         updateUserServiceLinesState(selectedUser.id, updatedServiceLines);
         setShowAddServiceLineDropdown(false);
+      } else {
+        // Log error for debugging
+        const errorData = await response.json();
+        console.error('Failed to add service line:', errorData);
       }
     } catch (error) {
-      // Silently handle error
+      console.error('Error adding service line:', error);
     }
   };
 

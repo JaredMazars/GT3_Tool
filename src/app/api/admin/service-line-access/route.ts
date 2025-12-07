@@ -26,7 +26,7 @@ import {
   UpdateServiceLineRoleSchema,
   SwitchAssignmentTypeSchema,
 } from '@/lib/validation/schemas';
-import { sanitizeObject } from '@/lib/utils/sanitizeInput';
+import { sanitizeObject } from '@/lib/utils/sanitization';
 
 // Force dynamic rendering (uses cookies)
 export const dynamic = 'force-dynamic';
