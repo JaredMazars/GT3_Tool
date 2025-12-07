@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   UserGroupIcon, 
   MagnifyingGlassIcon,
@@ -16,6 +16,7 @@ import { getRoleBadgeColor } from '@/lib/utils/permissionUtils';
 import { UserSearchModal } from '@/components/features/tasks/UserManagement/UserSearchModal';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { AlertModal } from '@/components/shared/AlertModal';
+import { AddServiceLineModal } from '@/components/features/admin/AddServiceLineModal';
 import { ADUser, ServiceLine, ServiceLineRole } from '@/types';
 import { ServiceLineUser } from '@/types';
 import { SERVICE_LINE_DETAILS } from '@/types/service-line';
@@ -67,8 +68,7 @@ export default function UserManagementPage() {
   // Service Line Access Management
   const [userServiceLines, setUserServiceLines] = useState<ServiceLineUser[]>([]);
   const [loadingServiceLines, setLoadingServiceLines] = useState(false);
-  const [showAddServiceLineDropdown, setShowAddServiceLineDropdown] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [showAddServiceLineModal, setShowAddServiceLineModal] = useState(false);
   const updateUserServiceLinesState = (userId: string, serviceLines: ServiceLineUser[]) => {
     setSelectedUser((current) =>
       current && current.id === userId ? { ...current, serviceLines } : current
@@ -136,21 +136,6 @@ export default function UserManagementPage() {
     }
   }, [searchTerm, systemUsers, activeTab]);
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowAddServiceLineDropdown(false);
-      }
-    };
-
-    if (showAddServiceLineDropdown) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-    
-    return undefined;
-  }, [showAddServiceLineDropdown]);
 
   const fetchSystemUsers = async () => {
     setLoading(true);
@@ -221,7 +206,12 @@ export default function UserManagementPage() {
     return [];
   };
 
-  const handleAddServiceLine = async (serviceLine: ServiceLine, role: ServiceLineRole = ServiceLineRole.USER) => {
+  const handleAddServiceLine = async (data: {
+    type: 'main' | 'subgroup';
+    masterCode?: string;
+    subGroups?: string[];
+    role: ServiceLineRole;
+  }) => {
     if (!selectedUser) return;
 
     try {
@@ -231,37 +221,53 @@ export default function UserManagementPage() {
         credentials: 'include',
         body: JSON.stringify({
           userId: selectedUser.id,
-          type: 'main', // Granting access to all sub-groups in the service line
-          masterCode: serviceLine,
-          role,
+          ...data,
         }),
       });
 
       if (response.ok) {
         const updatedServiceLines = await fetchUserServiceLines(selectedUser.id);
         updateUserServiceLinesState(selectedUser.id, updatedServiceLines);
-        setShowAddServiceLineDropdown(false);
+        setAlertModal({
+          isOpen: true,
+          title: 'Success',
+          message: data.type === 'main' 
+            ? `Service line access granted to all sub-groups in ${data.masterCode}`
+            : `Access granted to ${data.subGroups?.length} specific sub-group(s)`,
+          variant: 'success',
+        });
       } else {
-        // Log error for debugging
         const errorData = await response.json();
         console.error('Failed to add service line:', errorData);
+        setAlertModal({
+          isOpen: true,
+          title: 'Error',
+          message: errorData.error || 'Failed to add service line access',
+          variant: 'error',
+        });
       }
     } catch (error) {
       console.error('Error adding service line:', error);
+      setAlertModal({
+        isOpen: true,
+        title: 'Error',
+        message: 'An error occurred while adding service line access',
+        variant: 'error',
+      });
     }
   };
 
-  const handleRemoveServiceLine = async (serviceLineUserId: number) => {
+  const handleRemoveServiceLine = async (subServiceLineGroup: string, masterCode: string) => {
     if (!selectedUser) return;
 
     setConfirmModal({
       isOpen: true,
       title: 'Remove Service Line Access',
-      message: 'Are you sure you want to remove this service line access?',
+      message: `Are you sure you want to remove access to ${masterCode}? This will remove all sub-groups within this service line.`,
       variant: 'danger',
       onConfirm: async () => {
         try {
-          const url = `/api/admin/service-line-access?id=${serviceLineUserId}`;
+          const url = `/api/admin/service-line-access?userId=${selectedUser.id}&type=main&masterCode=${masterCode}`;
           const response = await fetch(url, {
             method: 'DELETE',
             credentials: 'include',
@@ -270,9 +276,12 @@ export default function UserManagementPage() {
           if (response.ok) {
             const updatedServiceLines = await fetchUserServiceLines(selectedUser.id);
             updateUserServiceLinesState(selectedUser.id, updatedServiceLines);
+          } else {
+            const errorData = await response.json();
+            console.error('Failed to remove service line:', errorData);
           }
         } catch (error) {
-          // Silently handle error
+          console.error('Error removing service line:', error);
         } finally {
           setConfirmModal((prev) => ({ ...prev, isOpen: false }));
         }
@@ -280,28 +289,31 @@ export default function UserManagementPage() {
     });
   };
 
-  const handleUpdateServiceLineRole = async (serviceLineUserId: number, newRole: ServiceLineRole) => {
+  const handleUpdateServiceLineRole = async (subServiceLineGroup: string, newRole: ServiceLineRole) => {
     if (!selectedUser) return;
-
-    const payload = {
-      id: serviceLineUserId,
-      role: newRole,
-    };
 
     try {
       const response = await fetch('/api/admin/service-line-access', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          userId: selectedUser.id,
+          serviceLineOrSubGroup: subServiceLineGroup,
+          role: newRole,
+          isSubGroup: true,
+        }),
       });
 
       if (response.ok) {
         const updatedServiceLines = await fetchUserServiceLines(selectedUser.id);
         updateUserServiceLinesState(selectedUser.id, updatedServiceLines);
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to update role:', errorData);
       }
     } catch (error) {
-      // Silently handle error
+      console.error('Error updating role:', error);
     }
   };
 
@@ -1033,46 +1045,13 @@ export default function UserManagementPage() {
                       <h3 className="text-lg font-semibold text-forvis-gray-900">Service Line Access</h3>
                       <p className="text-xs text-forvis-gray-600 mt-1">Assign service lines and set permission levels for this user</p>
                     </div>
-                    <div className="relative" ref={dropdownRef}>
-                      <button
-                        onClick={() => setShowAddServiceLineDropdown(!showAddServiceLineDropdown)}
-                        className="btn-primary text-sm flex items-center"
-                      >
-                        <PlusIcon className="h-4 w-4 mr-1" />
-                        Add Service Line
-                      </button>
-
-                      {showAddServiceLineDropdown && (
-                        <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
-                          {Object.values(ServiceLine).map((sl) => {
-                            const alreadyHasAccess = userServiceLines.some(
-                              (usl) => usl.serviceLine === sl
-                            );
-                            const details = SERVICE_LINE_DETAILS[sl];
-                            const Icon = details.icon;
-
-                            return (
-                              <button
-                                key={sl}
-                                onClick={() => handleAddServiceLine(sl)}
-                                disabled={alreadyHasAccess}
-                                className={`w-full px-4 py-3 text-left hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg flex items-center ${
-                                  alreadyHasAccess ? 'opacity-50 cursor-not-allowed' : ''
-                                }`}
-                              >
-                                <Icon className={`h-5 w-5 mr-3 ${details.colorClass}`} />
-                                <div>
-                                  <div className="font-medium text-gray-900">{details.name}</div>
-                                  {alreadyHasAccess && (
-                                    <div className="text-xs text-gray-500">Already has access</div>
-                                  )}
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
+                    <button
+                      onClick={() => setShowAddServiceLineModal(true)}
+                      className="btn-primary text-sm flex items-center"
+                    >
+                      <PlusIcon className="h-4 w-4 mr-1" />
+                      Add Service Line
+                    </button>
                   </div>
 
                   {loadingServiceLines ? (
@@ -1145,7 +1124,7 @@ export default function UserManagementPage() {
                                 value={slUser.role}
                                 onChange={(e) =>
                                   handleUpdateServiceLineRole(
-                                    slUser.id,
+                                    slUser.subServiceLineGroup || slUser.serviceLine,
                                     e.target.value as ServiceLineRole
                                   )
                                 }
@@ -1158,13 +1137,16 @@ export default function UserManagementPage() {
                                 <option value="SUPERVISOR">Supervisor</option>
                                 <option value="MANAGER">Manager</option>
                                 <option value="PARTNER">Partner</option>
-                                <option value="ADMIN">Admin</option>
+                                <option value="ADMINISTRATOR">Administrator</option>
                               </select>
                               {/* Only show delete button for real database records (positive IDs) */}
                               {/* Virtual service lines for SYSTEM_ADMIN have negative IDs and cannot be deleted */}
                               {slUser.id > 0 && (
                                 <button
-                                  onClick={() => handleRemoveServiceLine(slUser.id)}
+                                  onClick={() => handleRemoveServiceLine(
+                                    slUser.subServiceLineGroup || slUser.serviceLine,
+                                    slUser.serviceLine
+                                  )}
                                   className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                   title="Remove access"
                                 >
@@ -1241,6 +1223,13 @@ export default function UserManagementPage() {
         title={alertModal.title}
         message={alertModal.message}
         variant={alertModal.variant}
+      />
+
+      <AddServiceLineModal
+        isOpen={showAddServiceLineModal}
+        onClose={() => setShowAddServiceLineModal(false)}
+        onSubmit={handleAddServiceLine}
+        existingServiceLines={userServiceLines.map(sl => sl.serviceLine)}
       />
     </div>
   );
