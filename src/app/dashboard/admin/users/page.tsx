@@ -1124,7 +1124,7 @@ export default function UserManagementPage() {
                                 value={slUser.role}
                                 onChange={(e) =>
                                   handleUpdateServiceLineRole(
-                                    slUser.subServiceLineGroup || slUser.serviceLine,
+                                    slUser.serviceLine,
                                     e.target.value as ServiceLineRole
                                   )
                                 }
@@ -1144,7 +1144,7 @@ export default function UserManagementPage() {
                               {slUser.id > 0 && (
                                 <button
                                   onClick={() => handleRemoveServiceLine(
-                                    slUser.subServiceLineGroup || slUser.serviceLine,
+                                    slUser.serviceLine,
                                     slUser.serviceLine
                                   )}
                                   className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"

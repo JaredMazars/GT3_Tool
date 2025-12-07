@@ -254,10 +254,10 @@ export async function getUserServiceLinesCached(userId: string): Promise<string[
     // Get user's service line assignments
     const serviceLineUsers = await prisma.serviceLineUser.findMany({
       where: { userId },
-      select: { serviceLine: true },
+      select: { subServiceLineGroup: true },
     });
 
-    const result = serviceLineUsers.map(slu => slu.serviceLine);
+    const result = serviceLineUsers.map(slu => slu.subServiceLineGroup);
     await cache.set(cacheKey, result, CACHE_TTL);
     return result;
   } catch (error) {

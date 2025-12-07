@@ -38,10 +38,10 @@ export async function getAccessibleServiceLines(userId: string): Promise<string[
     // Get user's service line assignments
     const serviceLineUsers = await prisma.serviceLineUser.findMany({
       where: { userId },
-      select: { serviceLine: true },
+      select: { subServiceLineGroup: true },
     });
 
-    return serviceLineUsers.map(slu => slu.serviceLine);
+    return serviceLineUsers.map(slu => slu.subServiceLineGroup);
   } catch (error) {
     logger.error('Error getting accessible service lines', { userId, error });
     return [];

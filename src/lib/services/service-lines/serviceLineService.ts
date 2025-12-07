@@ -101,7 +101,7 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
         );
         
         // Get all sub-groups for this master code
-        const subGroups = allSubGroupsArrays[index].map(sg => ({
+        const subGroups = (allSubGroupsArrays[index] || []).map(sg => ({
           code: sg.code,
           description: sg.description,
         }));
@@ -206,6 +206,8 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
     // Build result: one entry per master code
     const result: ServiceLineWithStats[] = [];
     for (const [masterCode, assignments] of masterCodeAssignments) {
+      if (assignments.length === 0) continue;
+      
       // Get all sub-groups for this master code
       const allSubGroupsForMaster = await getSubServiceLineGroupsByMaster(masterCode);
       const userSubGroupCodes = new Set(assignments.map(a => a.subServiceLineGroup));
@@ -235,7 +237,7 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
       }
 
       result.push({
-        id: assignments[0].id,
+        id: assignments[0]!.id,
         serviceLine: masterCode,
         role,
         taskCount,

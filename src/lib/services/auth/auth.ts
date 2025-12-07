@@ -555,7 +555,7 @@ export async function checkClientAccess(
       const serviceLineAccess = await prisma.serviceLineUser.findFirst({
         where: {
           userId,
-          serviceLine: { in: serviceLines },
+          subServiceLineGroup: { in: serviceLines },
         },
       });
 

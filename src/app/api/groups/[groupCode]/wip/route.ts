@@ -180,6 +180,11 @@ export async function GET(
       );
     }
 
+    // 4. Filter Service Lines - Get user's accessible service lines
+    const { getUserServiceLines } = await import('@/lib/services/service-lines/serviceLineService');
+    const accessibleServiceLines = await getUserServiceLines(user.id);
+    const accessibleServLineCodes = accessibleServiceLines.map(sl => String(sl.serviceLine));
+
     // Fetch WIP data for all clients in the group
     const wipRecords = await prisma.wipLTD.findMany({
       where: {
