@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { SparklesIcon } from '@heroicons/react/24/outline';
+import { useState, useRef } from 'react';
+import { SparklesIcon, DocumentArrowUpIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { NewsBulletin, BulletinCategory, ServiceLine } from '@/types';
 import type { CreateNewsBulletinInput } from '@/lib/validation/schemas';
 
@@ -44,12 +44,20 @@ function formatDateForInput(date: Date | string | null | undefined): string {
   return d.toISOString().split('T')[0];
 }
 
+interface AISuggestions {
+  title: string;
+  summary: string;
+  body: string;
+  category: BulletinCategory;
+}
+
 export function BulletinForm({ 
   initialData, 
   onSubmit, 
   onCancel, 
   isLoading = false 
 }: BulletinFormProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     title: initialData?.title || '',
     summary: initialData?.summary || '',
@@ -63,11 +71,135 @@ export function BulletinForm({
     callToActionUrl: initialData?.callToActionUrl || '',
     callToActionText: initialData?.callToActionText || '',
     isPinned: initialData?.isPinned || false,
+    showDocumentLink: initialData?.showDocumentLink || false,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
+  
+  // Document upload state
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [uploadedDocMetadata, setUploadedDocMetadata] = useState<{
+    fileName: string;
+    filePath: string;
+    fileSize: number;
+  } | null>(initialData?.documentFileName ? {
+    fileName: initialData.documentFileName,
+    filePath: initialData.documentFilePath || '',
+    fileSize: initialData.documentFileSize || 0,
+  } : null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  
+  // AI suggestions state
+  const [aiSuggestions, setAISuggestions] = useState<AISuggestions | null>(null);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (file.type !== 'application/pdf') {
+      setUploadError('Only PDF files are supported');
+      return;
+    }
+
+    // Validate file size (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadError('File size must be less than 10MB');
+      return;
+    }
+
+    setUploadedFile(file);
+    setUploadError(null);
+  };
+
+  const handleExtractFromDocument = async () => {
+    if (!uploadedFile) return;
+
+    setIsUploading(true);
+    setUploadError(null);
+
+    try {
+      const formDataToUpload = new FormData();
+      formDataToUpload.append('file', uploadedFile);
+
+      const response = await fetch('/api/news/upload-document', {
+        method: 'POST',
+        body: formDataToUpload,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to extract content from document');
+      }
+
+      const data = await response.json();
+      
+      if (data.data?.suggestions) {
+        setAISuggestions(data.data.suggestions);
+        setShowSuggestions(true);
+        
+        // Store document metadata from backend (already uploaded to blob storage)
+        if (data.data?.documentMetadata) {
+          setUploadedDocMetadata({
+            fileName: data.data.documentMetadata.fileName,
+            filePath: data.data.documentMetadata.filePath,
+            fileSize: data.data.documentMetadata.fileSize,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to extract from document:', error);
+      setUploadError(error instanceof Error ? error.message : 'Failed to extract content');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleAcceptSuggestion = (field: keyof AISuggestions) => {
+    if (!aiSuggestions) return;
+    setFormData(prev => ({ ...prev, [field]: aiSuggestions[field] }));
+    // Clear error for this field
+    if (errors[field]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
+  };
+
+  const handleAcceptAllSuggestions = () => {
+    if (!aiSuggestions) return;
+    setFormData(prev => ({
+      ...prev,
+      title: aiSuggestions.title,
+      summary: aiSuggestions.summary,
+      body: aiSuggestions.body,
+      category: aiSuggestions.category,
+    }));
+    setErrors({});
+    setShowSuggestions(false);
+  };
+
+  const handleRejectSuggestions = () => {
+    setShowSuggestions(false);
+    setAISuggestions(null);
+  };
+
+  const handleRemoveDocument = () => {
+    setUploadedFile(null);
+    setUploadedDocMetadata(null);
+    setAISuggestions(null);
+    setShowSuggestions(false);
+    setUploadError(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const handleGenerateBody = async () => {
     // Validate title and summary are provided
@@ -188,6 +320,11 @@ export function BulletinForm({
       callToActionUrl: formData.callToActionUrl.trim() || null,
       callToActionText: formData.callToActionText.trim() || null,
       isPinned: formData.isPinned,
+      documentFileName: uploadedDocMetadata?.fileName || null,
+      documentFilePath: uploadedDocMetadata?.filePath || null,
+      documentFileSize: uploadedDocMetadata?.fileSize || null,
+      documentUploadedAt: uploadedDocMetadata ? new Date() : null,
+      showDocumentLink: formData.showDocumentLink,
     };
 
     onSubmit(submitData);
@@ -195,6 +332,179 @@ export function BulletinForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Document Upload Section */}
+      <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <DocumentArrowUpIcon className="h-5 w-5 text-purple-600" />
+            <h3 className="text-sm font-medium text-forvis-gray-900">Upload Document for AI Extraction</h3>
+          </div>
+        </div>
+        
+        <div className="space-y-3">
+          <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf"
+              onChange={handleFileSelect}
+              className="block w-full text-sm text-forvis-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
+            />
+            <p className="mt-1 text-xs text-forvis-gray-500">Upload a PDF document to automatically extract content (max 10MB)</p>
+          </div>
+
+          {uploadedFile && (
+            <div className="flex items-center justify-between bg-white rounded-lg border border-purple-200 p-3">
+              <div className="flex items-center gap-2">
+                <DocumentArrowUpIcon className="h-5 w-5 text-purple-600" />
+                <div>
+                  <p className="text-sm font-medium text-forvis-gray-900">{uploadedFile.name}</p>
+                  <p className="text-xs text-forvis-gray-500">{(uploadedFile.size / 1024).toFixed(2)} KB</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleExtractFromDocument}
+                  disabled={isUploading || isLoading}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+                  style={{ background: 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)' }}
+                >
+                  {isUploading ? (
+                    <>
+                      <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Extracting...
+                    </>
+                  ) : (
+                    <>
+                      <SparklesIcon className="h-3.5 w-3.5" />
+                      Extract Content
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRemoveDocument}
+                  className="p-1.5 text-forvis-gray-400 hover:text-forvis-gray-600 rounded-lg hover:bg-forvis-gray-100"
+                >
+                  <XMarkIcon className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {uploadError && (
+            <p className="text-xs text-red-500">{uploadError}</p>
+          )}
+
+          {isUploading && (
+            <p className="text-xs text-purple-600">AI is extracting content from your document...</p>
+          )}
+        </div>
+      </div>
+
+      {/* AI Suggestions Modal */}
+      {showSuggestions && aiSuggestions && (
+        <div className="bg-gradient-to-br from-purple-50 to-blue-50 border-2 border-purple-300 rounded-lg p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <SparklesIcon className="h-5 w-5 text-purple-600" />
+              <h3 className="text-sm font-semibold text-forvis-gray-900">AI-Generated Suggestions</h3>
+            </div>
+            <button
+              type="button"
+              onClick={handleRejectSuggestions}
+              className="p-1 text-forvis-gray-400 hover:text-forvis-gray-600 rounded-lg hover:bg-white/50"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {/* Title Suggestion */}
+            <div className="bg-white rounded-lg p-3 border border-purple-200">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-forvis-gray-600">Title</span>
+                <button
+                  type="button"
+                  onClick={() => handleAcceptSuggestion('title')}
+                  className="text-xs text-purple-600 hover:text-purple-700 font-medium"
+                >
+                  Use This
+                </button>
+              </div>
+              <p className="text-sm text-forvis-gray-900">{aiSuggestions.title}</p>
+            </div>
+
+            {/* Summary Suggestion */}
+            <div className="bg-white rounded-lg p-3 border border-purple-200">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-forvis-gray-600">Summary</span>
+                <button
+                  type="button"
+                  onClick={() => handleAcceptSuggestion('summary')}
+                  className="text-xs text-purple-600 hover:text-purple-700 font-medium"
+                >
+                  Use This
+                </button>
+              </div>
+              <p className="text-sm text-forvis-gray-900">{aiSuggestions.summary}</p>
+            </div>
+
+            {/* Body Suggestion */}
+            <div className="bg-white rounded-lg p-3 border border-purple-200">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-forvis-gray-600">Body Content</span>
+                <button
+                  type="button"
+                  onClick={() => handleAcceptSuggestion('body')}
+                  className="text-xs text-purple-600 hover:text-purple-700 font-medium"
+                >
+                  Use This
+                </button>
+              </div>
+              <p className="text-sm text-forvis-gray-900 whitespace-pre-line">{aiSuggestions.body}</p>
+            </div>
+
+            {/* Category Suggestion */}
+            <div className="bg-white rounded-lg p-3 border border-purple-200">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-forvis-gray-600">Category</span>
+                <button
+                  type="button"
+                  onClick={() => handleAcceptSuggestion('category')}
+                  className="text-xs text-purple-600 hover:text-purple-700 font-medium"
+                >
+                  Use This
+                </button>
+              </div>
+              <p className="text-sm text-forvis-gray-900">{aiSuggestions.category.replace('_', ' ')}</p>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-purple-200">
+            <button
+              type="button"
+              onClick={handleRejectSuggestions}
+              className="px-3 py-1.5 text-xs font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 rounded-lg hover:bg-forvis-gray-50"
+            >
+              Dismiss
+            </button>
+            <button
+              type="button"
+              onClick={handleAcceptAllSuggestions}
+              className="px-3 py-1.5 text-xs font-medium text-white rounded-lg shadow-md hover:shadow-lg transition-all"
+              style={{ background: 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)' }}
+            >
+              Accept All Suggestions
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Title */}
       <div>
         <label htmlFor="title" className="block text-sm font-medium text-forvis-gray-700 mb-1">
@@ -437,6 +747,20 @@ export function BulletinForm({
           />
           <span className="ml-2 text-sm text-forvis-gray-700">Pin to Top</span>
         </label>
+
+        {/* Show Document Link */}
+        {(uploadedFile || uploadedDocMetadata) && (
+          <label className="inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              name="showDocumentLink"
+              checked={formData.showDocumentLink}
+              onChange={handleChange}
+              className="w-4 h-4 text-purple-600 border-forvis-gray-300 rounded focus:ring-purple-500"
+            />
+            <span className="ml-2 text-sm text-forvis-gray-700">Show document as downloadable link</span>
+          </label>
+        )}
       </div>
 
       {/* Form Actions */}

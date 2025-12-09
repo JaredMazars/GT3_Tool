@@ -794,6 +794,11 @@ export const CreateNewsBulletinSchema = z.object({
   callToActionUrl: z.string().url().max(500).nullable().optional(),
   callToActionText: z.string().max(100).nullable().optional(),
   isPinned: z.boolean().default(false),
+  documentFileName: z.string().max(255).nullable().optional(),
+  documentFilePath: z.string().max(500).nullable().optional(),
+  documentFileSize: z.number().int().positive().nullable().optional(),
+  documentUploadedAt: z.coerce.date().nullable().optional(),
+  showDocumentLink: z.boolean().default(false),
 }).strict();
 
 // Update bulletin schema
@@ -811,6 +816,11 @@ export const UpdateNewsBulletinSchema = z.object({
   callToActionText: z.string().max(100).nullable().optional(),
   isPinned: z.boolean().optional(),
   isActive: z.boolean().optional(),
+  documentFileName: z.string().max(255).nullable().optional(),
+  documentFilePath: z.string().max(500).nullable().optional(),
+  documentFileSize: z.number().int().positive().nullable().optional(),
+  documentUploadedAt: z.coerce.date().nullable().optional(),
+  showDocumentLink: z.boolean().optional(),
 }).strict();
 
 // Bulletin filters schema

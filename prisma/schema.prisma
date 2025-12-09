@@ -945,24 +945,29 @@ model TemplateSection {
 // Valid categories: ANNOUNCEMENT, POLICY_UPDATE, EVENT, ACHIEVEMENT, REMINDER,
 //                   CLIENT_WIN, MARKET_UPDATE, INDUSTRY_NEWS, PARTNERSHIP, HIRING
 model NewsBulletin {
-  id               Int      @id @default(autoincrement())
-  title            String   @db.NVarChar(255)
-  summary          String   @db.NVarChar(500)
-  body             String   @db.NVarChar(Max)
-  category         String   @db.NVarChar(50)
-  serviceLine      String?  @db.NVarChar(50)
-  effectiveDate    DateTime
-  expiresAt        DateTime?
-  contactPerson    String?  @db.NVarChar(255)
-  actionRequired   Boolean  @default(false)
-  callToActionUrl  String?  @db.NVarChar(500)
-  callToActionText String?  @db.NVarChar(100)
-  isPinned         Boolean  @default(false)
-  isActive         Boolean  @default(true)
-  createdById      String
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  createdBy        User     @relation(fields: [createdById], references: [id], onUpdate: NoAction)
+  id                 Int       @id @default(autoincrement())
+  title              String    @db.NVarChar(255)
+  summary            String    @db.NVarChar(500)
+  body               String    @db.NVarChar(Max)
+  category           String    @db.NVarChar(50)
+  serviceLine        String?   @db.NVarChar(50)
+  effectiveDate      DateTime
+  expiresAt          DateTime?
+  contactPerson      String?   @db.NVarChar(255)
+  actionRequired     Boolean   @default(false)
+  callToActionUrl    String?   @db.NVarChar(500)
+  callToActionText   String?   @db.NVarChar(100)
+  isPinned           Boolean   @default(false)
+  isActive           Boolean   @default(true)
+  documentFileName   String?   @db.NVarChar(255)
+  documentFilePath   String?   @db.NVarChar(500)
+  documentFileSize   Int?
+  documentUploadedAt DateTime?
+  showDocumentLink   Boolean   @default(false)
+  createdById        String
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  createdBy          User      @relation(fields: [createdById], references: [id], onUpdate: NoAction)
 
   @@index([category])
   @@index([serviceLine])

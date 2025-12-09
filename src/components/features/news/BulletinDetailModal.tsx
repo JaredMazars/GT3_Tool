@@ -7,6 +7,7 @@ import {
   UserIcon,
   ArrowTopRightOnSquareIcon,
   ClockIcon,
+  DocumentArrowDownIcon,
 } from '@heroicons/react/24/outline';
 import { MapPinIcon } from '@heroicons/react/24/solid';
 import { NewsBulletin, BulletinCategory } from '@/types';
@@ -169,6 +170,40 @@ export function BulletinDetailModal({ bulletin, onClose }: BulletinDetailModalPr
           <div className="prose prose-sm max-w-none text-forvis-gray-700 whitespace-pre-wrap leading-relaxed">
             {bulletin.body}
           </div>
+
+          {/* Document Link */}
+          {bulletin.showDocumentLink && bulletin.documentFileName && (
+            <div className="mt-6 pt-6 border-t border-forvis-gray-200">
+              <h3 className="text-sm font-semibold text-forvis-gray-900 mb-3">Attached Document</h3>
+              <a
+                href={`/api/news/${bulletin.id}/document`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Fetch the document URL and open it
+                  fetch(`/api/news/${bulletin.id}/document`)
+                    .then(res => res.json())
+                    .then(data => {
+                      if (data.data?.url) {
+                        window.open(data.data.url, '_blank');
+                      }
+                    })
+                    .catch(err => console.error('Failed to get document URL:', err));
+                  e.preventDefault();
+                }}
+                className="inline-flex items-center gap-2 px-4 py-3 text-sm font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 hover:border-purple-300 transition-colors"
+              >
+                <DocumentArrowDownIcon className="h-5 w-5" />
+                <div className="flex flex-col items-start">
+                  <span>{bulletin.documentFileName}</span>
+                  <span className="text-xs text-purple-600">
+                    {(bulletin.documentFileSize! / 1024).toFixed(0)} KB • PDF Document
+                  </span>
+                </div>
+              </a>
+            </div>
+          )}
         </div>
 
         {/* Footer */}

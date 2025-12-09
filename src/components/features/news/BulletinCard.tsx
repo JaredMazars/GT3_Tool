@@ -6,6 +6,7 @@ import {
   UserIcon,
   ArrowTopRightOnSquareIcon,
   MapPinIcon as MapPinOutlineIcon,
+  DocumentArrowDownIcon,
 } from '@heroicons/react/24/outline';
 import { MapPinIcon } from '@heroicons/react/24/solid';
 import { NewsBulletin, BulletinCategory } from '@/types';
@@ -163,6 +164,37 @@ export function BulletinCard({
         <div className="text-sm text-forvis-gray-700 mb-4 whitespace-pre-wrap line-clamp-4">
           {bulletin.body}
         </div>
+
+        {/* Document Link */}
+        {bulletin.showDocumentLink && bulletin.documentFileName && (
+          <div className="mb-4">
+            <a
+              href={`/api/news/${bulletin.id}/document`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => {
+                e.stopPropagation();
+                // Fetch the document URL and open it
+                fetch(`/api/news/${bulletin.id}/document`)
+                  .then(res => res.json())
+                  .then(data => {
+                    if (data.data?.url) {
+                      window.open(data.data.url, '_blank');
+                    }
+                  })
+                  .catch(err => console.error('Failed to get document URL:', err));
+                e.preventDefault();
+              }}
+              className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 hover:border-purple-300 transition-colors"
+            >
+              <DocumentArrowDownIcon className="h-4 w-4" />
+              <span>{bulletin.documentFileName}</span>
+              <span className="text-xs text-purple-600">
+                ({(bulletin.documentFileSize! / 1024).toFixed(0)} KB)
+              </span>
+            </a>
+          </div>
+        )}
 
         {/* Footer Row */}
         <div className="flex items-center justify-between pt-3 border-t border-forvis-gray-100">

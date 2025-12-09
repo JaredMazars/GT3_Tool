@@ -9,6 +9,7 @@ import { logger } from '../../utils/logger';
 const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
 const containerName =
   process.env.AZURE_STORAGE_CONTAINER_NAME || 'adjustment-documents';
+const newsBulletinsContainerName = 'news-bulletins';
 
 /**
  * Get Blob Service Client
@@ -261,6 +262,169 @@ function getContentType(fileName: string): string {
  */
 export function isBlobStorageConfigured(): boolean {
   return !!connectionString;
+}
+
+/**
+ * Get News Bulletins Container Client
+ */
+function getNewsBulletinsContainerClient() {
+  const blobServiceClient = getBlobServiceClient();
+  return blobServiceClient.getContainerClient(newsBulletinsContainerName);
+}
+
+/**
+ * Initialize news bulletins blob storage container
+ * Creates container if it doesn't exist
+ */
+export async function initNewsBulletinsStorage(): Promise<void> {
+  try {
+    const containerClient = getNewsBulletinsContainerClient();
+    const exists = await containerClient.exists();
+
+    if (!exists) {
+      await containerClient.create();
+      logger.info(`Created blob container: ${newsBulletinsContainerName}`);
+    }
+  } catch (error) {
+    logger.error('Failed to initialize news bulletins blob storage:', error);
+    throw error;
+  }
+}
+
+/**
+ * Upload news bulletin document to Azure Blob Storage
+ * @param buffer - File buffer
+ * @param fileName - File name
+ * @param bulletinId - Bulletin ID for folder organization
+ * @returns Blob URL
+ */
+export async function uploadNewsBulletinDocument(
+  buffer: Buffer,
+  fileName: string,
+  bulletinId?: number
+): Promise<string> {
+  try {
+    // Ensure container exists (create if needed)
+    await initNewsBulletinsStorage();
+    
+    const containerClient = getNewsBulletinsContainerClient();
+    const timestamp = Date.now();
+    const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const blobName = bulletinId 
+      ? `${bulletinId}/${timestamp}_${sanitizedFileName}`
+      : `temp/${timestamp}_${sanitizedFileName}`;
+
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    // Determine content type based on file extension
+    const contentType = getContentType(fileName);
+
+    await blockBlobClient.upload(buffer, buffer.length, {
+      blobHTTPHeaders: {
+        blobContentType: contentType,
+      },
+    });
+
+    logger.info(`Uploaded news bulletin document to blob storage: ${blobName}`);
+    return blobName;
+  } catch (error) {
+    logger.error('Failed to upload news bulletin document to blob storage:', error);
+    throw error;
+  }
+}
+
+/**
+ * Download news bulletin document from Azure Blob Storage
+ * @param blobName - Blob name/path
+ * @returns File buffer
+ */
+export async function downloadNewsBulletinDocument(blobName: string): Promise<Buffer> {
+  try {
+    const containerClient = getNewsBulletinsContainerClient();
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    const downloadResponse = await blockBlobClient.download();
+    const downloaded = await streamToBuffer(
+      downloadResponse.readableStreamBody!
+    );
+
+    logger.info(`Downloaded news bulletin document from blob storage: ${blobName}`);
+    return downloaded;
+  } catch (error) {
+    logger.error('Failed to download news bulletin document from blob storage:', error);
+    throw error;
+  }
+}
+
+/**
+ * Delete news bulletin document from Azure Blob Storage
+ * @param blobName - Blob name/path
+ */
+export async function deleteNewsBulletinDocument(blobName: string): Promise<void> {
+  try {
+    const containerClient = getNewsBulletinsContainerClient();
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    await blockBlobClient.delete();
+    logger.info(`Deleted news bulletin document from blob storage: ${blobName}`);
+  } catch (error) {
+    logger.error('Failed to delete news bulletin document from blob storage:', error);
+    throw error;
+  }
+}
+
+/**
+ * Generate a SAS token URL for secure news bulletin document access
+ * @param blobName - Blob name/path
+ * @param expiresInMinutes - Token expiration in minutes (default: 60)
+ * @returns SAS URL
+ */
+export async function generateNewsBulletinDocumentSasUrl(
+  blobName: string,
+  expiresInMinutes: number = 60
+): Promise<string> {
+  try {
+    const containerClient = getNewsBulletinsContainerClient();
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    // Parse connection string to get account name and key
+    const parts = connectionString!.split(';');
+    const accountName = parts
+      .find((p) => p.startsWith('AccountName='))
+      ?.split('=')[1];
+    const accountKey = parts
+      .find((p) => p.startsWith('AccountKey='))
+      ?.split('=')[1];
+
+    if (!accountName || !accountKey) {
+      throw new Error('Invalid connection string format');
+    }
+
+    const sharedKeyCredential = new StorageSharedKeyCredential(
+      accountName,
+      accountKey
+    );
+
+    const startsOn = new Date();
+    const expiresOn = new Date(startsOn.getTime() + expiresInMinutes * 60000);
+
+    const sasToken = generateBlobSASQueryParameters(
+      {
+        containerName: newsBulletinsContainerName,
+        blobName,
+        permissions: BlobSASPermissions.parse('r'), // Read permission
+        startsOn,
+        expiresOn,
+      },
+      sharedKeyCredential
+    ).toString();
+
+    const sasUrl = `${blockBlobClient.url}?${sasToken}`;
+    return sasUrl;
+  } catch (error) {
+    logger.error('Failed to generate SAS URL for news bulletin document:', error);
+    throw error;
+  }
 }
 
 

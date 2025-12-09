@@ -119,6 +119,11 @@ export interface NewsBulletin {
   callToActionText: string | null;
   isPinned: boolean;
   isActive: boolean;
+  documentFileName: string | null;
+  documentFilePath: string | null;
+  documentFileSize: number | null;
+  documentUploadedAt: Date | null;
+  showDocumentLink: boolean;
   createdById: string;
   createdAt: Date;
   updatedAt: Date;
