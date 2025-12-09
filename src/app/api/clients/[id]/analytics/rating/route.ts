@@ -86,13 +86,13 @@ export async function GET(
 
     // Build type-safe where clause
     interface WhereClause {
-      GSClientID: number; // Note: GSClientID is still numeric in ClientCreditRating table
+      clientId: number; // Internal ID field
       ratingDate?: {
         gte?: Date;
         lte?: Date;
       };
     }
-    const where: WhereClause = { GSClientID: client.id };
+    const where: WhereClause = { clientId: client.id };
     if (startDate || endDate) {
       where.ratingDate = {
         ...(startDate && { gte: startDate }),
