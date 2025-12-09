@@ -5,8 +5,9 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { 
   ChevronRightIcon, 
   PlusIcon,
@@ -44,6 +45,8 @@ const categoryFilterOptions = [
 ];
 
 export default function NewsPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingBulletin, setEditingBulletin] = useState<NewsBulletin | null>(null);
   const [viewingBulletin, setViewingBulletin] = useState<NewsBulletin | null>(null);
@@ -68,6 +71,38 @@ export default function NewsPage() {
   // Mutations
   const createMutation = useCreateBulletin();
   const deleteMutation = useDeleteBulletin();
+
+  // Handle bulletinId from query params (from ticker navigation)
+  useEffect(() => {
+    const bulletinIdParam = searchParams.get('bulletinId');
+    if (bulletinIdParam && bulletinsData?.bulletins) {
+      const bulletinId = parseInt(bulletinIdParam, 10);
+      if (!isNaN(bulletinId)) {
+        // Try to find bulletin in current data
+        const bulletin = bulletinsData.bulletins.find(b => b.id === bulletinId);
+        if (bulletin) {
+          setViewingBulletin(bulletin);
+        } else {
+          // Fetch bulletin individually if not in current results
+          fetch(`/api/news/${bulletinId}`)
+            .then(res => {
+              if (res.ok) return res.json();
+              throw new Error('Bulletin not found');
+            })
+            .then(data => {
+              if (data.success && data.data) {
+                setViewingBulletin(data.data);
+              }
+            })
+            .catch(err => {
+              console.error('Failed to fetch bulletin:', err);
+              // Clear the query param if bulletin not found
+              router.replace('/dashboard/business_dev/news');
+            });
+        }
+      }
+    }
+  }, [searchParams, bulletinsData, router]);
 
   const handleCreate = async (data: CreateNewsBulletinInput) => {
     try {
@@ -309,7 +344,13 @@ export default function NewsPage() {
       {viewingBulletin && (
         <BulletinDetailModal
           bulletin={viewingBulletin}
-          onClose={() => setViewingBulletin(null)}
+          onClose={() => {
+            setViewingBulletin(null);
+            // Clear bulletinId query param if it exists
+            if (searchParams.get('bulletinId')) {
+              router.replace('/dashboard/business_dev/news');
+            }
+          }}
         />
       )}
 

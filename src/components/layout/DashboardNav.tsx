@@ -38,7 +38,7 @@ export default function DashboardNav() {
   // Base nav items - always visible
   const baseNavItems: NavItem[] = [
     {
-      label: 'Service Lines',
+      label: 'Home',
       href: '/dashboard',
     },
   ];

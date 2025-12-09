@@ -48,8 +48,12 @@ export function NewsTicker() {
     return null;
   }
 
-  const handleTickerClick = () => {
-    router.push('/dashboard/business_dev/news');
+  const handleTickerClick = (bulletinId?: number) => {
+    if (bulletinId) {
+      router.push(`/dashboard/business_dev/news?bulletinId=${bulletinId}`);
+    } else {
+      router.push('/dashboard/business_dev/news');
+    }
   };
 
   // Duplicate bulletins for seamless loop
@@ -57,12 +61,11 @@ export function NewsTicker() {
 
   return (
     <div 
-      className="w-full overflow-hidden cursor-pointer relative"
+      className="w-full overflow-hidden relative"
       style={{ 
         background: 'linear-gradient(135deg, #5B93D7 0%, #3d6bb8 100%)',
         minHeight: '36px'
       }}
-      onClick={handleTickerClick}
     >
       <div className="relative flex items-center h-9">
         {/* Left fade for ticker items disappearing - extended and more gradual */}
@@ -81,7 +84,14 @@ export function NewsTicker() {
         <div className="ticker-wrapper ml-40">
           <div className="ticker-content">
             {duplicatedBulletins.map((bulletin, index) => (
-              <div key={`${bulletin.id}-${index}`} className="ticker-item">
+              <div 
+                key={`${bulletin.id}-${index}`} 
+                className="ticker-item cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleTickerClick(bulletin.id);
+                }}
+              >
                 <span className="ticker-separator text-white/50">•</span>
                 <span 
                   className={`ticker-badge ${categoryColors[bulletin.category].bg} ${categoryColors[bulletin.category].text}`}
@@ -95,7 +105,13 @@ export function NewsTicker() {
             ))}
             
             {/* View All link at the end */}
-            <div className="ticker-item">
+            <div 
+              className="ticker-item cursor-pointer hover:opacity-90 transition-opacity"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleTickerClick();
+              }}
+            >
               <span className="ticker-separator text-white/50">•</span>
               <span className="ticker-view-all text-white font-bold uppercase tracking-wide">
                 View All Company News →
