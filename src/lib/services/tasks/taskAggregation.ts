@@ -130,10 +130,10 @@ export async function getTaskCountsByServiceLine(
       return cached;
     }
 
-    // Get client's internal ID from GSClientID
+    // Verify client exists
     const client = await prisma.client.findUnique({
       where: { GSClientID },
-      select: { id: true },
+      select: { GSClientID: true },
     });
 
     if (!client) {
@@ -158,7 +158,7 @@ export async function getTaskCountsByServiceLine(
     const taskCountsRaw = await prisma.task.groupBy({
       by: ['ServLineCode'],
       where: {
-        clientId: client.id,  // Use internal ID
+        GSClientID: client.GSClientID,  // Use external GUID
         Active: includeArchived ? undefined : 'Yes',
       },
       _count: {

@@ -52,14 +52,13 @@ export async function GET(
     // Note: serviceLine parameter kept for backwards compatibility but not used for filtering
     // All tasks are returned and filtering is done on the frontend based on SLGroup
 
-    // Build task where clause using internal clientId
+    // Build task where clause using GSClientID
     interface TaskWhereClause {
-      clientId: number;
+      GSClientID: string;
       Active?: string;
     }
     
-    // Parse GSClientID to get internal clientId
-    // First get the client to get its internal id
+    // Get the client
     const client = await prisma.client.findUnique({
       where: { GSClientID: GSClientID },
       select: {
@@ -99,9 +98,9 @@ export async function GET(
       );
     }
 
-    // Build task where clause using internal clientId
+    // Build task where clause using GSClientID
     const taskWhere: TaskWhereClause = {
-      clientId: client.id,  // Use internal ID for query
+      GSClientID: client.GSClientID,  // Use external GUID for query
     };
     
     if (!includeArchived) {

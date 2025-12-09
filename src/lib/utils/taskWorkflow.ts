@@ -14,7 +14,7 @@ export interface TaskWorkflowStatus {
 }
 
 export interface TaskWorkflowData {
-  clientId?: number | null;  // Internal ID - for queries
+  GSClientID?: string | null;  // External GUID - for client relationship
   acceptanceApproved?: boolean;
   acceptanceApprovedBy?: string | null;
   acceptanceApprovedAt?: Date | string | null;
@@ -30,7 +30,7 @@ export interface TaskWorkflowData {
  */
 export function isClientTask(task: TaskWorkflowData | null | undefined): boolean {
   if (!task) return false;
-  return task.clientId !== null && task.clientId !== undefined;
+  return task.GSClientID !== null && task.GSClientID !== undefined;
 }
 
 /**

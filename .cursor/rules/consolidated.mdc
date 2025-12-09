@@ -36,7 +36,7 @@ See `.cursor/rules/stylingai-patterns.mdc`
 ## Database
 
 **Dual-ID Convention:**
-- **Internal IDs** (`id`): Auto-increment integer primary keys managed by our application database
+- **Internal IDs** (`id`): Auto-increment integer primary keys for ALL tables
 - **External IDs** (`GS*` prefix): UniqueIdentifier (GUID) fields from the external database system
 - **Codes** (`*Code` suffix): String fields ONLY for display and search, NEVER for relationships
 
@@ -46,53 +46,93 @@ See `.cursor/rules/stylingai-patterns.mdc`
 - `Employee` table: `id` (internal) vs `GSEmployeeID` (external GUID) vs `EmpCode` (display/search)
 
 **Usage:**
-- Use `id` for ALL internal relationships, foreign keys, and application logic
-- Use `GS*` fields ONLY for external system integration and synchronization
-- Use `*Code` fields ONLY for display and search operations
-- Route parameters and API responses should use `GS*` fields when exposing to external systems
-- Internal queries and joins MUST use `id` fields for performance
+- Tables that sync with external systems (Client, Task, Employee, Wip, Debtors) use `GS*` GUIDs for relationships with each other
+- Internal-only tables (TaskTeam, TaskDocument, BDOpportunity, etc.) use `id` integer fields for relationships
+- Use `*Code` fields ONLY for display and search operations, NEVER for relationships
+- Route parameters and API responses continue using internal `id` for application routing
 
-**Schema Pattern (CORRECT):**
+**Schema Patterns:**
+
+**External System Tables** (use GS* for relationships with each other):
 ```prisma
 model Client {
-  id         Int      @id @default(autoincrement())  // Internal ID - for ALL app logic
+  id         Int      @id @default(autoincrement())  // Internal ID - for internal-only relations
   clientCode String   @unique                         // For display/search ONLY
-  GSClientID String   @unique @db.UniqueIdentifier   // External ID - sync only
-  Task       Task[]   // Relation uses internal id
+  GSClientID String   @unique @db.UniqueIdentifier   // External ID - for external table relations
+  Task       Task[]   // Relation uses GSClientID
 }
 
 model Task {
-  id         Int      @id @default(autoincrement())  // Internal ID
-  clientId   Int?                                     // Internal FK - for queries
-  GSTaskID   String   @unique @db.UniqueIdentifier   // External ID - sync only
-  GSClientID String?  @db.UniqueIdentifier           // Keep for external sync reference
+  id         Int      @id @default(autoincrement())  // Internal ID - for internal-only relations
+  GSTaskID   String   @unique @db.UniqueIdentifier   // External ID - for external table relations
+  GSClientID String?  @db.UniqueIdentifier           // External FK - for queries with Client
   TaskCode   String                                   // Display/search ONLY
-  Client     Client?  @relation(fields: [clientId], references: [id])
+  Client     Client?  @relation(fields: [GSClientID], references: [GSClientID])
+}
+
+model Wip {
+  id         Int      @id @default(autoincrement())  // Internal ID
+  GSWipID    String   @unique @db.UniqueIdentifier   // External ID
+  GSClientID String   @db.UniqueIdentifier           // External FK - for queries with Client
+  GSTaskID   String   @db.UniqueIdentifier           // External FK - for queries with Task
+  Client     Client?  @relation(fields: [GSClientID], references: [GSClientID])
+  Task       Task?    @relation(fields: [GSTaskID], references: [GSTaskID])
+}
+```
+
+**Internal-Only Tables** (use id for relationships):
+```prisma
+model TaskTeam {
+  id     Int    @id @default(autoincrement())
+  taskId Int                                    // Internal FK - uses id
+  userId String
+  Task   Task   @relation(fields: [taskId], references: [id])
+  User   User   @relation(fields: [userId], references: [id])
+}
+
+model BDOpportunity {
+  id       Int     @id @default(autoincrement())
+  clientId Int?                                 // Internal FK - uses id
+  Client   Client? @relation(fields: [clientId], references: [id])
 }
 ```
 
 **Query Patterns:**
 
-❌ **WRONG** - Using GS* or Code for queries:
+✅ **CORRECT** - Use GS* for external table relationships:
 ```typescript
-// DON'T use external GUID for queries
+// DO use external GUID for queries between synced tables
 const tasks = await prisma.task.findMany({
   where: { GSClientID: client.GSClientID }
 });
 
+const wip = await prisma.wip.findMany({
+  where: { GSTaskID: task.GSTaskID }
+});
+```
+
+✅ **CORRECT** - Use id for internal table relationships:
+```typescript
+// DO use internal ID for internal-only tables
+const teamMembers = await prisma.taskTeam.findMany({
+  where: { taskId: task.id }
+});
+
+const opportunities = await prisma.bDOpportunity.findMany({
+  where: { clientId: client.id }
+});
+```
+
+❌ **WRONG** - Using Code for relationships:
+```typescript
 // DON'T use codes for foreign keys
 const tasks = await prisma.task.findMany({
   where: { ClientCode: clientCode }
 });
 ```
 
-✅ **CORRECT** - Use internal ID:
+✅ **CORRECT** - Codes only for search:
 ```typescript
-// DO use internal ID for queries
-const tasks = await prisma.task.findMany({
-  where: { clientId: client.id }
-});
-
 // Codes ONLY for search
 const clients = await prisma.client.findMany({
   where: { clientCode: { contains: searchTerm } }
@@ -152,7 +192,7 @@ ServLineCode → SubServlineGroupCode → masterCode (ServiceLineMaster.code)
 - Even if the user refers to projects they actually mean tasks
 - The applications centres around clients and tasks
 
-**Note**: URLs use internal IDs for application routing. External GS* IDs are only used for external system integration.
+**Note**: URLs use internal `id` fields for application routing. External `GS*` IDs are used for relationships between externally-synced tables (Client↔Task, Task↔Wip, etc.).
 
 
 ## Security (CRITICAL - NOT Optional)

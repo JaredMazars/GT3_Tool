@@ -750,7 +750,6 @@ model Session {
 
 model Task {
   id                       Int                        @id @default(autoincrement())
-  clientId                 Int?
   GSTaskID                 String                     @unique @db.UniqueIdentifier
   GSClientID               String?                    @db.UniqueIdentifier
   TaskCode                 String                     @db.NVarChar(10)
@@ -781,7 +780,7 @@ model Task {
   OpinionDraft             OpinionDraft[]
   ResearchNote             ResearchNote[]
   SarsResponse             SarsResponse[]
-  Client                   Client?                    @relation(fields: [clientId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Client                   Client?                    @relation(fields: [GSClientID], references: [GSClientID], onDelete: NoAction, onUpdate: NoAction)
   User                     User?                      @relation(fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
   TaskAcceptance           TaskAcceptance?
   TaskDocument             TaskDocument[]
@@ -791,7 +790,6 @@ model Task {
   Wip                      Wip[]
 
   @@index([Active])
-  @@index([clientId])
   @@index([GSClientID])
   @@index([OfficeCode])
   @@index([ServLineCode])
@@ -1002,7 +1000,6 @@ model User {
 
 model Debtors {
   id                 Int       @id @default(autoincrement())
-  clientId           Int?
   PeriodRef          Int?
   PeriodStart        DateTime?
   PeriodEnd          DateTime?
@@ -1044,9 +1041,8 @@ model Debtors {
   YTDDebtorProvision Float?    @db.Money
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
-  Client             Client?   @relation(fields: [clientId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Client             Client?   @relation(fields: [GSClientID], references: [GSClientID], onDelete: NoAction, onUpdate: NoAction)
 
-  @@index([clientId])
   @@index([GSClientID])
   @@index([OfficeCode])
   @@index([ServLineCode])
@@ -1065,8 +1061,6 @@ model VerificationToken {
 
 model Wip {
   id               Int       @id @default(autoincrement())
-  clientId         Int?
-  taskId           Int?
   GSWipID          String    @unique @db.UniqueIdentifier
   PeriodRef        Int?
   PeriodStart      DateTime?
@@ -1116,11 +1110,9 @@ model Wip {
   PTDHours         Float?    @db.Money
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
-  Client           Client?   @relation(fields: [clientId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  Task             Task?     @relation(fields: [taskId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Client           Client?   @relation(fields: [GSClientID], references: [GSClientID], onDelete: NoAction, onUpdate: NoAction)
+  Task             Task?     @relation(fields: [GSTaskID], references: [GSTaskID], onDelete: NoAction, onUpdate: NoAction)
 
-  @@index([clientId])
-  @@index([taskId])
   @@index([GSClientID])
   @@index([GSTaskID])
   @@index([OfficeCode])

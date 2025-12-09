@@ -159,22 +159,7 @@ export async function getClientWithProjects(
       const taskSkip = (taskPage - 1) * Math.min(taskLimit, 50);
       const taskTake = Math.min(taskLimit, 50);
 
-      // Build task where clause using internal clientId
-      interface TaskWhereClause {
-        clientId?: number;
-        Active?: string;
-        ServLineCode?: string;
-      }
-      const taskWhere: TaskWhereClause = {
-        clientId: clientId,  // Use internal ID for query
-      };
-      if (!includeArchived) {
-        taskWhere.Active = 'Yes';
-      }
-      if (serviceLine) {
-        taskWhere.ServLineCode = serviceLine;
-      }
-
+      // First get the client to get its GSClientID
       const client = await prisma.client.findUnique({
         where: { id: clientId },
         select: {
@@ -194,29 +179,6 @@ export async function getClientWithProjects(
           typeDesc: true,
           createdAt: true,
           updatedAt: true,
-          Task: {
-            where: taskWhere,
-            orderBy: { updatedAt: 'desc' },
-            skip: taskSkip,
-            take: taskTake,
-            select: {
-              id: true,
-              TaskDesc: true,
-              TaskCode: true,
-              ServLineCode: true,
-              Active: true,
-              createdAt: true,
-              updatedAt: true,
-              TaskDateOpen: true,
-              TaskDateTerminate: true,
-              _count: {
-                select: {
-                  MappedAccount: true,
-                  TaxAdjustment: true,
-                },
-              },
-            },
-          },
           _count: {
             select: {
               Task: true,
@@ -229,13 +191,57 @@ export async function getClientWithProjects(
         return null;
       }
 
-      // Get total task count with filters (using internal clientId)
-      const totalTasks = await prisma.task.count({
-        where: taskWhere,
-      });
+      // Build task where clause using GSClientID
+      interface TaskWhereClause {
+        GSClientID?: string;
+        Active?: string;
+        ServLineCode?: string;
+      }
+      const taskWhere: TaskWhereClause = {
+        GSClientID: client.GSClientID,  // Use external GUID for query
+      };
+      if (!includeArchived) {
+        taskWhere.Active = 'Yes';
+      }
+      if (serviceLine) {
+        taskWhere.ServLineCode = serviceLine;
+      }
+
+      // Get tasks and total count in parallel
+      const [tasks, totalTasks] = await Promise.all([
+        prisma.task.findMany({
+          where: taskWhere,
+          orderBy: { updatedAt: 'desc' },
+          skip: taskSkip,
+          take: taskTake,
+          select: {
+            id: true,
+            TaskDesc: true,
+            TaskCode: true,
+            ServLineCode: true,
+            Active: true,
+            createdAt: true,
+            updatedAt: true,
+            TaskDateOpen: true,
+            TaskDateTerminate: true,
+            _count: {
+              select: {
+                MappedAccount: true,
+                TaxAdjustment: true,
+              },
+            },
+          },
+        }),
+        prisma.task.count({
+          where: taskWhere,
+        }),
+      ]);
 
       return {
-        client,
+        client: {
+          ...client,
+          Task: tasks,
+        },
         totalTasks,
         taskPagination: {
           page: taskPage,

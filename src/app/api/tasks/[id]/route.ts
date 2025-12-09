@@ -60,9 +60,8 @@ export async function GET(
       where: { id: taskId },
       select: {
         id: true,
-        clientId: true,
-        TaskDesc: true,
         GSClientID: true,
+        TaskDesc: true,
         TaskCode: true,
         ServLineCode: true,
         ServLineDesc: true,
@@ -167,7 +166,6 @@ export async function GET(
       ...taskData,
       name: task.TaskDesc,
       description: task.TaskDesc,
-      clientId: task.clientId,
       client: Client, // Transform Client → client for consistency
       serviceLine: task.ServLineCode,
       projectType: 'TAX_CALCULATION', // Default based on service line
@@ -274,20 +272,21 @@ export async function PUT(
     // Note: Task model doesn't have these fields, they should be in TaskAcceptance or TaskEngagementLetter
     // For now, we'll just acknowledge them but not update
     
-    if (body.GSClientID !== undefined) {
-      // Need to get GSClientID from the client numeric id
-      if (body.GSClientID !== null) {
+    // Update client association via clientCode or GSClientID
+    if (body.clientCode !== undefined) {
+      if (body.clientCode !== null) {
         const client = await prisma.client.findUnique({
-          where: { id: body.GSClientID },
+          where: { clientCode: body.clientCode },
           select: { GSClientID: true },
         });
         if (client) {
           updateData.GSClientID = client.GSClientID;
         }
       } else {
-        // Setting to null removes client association
         updateData.GSClientID = null;
       }
+    } else if (body.GSClientID !== undefined) {
+      updateData.GSClientID = body.GSClientID;
     }
 
     const task = await prisma.task.update({
@@ -321,8 +320,6 @@ export async function PUT(
       ...taskData,
       name: task.TaskDesc,
       description: task.TaskDesc,
-      GSClientID: Client?.id || null,
-      ClientCode: task.GSClientID,
       client: Client,
       serviceLine: task.ServLineCode,
       projectType: 'TAX_CALCULATION',

@@ -94,12 +94,12 @@ export async function GET(request: NextRequest) {
 
     // Filter for internal projects only (no client assigned)
     if (internalOnly) {
-      where.clientId = null;
+      where.GSClientID = null;
     }
 
     // Filter for client tasks only (has client assigned)
     if (clientTasksOnly) {
-      where.clientId = { not: null };
+      where.GSClientID = { not: null };
     }
 
     // Filter by SubServiceLineGroup - show ALL tasks for the specified sub-group
@@ -171,7 +171,7 @@ export async function GET(request: NextRequest) {
         orderBy,
         select: {
           id: true,
-          clientId: true,
+          GSClientID: true,
           TaskDesc: true,
           ServLineCode: true,
           ServLineDesc: true,
@@ -211,7 +211,7 @@ export async function GET(request: NextRequest) {
         serviceLine: task.ServLineCode,
         status: task.Active === 'Yes' ? 'ACTIVE' : 'INACTIVE',
         archived: task.Active !== 'Yes',
-        clientId: task.clientId,
+        GSClientID: task.GSClientID,
         taxYear: null,
         createdAt: task.createdAt.toISOString(),
         updatedAt: task.updatedAt.toISOString(),

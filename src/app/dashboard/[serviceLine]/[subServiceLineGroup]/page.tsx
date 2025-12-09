@@ -583,12 +583,12 @@ export default function SubServiceLineWorkspacePage() {
               <div className="overflow-x-auto">
                 <table className="w-full" style={{ tableLayout: 'fixed' }}>
                   <colgroup>
-                    <col style={{ width: '32%' }} />
-                    <col style={{ width: '22%' }} />
+                    <col style={{ width: '30%' }} />
                     <col style={{ width: '20%' }} />
-                    <col style={{ width: '12%' }} />
+                    <col style={{ width: '18%' }} />
+                    <col style={{ width: '14%' }} />
                     <col style={{ width: '8%' }} />
-                    <col style={{ width: '6%' }} />
+                    <col style={{ width: '10%' }} />
                   </colgroup>
                   <thead>
                     <tr style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}>
@@ -747,7 +747,15 @@ export default function SubServiceLineWorkspacePage() {
             <>
               <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full">
+                  <table className="w-full" style={{ tableLayout: 'fixed' }}>
+                    <colgroup>
+                      <col style={{ width: '30%' }} />
+                      <col style={{ width: '20%' }} />
+                      <col style={{ width: '15%' }} />
+                      <col style={{ width: '13%' }} />
+                      <col style={{ width: '12%' }} />
+                      <col style={{ width: '10%' }} />
+                    </colgroup>
                     <thead>
                       <tr style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">

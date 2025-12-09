@@ -25,7 +25,7 @@ export interface TaskListResult {
     ServLineDesc: string;
     status: string;
     archived: boolean;
-    clientId: number | null;  // Internal ID - for queries
+    GSClientID: string | null;  // External GUID - for client relationship
     taxYear: number | null;
     createdAt: Date;
     updatedAt: Date;
@@ -95,15 +95,15 @@ export async function getTasksWithPagination(
         where.ServLineCode = serviceLine;
       }
 
-      // Filter by client code - convert to internal clientId
+      // Filter by client code - convert to GSClientID
       if (clientCode) {
-        // Look up client by clientCode to get internal id
+        // Look up client by clientCode to get GSClientID
         const client = await prisma.client.findUnique({
           where: { clientCode },
-          select: { id: true },
+          select: { GSClientID: true },
         });
         if (client) {
-          where.clientId = client.id;
+          where.GSClientID = client.GSClientID;
         } else {
           // Client not found, return empty result
           return {
@@ -147,7 +147,7 @@ export async function getTasksWithPagination(
         orderBy,
         select: {
           id: true,
-          clientId: true,
+          GSClientID: true,
           TaskDesc: true,
           ServLineDesc: true,
           Active: true,
@@ -180,7 +180,7 @@ export async function getTasksWithPagination(
         ServLineDesc: task.ServLineDesc,
         status: task.Active,
         archived: false,
-        clientId: task.clientId,
+        GSClientID: task.GSClientID,
         taxYear: null,
         createdAt: task.createdAt,
         updatedAt: task.updatedAt,
@@ -220,7 +220,7 @@ export async function getTasksWithCounts(
   ServLineDesc: string;
   status: string;
   archived: boolean;
-  clientId: number | null;
+  GSClientID: string | null;
   taxYear: number | null;
   createdAt: Date;
   updatedAt: Date;
@@ -261,7 +261,7 @@ export async function getTasksWithCounts(
         where,
         select: {
           id: true,
-          clientId: true,
+          GSClientID: true,
           TaskDesc: true,
           ServLineDesc: true,
           Active: true,
@@ -297,7 +297,7 @@ export async function getTasksWithCounts(
         ServLineDesc: task.ServLineDesc,
         status: task.Active,
         archived: false,
-        clientId: task.clientId,
+        GSClientID: task.GSClientID,
         taxYear: null,
         createdAt: task.createdAt,
         updatedAt: task.updatedAt,
@@ -325,7 +325,7 @@ export async function getTaskWithCounts(taskId: TaskId): Promise<{
   ServLineDesc: string;
   status: string;
   archived: boolean;
-  clientId: number | null;
+  GSClientID: string | null;
   taxYear: number | null;
   taxPeriodStart: Date | null;
   taxPeriodEnd: Date | null;
@@ -344,7 +344,7 @@ export async function getTaskWithCounts(taskId: TaskId): Promise<{
         where: { id: taskId },
         select: {
           id: true,
-          clientId: true,
+          GSClientID: true,
           TaskDesc: true,
           ServLineCode: true,
           ServLineDesc: true,
@@ -372,7 +372,7 @@ export async function getTaskWithCounts(taskId: TaskId): Promise<{
         ServLineDesc: rawTask.ServLineDesc,
         status: rawTask.Active,
         archived: false,
-        clientId: rawTask.clientId,
+        GSClientID: rawTask.GSClientID,
         taxYear: null,
         taxPeriodStart: null,
         taxPeriodEnd: null,
@@ -398,7 +398,7 @@ export async function getTaskById(taskId: TaskId) {
         where: { id: taskId },
         select: {
           id: true,
-          clientId: true,
+          GSClientID: true,
           TaskDesc: true,
           TaskCode: true,
           ServLineCode: true,
@@ -426,7 +426,7 @@ export async function getTaskById(taskId: TaskId) {
 
       return {
         id: rawTask.id,
-        clientId: rawTask.clientId,
+        GSClientID: rawTask.GSClientID,
         name: rawTask.TaskDesc,
         description: null,
         TaskDesc: rawTask.TaskDesc,
@@ -460,7 +460,8 @@ export async function getTaskById(taskId: TaskId) {
  * Create a new task
  */
 export async function createTask(data: {
-  clientId?: number | null;
+  GSClientID?: string | null;
+  clientCode?: string | null;
   TaskCode: string;
   name: string;
   description?: string | null;
@@ -474,11 +475,11 @@ export async function createTask(data: {
 }) {
   return withRetry(
     async () => {
-      // Get GSClientID if clientId is provided
-      let GSClientID: string | undefined;
-      if (data.clientId) {
+      // Get GSClientID if clientCode is provided
+      let GSClientID = data.GSClientID;
+      if (!GSClientID && data.clientCode) {
         const client = await prisma.client.findUnique({
-          where: { id: data.clientId },
+          where: { clientCode: data.clientCode },
           select: { GSClientID: true },
         });
         GSClientID = client?.GSClientID;
@@ -486,7 +487,6 @@ export async function createTask(data: {
 
       return await prisma.task.create({
         data: {
-          clientId: data.clientId,
           GSClientID,
           GSTaskID: crypto.randomUUID(),
           TaskCode: data.TaskCode,
