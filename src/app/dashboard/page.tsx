@@ -97,7 +97,7 @@ export default function DashboardHomePage() {
           <p className="text-sm font-medium text-forvis-blue-600 mb-1">
             {firstName ? `Welcome back, ${firstName}` : 'Welcome'}
           </p>
-          <h1 className="text-3xl md:text-4xl font-semibold text-forvis-gray-900">
+          <h1 className="text-3xl md:text-4xl font-semibold" style={{ color: '#22368c' }}>
             Forvis Mazars
           </h1>
           <div className="flex justify-center" style={{ overflow: 'visible' }}>
