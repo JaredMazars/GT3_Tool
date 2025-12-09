@@ -10,6 +10,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { MapPinIcon } from '@heroicons/react/24/solid';
 import { NewsBulletin, BulletinCategory } from '@/types';
+import { Badge, BadgeVariant } from '@/components/ui';
 import { formatServiceLineName } from '@/lib/utils/serviceLineUtils';
 
 interface BulletinCardProps {
@@ -21,17 +22,17 @@ interface BulletinCardProps {
   isAdmin?: boolean;
 }
 
-const categoryColors: Record<BulletinCategory, { bg: string; text: string; border: string }> = {
-  [BulletinCategory.ANNOUNCEMENT]: { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-200' },
-  [BulletinCategory.POLICY_UPDATE]: { bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-200' },
-  [BulletinCategory.EVENT]: { bg: 'bg-pink-100', text: 'text-pink-800', border: 'border-pink-200' },
-  [BulletinCategory.ACHIEVEMENT]: { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-200' },
-  [BulletinCategory.REMINDER]: { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-200' },
-  [BulletinCategory.CLIENT_WIN]: { bg: 'bg-teal-100', text: 'text-teal-800', border: 'border-teal-200' },
-  [BulletinCategory.MARKET_UPDATE]: { bg: 'bg-indigo-100', text: 'text-indigo-800', border: 'border-indigo-200' },
-  [BulletinCategory.INDUSTRY_NEWS]: { bg: 'bg-cyan-100', text: 'text-cyan-800', border: 'border-cyan-200' },
-  [BulletinCategory.PARTNERSHIP]: { bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-200' },
-  [BulletinCategory.HIRING]: { bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-200' },
+const categoryVariants: Record<BulletinCategory, BadgeVariant> = {
+  [BulletinCategory.ANNOUNCEMENT]: 'blue',
+  [BulletinCategory.POLICY_UPDATE]: 'purple',
+  [BulletinCategory.EVENT]: 'pink',
+  [BulletinCategory.ACHIEVEMENT]: 'green',
+  [BulletinCategory.REMINDER]: 'yellow',
+  [BulletinCategory.CLIENT_WIN]: 'teal',
+  [BulletinCategory.MARKET_UPDATE]: 'indigo',
+  [BulletinCategory.INDUSTRY_NEWS]: 'cyan',
+  [BulletinCategory.PARTNERSHIP]: 'orange',
+  [BulletinCategory.HIRING]: 'emerald',
 };
 
 const categoryLabels: Record<BulletinCategory, string> = {
@@ -63,7 +64,7 @@ export function BulletinCard({
   onTogglePin,
   isAdmin = false 
 }: BulletinCardProps) {
-  const categoryStyle = categoryColors[bulletin.category] || categoryColors[BulletinCategory.ANNOUNCEMENT];
+  const categoryVariant = categoryVariants[bulletin.category] || 'blue';
   const isExpired = bulletin.expiresAt && new Date(bulletin.expiresAt) < new Date();
 
   const handleCardClick = (e: React.MouseEvent) => {
@@ -87,19 +88,19 @@ export function BulletinCard({
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="flex items-center gap-2 flex-wrap">
             {/* Category Badge */}
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${categoryStyle.bg} ${categoryStyle.text} border ${categoryStyle.border}`}>
+            <Badge variant={categoryVariant}>
               {categoryLabels[bulletin.category]}
-            </span>
+            </Badge>
             
             {/* Service Line Badge */}
             {bulletin.serviceLine ? (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-forvis-gray-100 text-forvis-gray-700 border border-forvis-gray-200">
+              <Badge variant="default">
                 {formatServiceLineName(bulletin.serviceLine)}
-              </span>
+              </Badge>
             ) : (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-forvis-blue-50 text-forvis-blue-700 border border-forvis-blue-200">
+              <Badge variant="blue">
                 All Service Lines
-              </span>
+              </Badge>
             )}
 
             {/* Pinned Indicator */}
@@ -111,10 +112,10 @@ export function BulletinCard({
 
             {/* Action Required Indicator */}
             {bulletin.actionRequired && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
+              <Badge variant="red">
                 <ExclamationTriangleIcon className="h-3.5 w-3.5" />
                 Action Required
-              </span>
+              </Badge>
             )}
           </div>
 
@@ -161,7 +162,7 @@ export function BulletinCard({
         </p>
 
         {/* Body Content */}
-        <div className="text-sm text-forvis-gray-700 mb-4 whitespace-pre-wrap line-clamp-4">
+        <div className="text-sm text-forvis-gray-600 mb-4 whitespace-pre-wrap line-clamp-4">
           {bulletin.body}
         </div>
 

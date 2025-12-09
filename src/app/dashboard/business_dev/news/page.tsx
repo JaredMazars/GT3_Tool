@@ -144,7 +144,7 @@ export default function NewsPage() {
 
   return (
     <div className="min-h-screen bg-forvis-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
         {/* Breadcrumb */}
         <nav className="flex items-center space-x-2 text-sm text-forvis-gray-600 py-4 mb-2">
           <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-colors">
@@ -161,7 +161,7 @@ export default function NewsPage() {
           <span className="text-forvis-gray-900 font-medium">Company News</span>
         </nav>
 
-        <div className="space-y-6 pb-8">
+        <div className="space-y-6">
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
@@ -176,7 +176,7 @@ export default function NewsPage() {
             {canManageNews && (
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="inline-flex items-center gap-2 px-4 py-3 text-sm font-bold text-white rounded-lg shadow-lg hover:shadow-xl transition-all focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2"
+                className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-bold text-white rounded-lg shadow-lg hover:shadow-xl transition-all focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2"
                 style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
               >
                 <PlusIcon className="w-5 h-5" />
@@ -245,8 +245,22 @@ export default function NewsPage() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-500"></div>
             </div>
           ) : error ? (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center text-red-700">
-              Failed to load bulletins. Please try again.
+            <div className="rounded-xl p-4 border-2 shadow-corporate bg-red-50" style={{ borderColor: '#DC2626' }}>
+              <div className="flex items-start gap-3">
+                <div className="rounded-full p-2 bg-red-100">
+                  <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-base font-bold mb-1 text-red-900">
+                    Error Loading Bulletins
+                  </h3>
+                  <p className="text-sm text-red-800">
+                    Failed to load bulletins. Please try again.
+                  </p>
+                </div>
+              </div>
             </div>
           ) : !bulletinsData?.bulletins || bulletinsData.bulletins.length === 0 ? (
             <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate p-12 text-center">
@@ -262,7 +276,7 @@ export default function NewsPage() {
               {canManageNews && !search && !categoryFilter && (
                 <button
                   onClick={() => setShowCreateModal(true)}
-                  className="mt-4 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg transition-all"
+                  className="mt-6 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg shadow-lg hover:shadow-xl transition-all focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2"
                   style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
                 >
                   <PlusIcon className="w-4 h-4" />

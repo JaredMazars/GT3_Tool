@@ -6,6 +6,26 @@ alwaysApply: false
 
 Professional, corporate styling consistent with Forvis Mazars brand guidelines.
 
+## UI Component Library
+
+**ALWAYS use typed components from `/src/components/ui/` - import via:**
+
+```typescript
+import { Button, Card, DashboardCard, Input, Badge, Banner, StatCard, LoadingSpinner } from '@/components/ui';
+```
+
+**Available Components:**
+- `Button` - primary, secondary, gradient, danger variants
+- `Card` - standard, dashboard, shared-service, stats variants  
+- `DashboardCard` - interactive cards with hover effects, icons, stats
+- `Input` - text, email, password, number, textarea, select variants
+- `Badge` - status indicators with color variants
+- `Banner` - info, error, warning, success notifications
+- `StatCard` - gradient metric cards (4 variants for hierarchy)
+- `LoadingSpinner` / `LoadingOverlay` - loading states
+
+**Benefits:** Type-safe, consistent, maintainable. Use for all repeated patterns.
+
 ## Brand Colors
 
 **Primary Blues**: forvis-blue-500 (#2E5AAC), 600 (#25488A), 700 (#1C3667), 50 (#EBF2FA), 100 (#D6E4F5)
@@ -44,184 +64,49 @@ Always use inline styles (not Tailwind). Use 135deg for diagonal, `to right` for
 3. Dark (icon accents): #5B93D7 → #2E5AAC
 4. Darkest (headers): #5B93D7 → #2E5AAC → #1C3667
 
-## Component Styling
+## Component Usage
 
-### Buttons
-
-```typescript
-// Primary
-className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium text-white bg-forvis-blue-500 hover:bg-forvis-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-forvis-blue-500 transition-colors shadow-corporate"
-
-// Gradient
-className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-bold text-white rounded-lg shadow-lg hover:shadow-xl transition-all"
-style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
-
-// Secondary
-className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 hover:bg-forvis-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-forvis-blue-500 transition-colors"
-```
-
-Icons: h-4 w-4 (small), h-5 w-5 (regular). Always include hover/focus states.
-
-### Cards
+Use UI components from `/src/components/ui/` - all variants, props, and styling are handled internally:
 
 ```typescript
-// Standard
-className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate"
+// Buttons - primary, secondary, gradient, danger
+<Button variant="gradient" size="lg" icon={icon} loading={isLoading}>Create</Button>
 
-// Gradient header
-className="flex justify-between items-center p-4"
-style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)' }}
+// Cards - standard, dashboard, shared-service, stats
+<Card variant="dashboard" hoverable loading={isLoading}>
+  <div className="p-4">Content</div>
+</Card>
 
-// Light with accent border
-className="rounded-xl p-4 border-2 shadow-corporate"
-style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)', borderColor: '#2E5AAC' }}
-```
-
-Spacing: p-4 body, px-4 py-3 header/footer. Emphasis borders: border-2 with #2E5AAC.
-
-### Dashboard Cards (Interactive)
-
-Dashboard cards feature light gradient backgrounds with interactive hover effects:
-
-```typescript
-// Service Line Card (Main Service Lines)
-className="group block rounded-lg border border-forvis-gray-200 shadow-corporate hover:shadow-corporate-md transition-all duration-200 relative overflow-hidden"
-style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
-
-// Hover gradient overlay (inside card, absolute positioned)
-<div 
-  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-  style={{
-    background: 'linear-gradient(135deg, rgba(91, 147, 215, 0.06) 0%, rgba(46, 90, 172, 0.08) 100%)',
-  }}
+// Dashboard Cards - interactive with hover, stats, icons
+<DashboardCard 
+  title="Tax Services" 
+  icon={icon} 
+  href="/path"
+  stats={[{ label: 'Active', value: 42, primary: true }]}
 />
 
-// Card content wrapper (relative z-index to stay above overlay)
-<div className="p-4 relative z-[1]">
-  {/* Content */}
-</div>
+// Inputs - text, email, password, textarea, select
+<Input variant="text" label="Email" error="Invalid" />
 
-// Icon container with scale effect
-className="w-12 h-12 rounded-lg bg-forvis-blue-100 border-2 border-forvis-blue-200 flex items-center justify-center transition-transform duration-200 group-hover:scale-110"
+// Banners - info, error, warning, success
+<Banner variant="error" title="Error" message="Message" dismissible />
 
-// Arrow icon (appears on hover)
-<ArrowRightIcon className="h-5 w-5 text-forvis-blue-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200" />
+// Stats - gradient cards with 4 hierarchy variants
+<StatCard label="Active" value={42} icon={icon} gradientVariant={1} />
 
-// Title with hover color change
-className="text-lg font-bold text-forvis-gray-900 group-hover:text-forvis-blue-600 transition-colors duration-200"
+// Loading
+<LoadingSpinner size="md" color="blue" />
+<LoadingOverlay message="Loading..." />
+
+// Badges
+<Badge variant="green" dot>Active</Badge>
 ```
 
-**Shared Service Cards** (compact, horizontal layout):
-```typescript
-className="group block rounded-lg border border-forvis-gray-200 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden"
-style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+**Icon Sizing:** h-4 w-4 (small), h-5 w-5 (regular), h-6 w-6 (large)
 
-// Compact icon
-className="w-10 h-10 rounded-lg bg-forvis-blue-100 border border-forvis-blue-200 flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110"
+## Custom Patterns (When Components Don't Apply)
 
-// Title (smaller)
-className="text-sm font-bold text-forvis-gray-900 truncate group-hover:text-forvis-blue-600 transition-colors duration-200"
-
-// Arrow (smaller)
-<ArrowRightIcon className="h-4 w-4 text-forvis-blue-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200 flex-shrink-0" />
-```
-
-**Sub-Service Line Group Cards** (with stats):
-```typescript
-// Same base as service line cards, but include stats section:
-<div className="grid grid-cols-2 gap-4 pt-4 border-t border-forvis-gray-100">
-  <div>
-    <div className="text-xs font-medium text-forvis-gray-500 uppercase tracking-wider mb-1">
-      Active Tasks
-    </div>
-    <div className="text-xl font-bold text-forvis-blue-600">
-      {activeTasks}
-    </div>
-  </div>
-  <div>
-    <div className="text-xs font-medium text-forvis-gray-500 uppercase tracking-wider mb-1">
-      Total Tasks
-    </div>
-    <div className="text-xl font-bold text-forvis-gray-900">
-      {totalTasks}
-    </div>
-  </div>
-</div>
-```
-
-**Key Dashboard Card Principles:**
-- Light gradient backgrounds (#F0F7FD to #E0EDFB) for all dashboard cards
-- Hover overlays with subtle blue tint (rgba with 0.06-0.08 opacity)
-- Icon containers scale on hover (scale-110)
-- Arrow icons fade in and translate on hover
-- Titles change color on hover (gray-900 → blue-600)
-- All transitions use 200ms duration
-- Use `overflow-hidden` and `relative` on card container
-- Content needs `relative z-[1]` to stay above hover overlay
-
-### Loading Overlays
-
-```typescript
-// Loading overlay (for navigation states)
-{isNavigating && (
-  <div className="absolute inset-0 bg-white bg-opacity-90 rounded-lg flex items-center justify-center z-10">
-    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-500"></div>
-  </div>
-)}
-```
-
-Use on cards/buttons during navigation or async operations. Always z-10+ to appear above content.
-
-### Banners (Info/Error/Warning)
-
-```typescript
-// Error Banner
-<div className="rounded-xl p-4 border-2 shadow-corporate bg-red-50" style={{ borderColor: '#DC2626' }}>
-  <div className="flex items-start gap-3">
-    <div className="rounded-full p-2 bg-red-100">
-      <svg className="w-5 h-5 text-red-600" {/* icon */} />
-    </div>
-    <div className="flex-1">
-      <h3 className="text-base font-bold mb-1 text-red-900">
-        Access Denied
-      </h3>
-      <p className="text-sm text-red-800">
-        {errorMessage}
-      </p>
-    </div>
-    <button className="text-red-400 hover:text-red-600 transition-colors">
-      {/* close icon */}
-    </button>
-  </div>
-</div>
-
-// Info Banner
-<div className="rounded-xl p-4 border-2 shadow-corporate" style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)', borderColor: '#2E5AAC' }}>
-  <div className="flex items-start gap-3">
-    <div className="rounded-full p-2" style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}>
-      <svg className="w-5 h-5 text-white" {/* icon */} />
-    </div>
-    <div className="flex-1">
-      <h3 className="text-base font-bold mb-1" style={{ color: '#1C3667' }}>
-        Title
-      </h3>
-      <p className="text-sm text-forvis-gray-700">
-        Message content
-      </p>
-    </div>
-  </div>
-</div>
-```
-
-**Banner Colors:**
-- Error: bg-red-50, border #DC2626, icon bg-red-100, text red-600/800/900
-- Info: gradient background (#F0F7FD to #E0EDFB), border #2E5AAC, gradient icon bg, text forvis-gray-700
-- Icon containers: rounded-full p-2
-
-### Shared Service Container
-
-For grouping shared services on dashboard:
-
+**Shared Service Container** (darker gradient to group cards):
 ```typescript
 <div 
   className="rounded-lg border-2 p-6"
@@ -230,272 +115,170 @@ For grouping shared services on dashboard:
     borderColor: '#2E5AAC',
   }}
 >
-  <div className="mb-4">
-    <h2 className="text-xl font-semibold text-forvis-gray-900 mb-1">
-      Shared Services
-    </h2>
-    <p className="text-sm text-forvis-gray-600">
-      Support departments that contribute across all service lines
-    </p>
-  </div>
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-    {/* SharedServiceCard components */}
-  </div>
+  {/* DashboardCard components inside */}
 </div>
 ```
 
-Uses slightly darker gradient (#E0EDFB to #C7DDEF) to distinguish from inner cards.
-
-### Stats Cards
-
+**Tables** (Grid-based with gradient header):
 ```typescript
-className="rounded-lg p-3 shadow-corporate text-white"
-style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #25488A)' }}
-// Icon containers: style={{ backgroundColor: 'rgba(28, 54, 103, 0.5)' }}
-```
-
-White text on gradient, opacity-90 for labels, vary gradient darkness across cards.
-
-### Forms
-
-```typescript
-// Label
-className="block text-sm font-medium text-forvis-gray-700"
-
-// Input
-className="block w-full px-4 py-2 border border-forvis-gray-300 rounded-lg text-sm text-forvis-gray-900 placeholder:text-forvis-gray-400 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500 transition-colors disabled:opacity-50"
-
-// Error
-className="mt-1 text-xs text-red-600"
-```
-
-### Tables (Grid-Based)
-
-```typescript
-// Header with gradient
+// Header
 className="grid py-2 shadow-sm"
-style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)', gridTemplateColumns: '80px 200px 120px 1fr' }}
+style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)', gridTemplateColumns: '...' }}
 
-// Data rows (striping + hover)
-className={`grid cursor-pointer hover:bg-forvis-blue-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-forvis-gray-50'}`}
-style={{ gridTemplateColumns: '80px 200px 120px 1fr' }}
+// Rows - striping + hover
+className={`grid cursor-pointer hover:bg-forvis-blue-50 ${index % 2 === 0 ? 'bg-white' : 'bg-forvis-gray-50'}`}
 
-// Number cells (right-aligned, tabular)
-className={`px-3 py-1.5 text-xs text-right tabular-nums font-medium ${value < 0 ? 'text-red-600' : 'text-forvis-gray-900'}`}
-// Format negatives: {value < 0 ? `(${formatAmount(Math.abs(value))})` : formatAmount(value)}
+// Numbers - right-aligned, tabular, negatives in red with parentheses
+className={`text-right tabular-nums ${value < 0 ? 'text-red-600' : 'text-forvis-gray-900'}`}
 ```
 
-Use explicit widths via `gridTemplateColumns`, `cursor-pointer` for clickable rows, `tabular-nums` for numbers, red with parentheses for negatives.
+**File Upload**:
+```typescript
+className="flex justify-center px-6 pt-5 pb-6 border-3 border-dashed rounded-xl"
+style={{ borderColor: '#2E5AAC', borderWidth: '3px', background: 'linear-gradient(135deg, #F0F7FD 0%, #E5F1FB 100%)' }}
+```
 
-### Other Components
+**Modals**:
+- Overlay: `fixed inset-0 bg-black bg-opacity-50 z-50`
+- Content: `bg-white rounded-lg shadow-corporate-lg max-w-lg w-full p-6`
 
-**Badges**: `className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"` (variants: yellow, red, blue)
-
-**File Upload**: `className="flex justify-center px-6 pt-5 pb-6 border-3 border-dashed rounded-xl transition-all shadow-lg hover:shadow-xl"` + `style={{ borderColor: '#2E5AAC', borderWidth: '3px', background: 'linear-gradient(135deg, #F0F7FD 0%, #E5F1FB 100%)' }}`
-
-**Modals**: Overlay `fixed inset-0 bg-black bg-opacity-50 z-50`, Content `bg-white rounded-lg shadow-corporate-lg max-w-lg w-full p-6`, Title `text-lg font-semibold text-forvis-gray-900`
-
-**Navigation**: Inactive `flex items-center px-4 py-2 text-sm font-medium text-forvis-gray-700 hover:bg-forvis-gray-50 rounded-lg`, Active `text-forvis-blue-600 bg-forvis-blue-50`
+**Navigation**:
+- Inactive: `flex items-center px-4 py-2 text-sm font-medium text-forvis-gray-700 hover:bg-forvis-gray-50 rounded-lg`
+- Active: `text-forvis-blue-600 bg-forvis-blue-50`
 
 ## Layout & Spacing
 
 **Containers**: 
-- Main content: `max-w-7xl mx-auto px-4 sm:px-6 lg:px-8` with `py-8` for pages
+- Pages: `max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8`
 - Forms: `max-w-2xl mx-auto px-4`
-- Dashboard home: `w-full px-4 sm:px-6 lg:px-8 py-12` (full width)
+- Dashboard: `w-full px-4 sm:px-6 lg:px-8 py-12`
 
-**Spacing Scale**: gap-2 (8px), gap-3 (12px), gap-4 (16px), gap-6 (24px), p-2/4/6 (8/16/24px), mb-2/4/6/8 (8/16/24/32px)
+**Spacing Scale**: 2→8px, 3→12px, 4→16px, 6→24px (gap/padding/margin)
 
 **Grid Layouts:**
-- Two column: `grid grid-cols-1 md:grid-cols-2 gap-6`
-- Three column: `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6`
-- Four column (service lines): `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4`
-- Shared services (compact): `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3`
-- Stats grid (2 columns, compact): `grid grid-cols-2 gap-4`
+- 2-col: `grid-cols-1 md:grid-cols-2 gap-6`
+- 3-col: `grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6`
+- 4-col: `grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4`
+- Stats: `grid-cols-2 gap-4` or `md:grid-cols-4 gap-3`
 
-**Dashboard Headers:**
+**Page Sections**: Use `space-y-6` for vertical spacing between major sections
+
+**Headers:**
 ```typescript
-// Centered welcome header
+// Welcome header (centered)
 <div className="mb-8 text-center">
-  <p className="text-sm font-medium text-forvis-blue-600 mb-1">
-    {firstName ? `Welcome back, ${firstName}` : 'Welcome'}
-  </p>
-  <h1 className="text-3xl md:text-4xl font-semibold text-forvis-gray-900">
-    Forvis Mazars
-  </h1>
-  {/* Logo component */}
-  <p className="text-sm text-forvis-gray-600">
-    Select a service line to get started
-  </p>
+  <p className="text-sm font-medium text-forvis-blue-600 mb-1">Welcome back, {name}</p>
+  <h1 className="text-3xl md:text-4xl font-semibold text-forvis-gray-900">Forvis Mazars</h1>
 </div>
 
 // Page header with breadcrumb
 <nav className="flex items-center space-x-2 text-sm text-forvis-gray-600 mb-6">
-  <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-colors">
-    Dashboard
-  </Link>
+  <Link href="/dashboard">Dashboard</Link>
   <ChevronRightIcon className="h-4 w-4" />
   <span className="text-forvis-gray-900 font-medium">{serviceLine}</span>
 </nav>
 
-// Page header with stats
+// Page header with inline stats
 <div className="mb-8">
-  <h1 className="text-3xl font-bold text-forvis-gray-900 mb-2">
-    {title}
-  </h1>
-  <p className="text-forvis-gray-600">{description}</p>
+  <h1 className="text-3xl font-bold text-forvis-gray-900">{title}</h1>
   <div className="mt-4 flex gap-6">
     <div>
-      <div className="text-2xl font-bold text-forvis-blue-600">{stat1}</div>
-      <div className="text-sm text-forvis-gray-600">Label 1</div>
-    </div>
-    <div>
-      <div className="text-2xl font-bold text-forvis-gray-900">{stat2}</div>
-      <div className="text-sm text-forvis-gray-600">Label 2</div>
+      <div className="text-2xl font-bold text-forvis-blue-600">{value}</div>
+      <div className="text-sm text-forvis-gray-600">{label}</div>
     </div>
   </div>
 </div>
-```
 
-**Responsive Flex**: `flex flex-col md:flex-row gap-4`
+// Page header with action (use Button component)
+<div className="flex justify-between items-center">
+  <div>
+    <h1 className="text-3xl font-semibold text-forvis-gray-900">{title}</h1>
+    <p className="text-sm text-forvis-gray-600 mt-1">{description}</p>
+  </div>
+  <Button variant="gradient" icon={icon}>Action</Button>
+</div>
+```
 
 ## Shadows, Borders & States
 
-**Shadows**: 
-- `shadow-corporate` (subtle) - default cards, dashboard cards at rest
-- `shadow-corporate-md` (medium) - dashboard cards on hover, elevated elements
-- `shadow-corporate-lg` (high) - modals, dialogs
-- Shared service cards: `shadow-sm` at rest, `shadow-md` on hover (lighter than main service lines)
+**Shadows**: `shadow-corporate` (default), `shadow-corporate-md` (hover), `shadow-corporate-lg` (modals)
 
-**Radius**: `rounded-lg` (8px) default, `rounded-xl` (12px) for banners/emphasis, `rounded-full` for badges/icon containers
+**Radius**: `rounded-lg` (default 8px), `rounded-xl` (emphasis 12px), `rounded-full` (badges/icons)
 
-**Border Colors**: 
-- `border-forvis-gray-200` (default cards, subtle)
-- `border-forvis-gray-300` (inputs)
-- `border-forvis-blue-500` (focus)
-- `border-forvis-gray-100` (internal dividers in cards)
-- `#2E5AAC` (emphasis borders via inline style)
-- `#DC2626` (error banners via inline style)
+**Borders**: `border-forvis-gray-200` (cards), `border-forvis-gray-300` (inputs), `border-forvis-blue-500` (focus), `#2E5AAC` (emphasis via inline)
 
-**State Styles:**
-- Hover: 
-  - Standard: `hover:bg-forvis-gray-50`, `hover:text-forvis-blue-600`
-  - Dashboard cards: `hover:shadow-corporate-md` (or `hover:shadow-md` for shared services)
-  - Icons in cards: `group-hover:scale-110`
-  - Arrows: `group-hover:opacity-100 group-hover:translate-x-1`
+**States:**
+- Hover: `hover:bg-forvis-gray-50`, `hover:text-forvis-blue-600`, `hover:shadow-corporate-md`
 - Focus: `focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2`
 - Disabled: `disabled:opacity-50 disabled:cursor-not-allowed`
-- Loading: `animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-500`
 
-## Z-Index Layering
-
-Dashboard cards use a specific z-index hierarchy for proper layering:
-
-```typescript
-// Card container
-className="relative overflow-hidden"  // Establishes stacking context
-
-// Hover overlay (behind content)
-<div className="absolute inset-0 opacity-0 group-hover:opacity-100" {...} />
-// No z-index needed (defaults to z-0)
-
-// Card content (above overlay)
-<div className="relative z-[1]">
-  {/* All content here */}
-</div>
-
-// Loading overlay (above everything)
-<div className="absolute inset-0 z-10 bg-white bg-opacity-90">
-  <div className="animate-spin..." />
-</div>
-```
-
-**Z-Index Scale:**
-- Default/Overlay: z-0 (no class needed)
-- Card content: z-[1] (above hover overlays)
-- Loading states: z-10 (above all card content)
-- Modals: z-50 (global overlay)
-
-**Key Rules:**
-- Parent element must have `relative` and `overflow-hidden`
-- Hover overlays don't need explicit z-index (stay at z-0)
-- Content wrapper needs `relative z-[1]` to appear above overlay
-- Loading overlays need z-10+ to cover everything
+**Z-Index**: z-0 (overlays), z-[1] (content), z-10 (loading), z-50 (modals)
 
 ## Accessibility & Responsive
 
-**Focus**: Always `focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2`
-**Contrast**: WCAG AA - text on white use gray-700+, text on blue-500 use white
-**Screen Reader**: `className="sr-only"` for hidden content, ARIA labels for icons
+**Focus**: Always include focus ring (`focus:ring-2 focus:ring-forvis-blue-500`)
+**Contrast**: WCAG AA - gray-700+ on white, white on gradients
+**Screen Reader**: `sr-only` for hidden content, ARIA labels for icons
+**Breakpoints**: sm (640), md (768), lg (1024), xl (1280)
+**Mobile-First**: `flex-col md:flex-row`, `grid-cols-1 md:grid-cols-2`
 
-**Breakpoints**: sm (640px), md (768px), lg (1024px), xl (1280px), 2xl (1536px)
-**Mobile-First**: `flex flex-col md:flex-row`, `grid grid-cols-1 md:grid-cols-2`, `hidden md:block`
+## Key Principles
 
-## Key Rules
+**Component-First Approach:**
+- ✅ **ALWAYS** use `/src/components/ui/` components (Button, Card, DashboardCard, Input, Badge, Banner, StatCard, Loading)
+- ❌ NO legacy CSS classes (`.btn-primary`, `.card`, etc.) - DEPRECATED
+- ❌ NO manual styling for common patterns
 
-**Inline Styles vs Tailwind:**
-- **Use Inline Styles**: Gradients, brand hex colors (#2E5AAC), emphasis borders, semi-transparent backgrounds, dynamic grid templates
-- **Use Tailwind**: Spacing/sizing/layout, typography (except hex), responsive, state variants, forvis-* palette colors, shadows
+**When to Use Inline Styles:**
+- Gradients (not in Tailwind)
+- Brand hex colors (#2E5AAC, #DC2626)
+- Emphasis borders
+- Dynamic grid templates
+- One-off semi-transparent backgrounds
 
-**CSS Classes**: Prefer predefined (globals.css): `.btn-primary`, `.btn-secondary`, `.card`, `.card-hover`, `.input-field`, `.animate-fadeIn`, `.animate-scaleIn`
+**When to Use Tailwind:**
+- All spacing/sizing/layout
+- Typography (using forvis-* colors)
+- Responsive design
+- State variants (hover, focus, disabled)
+- Shadows (shadow-corporate variants)
 
-**Best Practices:**
-1. Use defined color palette only
-2. Standard spacing scale (4, 8, 12, 16, 24, 32px)
-3. Inter font, defined text sizes
-4. Corporate shadows only
-5. Borders: gray-200/300 subtle, border-2 + #2E5AAC emphasis
-6. Transitions: Always include (200ms default for dashboard cards, 200-300ms for others)
-7. Focus states: Required for accessibility
-8. Responsive: Mobile-first approach
-9. Gradients: Inline styles, 135deg diagonal, `to right` horizontal
-10. White text on gradients always
-11. Dashboard cards: Light gradients (#F0F7FD to #E0EDFB) with hover overlays
-12. Interactive elements: Use `group` class for coordinated hover effects
-13. Loading states: Use semi-transparent overlays (bg-opacity-90) with spinner
-14. Icons in cards: Scale on hover (scale-110), transition-transform 200ms
-15. Arrow indicators: Fade in and translate on hover (opacity-0 → opacity-100, translate-x-1)
+**Core Standards:**
+1. Type-safe UI components for all common patterns
+2. Brand blue (#2E5AAC) central to design
+3. Gradients for visual hierarchy (darker = more important)
+4. White text on all gradients
+5. Standard spacing scale (4, 8, 12, 16, 24, 32px)
+6. Corporate shadows only (`shadow-corporate` variants)
+7. 200ms transitions for dashboard interactions
+8. Focus rings required for accessibility
+9. Mobile-first responsive design
+10. `space-y-6` for page section spacing
 
 **Avoid:**
-- Arbitrary values (except gradients/brand colors)
-- New color schemes
-- Default Tailwind shadows
-- Bold everywhere (font-bold on gradients, font-medium on standard)
-- Inconsistent spacing
-- Tailwind for gradients
+- Custom button/card/input markup (use components)
 - Black text on gradients
-- Heavy borders everywhere (except emphasis: border-2 with #2E5AAC)
-- Dashboard cards without hover effects (always include hover overlay + shadow elevation)
-- Forgetting z-index layering on cards with overlays (overlay needs lower z than content)
-- Mixing shadow styles (use shadow-corporate for main cards, shadow-sm for compact cards)
+- Arbitrary spacing values
+- Default Tailwind shadows
+- Inconsistent transitions
+- Missing focus states
 
-**Core Principle**: Gradients prominent (headers, stats, emphasis, dashboard cards), Brand blue central (#2E5AAC), Visual hierarchy through gradients (darker = important), Grid-based layouts (CSS Grid for tables and dashboard cards), Professional aesthetic (clean, corporate), Interactive feedback (hover effects, loading states, transitions), Accessibility maintained (focus states, color contrast, semantic HTML).
+## Dashboard Patterns
 
-## Dashboard-Specific Patterns
-
-**Card Interaction Pattern:**
-1. Base: Light gradient background (#F0F7FD to #E0EDFB)
-2. Hover: Subtle blue overlay (rgba 0.06-0.08 opacity) fades in
-3. Icon: Scales to 110% on hover
-4. Title: Changes from gray-900 to blue-600
-5. Arrow: Fades in (opacity-0 to 100) and translates right (translate-x-1)
-6. Shadow: Elevates from shadow-corporate to shadow-corporate-md
-7. Duration: All transitions 200ms for consistent feel
-
-**Loading States:**
-- Use absolute positioned overlay with bg-opacity-90
-- Center spinner with flexbox
-- Always z-10 or higher
-- Apply rounded corners matching parent container
+**Card Interactions** (handled by DashboardCard component):
+- Light gradient base (#F0F7FD → #E0EDFB)
+- Subtle hover overlay (rgba opacity 0.06-0.08)
+- Icon scale (110%) + arrow fade-in on hover
+- Title color change (gray-900 → blue-600)
+- Shadow elevation (corporate → corporate-md)
+- 200ms transitions
 
 **Stats Display:**
-- Large numbers: text-2xl font-bold
-- Active/primary stat: text-forvis-blue-600
-- Secondary stat: text-forvis-gray-900
-- Label: text-sm text-forvis-gray-600
-- Layout: flex gap-6 for horizontal, grid grid-cols-2 gap-4 for cards
+- Use `<StatCard>` with `gradientVariant={1-4}` for hierarchy
+- Grid: `grid-cols-1 md:grid-cols-4 gap-3`
+- Inline stats: `text-2xl font-bold` + `text-forvis-blue-600` (primary) or `text-forvis-gray-900` (secondary)
 
-**Section Grouping:**
-- Main service lines: No container, direct grid
-- Shared services: Nested in darker gradient container (#E0EDFB to #C7DDEF)
-- Section headers: text-xl font-semibold with descriptive text-sm below
+**Page Structure:**
+- Layout: `min-h-screen bg-forvis-gray-50` with `max-w-7xl mx-auto px-4 sm:px-6 lg:px-8`
+- Sections: `space-y-6` for vertical spacing
+- Headers: See Layout & Spacing section for patterns

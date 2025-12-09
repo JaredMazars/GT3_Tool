@@ -62,7 +62,7 @@ export default function DashboardHomePage() {
       <div className="w-full px-4 sm:px-6 lg:px-8 py-12">
         {/* Error Message */}
         {errorMessage && showError && (
-          <div className="mb-6">
+          <div className="mb-8">
             <div className="rounded-xl p-4 border-2 shadow-corporate bg-red-50" style={{ borderColor: '#DC2626' }}>
               <div className="flex items-start gap-3">
                 <div className="rounded-full p-2 bg-red-100">
@@ -135,7 +135,7 @@ export default function DashboardHomePage() {
 
         {/* Main Service Line Cards */}
         {mainServiceLines.length > 0 && (
-          <div className="mb-6">
+          <div className="mb-8">
             <h2 className="text-xl font-semibold text-forvis-gray-900 mb-4">
               Main Service Lines
             </h2>
@@ -152,7 +152,7 @@ export default function DashboardHomePage() {
 
         {/* Shared Services Cards */}
         {sharedServices.length > 0 && (
-          <div className="mb-6">
+          <div className="mb-8">
             <div 
               className="rounded-lg border-2 p-6"
               style={{

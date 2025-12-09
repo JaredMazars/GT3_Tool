@@ -89,6 +89,18 @@
 }
 
 @layer components {
+  /* 
+   * Legacy CSS classes - DEPRECATED
+   * Use UI components from @/components/ui instead:
+   * - <Button variant="primary" /> instead of .btn-primary
+   * - <Button variant="secondary" /> instead of .btn-secondary
+   * - <Card variant="standard" /> instead of .card
+   * - <Input /> instead of .input-field
+   * 
+   * These classes are kept for backward compatibility only.
+   * They will be removed in a future update once all components are migrated.
+   */
+  
   .btn-primary {
     @apply inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white transition-all duration-200;
     background-color: #2E5AAC; /* forvis-blue-500 */

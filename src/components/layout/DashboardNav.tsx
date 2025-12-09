@@ -12,7 +12,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { NotificationBell } from '@/components/features/notifications/NotificationBell';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
-import { formatServiceLineName } from '@/lib/utils/serviceLineUtils';
+import { formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';
 import { useFeature } from '@/hooks/permissions/useFeature';
 import { Feature } from '@/lib/permissions/features';
 
@@ -47,7 +47,7 @@ export default function DashboardNav() {
   const serviceLineNavItems: NavItem[] = currentServiceLine
     ? [
         {
-          label: 'Clients',
+          label: isSharedService(currentServiceLine) ? 'Services' : 'Clients',
           href: `/dashboard/${currentServiceLine.toLowerCase()}`,
         },
       ]

@@ -1,17 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { 
   DocumentTextIcon,
   ClipboardDocumentCheckIcon,
   CalculatorIcon,
   LightBulbIcon,
-  ArrowRightIcon,
 } from '@heroicons/react/24/outline';
 import { ServiceLine } from '@/types';
 import { ServiceLineWithStats } from '@/types/dto';
+import { DashboardCard } from '@/components/ui';
 import { 
   getServiceLineColor, 
   getServiceLineBgColor,
@@ -32,7 +30,6 @@ interface ServiceLineCardProps {
 
 export function ServiceLineCard({ serviceLineData }: ServiceLineCardProps) {
   const { serviceLine } = serviceLineData;
-  const router = useRouter();
   const [isNavigating, setIsNavigating] = useState(false);
   
   const Icon = iconMap[serviceLine as ServiceLine] || DocumentTextIcon;
@@ -44,7 +41,7 @@ export function ServiceLineCard({ serviceLineData }: ServiceLineCardProps) {
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     setIsNavigating(true);
-    router.push(`/dashboard/${serviceLine.toLowerCase()}`);
+    window.location.href = `/dashboard/${serviceLine.toLowerCase()}`;
   };
 
   const getDescription = (line: ServiceLine | string) => {
@@ -62,50 +59,22 @@ export function ServiceLineCard({ serviceLineData }: ServiceLineCardProps) {
     }
   };
 
+  const iconElement = (
+    <div className={`w-12 h-12 rounded-lg ${bgColor} border-2 ${borderColor} flex items-center justify-center transition-transform duration-200 group-hover:scale-110`}>
+      <Icon className={`h-6 w-6 ${color}`} />
+    </div>
+  );
+
   return (
-    <Link
+    <DashboardCard
+      title={name}
+      description={getDescription(serviceLine)}
+      icon={iconElement}
       href={`/dashboard/${serviceLine.toLowerCase()}`}
       onClick={handleClick}
-      className="group block rounded-lg border border-forvis-gray-200 shadow-corporate hover:shadow-corporate-md transition-all duration-200 relative overflow-hidden"
-      style={{
-        background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
-      }}
-    >
-      {/* Hover gradient overlay */}
-      <div 
-        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-        style={{
-          background: 'linear-gradient(135deg, rgba(91, 147, 215, 0.06) 0%, rgba(46, 90, 172, 0.08) 100%)',
-        }}
-      />
-      
-      {/* Loading overlay */}
-      {isNavigating && (
-        <div className="absolute inset-0 bg-white bg-opacity-90 rounded-lg flex items-center justify-center z-10">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-500"></div>
-        </div>
-      )}
-      
-      <div className="p-4 relative z-[1]">
-        <div className="flex flex-col h-full">
-          {/* Icon and Arrow */}
-          <div className="flex items-start justify-between mb-4">
-            <div className={`w-12 h-12 rounded-lg ${bgColor} border-2 ${borderColor} flex items-center justify-center transition-transform duration-200 group-hover:scale-110`}>
-              <Icon className={`h-6 w-6 ${color}`} />
-            </div>
-            <ArrowRightIcon className={`h-5 w-5 text-forvis-blue-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200`} />
-          </div>
-
-          {/* Title and Description */}
-          <h3 className="text-lg font-bold text-forvis-gray-900 mb-2 group-hover:text-forvis-blue-600 transition-colors duration-200">
-            {name}
-          </h3>
-          <p className="text-xs text-forvis-gray-700 flex-grow leading-relaxed">
-            {getDescription(serviceLine)}
-          </p>
-        </div>
-      </div>
-    </Link>
+      loading={isNavigating}
+      variant="default"
+    />
   );
 }
 
