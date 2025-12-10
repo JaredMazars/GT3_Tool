@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useTask } from '@/hooks/tasks/useTaskData';
 import { SarsResponse } from '@/types';
-import { PlusIcon, EnvelopeIcon, CalendarIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { Plus, Mail, Calendar, Clock } from 'lucide-react';
 
 interface SarsResponsesPageProps {
   params: { id: string };
@@ -98,7 +98,7 @@ export default function SarsResponsesPage({ params }: SarsResponsesPageProps) {
           className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-lg transition-colors shadow-corporate"
           style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
         >
-          <PlusIcon className="w-5 h-5" />
+          <Plus className="w-5 h-5" />
           New Response
         </button>
       </div>
@@ -112,7 +112,7 @@ export default function SarsResponsesPage({ params }: SarsResponsesPageProps) {
       <div className="grid grid-cols-1 gap-4">
         {responses.length === 0 ? (
           <div className="bg-white rounded-lg shadow-corporate border-2 p-12 text-center" style={{ borderColor: '#2E5AAC' }}>
-            <EnvelopeIcon className="w-16 h-16 mx-auto text-forvis-gray-400 mb-4" />
+            <Mail className="w-16 h-16 mx-auto text-forvis-gray-400 mb-4" />
             <h3 className="text-lg font-semibold text-forvis-gray-900 mb-2">No SARS Responses Yet</h3>
             <p className="text-sm text-forvis-gray-600">
               Create your first SARS response to start tracking correspondence.
@@ -128,7 +128,7 @@ export default function SarsResponsesPage({ params }: SarsResponsesPageProps) {
               <div className="px-4 py-3" style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <EnvelopeIcon className="w-5 h-5 text-white" />
+                    <Mail className="w-5 h-5 text-white" />
                     <h3 className="text-sm font-bold text-white">{item.subject}</h3>
                   </div>
                   <span className={`text-xs px-2 py-0.5 rounded-full border ${getStatusColor(item.status)}`}>
@@ -149,7 +149,7 @@ export default function SarsResponsesPage({ params }: SarsResponsesPageProps) {
                   <div className="flex items-center justify-between text-sm">
                     <span className="font-semibold text-forvis-gray-700">Deadline:</span>
                     <span className="text-forvis-gray-900 flex items-center gap-1">
-                      <CalendarIcon className="w-4 h-4" />
+                      <Calendar className="w-4 h-4" />
                       {new Date(item.deadline).toLocaleDateString()}
                     </span>
                   </div>

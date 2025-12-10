@@ -7,7 +7,7 @@ import {
   useDeleteAllRead 
 } from '@/hooks/notifications/useNotifications';
 import { NotificationItem } from '@/components/features/notifications/NotificationItem';
-import { CheckIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { Check, Trash2 } from 'lucide-react';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 
 type FilterTab = 'all' | 'unread';
@@ -118,7 +118,7 @@ export default function NotificationsPage() {
                   disabled={markAllAsRead.isPending || data?.unreadCount === 0}
                   className="inline-flex items-center px-3 py-2 border border-forvis-gray-300 shadow-corporate text-sm font-medium rounded-md text-forvis-gray-700 bg-white hover:bg-forvis-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <CheckIcon className="h-4 w-4 mr-2" />
+                  <Check className="h-4 w-4 mr-2" />
                   Mark all read
                 </button>
                 <button
@@ -126,7 +126,7 @@ export default function NotificationsPage() {
                   disabled={deleteAllRead.isPending}
                   className="inline-flex items-center px-3 py-2 border border-red-300 shadow-corporate text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <TrashIcon className="h-4 w-4 mr-2" />
+                  <Trash2 className="h-4 w-4 mr-2" />
                   Delete all read
                 </button>
               </div>

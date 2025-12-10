@@ -5,26 +5,26 @@ import Link from 'next/link';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
 import { TaskType, Task } from '@/types';
 import { 
-  ChevronRightIcon,
+  ChevronRight,
   TableCellsIcon,
-  DocumentTextIcon,
-  CalculatorIcon,
-  Cog6ToothIcon,
-  PencilIcon,
+  FileText,
+  Calculator,
+  Settings,
+  Pencil,
   ArchiveBoxIcon,
-  ArrowDownTrayIcon,
+  Download,
   ClipboardDocumentListIcon,
   UsersIcon,
   BookOpenIcon,
-  EnvelopeIcon,
-  FolderIcon,
-  ClipboardDocumentCheckIcon,
-  DocumentCheckIcon,
-  CheckCircleIcon,
+  Mail,
+  Folder,
+  ClipboardDocumentCheck,
+  DocumentCheck,
+  CheckCircle,
   LockClosedIcon,
-  ExclamationTriangleIcon,
-  PlusIcon
-} from '@heroicons/react/24/outline';
+  AlertTriangle,
+  Plus
+} from 'lucide-react';
 import BalanceSheetPage from '@/app/dashboard/tasks/[id]/balance-sheet/page';
 import IncomeStatementPage from '@/app/dashboard/tasks/[id]/income-statement/page';
 import MappingPage from '@/app/dashboard/tasks/[id]/mapping/page';
@@ -159,7 +159,7 @@ function SettingsTab({ task, onUpdate }: SettingsTabProps) {
               variant="secondary"
               size="sm"
               onClick={() => setIsEditing(true)}
-              icon={<PencilIcon className="h-3.5 w-3.5" />}
+              icon={<Pencil className="h-3.5 w-3.5" />}
             >
               Edit
             </Button>
@@ -496,7 +496,7 @@ export default function ClientProjectPage() {
                       variant="gradient"
                       size="md"
                       onClick={() => setShowAddUserModal(true)}
-                      icon={<PlusIcon className="w-5 h-5" />}
+                      icon={<Plus className="w-5 h-5" />}
                     >
                       Add Team Member
                     </Button>
@@ -612,7 +612,7 @@ export default function ClientProjectPage() {
           <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1">
             Home
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}`} 
@@ -620,7 +620,7 @@ export default function ClientProjectPage() {
           >
             {formatServiceLineName(serviceLine)}
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}`} 
@@ -628,7 +628,7 @@ export default function ClientProjectPage() {
           >
             {subServiceLineGroupDescription}
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients`} 
@@ -636,7 +636,7 @@ export default function ClientProjectPage() {
           >
             Clients
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${GSClientID}`} 
@@ -644,7 +644,7 @@ export default function ClientProjectPage() {
           >
             {task?.client?.clientNameFull || task?.client?.clientCode || 'Client'}
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           
           <span className="text-forvis-gray-900 font-medium">{task?.name}</span>
         </nav>
@@ -686,14 +686,14 @@ export default function ClientProjectPage() {
                   {/* Service Line Hierarchy - Right Aligned */}
                   {task && (
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      {task.masterServiceLine && (
+                      {(task as any).masterServiceLine && (
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-forvis-blue-50 text-forvis-blue-700 border border-forvis-blue-200">
-                          {task.masterServiceLine}
+                          {(task as any).masterServiceLine}
                         </span>
                       )}
-                      {task.subServiceLineGroupCode && (
+                      {(task as any).subServiceLineGroupCode && (
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-forvis-blue-50 text-forvis-blue-700 border border-forvis-blue-200">
-                          {task.subServiceLineGroupCode}
+                          {(task as any).subServiceLineGroupCode}
                         </span>
                       )}
                       {task.ServLineCode && (
@@ -812,14 +812,14 @@ export default function ClientProjectPage() {
                   <Tab
                     onClick={() => setActiveTab('acceptance')}
                     selected={activeTab === 'acceptance'}
-                    icon={CheckCircleIcon}
+                    icon={CheckCircle}
                   >
                     Acceptance
                   </Tab>
                   <Tab
                     onClick={() => setActiveTab('engagement-letter')}
                     selected={activeTab === 'engagement-letter'}
-                    icon={DocumentTextIcon}
+                    icon={FileText}
                     disabled={!task.acceptanceApproved}
                     tooltip={!task.acceptanceApproved ? 'Complete client acceptance first' : undefined}
                   >
@@ -843,7 +843,7 @@ export default function ClientProjectPage() {
                   <Tab
                     onClick={() => setActiveTab('balance-sheet')}
                     selected={activeTab === 'balance-sheet'}
-                    icon={DocumentTextIcon}
+                    icon={FileText}
                     disabled={!canAccessWorkTabs(task)}
                     tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
                   >
@@ -852,7 +852,7 @@ export default function ClientProjectPage() {
                   <Tab
                     onClick={() => setActiveTab('income-statement')}
                     selected={activeTab === 'income-statement'}
-                    icon={DocumentTextIcon}
+                    icon={FileText}
                     disabled={!canAccessWorkTabs(task)}
                     tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
                   >
@@ -861,7 +861,7 @@ export default function ClientProjectPage() {
                   <Tab
                     onClick={() => setActiveTab('tax-calculation')}
                     selected={activeTab === 'tax-calculation'}
-                    icon={CalculatorIcon}
+                    icon={Calculator}
                     disabled={!canAccessWorkTabs(task)}
                     tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
                   >
@@ -898,7 +898,7 @@ export default function ClientProjectPage() {
                   <Tab
                     onClick={() => setActiveTab('sars-responses')}
                     selected={activeTab === 'sars-responses'}
-                    icon={EnvelopeIcon}
+                    icon={Mail}
                     disabled={!canAccessWorkTabs(task)}
                     tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
                   >
@@ -907,7 +907,7 @@ export default function ClientProjectPage() {
                   <Tab
                     onClick={() => setActiveTab('document-management')}
                     selected={activeTab === 'document-management'}
-                    icon={FolderIcon}
+                    icon={Folder}
                     disabled={!canAccessWorkTabs(task)}
                     tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
                   >
@@ -916,7 +916,7 @@ export default function ClientProjectPage() {
                   <Tab
                     onClick={() => setActiveTab('compliance-checklist')}
                     selected={activeTab === 'compliance-checklist'}
-                    icon={ClipboardDocumentCheckIcon}
+                    icon={ClipboardDocumentCheck}
                     disabled={!canAccessWorkTabs(task)}
                     tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
                   >
@@ -925,7 +925,7 @@ export default function ClientProjectPage() {
                   <Tab
                     onClick={() => setActiveTab('filing-status')}
                     selected={activeTab === 'filing-status'}
-                    icon={DocumentCheckIcon}
+                    icon={DocumentCheck}
                     disabled={!canAccessWorkTabs(task)}
                     tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
                   >
@@ -945,7 +945,7 @@ export default function ClientProjectPage() {
               <Tab
                 onClick={() => setActiveTab('settings')}
                 selected={activeTab === 'settings'}
-                icon={Cog6ToothIcon}
+                icon={Settings}
               >
                 Settings
               </Tab>

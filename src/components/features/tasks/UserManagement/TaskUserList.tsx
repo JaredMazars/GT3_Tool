@@ -7,7 +7,7 @@ import { SendMessageModal } from '@/components/features/notifications/SendMessag
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { AlertModal } from '@/components/shared/AlertModal';
 import { getRoleBadgeColor } from '@/lib/utils/permissionUtils';
-import { UserCircleIcon, EnvelopeIcon, BriefcaseIcon, BuildingOfficeIcon, CalendarIcon, XMarkIcon, ChatBubbleLeftIcon } from '@heroicons/react/24/outline';
+import { UserCircle, Mail, Briefcase, Building2, Calendar, X, MessageCircle } from 'lucide-react';
 
 interface TaskUserListProps {
   taskId: number;
@@ -180,7 +180,7 @@ export function TaskUserList({
                     )}
                   </div>
                   <div className="flex items-center gap-1 text-sm text-forvis-gray-600 mb-2">
-                    <EnvelopeIcon className="w-4 h-4" />
+                    <Mail className="w-4 h-4" />
                     <span className="truncate">{user?.email || 'No email'}</span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -200,7 +200,7 @@ export function TaskUserList({
 
       {users.length === 0 && (
         <div className="text-center py-12 bg-white rounded-lg border-2 border-dashed border-forvis-gray-300 shadow-corporate">
-          <UserCircleIcon className="w-16 h-16 mx-auto text-forvis-gray-400 mb-3" />
+          <UserCircle className="w-16 h-16 mx-auto text-forvis-gray-400 mb-3" />
           <p className="text-forvis-gray-700 font-semibold">No team members yet</p>
           <p className="text-sm text-forvis-gray-600 mt-1">Add users to start collaborating on this task</p>
         </div>
@@ -219,7 +219,7 @@ export function TaskUserList({
                   onClick={() => setSelectedUser(null)}
                   className="text-forvis-gray-400 hover:text-forvis-gray-600 transition-colors"
                 >
-                  <XMarkIcon className="w-6 h-6" />
+                  <X className="w-6 h-6" />
                 </button>
               </div>
 
@@ -254,7 +254,7 @@ export function TaskUserList({
                 <div className="grid grid-cols-1 gap-4">
                   <div className="bg-forvis-gray-50 rounded-lg p-4 border border-forvis-gray-200">
                     <div className="flex items-start gap-3">
-                      <EnvelopeIcon className="w-5 h-5 text-forvis-blue-500 mt-0.5" />
+                      <Mail className="w-5 h-5 text-forvis-blue-500 mt-0.5" />
                       <div>
                         <p className="text-sm font-medium text-forvis-gray-700">Email</p>
                         <p className="text-sm text-forvis-gray-900 mt-0.5">{user?.email || 'No email'}</p>
@@ -264,7 +264,7 @@ export function TaskUserList({
 
                   <div className="bg-forvis-gray-50 rounded-lg p-4 border border-forvis-gray-200">
                     <div className="flex items-start gap-3">
-                      <CalendarIcon className="w-5 h-5 text-forvis-blue-500 mt-0.5" />
+                      <Calendar className="w-5 h-5 text-forvis-blue-500 mt-0.5" />
                     <div>
                       <p className="text-sm font-medium text-forvis-gray-700">Added to Task</p>
                       <p className="text-sm text-forvis-gray-900 mt-0.5">
@@ -330,7 +330,7 @@ export function TaskUserList({
                     className="px-4 py-2 text-sm font-semibold text-white rounded-lg transition-colors shadow-corporate hover:shadow-corporate-md"
                     style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
                   >
-                    <ChatBubbleLeftIcon className="w-4 h-4 inline mr-2" />
+                    <MessageCircle className="w-4 h-4 inline mr-2" />
                     Send Message
                   </button>
                 )}

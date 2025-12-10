@@ -1,14 +1,14 @@
 'use client';
 
 import { 
-  ExclamationTriangleIcon,
-  CalendarIcon,
+  AlertTriangle,
+  Calendar,
   UserIcon,
   ArrowTopRightOnSquareIcon,
-  MapPinIcon as MapPinOutlineIcon,
-  DocumentArrowDownIcon,
-} from '@heroicons/react/24/outline';
-import { MapPinIcon } from '@heroicons/react/24/solid';
+  MapPin as MapPinOutlineIcon,
+  FileDown,
+} from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import { NewsBulletin, BulletinCategory } from '@/types';
 import { Badge, BadgeVariant } from '@/components/ui';
 import { formatServiceLineName } from '@/lib/utils/serviceLineUtils';
@@ -113,7 +113,7 @@ export function BulletinCard({
             {/* Pinned Indicator */}
             {bulletin.isPinned && (
               <span className="inline-flex items-center px-2.5 py-1 gap-1 rounded-full text-xs font-medium bg-white/90 text-amber-700 border border-white shadow-sm">
-                <MapPinIcon className="h-3.5 w-3.5" />
+                <MapPin className="h-3.5 w-3.5" />
                 Pinned
               </span>
             )}
@@ -121,7 +121,7 @@ export function BulletinCard({
             {/* Action Required Indicator */}
             {bulletin.actionRequired && (
               <span className="inline-flex items-center px-2.5 py-1 gap-1 rounded-full text-xs font-medium bg-white/90 text-red-700 border border-white shadow-sm">
-                <ExclamationTriangleIcon className="h-3.5 w-3.5" />
+                <AlertTriangle className="h-3.5 w-3.5" />
                 Action Required
               </span>
             )}
@@ -200,7 +200,7 @@ export function BulletinCard({
                 }}
                 className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-forvis-blue-700 bg-forvis-blue-50 border border-forvis-blue-200 rounded-lg hover:bg-forvis-blue-100 hover:border-forvis-blue-300 transition-colors"
               >
-                <DocumentArrowDownIcon className="h-4 w-4" />
+                <FileDown className="h-4 w-4" />
                 <span>{bulletin.documentFileName}</span>
                 <span className="text-xs text-forvis-blue-600">
                   ({(bulletin.documentFileSize / 1024).toFixed(0)} KB)
@@ -214,7 +214,7 @@ export function BulletinCard({
           <div className="flex items-center gap-4 text-xs text-forvis-gray-500">
             {/* Effective Date */}
             <span className="inline-flex items-center gap-1">
-              <CalendarIcon className="h-3.5 w-3.5" />
+              <Calendar className="h-3.5 w-3.5" />
               {formatDate(bulletin.effectiveDate)}
             </span>
 

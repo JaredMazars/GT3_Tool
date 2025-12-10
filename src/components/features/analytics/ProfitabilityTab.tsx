@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { BriefcaseIcon, ClockIcon, CurrencyDollarIcon, CalendarIcon, ChartBarIcon, ArrowTrendingUpIcon, ArrowTrendingDownIcon } from '@heroicons/react/24/outline';
+import { Briefcase, Clock, DollarSign, Calendar, BarChart3, TrendingUp, TrendingDown } from 'lucide-react';
 import { useClientWip, ProfitabilityMetrics } from '@/hooks/clients/useClientWip';
 import { useGroupWip } from '@/hooks/clients/useGroupWip';
 
@@ -57,9 +57,9 @@ function ProfitabilityCard({
         </p>
         {showTrend && !customBgColor && (
           isPositive ? (
-            <ArrowTrendingUpIcon className="w-5 h-5 text-green-600" />
+            <TrendingUp className="w-5 h-5 text-green-600" />
           ) : (
-            <ArrowTrendingDownIcon className="w-5 h-5 text-red-600" />
+            <TrendingDown className="w-5 h-5 text-red-600" />
           )
         )}
       </div>
@@ -107,7 +107,7 @@ export function ProfitabilityTab({ clientId, groupCode }: ProfitabilityTabProps)
   if (error) {
     return (
       <div className="text-center py-16 rounded-xl border-3 border-dashed shadow-lg" style={{ borderColor: '#EF4444', borderWidth: '3px', background: 'linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%)' }}>
-        <ChartBarIcon className="mx-auto h-16 w-16 text-red-600" />
+        <BarChart3 className="mx-auto h-16 w-16 text-red-600" />
         <h3 className="mt-4 text-lg font-bold text-red-900">Error loading WIP data</h3>
         <p className="mt-2 text-sm font-medium text-red-600">
           {error instanceof Error ? error.message : 'An error occurred while loading WIP data'}
@@ -119,7 +119,7 @@ export function ProfitabilityTab({ clientId, groupCode }: ProfitabilityTabProps)
   if (!wipData || wipData.taskCount === 0) {
     return (
       <div className="text-center py-16 rounded-xl border-3 border-dashed shadow-lg" style={{ borderColor: '#2E5AAC', borderWidth: '3px', background: 'linear-gradient(135deg, #F8FBFE 0%, #EEF6FC 100%)' }}>
-        <ChartBarIcon className="mx-auto h-16 w-16" style={{ color: '#2E5AAC' }} />
+        <BarChart3 className="mx-auto h-16 w-16" style={{ color: '#2E5AAC' }} />
         <h3 className="mt-4 text-lg font-bold" style={{ color: '#1C3667' }}>No profitability data available</h3>
         <p className="mt-2 text-sm font-medium" style={{ color: '#2E5AAC' }}>
           No tasks with profitability data have been found for this {entityType}
@@ -173,7 +173,7 @@ export function ProfitabilityTab({ clientId, groupCode }: ProfitabilityTabProps)
         <div className="card p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}>
-              <ChartBarIcon className="h-6 w-6 text-white" />
+              <BarChart3 className="h-6 w-6 text-white" />
             </div>
             <h3 className="text-lg font-bold text-forvis-gray-900">Net Revenue</h3>
           </div>
@@ -190,7 +190,7 @@ export function ProfitabilityTab({ clientId, groupCode }: ProfitabilityTabProps)
                 ? 'bg-yellow-600'
                 : 'bg-red-600'
             }`}>
-              <CurrencyDollarIcon className="h-6 w-6 text-white" />
+              <DollarSign className="h-6 w-6 text-white" />
             </div>
             <h3 className="text-lg font-bold text-forvis-gray-900">Gross Profit</h3>
           </div>
@@ -215,7 +215,7 @@ export function ProfitabilityTab({ clientId, groupCode }: ProfitabilityTabProps)
                 ? 'bg-yellow-600'
                 : 'bg-red-600'
             }`}>
-              <ChartBarIcon className="h-6 w-6 text-white" />
+              <BarChart3 className="h-6 w-6 text-white" />
             </div>
             <h3 className="text-lg font-bold text-forvis-gray-900">Gross Profit %</h3>
           </div>
@@ -325,12 +325,12 @@ export function ProfitabilityTab({ clientId, groupCode }: ProfitabilityTabProps)
           {/* Footer Info */}
           <div className="flex items-center justify-between pt-4 border-t border-forvis-gray-200 text-sm text-forvis-gray-600">
             <div className="flex items-center gap-2">
-              <BriefcaseIcon className="h-4 w-4" />
+              <Briefcase className="h-4 w-4" />
               <span><span className="font-semibold">{taskCount}</span> Active Tasks</span>
             </div>
             {lastUpdated && (
               <div className="flex items-center gap-2">
-                <CalendarIcon className="h-4 w-4" />
+                <Calendar className="h-4 w-4" />
                 <span>Last Updated: <span className="font-semibold">{new Date(lastUpdated).toLocaleDateString()}</span></span>
               </div>
             )}

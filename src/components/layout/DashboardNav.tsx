@@ -4,12 +4,12 @@ import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
-  ChevronDownIcon,
-  BuildingOfficeIcon,
-  UserGroupIcon,
-  Cog6ToothIcon,
-  Squares2X2Icon,
-} from '@heroicons/react/24/outline';
+  ChevronDown,
+  Building2,
+  Users,
+  Settings,
+  Grid2x2,
+} from 'lucide-react';
 import { NotificationBell } from '@/components/features/notifications/NotificationBell';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';
@@ -189,7 +189,7 @@ export default function DashboardNav() {
           {/* Service Line Indicator */}
           {currentServiceLine && (
             <div className="flex items-center px-4 py-2 mr-2 rounded text-white text-sm font-semibold" style={{ backgroundColor: 'rgba(255, 255, 255, 0.15)' }}>
-              <Squares2X2Icon className="h-4 w-4 mr-2" />
+              <Grid2x2 className="h-4 w-4 mr-2" />
               {formatServiceLineName(currentServiceLine)}
             </div>
           )}
@@ -245,7 +245,7 @@ export default function DashboardNav() {
                   }}
                 >
                   {item.label}
-                  <ChevronDownIcon
+                  <ChevronDown
                     className={`ml-1 h-4 w-4 transition-transform ${
                       openMenu === item.label ? 'rotate-180' : ''
                     }`}

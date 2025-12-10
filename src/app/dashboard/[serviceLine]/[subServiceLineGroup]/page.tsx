@@ -4,14 +4,14 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { 
-  MagnifyingGlassIcon,
-  BuildingOfficeIcon,
-  ChevronRightIcon,
-  FolderIcon,
-  ClockIcon,
-  UserGroupIcon,
-  ExclamationTriangleIcon,
-} from '@heroicons/react/24/outline';
+  Search,
+  Building2,
+  ChevronRight,
+  Folder,
+  Clock,
+  Users,
+  AlertTriangle,
+} from 'lucide-react';
 import { isValidServiceLine, formatServiceLineName, isSharedService, formatTaskType, getTaskTypeColor } from '@/lib/utils/serviceLineUtils';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { ServiceLine } from '@/types';
@@ -199,7 +199,7 @@ export default function SubServiceLineWorkspacePage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-forvis-gray-50">
         <div className="text-center max-w-md px-4">
-          <ExclamationTriangleIcon className="mx-auto h-12 w-12 text-yellow-500 mb-4" />
+          <AlertTriangle className="mx-auto h-12 w-12 text-yellow-500 mb-4" />
           <h1 className="text-2xl font-bold text-forvis-gray-900 mb-2">Access Denied</h1>
           <p className="text-forvis-gray-600 mb-4">
             You don't have access to this sub-service-line group. Redirecting to dashboard...
@@ -252,14 +252,14 @@ export default function SubServiceLineWorkspacePage() {
           <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1">
             Home
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}`}
             className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1"
           >
             {formatServiceLineName(serviceLine)}
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <span className="text-forvis-gray-900 font-medium">
             {subServiceLineGroupDescription}
           </span>
@@ -303,7 +303,7 @@ export default function SubServiceLineWorkspacePage() {
                 }`}
               >
                 <div className="flex items-center space-x-2">
-                  <BuildingOfficeIcon className="h-5 w-5" />
+                  <Building2 className="h-5 w-5" />
                   <span>Clients</span>
                   <span
                     className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium transition-all duration-200 ease-in-out ${
@@ -325,7 +325,7 @@ export default function SubServiceLineWorkspacePage() {
                 }`}
               >
                 <div className="flex items-center space-x-2">
-                  <FolderIcon className="h-5 w-5" />
+                  <Folder className="h-5 w-5" />
                   <span>Tasks</span>
                   <span
                     className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium transition-all duration-200 ease-in-out ${
@@ -347,7 +347,7 @@ export default function SubServiceLineWorkspacePage() {
                 }`}
               >
                 <div className="flex items-center space-x-2">
-                  <UserGroupIcon className="h-5 w-5" />
+                  <Users className="h-5 w-5" />
                   <span>My Tasks</span>
                   <span
                     className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium transition-all duration-200 ease-in-out ${
@@ -369,7 +369,7 @@ export default function SubServiceLineWorkspacePage() {
                 }`}
               >
                 <div className="flex items-center space-x-2">
-                  <UserGroupIcon className="h-5 w-5" />
+                  <Users className="h-5 w-5" />
                   <span>Groups</span>
                   <span
                     className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium transition-all duration-200 ease-in-out ${
@@ -388,7 +388,7 @@ export default function SubServiceLineWorkspacePage() {
           {/* Search and Filter Bar */}
           <div className="mb-4 flex gap-4 items-center">
             <div className="relative flex-1 max-w-md">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
               <input
                 type="text"
                 placeholder={
@@ -435,7 +435,7 @@ export default function SubServiceLineWorkspacePage() {
             <div className="bg-forvis-gray-50 rounded-lg border border-forvis-gray-200 shadow-sm p-4">
               {groups.length === 0 ? (
                 <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate text-center py-12">
-                  <UserGroupIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
+                  <Users className="mx-auto h-12 w-12 text-forvis-gray-400" />
                   <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No groups</h3>
                   <p className="mt-1 text-sm text-forvis-gray-600">
                     {searchTerm ? 'No groups match your search.' : 'No client groups available in the system.'}
@@ -474,7 +474,7 @@ export default function SubServiceLineWorkspacePage() {
                           <td className="px-3 py-3 truncate">
                             <div className="flex items-center space-x-2 min-w-0">
                               <div className="w-8 h-8 rounded-lg bg-forvis-blue-100 flex items-center justify-center flex-shrink-0">
-                                <UserGroupIcon className="h-4 w-4 text-forvis-blue-600" />
+                                <Users className="h-4 w-4 text-forvis-blue-600" />
                               </div>
                               <div className="min-w-0 flex-1">
                                 <div className="text-sm font-medium text-forvis-gray-900 truncate" title={group.groupDesc}>
@@ -579,7 +579,7 @@ export default function SubServiceLineWorkspacePage() {
             <div className="bg-forvis-gray-50 rounded-lg border border-forvis-gray-200 shadow-sm p-4">
               {clients.length === 0 ? (
                 <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate text-center py-12">
-                  <BuildingOfficeIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
+                  <Building2 className="mx-auto h-12 w-12 text-forvis-gray-400" />
                   <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No clients</h3>
                   <p className="mt-1 text-sm text-forvis-gray-600">
                     {searchTerm ? 'No clients match your search.' : 'No clients available in the system.'}
@@ -626,7 +626,7 @@ export default function SubServiceLineWorkspacePage() {
                           <td className="px-3 py-3 truncate">
                             <div className="flex items-center space-x-2 min-w-0">
                               <div className="w-8 h-8 rounded-lg bg-forvis-blue-100 flex items-center justify-center flex-shrink-0">
-                                <BuildingOfficeIcon className="h-4 w-4 text-forvis-blue-600" />
+                                <Building2 className="h-4 w-4 text-forvis-blue-600" />
                               </div>
                               <div className="min-w-0 flex-1">
                                 <div className="text-sm font-medium text-forvis-gray-900 truncate">
@@ -745,7 +745,7 @@ export default function SubServiceLineWorkspacePage() {
             <div className="bg-forvis-gray-50 rounded-lg border border-forvis-gray-200 shadow-sm p-4">
               {(activeTab === 'tasks' ? tasks : myTasks).length === 0 ? (
                 <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate text-center py-12">
-                  <FolderIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
+                  <Folder className="mx-auto h-12 w-12 text-forvis-gray-400" />
                   <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No tasks</h3>
                   <p className="mt-1 text-sm text-forvis-gray-600">
                     {searchTerm 
@@ -797,7 +797,7 @@ export default function SubServiceLineWorkspacePage() {
                             <td className="px-6 py-4">
                               <div className="flex items-center space-x-3">
                                 <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-forvis-blue-100">
-                                  <FolderIcon className="h-4 w-4 text-forvis-blue-600" />
+                                  <Folder className="h-4 w-4 text-forvis-blue-600" />
                                 </div>
                                 <div>
                                   <div className="text-sm font-medium text-forvis-gray-900">
@@ -834,7 +834,7 @@ export default function SubServiceLineWorkspacePage() {
                             </td>
                             <td className="px-6 py-4 text-center">
                               <div className="flex items-center justify-center text-sm font-normal text-forvis-gray-800">
-                                <ClockIcon className="h-4 w-4 mr-1 text-forvis-gray-500" />
+                                <Clock className="h-4 w-4 mr-1 text-forvis-gray-500" />
                                 {formatDate(task.updatedAt)}
                               </div>
                             </td>

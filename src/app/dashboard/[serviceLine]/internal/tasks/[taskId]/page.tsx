@@ -5,22 +5,22 @@ import Link from 'next/link';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
 import { TaskType, Task, TaskTeam, TaskRole } from '@/types';
 import { 
-  ChevronRightIcon,
+  ChevronRight,
   TableCellsIcon,
-  DocumentTextIcon,
-  CalculatorIcon,
-  Cog6ToothIcon,
-  PencilIcon,
+  FileText,
+  Calculator,
+  Settings,
+  Pencil,
   ArchiveBoxIcon,
-  ArrowDownTrayIcon,
+  Download,
   ClipboardDocumentListIcon,
   UsersIcon,
   BookOpenIcon,
-  EnvelopeIcon,
-  FolderIcon,
-  ClipboardDocumentCheckIcon,
-  DocumentCheckIcon
-} from '@heroicons/react/24/outline';
+  Mail,
+  Folder,
+  ClipboardDocumentCheck,
+  DocumentCheck
+} from 'lucide-react';
 import BalanceSheetPage from '@/app/dashboard/tasks/[id]/balance-sheet/page';
 import IncomeStatementPage from '@/app/dashboard/tasks/[id]/income-statement/page';
 import MappingPage from '@/app/dashboard/tasks/[id]/mapping/page';
@@ -128,7 +128,7 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
               onClick={() => setIsEditing(true)}
               className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 rounded-lg hover:bg-forvis-gray-50 transition-colors"
             >
-              <PencilIcon className="h-3.5 w-3.5 mr-1.5" />
+              <Pencil className="h-3.5 w-3.5 mr-1.5" />
               Edit
             </button>
           )}
@@ -537,7 +537,7 @@ export default function InternalTaskPage() {
           <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-colors">
             Home
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}`} 
@@ -545,7 +545,7 @@ export default function InternalTaskPage() {
           >
             {formatServiceLineName(serviceLine)}
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}/internal`} 
@@ -553,7 +553,7 @@ export default function InternalTaskPage() {
           >
             Internal Tasks
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           
           <span className="text-forvis-gray-900 font-medium">{project?.name}</span>
         </nav>
@@ -624,21 +624,21 @@ export default function InternalTaskPage() {
                   <Tab
                     onClick={() => setActiveTab('balance-sheet')}
                     selected={activeTab === 'balance-sheet'}
-                    icon={DocumentTextIcon}
+                    icon={FileText}
                   >
                     Balance Sheet
                   </Tab>
                   <Tab
                     onClick={() => setActiveTab('income-statement')}
                     selected={activeTab === 'income-statement'}
-                    icon={DocumentTextIcon}
+                    icon={FileText}
                   >
                     Income Statement
                   </Tab>
                   <Tab
                     onClick={() => setActiveTab('tax-calculation')}
                     selected={activeTab === 'tax-calculation'}
-                    icon={CalculatorIcon}
+                    icon={Calculator}
                   >
                     Tax Calculation
                   </Tab>
@@ -669,28 +669,28 @@ export default function InternalTaskPage() {
                   <Tab
                     onClick={() => setActiveTab('sars-responses')}
                     selected={activeTab === 'sars-responses'}
-                    icon={EnvelopeIcon}
+                    icon={Mail}
                   >
                     SARS Responses
                   </Tab>
                   <Tab
                     onClick={() => setActiveTab('document-management')}
                     selected={activeTab === 'document-management'}
-                    icon={FolderIcon}
+                    icon={Folder}
                   >
                     Document Management
                   </Tab>
                   <Tab
                     onClick={() => setActiveTab('compliance-checklist')}
                     selected={activeTab === 'compliance-checklist'}
-                    icon={ClipboardDocumentCheckIcon}
+                    icon={ClipboardDocumentCheck}
                   >
                     Compliance Checklist
                   </Tab>
                   <Tab
                     onClick={() => setActiveTab('filing-status')}
                     selected={activeTab === 'filing-status'}
-                    icon={DocumentCheckIcon}
+                    icon={DocumentCheck}
                   >
                     Filing Status
                   </Tab>
@@ -708,7 +708,7 @@ export default function InternalTaskPage() {
               <Tab
                 onClick={() => setActiveTab('settings')}
                 selected={activeTab === 'settings'}
-                icon={Cog6ToothIcon}
+                icon={Settings}
               >
                 Settings
               </Tab>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { BellIcon } from '@heroicons/react/24/outline';
+import { Bell } from 'lucide-react';
 import { useUnreadCount } from '@/hooks/notifications/useNotifications';
 import { NotificationDropdown } from './NotificationDropdown';
 
@@ -35,7 +35,7 @@ export function NotificationBell() {
         className="relative p-2 text-white hover:text-white hover:bg-forvis-blue-700 rounded-lg transition-colors"
         aria-label="Notifications"
       >
-        <BellIcon className="h-6 w-6" />
+        <Bell className="h-6 w-6" />
         
         {/* Unread Badge */}
         {unreadCount !== undefined && unreadCount > 0 && (

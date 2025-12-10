@@ -2,15 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { 
-  UserGroupIcon, 
-  MagnifyingGlassIcon,
-  PlusIcon,
-  TrashIcon,
-  PencilIcon,
-  UserPlusIcon,
-  FolderIcon,
-  ShieldCheckIcon
-} from '@heroicons/react/24/outline';
+  Users, 
+  Search,
+  Plus,
+  Trash2,
+  Pencil,
+  UserPlus,
+  Folder,
+  ShieldCheck
+} from 'lucide-react';
 import { formatRole, formatDate } from '@/lib/utils/taskUtils';
 import { getRoleBadgeColor } from '@/lib/utils/permissionUtils';
 import { UserSearchModal } from '@/components/features/tasks/UserManagement/UserSearchModal';
@@ -429,7 +429,7 @@ export default function UserManagementPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-semibold text-forvis-gray-900 flex items-center">
-            <UserGroupIcon className="h-8 w-8 mr-3 text-forvis-blue-600" />
+            <Users className="h-8 w-8 mr-3 text-forvis-blue-600" />
             User Management
           </h1>
           <p className="mt-2 text-sm font-normal text-forvis-gray-600">
@@ -482,7 +482,7 @@ export default function UserManagementPage() {
             {/* Search */}
             <div className="mb-6">
               <div className="relative max-w-md">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
                 <input
                   type="text"
                   placeholder="Search users, tasks..."
@@ -520,7 +520,7 @@ export default function UserManagementPage() {
                           </h3>
                           {user.role === 'SYSTEM_ADMIN' && (
                             <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold text-white shadow-corporate" style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}>
-                              <ShieldCheckIcon className="h-4 w-4 mr-1" />
+                              <ShieldCheck className="h-4 w-4 mr-1" />
                               System Admin
                             </span>
                           )}
@@ -536,7 +536,7 @@ export default function UserManagementPage() {
                             <span className="text-xs font-medium text-forvis-gray-600">System:</span>
                             {user.role === 'SYSTEM_ADMIN' ? (
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-300">
-                                <ShieldCheckIcon className="h-3 w-3 mr-1" />
+                                <ShieldCheck className="h-3 w-3 mr-1" />
                                 Administrator
                               </span>
                             ) : (
@@ -590,7 +590,7 @@ export default function UserManagementPage() {
                         {/* Task Stats */}
                         <div className="flex items-center space-x-4 text-sm text-forvis-gray-500 pt-2 border-t border-forvis-gray-200">
                           <span className="flex items-center">
-                            <FolderIcon className="h-4 w-4 mr-1" />
+                            <Folder className="h-4 w-4 mr-1" />
                             {user.taskCount} tasks
                           </span>
                           <span>Last active: {formatDate(user.lastActivity)}</span>
@@ -605,7 +605,7 @@ export default function UserManagementPage() {
                         className="ml-4 p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
                         title="Remove from all tasks"
                       >
-                        <TrashIcon className="h-5 w-5" />
+                        <Trash2 className="h-5 w-5" />
                       </button>
                     </div>
                   </div>
@@ -642,7 +642,7 @@ export default function UserManagementPage() {
             <div className="mb-6">
               <div className="flex gap-2">
                 <div className="relative flex-1 max-w-2xl">
-                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
                   <input
                     type="text"
                     placeholder="Search Active Directory by name or email..."
@@ -786,7 +786,7 @@ export default function UserManagementPage() {
                           });
                         }}
                       >
-                        <UserPlusIcon className="h-5 w-5 mr-2" />
+                        <UserPlus className="h-5 w-5 mr-2" />
                         Add to Tasks
                       </button>
                     </div>
@@ -838,7 +838,7 @@ export default function UserManagementPage() {
                           </h3>
                           {user.role === 'SYSTEM_ADMIN' && (
                             <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold text-white shadow-corporate" style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}>
-                              <ShieldCheckIcon className="h-4 w-4 mr-1" />
+                              <ShieldCheck className="h-4 w-4 mr-1" />
                               System Admin
                             </span>
                           )}
@@ -854,7 +854,7 @@ export default function UserManagementPage() {
                             <span className="text-xs font-medium text-forvis-gray-600">System:</span>
                             {user.role === 'SYSTEM_ADMIN' ? (
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-300">
-                                <ShieldCheckIcon className="h-3 w-3 mr-1" />
+                                <ShieldCheck className="h-3 w-3 mr-1" />
                                 Administrator
                               </span>
                             ) : (
@@ -916,7 +916,7 @@ export default function UserManagementPage() {
                           handleOpenUserDetail(user);
                         }}
                       >
-                        <UserPlusIcon className="h-5 w-5 mr-2" />
+                        <UserPlus className="h-5 w-5 mr-2" />
                         Assign Service Line
                       </button>
                     </div>
@@ -984,13 +984,13 @@ export default function UserManagementPage() {
                         style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)' }}
                       >
                         <div className="flex items-center gap-2">
-                          <ShieldCheckIcon className="h-5 w-5 text-white" />
+                          <ShieldCheck className="h-5 w-5 text-white" />
                           <h3 className="text-base font-bold text-white">System Role</h3>
                         </div>
                         <div className="flex items-center gap-2">
                           {selectedUser.role === 'SYSTEM_ADMIN' ? (
                             <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-white/20 text-white border-2 border-white/40">
-                              <ShieldCheckIcon className="h-4 w-4 mr-1" />
+                              <ShieldCheck className="h-4 w-4 mr-1" />
                               System Administrator
                             </span>
                           ) : (
@@ -1029,7 +1029,7 @@ export default function UserManagementPage() {
                             disabled={updatingSystemRole}
                             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white bg-forvis-blue-500 hover:bg-forvis-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-forvis-blue-500 transition-colors shadow-corporate disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            <ShieldCheckIcon className="h-4 w-4" />
+                            <ShieldCheck className="h-4 w-4" />
                             {updatingSystemRole ? 'Updating...' : 'Make System Administrator'}
                           </button>
                         )}
@@ -1049,7 +1049,7 @@ export default function UserManagementPage() {
                       onClick={() => setShowAddServiceLineModal(true)}
                       className="btn-primary text-sm flex items-center"
                     >
-                      <PlusIcon className="h-4 w-4 mr-1" />
+                      <Plus className="h-4 w-4 mr-1" />
                       Add Service Line
                     </button>
                   </div>
@@ -1150,7 +1150,7 @@ export default function UserManagementPage() {
                                   className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                   title="Remove access"
                                 >
-                                  <TrashIcon className="h-5 w-5" />
+                                  <Trash2 className="h-5 w-5" />
                                 </button>
                               )}
                               {slUser.id < 0 && (
@@ -1197,7 +1197,7 @@ export default function UserManagementPage() {
                     onClick={() => handleRemoveFromAllTasks(selectedUser.id)}
                     className="w-full px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
                   >
-                    <TrashIcon className="h-5 w-5 inline mr-2" />
+                    <Trash2 className="h-5 w-5 inline mr-2" />
                     Remove from All Tasks
                   </button>
                 </div>

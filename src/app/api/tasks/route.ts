@@ -9,7 +9,7 @@ import { getServLineCodesBySubGroup } from '@/lib/utils/serviceLineExternal';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { sanitizeObject } from '@/lib/utils/sanitization';
-import { getCachedList, setCachedList } from '@/lib/services/cache/listCache';
+import { getCachedList, setCachedList, invalidateTaskListCache } from '@/lib/services/cache/listCache';
 
 export async function GET(request: NextRequest) {
   try {
@@ -303,6 +303,10 @@ export async function POST(request: NextRequest) {
     }
 
     const externalSL = externalServiceLines[0];
+    if (!externalSL) {
+      throw new AppError(400, 'Invalid service line configuration', ErrorCodes.VALIDATION_ERROR);
+    }
+    
     const ServLineCode = externalSL.ServLineCode || validatedData.SLGroup;
     const ServLineDesc = externalSL.ServLineDesc || validatedData.SLGroup;
 
@@ -430,9 +434,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Invalidate task list cache
-    // Use cache service to clear relevant task list caches
-    const { invalidatePattern } = await import('@/lib/services/cache/cacheService');
-    await invalidatePattern('list:tasks:*');
+    await invalidateTaskListCache();
 
     // Return created task
     return NextResponse.json(

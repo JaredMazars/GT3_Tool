@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { CheckCircleIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { CheckCircle, Clock } from 'lucide-react';
 import { QuestionField } from './QuestionField';
 import { DocumentUpload } from './DocumentUpload';
 import { useQuestionnaire, useSaveAnswers, useSubmitQuestionnaire } from '@/hooks/acceptance/useAcceptanceQuestionnaire';
@@ -213,14 +213,14 @@ export function AcceptanceQuestionnaire({ taskId, onSubmitSuccess }: AcceptanceQ
         {/* Autosave Indicator */}
         {hasChanges && (
           <div className="mt-3 text-xs text-forvis-gray-600 flex items-center gap-2">
-            <ClockIcon className="h-3 w-3" />
+            <Clock className="h-3 w-3" />
             <span>Saving...</span>
           </div>
         )}
 
         {saveAnswersMutation.isSuccess && !hasChanges && (
           <div className="mt-3 text-xs text-green-600 flex items-center gap-2">
-            <CheckCircleIcon className="h-3 w-3" />
+            <CheckCircle className="h-3 w-3" />
             <span>All changes saved</span>
           </div>
         )}
@@ -288,7 +288,7 @@ export function AcceptanceQuestionnaire({ taskId, onSubmitSuccess }: AcceptanceQ
               >
                 <div className="flex items-center justify-center gap-2">
                   <span>{section.title}</span>
-                  {isComplete && <CheckCircleIcon className="h-4 w-4" />}
+                  {isComplete && <CheckCircle className="h-4 w-4" />}
                   {!isComplete && (
                     <span className={`text-xs ${isActive ? 'opacity-90' : 'opacity-70'}`}>
                       ({completion.completed}/{completion.total})
@@ -382,7 +382,7 @@ export function AcceptanceQuestionnaire({ taskId, onSubmitSuccess }: AcceptanceQ
       {isCompleted && (
         <div className="p-4 bg-green-50 border-2 border-green-200 rounded-lg">
           <div className="flex items-center gap-2">
-            <CheckCircleIcon className="h-5 w-5 text-green-600" />
+            <CheckCircle className="h-5 w-5 text-green-600" />
             <div>
               <p className="text-sm font-semibold text-green-900">Questionnaire Submitted</p>
               <p className="text-xs text-green-700 mt-1">

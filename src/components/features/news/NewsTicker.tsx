@@ -3,7 +3,7 @@
 import { useNewsBulletins } from '@/hooks/news/useNewsBulletins';
 import { BulletinCategory } from '@/types';
 import { useRouter } from 'next/navigation';
-import { NewspaperIcon } from '@heroicons/react/24/outline';
+import { Newspaper } from 'lucide-react';
 
 const categoryColors: Record<BulletinCategory, { bg: string; text: string }> = {
   [BulletinCategory.ANNOUNCEMENT]: { bg: 'bg-blue-500', text: 'text-blue-50' },
@@ -73,7 +73,7 @@ export function NewsTicker() {
         
         {/* News icon and label */}
         <div className="absolute left-0 z-20 flex items-center pl-4 pr-8 h-full">
-          <NewspaperIcon className="h-4 w-4 text-white mr-2" />
+          <Newspaper className="h-4 w-4 text-white mr-2" />
           <span className="text-xs font-bold text-white uppercase tracking-wide">Latest News</span>
         </div>
 

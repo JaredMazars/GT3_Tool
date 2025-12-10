@@ -2,12 +2,12 @@
 
 import { Fragment } from 'react';
 import { 
-  CheckCircleIcon, 
-  ExclamationTriangleIcon, 
-  InformationCircleIcon, 
-  XCircleIcon,
-  XMarkIcon 
-} from '@heroicons/react/24/outline';
+  CheckCircle, 
+  AlertTriangle, 
+  Info, 
+  XCircle,
+  X 
+} from 'lucide-react';
 
 export type AlertModalVariant = 'success' | 'error' | 'warning' | 'info';
 
@@ -32,7 +32,7 @@ export function AlertModal({
 
   const variantStyles = {
     success: {
-      icon: CheckCircleIcon,
+      icon: CheckCircle,
       iconBg: 'bg-green-100',
       iconColor: 'text-green-600',
       buttonBg: 'bg-green-600 hover:bg-green-700',
@@ -43,7 +43,7 @@ export function AlertModal({
       messageTextSecondary: 'text-green-800',
     },
     error: {
-      icon: XCircleIcon,
+      icon: XCircle,
       iconBg: 'bg-red-100',
       iconColor: 'text-red-600',
       buttonBg: 'bg-red-600 hover:bg-red-700',
@@ -54,7 +54,7 @@ export function AlertModal({
       messageTextSecondary: 'text-red-800',
     },
     warning: {
-      icon: ExclamationTriangleIcon,
+      icon: AlertTriangle,
       iconBg: 'bg-yellow-100',
       iconColor: 'text-yellow-600',
       buttonBg: 'bg-yellow-600 hover:bg-yellow-700',
@@ -65,7 +65,7 @@ export function AlertModal({
       messageTextSecondary: 'text-yellow-800',
     },
     info: {
-      icon: InformationCircleIcon,
+      icon: Info,
       iconBg: 'bg-forvis-blue-100',
       iconColor: 'text-forvis-blue-600',
       buttonBg: 'bg-forvis-blue-600 hover:bg-forvis-blue-700',
@@ -98,7 +98,7 @@ export function AlertModal({
               className="text-white hover:text-forvis-gray-200 transition-colors"
               aria-label="Close modal"
             >
-              <XMarkIcon className="h-6 w-6" />
+              <X className="h-6 w-6" />
             </button>
           </div>
         </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { CloudArrowUpIcon, DocumentTextIcon, CheckCircleIcon, XCircleIcon, ChartBarIcon } from '@heroicons/react/24/outline';
+import { CloudUpload, FileText, CheckCircle, XCircle, BarChart3 } from 'lucide-react';
 import { useAnalyticsDocuments, useUploadAnalyticsDocument, useGenerateCreditRating } from '@/hooks/analytics/useClientAnalytics';
 import { AnalyticsDocumentType } from '@/types/analytics';
 
@@ -101,7 +101,7 @@ export function UploadAnalyzeTab({ clientId, onGenerateComplete }: UploadAnalyze
       {generateSuccess && (
         <div className="rounded-xl p-4 border-2 shadow-corporate" style={{ background: 'linear-gradient(135deg, #EBF8F2 0%, #D1F0E1 100%)', borderColor: '#10B981' }}>
           <div className="flex items-center gap-3">
-            <CheckCircleIcon className="h-6 w-6 text-green-600 flex-shrink-0" />
+            <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0" />
             <div>
               <h3 className="font-bold text-green-900">Credit Rating Generated Successfully!</h3>
               <p className="text-sm text-green-800 mt-1">Redirecting to Credit Ratings tab...</p>
@@ -142,7 +142,7 @@ export function UploadAnalyzeTab({ clientId, onGenerateComplete }: UploadAnalyze
             onClick={() => fileInputRef.current?.click()}
           >
             <div className="space-y-2 text-center">
-              <CloudArrowUpIcon className="mx-auto h-10 w-10" style={{ color: '#2E5AAC' }} />
+              <CloudUpload className="mx-auto h-10 w-10" style={{ color: '#2E5AAC' }} />
               <div className="text-sm" style={{ color: '#1C3667' }}>
                 <label className="relative cursor-pointer font-bold transition-all" style={{ color: '#2E5AAC' }}>
                   <span>Upload a file</span>
@@ -173,7 +173,7 @@ export function UploadAnalyzeTab({ clientId, onGenerateComplete }: UploadAnalyze
           {uploadError && (
             <div className="rounded-lg p-3 bg-red-50 border border-red-200">
               <div className="flex items-center gap-2">
-                <XCircleIcon className="h-5 w-5 text-red-600" />
+                <XCircle className="h-5 w-5 text-red-600" />
                 <p className="text-sm text-red-800">{uploadError}</p>
               </div>
             </div>
@@ -194,7 +194,7 @@ export function UploadAnalyzeTab({ clientId, onGenerateComplete }: UploadAnalyze
             </div>
           ) : documents.length === 0 ? (
             <div className="text-center py-16 rounded-xl border-3 border-dashed shadow-lg" style={{ borderColor: '#2E5AAC', borderWidth: '3px', background: 'linear-gradient(135deg, #F8FBFE 0%, #EEF6FC 100%)' }}>
-              <DocumentTextIcon className="mx-auto h-16 w-16" style={{ color: '#2E5AAC' }} />
+              <FileText className="mx-auto h-16 w-16" style={{ color: '#2E5AAC' }} />
               <h3 className="mt-4 text-lg font-bold" style={{ color: '#1C3667' }}>No documents uploaded yet</h3>
               <p className="mt-2 text-sm font-medium" style={{ color: '#2E5AAC' }}>Upload financial documents above to get started</p>
             </div>
@@ -216,7 +216,7 @@ export function UploadAnalyzeTab({ clientId, onGenerateComplete }: UploadAnalyze
                     onChange={() => handleToggleDocument(doc.id)}
                     className="h-4 w-4 text-forvis-blue-500 border-forvis-gray-300 rounded focus:ring-forvis-blue-500"
                   />
-                  <DocumentTextIcon className="h-6 w-6 text-forvis-blue-600 flex-shrink-0" />
+                  <FileText className="h-6 w-6 text-forvis-blue-600 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-forvis-gray-900 truncate">{doc.fileName}</p>
                     <p className="text-xs text-forvis-gray-600">
@@ -248,7 +248,7 @@ export function UploadAnalyzeTab({ clientId, onGenerateComplete }: UploadAnalyze
                 </>
               ) : (
                 <>
-                  <ChartBarIcon className="h-5 w-5" />
+                  <BarChart3 className="h-5 w-5" />
                   Generate Credit Rating ({selectedDocumentIds.size} document{selectedDocumentIds.size !== 1 ? 's' : ''} selected)
                 </>
               )}
@@ -257,7 +257,7 @@ export function UploadAnalyzeTab({ clientId, onGenerateComplete }: UploadAnalyze
             {generateError && (
               <div className="mt-3 rounded-lg p-3 bg-red-50 border border-red-200">
                 <div className="flex items-center gap-2">
-                  <XCircleIcon className="h-5 w-5 text-red-600" />
+                  <XCircle className="h-5 w-5 text-red-600" />
                   <p className="text-sm text-red-800">{generateError}</p>
                 </div>
               </div>

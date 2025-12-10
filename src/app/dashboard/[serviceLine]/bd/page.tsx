@@ -8,7 +8,7 @@ import React, { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronRightIcon } from '@heroicons/react/24/outline';
+import { ChevronRight } from 'lucide-react';
 import { usePipeline, useCreateOpportunity } from '@/hooks/bd/useOpportunities';
 import { usePipelineAnalytics } from '@/hooks/bd/useBDAnalytics';
 import { PipelineBoard } from '@/components/features/bd/PipelineBoard';
@@ -71,14 +71,14 @@ export default function BDPipelinePage() {
           <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1">
             Home
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}`} 
             className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1"
           >
             {formatServiceLineName(serviceLine.toUpperCase())}
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <span className="text-forvis-gray-900 font-medium">BD Pipeline</span>
         </nav>
 

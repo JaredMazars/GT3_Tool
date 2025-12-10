@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useTask } from '@/hooks/tasks/useTaskData';
 import { ComplianceChecklistItem } from '@/types';
-import { PlusIcon, CheckCircleIcon, ClockIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
+import { Plus, CheckCircle, Clock, ExclamationCircleIcon } from 'lucide-react';
 
 interface ComplianceChecklistPageProps {
   params: { id: string };
@@ -117,7 +117,7 @@ export default function ComplianceChecklistPage({ params }: ComplianceChecklistP
           className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-lg transition-colors shadow-corporate"
           style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
         >
-          <PlusIcon className="w-5 h-5" />
+          <Plus className="w-5 h-5" />
           Add Task
         </button>
       </div>
@@ -178,7 +178,7 @@ export default function ComplianceChecklistPage({ params }: ComplianceChecklistP
                     <div className="flex items-center gap-4 text-xs text-forvis-gray-600">
                       {item.dueDate && (
                         <div className="flex items-center gap-1">
-                          <ClockIcon className="w-4 h-4" />
+                          <Clock className="w-4 h-4" />
                           <span>Due: {new Date(item.dueDate).toLocaleDateString()}</span>
                         </div>
                       )}
@@ -199,7 +199,7 @@ export default function ComplianceChecklistPage({ params }: ComplianceChecklistP
         <div className="bg-white rounded-lg shadow-corporate border-2" style={{ borderColor: '#2E5AAC' }}>
           <div className="px-4 py-3 bg-green-100 border-b border-green-200">
             <div className="flex items-center gap-2">
-              <CheckCircleIcon className="w-5 h-5 text-green-600" />
+              <CheckCircle className="w-5 h-5 text-green-600" />
               <h3 className="text-sm font-bold text-green-900">Completed Tasks ({completedItems.length})</h3>
             </div>
           </div>
@@ -230,7 +230,7 @@ export default function ComplianceChecklistPage({ params }: ComplianceChecklistP
 
       {items.length === 0 && (
         <div className="bg-white rounded-lg shadow-corporate border-2 p-12 text-center" style={{ borderColor: '#2E5AAC' }}>
-          <CheckCircleIcon className="w-16 h-16 mx-auto text-forvis-gray-400 mb-4" />
+          <CheckCircle className="w-16 h-16 mx-auto text-forvis-gray-400 mb-4" />
           <h3 className="text-lg font-semibold text-forvis-gray-900 mb-2">No Tasks Yet</h3>
           <p className="text-sm text-forvis-gray-600">
             Add tasks to start tracking your compliance checklist.

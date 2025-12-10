@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { DocumentTextIcon } from '@heroicons/react/24/outline';
+import { FileText } from 'lucide-react';
 
 interface TemplateSection {
   id: number;
@@ -82,7 +82,7 @@ export function TemplateSelector({
   if (templates.length === 0) {
     return (
       <div className="rounded-lg border-2 border-dashed border-forvis-gray-300 p-6 text-center">
-        <DocumentTextIcon className="h-12 w-12 mx-auto text-forvis-gray-400 mb-3" />
+        <FileText className="h-12 w-12 mx-auto text-forvis-gray-400 mb-3" />
         <p className="text-sm text-forvis-gray-600">
           No engagement letter templates available for this project type.
         </p>

@@ -2,13 +2,13 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { 
-  DocumentTextIcon, 
-  ArrowDownTrayIcon, 
-  ArrowUpTrayIcon,
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
-  SparklesIcon
-} from '@heroicons/react/24/outline';
+  FileText, 
+  Download, 
+  Upload,
+  CheckCircle,
+  AlertTriangle,
+  Sparkles
+} from 'lucide-react';
 import { Task } from '@/types';
 import { MarkdownRenderer } from '@/components/shared/MarkdownRenderer';
 import { useQueryClient } from '@tanstack/react-query';
@@ -188,7 +188,7 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
         <div className="max-w-4xl mx-auto">
           <div className="bg-yellow-50 rounded-lg border-2 border-yellow-200 shadow-corporate p-6">
             <div className="flex items-start">
-              <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600 mt-1 mr-3" />
+              <AlertTriangle className="h-6 w-6 text-yellow-600 mt-1 mr-3" />
               <div>
                 <h3 className="text-lg font-semibold text-yellow-900 mb-2">
                   Client Acceptance Required
@@ -224,12 +224,12 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
             
             {isUploaded ? (
               <div className="flex items-center space-x-2 px-4 py-2 bg-green-50 border-2 border-green-200 rounded-lg">
-                <CheckCircleIcon className="h-5 w-5 text-green-600" />
+                <CheckCircle className="h-5 w-5 text-green-600" />
                 <span className="text-sm font-semibold text-green-700">Complete</span>
               </div>
             ) : isGenerated ? (
               <div className="flex items-center space-x-2 px-4 py-2 bg-blue-50 border-2 border-blue-200 rounded-lg">
-                <DocumentTextIcon className="h-5 w-5 text-blue-600" />
+                <FileText className="h-5 w-5 text-blue-600" />
                 <span className="text-sm font-semibold text-blue-700">Generated</span>
               </div>
             ) : null}
@@ -242,7 +242,7 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
             <div className="flex-1">
               <div className="flex items-center">
                 <div className={`flex items-center justify-center w-8 h-8 rounded-full ${isGenerated ? 'bg-green-100 text-green-600' : 'bg-forvis-gray-100 text-forvis-gray-600'}`}>
-                  {isGenerated ? <CheckCircleIcon className="h-5 w-5" /> : <span>1</span>}
+                  {isGenerated ? <CheckCircle className="h-5 w-5" /> : <span>1</span>}
                 </div>
                 <div className="ml-3">
                   <p className="text-sm font-medium text-forvis-gray-900">Generate Letter</p>
@@ -254,7 +254,7 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
             <div className="flex-1">
               <div className="flex items-center">
                 <div className={`flex items-center justify-center w-8 h-8 rounded-full ${isUploaded ? 'bg-green-100 text-green-600' : 'bg-forvis-gray-100 text-forvis-gray-600'}`}>
-                  {isUploaded ? <CheckCircleIcon className="h-5 w-5" /> : <span>2</span>}
+                  {isUploaded ? <CheckCircle className="h-5 w-5" /> : <span>2</span>}
                 </div>
                 <div className="ml-3">
                   <p className="text-sm font-medium text-forvis-gray-900">Upload Signed</p>
@@ -307,7 +307,7 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
                         />
                         <div className="flex-1">
                           <label htmlFor="aiAdaptation" className="text-sm font-medium text-purple-900 flex items-center cursor-pointer">
-                            <SparklesIcon className="h-5 w-5 mr-2" />
+                            <Sparkles className="h-5 w-5 mr-2" />
                             Use AI to customize sections
                           </label>
                           <p className="text-xs text-purple-700 mt-1">
@@ -323,7 +323,7 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
                         className="inline-flex items-center px-6 py-3 text-sm font-semibold text-white rounded-lg transition-all shadow-corporate hover:shadow-corporate-md disabled:opacity-50 disabled:cursor-not-allowed"
                         style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
                       >
-                        <DocumentTextIcon className="h-5 w-5 mr-2" />
+                        <FileText className="h-5 w-5 mr-2" />
                         {isGenerating ? 'Generating...' : 'Generate Letter'}
                       </button>
                     </>
@@ -347,7 +347,7 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
                           {sectionsUsed.length} sections included
                           {sectionsUsed.some((s) => s.wasAiAdapted) && (
                             <span className="ml-2 inline-flex items-center text-purple-600">
-                              <SparklesIcon className="h-3 w-3 mr-1" />
+                              <Sparkles className="h-3 w-3 mr-1" />
                               AI-adapted
                             </span>
                           )}
@@ -358,7 +358,7 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
                       onClick={handleDownload}
                       className="inline-flex items-center px-4 py-2 text-sm font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 rounded-lg hover:bg-forvis-gray-50 transition-colors"
                     >
-                      <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
+                      <Download className="h-4 w-4 mr-2" />
                       Download
                     </button>
                   </div>
@@ -411,7 +411,7 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
                     className="inline-flex items-center px-6 py-3 text-sm font-semibold text-white rounded-lg transition-all shadow-corporate hover:shadow-corporate-md disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
                   >
-                    <ArrowUpTrayIcon className="h-5 w-5 mr-2" />
+                    <Upload className="h-5 w-5 mr-2" />
                     {isUploading ? 'Uploading...' : 'Upload Signed Letter'}
                   </button>
                 </div>
@@ -431,7 +431,7 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
           <div className="bg-green-50 rounded-lg border-2 border-green-200 shadow-corporate overflow-hidden">
             <div className="px-6 py-4">
               <div className="flex items-start">
-                <CheckCircleIcon className="h-6 w-6 text-green-600 mt-1 mr-3" />
+                <CheckCircle className="h-6 w-6 text-green-600 mt-1 mr-3" />
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-green-900 mb-2">
                     Engagement Letter Complete
@@ -461,7 +461,7 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
                           onClick={handleDownloadUploaded}
                           className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-green-600 border border-green-700 rounded-lg hover:bg-green-700 transition-colors"
                         >
-                          <ArrowDownTrayIcon className="h-4 w-4 mr-1" />
+                          <Download className="h-4 w-4 mr-1" />
                           Download
                         </button>
                       </div>

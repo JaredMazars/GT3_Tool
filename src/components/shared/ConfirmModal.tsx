@@ -1,7 +1,7 @@
 'use client';
 
 import { Fragment } from 'react';
-import { ExclamationTriangleIcon, InformationCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { AlertTriangle, Info, X } from 'lucide-react';
 
 export type ConfirmModalVariant = 'danger' | 'warning' | 'info';
 
@@ -36,7 +36,7 @@ export function ConfirmModal({
 
   const variantStyles = {
     danger: {
-      icon: ExclamationTriangleIcon,
+      icon: AlertTriangle,
       iconBg: 'bg-red-100',
       iconColor: 'text-red-600',
       confirmBg: 'bg-red-600 hover:bg-red-700',
@@ -47,7 +47,7 @@ export function ConfirmModal({
       messageTextSecondary: 'text-red-800',
     },
     warning: {
-      icon: ExclamationTriangleIcon,
+      icon: AlertTriangle,
       iconBg: 'bg-yellow-100',
       iconColor: 'text-yellow-600',
       confirmBg: 'bg-yellow-600 hover:bg-yellow-700',
@@ -58,7 +58,7 @@ export function ConfirmModal({
       messageTextSecondary: 'text-yellow-800',
     },
     info: {
-      icon: InformationCircleIcon,
+      icon: Info,
       iconBg: 'bg-forvis-blue-100',
       iconColor: 'text-forvis-blue-600',
       confirmBg: 'bg-forvis-blue-600 hover:bg-forvis-blue-700',
@@ -92,7 +92,7 @@ export function ConfirmModal({
               className="text-white hover:text-forvis-gray-200 transition-colors disabled:opacity-50"
               aria-label="Close modal"
             >
-              <XMarkIcon className="h-6 w-6" />
+              <X className="h-6 w-6" />
             </button>
           </div>
         </div>

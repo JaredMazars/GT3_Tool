@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { mappingGuide } from '@/lib/services/tasks/mappingGuide';
 import { formatAmount } from '@/lib/utils/formatters';
 import { MappedData } from '@/types';
-import { ChevronRightIcon } from '@heroicons/react/24/outline';
+import { ChevronRight } from 'lucide-react';
 import { useMappedAccounts, useUpdateMappedAccount } from '@/hooks/tasks/useTaskData';
 import { RemappingModal } from '@/components/tools/tax-calculation';
 
@@ -84,7 +84,7 @@ function BalanceSheetSection({ title, items, onMappingUpdate, onOpenModal }: Bal
               onClick={() => toggleItem(item.sarsItem)}
             >
               <div className="col-span-7 pl-6 py-1.5 text-xs flex items-center">
-                <ChevronRightIcon 
+                <ChevronRight 
                   className={`h-3.5 w-3.5 mr-2 text-forvis-gray-500 group-hover:text-forvis-blue-600 transition-all duration-200 ${expandedItems[item.sarsItem] ? 'rotate-90' : ''}`}
                 />
                 <span className="text-forvis-gray-900 group-hover:text-forvis-blue-900">{item.sarsItem}</span>
@@ -503,7 +503,7 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
           style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
         >
           <div className="col-span-7 flex items-center gap-2 px-3">
-            <ChevronRightIcon 
+            <ChevronRight 
               className={`h-4 w-4 text-white transition-transform duration-200 ${expandedSections.assets ? 'rotate-90' : ''}`}
             />
             <span className="font-bold text-base text-white">ASSETS</span>
@@ -578,7 +578,7 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
           style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
         >
           <div className="col-span-7 flex items-center gap-2 px-3">
-            <ChevronRightIcon 
+            <ChevronRight 
               className={`h-4 w-4 text-white transition-transform duration-200 ${expandedSections.capitalReserves ? 'rotate-90' : ''}`}
             />
             <span className="font-bold text-base text-white">EQUITY & RESERVES</span>
@@ -628,7 +628,7 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
             {/* Current Year Net Profit */}
             <div className="grid grid-cols-12 bg-forvis-blue-50">
               <div className="col-span-7 pl-8 py-2 text-sm flex items-center">
-                <ChevronRightIcon className="h-4 w-4 mr-2 opacity-0" />
+                <ChevronRight className="h-4 w-4 mr-2 opacity-0" />
                 <span className="font-medium text-forvis-blue-900">Current Year Net Profit</span>
               </div>
               <div className="col-span-2 text-right px-4 tabular-nums text-sm font-medium text-forvis-blue-900">
@@ -699,7 +699,7 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
           style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
         >
           <div className="col-span-7 flex items-center gap-2 px-3">
-            <ChevronRightIcon 
+            <ChevronRight 
               className={`h-4 w-4 text-white transition-transform duration-200 ${expandedSections.liabilities ? 'rotate-90' : ''}`}
             />
             <span className="font-bold text-base text-white">LIABILITIES</span>

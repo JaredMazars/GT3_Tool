@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { CheckCircleIcon, ClockIcon, PlayIcon, DocumentCheckIcon } from '@heroicons/react/24/outline';
+import { CheckCircle, Clock, Play, FileCheck } from 'lucide-react';
 import { Task } from '@/types';
 import { useQueryClient } from '@tanstack/react-query';
 import { taskKeys } from '@/hooks/tasks/useTaskData';
@@ -169,22 +169,22 @@ export function AcceptanceTab({ task, currentUserRole, onApprovalComplete }: Acc
               </div>
             ) : isApproved ? (
               <div className="flex items-center space-x-2 px-4 py-2 bg-green-50 border-2 border-green-200 rounded-lg">
-                <CheckCircleIcon className="h-5 w-5 text-green-600" />
+                <CheckCircle className="h-5 w-5 text-green-600" />
                 <span className="text-sm font-semibold text-green-700">Approved</span>
               </div>
             ) : status?.completed ? (
               <div className="flex items-center space-x-2 px-4 py-2 bg-blue-50 border-2 border-blue-200 rounded-lg">
-                <DocumentCheckIcon className="h-5 w-5 text-blue-600" />
+                <FileCheck className="h-5 w-5 text-blue-600" />
                 <span className="text-sm font-semibold text-blue-700">Submitted</span>
               </div>
             ) : status?.exists ? (
               <div className="flex items-center space-x-2 px-4 py-2 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
-                <ClockIcon className="h-5 w-5 text-yellow-600" />
+                <Clock className="h-5 w-5 text-yellow-600" />
                 <span className="text-sm font-semibold text-yellow-700">In Progress ({status?.completionPercentage || 0}%)</span>
               </div>
             ) : (
               <div className="flex items-center space-x-2 px-4 py-2 bg-forvis-gray-100 border-2 border-forvis-gray-300 rounded-lg">
-                <PlayIcon className="h-5 w-5 text-forvis-gray-600" />
+                <Play className="h-5 w-5 text-forvis-gray-600" />
                 <span className="text-sm font-semibold text-forvis-gray-700">Not Started</span>
               </div>
             )}
@@ -243,7 +243,7 @@ export function AcceptanceTab({ task, currentUserRole, onApprovalComplete }: Acc
               className="inline-flex items-center gap-2 px-6 py-3 text-sm font-bold text-white rounded-lg shadow-lg hover:shadow-xl transition-all"
               style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
             >
-              <PlayIcon className="h-5 w-5" />
+              <Play className="h-5 w-5" />
               Start Questionnaire
             </button>
           </div>
@@ -269,7 +269,7 @@ export function AcceptanceTab({ task, currentUserRole, onApprovalComplete }: Acc
               <div className="space-y-4">
                 <div className="bg-blue-50 rounded-lg border-2 border-blue-200 shadow-corporate p-6">
                   <div className="flex items-start">
-                    <DocumentCheckIcon className="h-6 w-6 text-blue-600 mt-1 mr-3" />
+                    <FileCheck className="h-6 w-6 text-blue-600 mt-1 mr-3" />
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold text-blue-900 mb-2">
                         Questionnaire Submitted
@@ -292,7 +292,7 @@ export function AcceptanceTab({ task, currentUserRole, onApprovalComplete }: Acc
                     className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-lg shadow-lg hover:shadow-xl transition-all"
                     style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
                   >
-                    <DocumentCheckIcon className="h-4 w-4" />
+                    <FileCheck className="h-4 w-4" />
                     Review and Approve
                   </button>
                 )}
@@ -306,7 +306,7 @@ export function AcceptanceTab({ task, currentUserRole, onApprovalComplete }: Acc
             <div className="bg-green-50 rounded-lg border-2 border-green-200 shadow-corporate overflow-hidden">
               <div className="px-6 py-4">
                 <div className="flex items-start">
-                  <CheckCircleIcon className="h-6 w-6 text-green-600 mt-1 mr-3" />
+                  <CheckCircle className="h-6 w-6 text-green-600 mt-1 mr-3" />
                   <div className="flex-1">
                     <h3 className="text-lg font-semibold text-green-900 mb-2">
                       Acceptance Approved

@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { 
-  DocumentTextIcon, 
-  ArrowDownTrayIcon, 
-  CheckCircleIcon,
-  ClockIcon,
+  FileText, 
+  Download, 
+  CheckCircle,
+  Clock,
   UserIcon,
-} from '@heroicons/react/24/outline';
+} from 'lucide-react';
 import { OpinionSection, OpinionDraft } from '@/types';
 import { MarkdownRenderer } from '@/components/shared/MarkdownRenderer';
 import { AlertModal } from '@/components/shared/AlertModal';
@@ -221,7 +221,7 @@ export default function OpinionPreview({
         </div>
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <DocumentTextIcon className="w-16 h-16 mx-auto text-forvis-gray-400 mb-4" />
+            <FileText className="w-16 h-16 mx-auto text-forvis-gray-400 mb-4" />
             <h4 className="text-lg font-semibold text-forvis-gray-900 mb-2">
               No Sections Available
             </h4>
@@ -257,7 +257,7 @@ export default function OpinionPreview({
             </div>
             {draft && (
               <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusBadge(draft.status).bg} ${getStatusBadge(draft.status).text} ${getStatusBadge(draft.status).border}`}>
-                {draft.status === 'FINAL' && <CheckCircleIcon className="w-4 h-4 mr-1" />}
+                {draft.status === 'FINAL' && <CheckCircle className="w-4 h-4 mr-1" />}
                 {getStatusBadge(draft.status).label}
               </span>
             )}
@@ -271,7 +271,7 @@ export default function OpinionPreview({
                     disabled={isUpdatingStatus}
                     className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-50 border-2 border-yellow-300 text-yellow-700 rounded-lg hover:bg-yellow-100 transition-colors disabled:opacity-50 text-sm font-semibold"
                   >
-                    <ClockIcon className="w-5 h-5" />
+                    <Clock className="w-5 h-5" />
                     Mark for Review
                   </button>
                 )}
@@ -280,7 +280,7 @@ export default function OpinionPreview({
                   disabled={isUpdatingStatus}
                   className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 border-2 border-green-300 text-green-700 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50 text-sm font-semibold"
                 >
-                  <CheckCircleIcon className="w-5 h-5" />
+                  <CheckCircle className="w-5 h-5" />
                   Mark as Final
                 </button>
               </>
@@ -290,7 +290,7 @@ export default function OpinionPreview({
               disabled={exporting}
               className="inline-flex items-center gap-2 px-4 py-2 bg-white border-2 border-forvis-blue-600 text-forvis-blue-700 rounded-lg hover:bg-forvis-blue-50 transition-colors disabled:opacity-50 text-sm font-semibold"
             >
-              <ArrowDownTrayIcon className="w-5 h-5" />
+              <Download className="w-5 h-5" />
               Export PDF
             </button>
             <button
@@ -298,7 +298,7 @@ export default function OpinionPreview({
               disabled={exporting}
               className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-forvis-blue-500 to-forvis-blue-700 text-white rounded-lg hover:from-forvis-blue-600 hover:to-forvis-blue-800 transition-all disabled:opacity-50 text-sm font-semibold"
             >
-              <ArrowDownTrayIcon className="w-5 h-5" />
+              <Download className="w-5 h-5" />
               Export Word
             </button>
           </div>
@@ -366,7 +366,7 @@ export default function OpinionPreview({
               <h3 className="text-lg font-bold text-forvis-gray-900 mb-4">Audit Trail</h3>
               <div className="space-y-3">
                 <div className="flex items-start gap-3 p-4 bg-green-50 rounded-lg border border-green-200">
-                  <CheckCircleIcon className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                  <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-forvis-gray-900">Opinion Finalized</p>
                     <p className="text-xs text-forvis-gray-600 mt-1">
@@ -387,7 +387,7 @@ export default function OpinionPreview({
                   </div>
                 </div>
                 <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                  <DocumentTextIcon className="w-5 h-5 text-gray-600 flex-shrink-0 mt-0.5" />
+                  <FileText className="w-5 h-5 text-gray-600 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-forvis-gray-900">Version Information</p>
                     <p className="text-xs text-forvis-gray-600 mt-1">
@@ -412,7 +412,7 @@ export default function OpinionPreview({
             <div className="p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="flex-shrink-0 w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
-                  <CheckCircleIcon className="w-6 h-6 text-green-600" />
+                  <CheckCircle className="w-6 h-6 text-green-600" />
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-forvis-gray-900">

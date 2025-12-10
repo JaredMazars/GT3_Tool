@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { UserCircleIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
+import { UserCircle, ArrowRightOnRectangleIcon } from 'lucide-react';
 import type { SessionUser } from '@/lib/services/auth/auth';
 
 interface UserMenuProps {
@@ -77,7 +77,7 @@ export default function UserMenu({ user }: UserMenuProps) {
         aria-expanded={isOpen}
         aria-haspopup="true"
       >
-        <UserCircleIcon className="h-6 w-6 text-forvis-gray-600" />
+        <UserCircle className="h-6 w-6 text-forvis-gray-600" />
         <span className="text-sm font-medium text-forvis-gray-700 hidden sm:block">
           {user.name}
         </span>

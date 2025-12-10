@@ -3,7 +3,7 @@ const nextConfig = {
   // Experimental features
   experimental: {
     // Optimize for production
-    optimizePackageImports: ['@heroicons/react', '@headlessui/react'],
+    optimizePackageImports: ['lucide-react', '@headlessui/react'],
   },
   
   // Image optimization

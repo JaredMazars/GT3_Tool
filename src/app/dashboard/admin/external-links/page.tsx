@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react';
 import { 
   LinkIcon,
-  PlusIcon,
-  PencilIcon,
-  TrashIcon,
-} from '@heroicons/react/24/outline';
+  Plus,
+  Pencil,
+  Trash2,
+} from 'lucide-react';
 import { Button, Card, Badge, Input } from '@/components/ui';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { AlertModal } from '@/components/shared/AlertModal';
@@ -317,7 +317,7 @@ export default function ExternalLinksPage() {
           </div>
         </div>
         <Button onClick={() => handleOpenModal()}>
-          <PlusIcon className="h-5 w-5 mr-2" />
+          <Plus className="h-5 w-5 mr-2" />
           Add Link
         </Button>
       </div>
@@ -393,14 +393,14 @@ export default function ExternalLinksPage() {
                           onClick={() => handleOpenModal(link)}
                           className="inline-flex items-center px-3 py-1 text-sm font-medium text-forvis-blue-700 hover:bg-forvis-blue-50 rounded transition-colors"
                         >
-                          <PencilIcon className="h-4 w-4 mr-1" />
+                          <Pencil className="h-4 w-4 mr-1" />
                           Edit
                         </button>
                         <button
                           onClick={() => handleDelete(link)}
                           className="inline-flex items-center px-3 py-1 text-sm font-medium text-red-700 hover:bg-red-50 rounded transition-colors"
                         >
-                          <TrashIcon className="h-4 w-4 mr-1" />
+                          <Trash2 className="h-4 w-4 mr-1" />
                           Delete
                         </button>
                       </td>

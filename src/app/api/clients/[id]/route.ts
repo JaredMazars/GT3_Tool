@@ -242,7 +242,7 @@ export async function GET(
         masterServiceLineDesc: masterCode ? masterServiceLineDescMapping[masterCode] || null : null,
         subServiceLineGroupCode: servLineToSubGroupMapping[task.ServLineCode] || task.SLGroup,
         subServiceLineGroupDesc: subGroupDescMapping[task.ServLineCode] || null,
-        ServLineDesc: servLineDescMapping[task.ServLineCode] || task.ServLineDesc,
+        ServLineDesc: servLineDescMapping[task.ServLineCode] || null,
         wip: wipByGSTaskID.get(task.GSTaskID) || { balWIP: 0, balTime: 0, balDisb: 0 },
       };
     });

@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckCircleIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { CheckCircle, Clock } from 'lucide-react';
 
 interface ProcessingStage {
   id: number;
@@ -55,7 +55,7 @@ export function ProcessingModal({ isOpen, stages }: ProcessingModalProps) {
                       }
                     `}>
                       {stage.status === 'complete' ? (
-                        <CheckCircleIcon className="w-7 h-7 text-green-600" />
+                        <CheckCircle className="w-7 h-7 text-green-600" />
                       ) : stage.status === 'in-progress' ? (
                         <div className="relative">
                           {/* Spinning wheel */}
@@ -81,7 +81,7 @@ export function ProcessingModal({ isOpen, stages }: ProcessingModalProps) {
                           </svg>
                         </div>
                       ) : (
-                        <ClockIcon className="w-7 h-7 text-gray-400" />
+                        <Clock className="w-7 h-7 text-gray-400" />
                       )}
                     </div>
                     

@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-  DocumentTextIcon,
-  ArrowUpTrayIcon,
-  TrashIcon,
-  CheckCircleIcon,
-  ClockIcon,
-  XCircleIcon,
-} from '@heroicons/react/24/outline';
+  FileText,
+  Upload,
+  Trash2,
+  CheckCircle,
+  Clock,
+  XCircle,
+} from 'lucide-react';
 import { OpinionDocument } from '@/types';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 
@@ -186,9 +186,9 @@ export default function DocumentManager({ taskId, draftId }: DocumentManagerProp
 
   const getStatusIcon = (doc: OpinionDocument) => {
     if (doc.vectorized) {
-      return <CheckCircleIcon className="w-5 h-5 text-green-600" title="Indexed and ready for AI search" />;
+      return <CheckCircle className="w-5 h-5 text-green-600" title="Indexed and ready for AI search" />;
     } else {
-      return <ClockIcon className="w-5 h-5 text-yellow-600 animate-spin" title="Processing embeddings in background" />;
+      return <Clock className="w-5 h-5 text-yellow-600 animate-spin" title="Processing embeddings in background" />;
     }
   };
 
@@ -238,7 +238,7 @@ export default function DocumentManager({ taskId, draftId }: DocumentManagerProp
           onDragOver={handleDrag}
           onDrop={handleDrop}
         >
-          <ArrowUpTrayIcon className="w-12 h-12 mx-auto text-forvis-gray-400 mb-3" />
+          <Upload className="w-12 h-12 mx-auto text-forvis-gray-400 mb-3" />
           <p className="text-sm font-semibold text-forvis-gray-900 mb-1">
             Drop files here or click to upload
           </p>
@@ -258,7 +258,7 @@ export default function DocumentManager({ taskId, draftId }: DocumentManagerProp
             htmlFor="file-upload"
             className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-forvis-blue-500 to-forvis-blue-700 text-white rounded-lg hover:from-forvis-blue-600 hover:to-forvis-blue-800 cursor-pointer transition-all text-sm font-semibold disabled:opacity-50"
           >
-            <ArrowUpTrayIcon className="w-5 h-5" />
+            <Upload className="w-5 h-5" />
             Select Files
           </label>
           {uploading && (
@@ -271,7 +271,7 @@ export default function DocumentManager({ taskId, draftId }: DocumentManagerProp
       {error && (
         <div className="px-6 py-3 bg-red-50 border-y border-red-200">
           <div className="flex items-center gap-2">
-            <XCircleIcon className="w-5 h-5 text-red-600" />
+            <XCircle className="w-5 h-5 text-red-600" />
             <p className="text-sm text-red-600">{error}</p>
           </div>
         </div>
@@ -285,7 +285,7 @@ export default function DocumentManager({ taskId, draftId }: DocumentManagerProp
           </div>
         ) : documents.length === 0 ? (
           <div className="text-center py-12">
-            <DocumentTextIcon className="w-16 h-16 mx-auto text-forvis-gray-400 mb-4" />
+            <FileText className="w-16 h-16 mx-auto text-forvis-gray-400 mb-4" />
             <h4 className="text-lg font-semibold text-forvis-gray-900 mb-2">
               No Documents Yet
             </h4>
@@ -308,7 +308,7 @@ export default function DocumentManager({ taskId, draftId }: DocumentManagerProp
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex items-start gap-3 flex-1">
-                          <DocumentTextIcon className="w-6 h-6 text-forvis-blue-600 flex-shrink-0 mt-1" />
+                          <FileText className="w-6 h-6 text-forvis-blue-600 flex-shrink-0 mt-1" />
                           <div className="flex-1 min-w-0">
                             <h5 className="text-sm font-semibold text-forvis-gray-900 truncate">
                               {doc.fileName}
@@ -335,7 +335,7 @@ export default function DocumentManager({ taskId, draftId }: DocumentManagerProp
                           className="p-2 hover:bg-red-50 rounded-lg transition-colors group"
                           title="Delete document"
                         >
-                          <TrashIcon className="w-5 h-5 text-forvis-gray-400 group-hover:text-red-600" />
+                          <Trash2 className="w-5 h-5 text-forvis-gray-400 group-hover:text-red-600" />
                         </button>
                       </div>
                     </div>

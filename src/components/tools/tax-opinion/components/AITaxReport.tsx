@@ -3,12 +3,12 @@
 import { useState, useEffect } from 'react';
 import { AITaxReportData } from '@/lib/tools/tax-opinion/services/aiTaxReportGenerator';
 import { 
-  ExclamationTriangleIcon, 
-  CheckCircleIcon, 
-  InformationCircleIcon,
-  SparklesIcon,
+  AlertTriangle, 
+  CheckCircle, 
+  Info,
+  Sparkles,
   ArrowPathIcon
-} from '@heroicons/react/24/outline';
+} from 'lucide-react';
 
 interface AITaxReportProps {
   taskId: number;
@@ -109,11 +109,11 @@ export default function AITaxReport({ taskId, onReportLoaded }: AITaxReportProps
   const getSeverityIcon = (severity: 'high' | 'medium' | 'low') => {
     switch (severity) {
       case 'high':
-        return <ExclamationTriangleIcon className="w-5 h-5" style={{ color: '#FFFFFF' }} />;
+        return <AlertTriangle className="w-5 h-5" style={{ color: '#FFFFFF' }} />;
       case 'medium':
-        return <InformationCircleIcon className="w-5 h-5" style={{ color: '#2E5AAC' }} />;
+        return <Info className="w-5 h-5" style={{ color: '#2E5AAC' }} />;
       case 'low':
-        return <CheckCircleIcon className="w-5 h-5" style={{ color: '#5B93D7' }} />;
+        return <CheckCircle className="w-5 h-5" style={{ color: '#5B93D7' }} />;
     }
   };
 
@@ -130,7 +130,7 @@ export default function AITaxReport({ taskId, onReportLoaded }: AITaxReportProps
             }}
           >
             <div className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-4" style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)' }}>
-              <SparklesIcon className="w-12 h-12 text-white" />
+              <Sparkles className="w-12 h-12 text-white" />
             </div>
             <h3 className="text-2xl font-bold text-white mb-3">
               AI Tax Report
@@ -187,7 +187,7 @@ export default function AITaxReport({ taskId, onReportLoaded }: AITaxReportProps
               className="px-8 py-4 text-white rounded-lg font-semibold text-lg flex items-center gap-3 shadow-corporate-lg hover:shadow-corporate-md transition-all duration-200 mx-auto transform hover:scale-105"
               style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
             >
-              <SparklesIcon className="w-6 h-6" />
+              <Sparkles className="w-6 h-6" />
               Generate AI Tax Report
             </button>
             <p className="text-sm text-forvis-gray-600 mt-4 flex items-center justify-center gap-2">
@@ -218,7 +218,7 @@ export default function AITaxReport({ taskId, onReportLoaded }: AITaxReportProps
             <div className="inline-flex items-center justify-center w-24 h-24 rounded-full mb-6 relative" style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)' }}>
               <div className="absolute inset-3 border-4 border-white/30 rounded-full"></div>
               <div className="absolute inset-3 border-4 border-white rounded-full border-t-transparent animate-spin"></div>
-              <SparklesIcon className="w-10 h-10 text-white animate-pulse" />
+              <Sparkles className="w-10 h-10 text-white animate-pulse" />
             </div>
 
             <h3 className="text-2xl font-bold text-white mb-3">
@@ -275,7 +275,7 @@ export default function AITaxReport({ taskId, onReportLoaded }: AITaxReportProps
           {/* Error Card */}
           <div className="bg-white rounded-lg p-8 text-center shadow-corporate-lg border-2 border-red-300">
             <div className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-4 bg-red-100">
-              <ExclamationTriangleIcon className="w-12 h-12 text-red-600" />
+              <AlertTriangle className="w-12 h-12 text-red-600" />
             </div>
             
             <h3 className="text-2xl font-bold text-forvis-gray-900 mb-3">

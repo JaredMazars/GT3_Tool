@@ -3,14 +3,14 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { 
-  FolderIcon, 
-  BuildingOfficeIcon,
-  ArrowLeftIcon,
-  ChartBarIcon,
-  NewspaperIcon,
-  ArrowRightIcon,
-  ChevronRightIcon,
-} from '@heroicons/react/24/outline';
+  Folder, 
+  Building2,
+  ArrowLeft,
+  BarChart3,
+  Newspaper,
+  ArrowRight,
+  ChevronRight,
+} from 'lucide-react';
 import { formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';
 
 export function ServiceLineSelector() {
@@ -37,7 +37,7 @@ export function ServiceLineSelector() {
           <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-colors">
             Home
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <span className="text-forvis-gray-900 font-medium">
             {formatServiceLineName(serviceLine.toUpperCase())}
           </span>
@@ -89,7 +89,7 @@ export function ServiceLineSelector() {
                       className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm"
                       style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
                     >
-                      <ChartBarIcon className="h-6 w-6 text-white" />
+                      <BarChart3 className="h-6 w-6 text-white" />
                     </div>
 
                     {/* Title and Arrow */}
@@ -99,7 +99,7 @@ export function ServiceLineSelector() {
                       </h3>
                     </div>
 
-                    <ArrowRightIcon className="h-4 w-4 text-forvis-blue-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200 flex-shrink-0" />
+                    <ArrowRight className="h-4 w-4 text-forvis-blue-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200 flex-shrink-0" />
                   </div>
 
                   {/* Description */}
@@ -134,7 +134,7 @@ export function ServiceLineSelector() {
                       className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm"
                       style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
                     >
-                      <NewspaperIcon className="h-6 w-6 text-white" />
+                      <Newspaper className="h-6 w-6 text-white" />
                     </div>
 
                     {/* Title and Arrow */}
@@ -144,7 +144,7 @@ export function ServiceLineSelector() {
                       </h3>
                     </div>
 
-                    <ArrowRightIcon className="h-4 w-4 text-forvis-blue-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200 flex-shrink-0" />
+                    <ArrowRight className="h-4 w-4 text-forvis-blue-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200 flex-shrink-0" />
                   </div>
 
                   {/* Description */}
@@ -179,7 +179,7 @@ export function ServiceLineSelector() {
                       className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm"
                       style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
                     >
-                      <FolderIcon className="h-6 w-6 text-white" />
+                      <Folder className="h-6 w-6 text-white" />
                     </div>
 
                     {/* Title and Arrow */}
@@ -189,7 +189,7 @@ export function ServiceLineSelector() {
                       </h3>
                     </div>
 
-                    <ArrowRightIcon className="h-4 w-4 text-forvis-blue-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200 flex-shrink-0" />
+                    <ArrowRight className="h-4 w-4 text-forvis-blue-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200 flex-shrink-0" />
                   </div>
 
                   {/* Description */}
@@ -223,7 +223,7 @@ export function ServiceLineSelector() {
                     className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm"
                     style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
                   >
-                    <BuildingOfficeIcon className="h-6 w-6 text-white" />
+                    <Building2 className="h-6 w-6 text-white" />
                   </div>
 
                   {/* Title and Arrow */}

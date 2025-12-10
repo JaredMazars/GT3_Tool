@@ -5,10 +5,10 @@ import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { 
-  ChevronRightIcon,
-  FolderIcon,
-  ChartBarIcon,
-} from '@heroicons/react/24/outline';
+  ChevronRight,
+  Folder,
+  BarChart3,
+} from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui';
 import { isValidServiceLine, formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
@@ -153,7 +153,7 @@ export default function ServiceLineSubGroupsPage() {
           <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1">
             Home
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <span className="text-forvis-gray-900 font-medium">
             {formatServiceLineName(serviceLine)}
           </span>
@@ -195,7 +195,7 @@ export default function ServiceLineSubGroupsPage() {
                 background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
               }}
             >
-              <FolderIcon className="mx-auto h-10 w-10 text-forvis-gray-400" />
+              <Folder className="mx-auto h-10 w-10 text-forvis-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No Sub-Service Line Groups</h3>
               <p className="mt-1 text-xs text-forvis-gray-600">
                 No sub-service line groups are configured for {formatServiceLineName(serviceLine)}.
@@ -240,9 +240,9 @@ export default function ServiceLineSubGroupsPage() {
                         className="w-10 h-10 rounded-lg flex items-center justify-center transition-transform duration-200 group-hover:scale-110 shadow-sm"
                         style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
                       >
-                        <ChartBarIcon className="h-5 w-5 text-white" />
+                        <BarChart3 className="h-5 w-5 text-white" />
                       </div>
-                      <ChevronRightIcon className="h-4 w-4 text-forvis-gray-400 group-hover:text-forvis-blue-600 transition-colors flex-shrink-0" />
+                      <ChevronRight className="h-4 w-4 text-forvis-gray-400 group-hover:text-forvis-blue-600 transition-colors flex-shrink-0" />
                     </div>
 
                     {/* Content */}

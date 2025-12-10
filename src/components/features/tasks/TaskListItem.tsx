@@ -2,7 +2,7 @@
 
 import { useState, ReactNode } from 'react';
 import Link from 'next/link';
-import { ClockIcon } from '@heroicons/react/24/outline';
+import { Clock } from 'lucide-react';
 import { formatDate } from '@/lib/utils/taskUtils';
 import { AlertModal } from '@/components/shared/AlertModal';
 import { useTaskBalances } from '@/hooks/tasks/useTaskBalances';
@@ -167,7 +167,7 @@ export function TaskListItem({
             </>
           )}
           <span className="flex items-center">
-            <ClockIcon className="h-3.5 w-3.5 mr-1" />
+            <Clock className="h-3.5 w-3.5 mr-1" />
             {formatDate(task.updatedAt)}
           </span>
         </div>

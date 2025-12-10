@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useTask } from '@/hooks/tasks/useTaskData';
 import { AdministrationDocument } from '@/types';
-import { PlusIcon, FolderIcon, DocumentTextIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import { Plus, Folder, FileText, Download } from 'lucide-react';
 
 interface DocumentManagementPageProps {
   params: { id: string };
@@ -74,7 +74,7 @@ export default function DocumentManagementPage({ params }: DocumentManagementPag
           className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-lg transition-colors shadow-corporate"
           style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
         >
-          <PlusIcon className="w-5 h-5" />
+          <Plus className="w-5 h-5" />
           Upload Document
         </button>
       </div>
@@ -114,7 +114,7 @@ export default function DocumentManagementPage({ params }: DocumentManagementPag
 
       {documents.length === 0 ? (
         <div className="bg-white rounded-lg shadow-corporate border-2 p-12 text-center" style={{ borderColor: '#2E5AAC' }}>
-          <FolderIcon className="w-16 h-16 mx-auto text-forvis-gray-400 mb-4" />
+          <Folder className="w-16 h-16 mx-auto text-forvis-gray-400 mb-4" />
           <h3 className="text-lg font-semibold text-forvis-gray-900 mb-2">No Documents Yet</h3>
           <p className="text-sm text-forvis-gray-600">
             Upload documents to start organizing your project files.
@@ -125,14 +125,14 @@ export default function DocumentManagementPage({ params }: DocumentManagementPag
           {Object.entries(groupedDocuments).map(([category, docs]) => (
             <div key={category} className="bg-white rounded-lg shadow-corporate border-2" style={{ borderColor: '#2E5AAC' }}>
               <div className="px-4 py-3 flex items-center gap-3" style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}>
-                <FolderIcon className="w-5 h-5 text-white" />
+                <Folder className="w-5 h-5 text-white" />
                 <h3 className="text-sm font-bold text-white">{category} ({docs.length})</h3>
               </div>
               <div className="divide-y divide-forvis-gray-200">
                 {docs.map((doc) => (
                   <div key={doc.id} className="p-4 flex items-center justify-between hover:bg-forvis-gray-50 transition-colors">
                     <div className="flex items-start gap-3 flex-1">
-                      <DocumentTextIcon className="w-5 h-5 text-forvis-gray-400 mt-0.5" />
+                      <FileText className="w-5 h-5 text-forvis-gray-400 mt-0.5" />
                       <div className="flex-1">
                         <h4 className="text-sm font-semibold text-forvis-gray-900">{doc.fileName}</h4>
                         {doc.description && (
@@ -151,7 +151,7 @@ export default function DocumentManagementPage({ params }: DocumentManagementPag
                       onClick={() => {/* Download handler */}}
                       className="px-3 py-1.5 text-xs font-semibold text-forvis-blue-600 hover:text-forvis-blue-800 flex items-center gap-1"
                     >
-                      <ArrowDownTrayIcon className="w-4 h-4" />
+                      <Download className="w-4 h-4" />
                       Download
                     </button>
                   </div>

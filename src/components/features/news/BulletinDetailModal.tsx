@@ -1,15 +1,15 @@
 'use client';
 
 import { 
-  XMarkIcon,
-  ExclamationTriangleIcon,
-  CalendarIcon,
+  X,
+  AlertTriangle,
+  Calendar,
   UserIcon,
   ArrowTopRightOnSquareIcon,
-  ClockIcon,
-  DocumentArrowDownIcon,
-} from '@heroicons/react/24/outline';
-import { MapPinIcon } from '@heroicons/react/24/solid';
+  Clock,
+  FileDown,
+} from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import { NewsBulletin, BulletinCategory } from '@/types';
 import { formatServiceLineName } from '@/lib/utils/serviceLineUtils';
 import { Button } from '@/components/ui';
@@ -102,7 +102,7 @@ export function BulletinDetailModal({ bulletin, onClose }: BulletinDetailModalPr
               className="absolute top-4 right-4 p-2 rounded-full text-white hover:text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2"
               aria-label="Close"
             >
-              <XMarkIcon className="h-5 w-5" />
+              <X className="h-5 w-5" />
             </button>
 
             {/* Badges Row */}
@@ -126,7 +126,7 @@ export function BulletinDetailModal({ bulletin, onClose }: BulletinDetailModalPr
               {/* Pinned Indicator */}
               {bulletin.isPinned && (
                 <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-white/90 text-amber-700 border border-white shadow-sm">
-                  <MapPinIcon className="h-4 w-4" />
+                  <MapPin className="h-4 w-4" />
                   Pinned
                 </span>
               )}
@@ -134,7 +134,7 @@ export function BulletinDetailModal({ bulletin, onClose }: BulletinDetailModalPr
               {/* Action Required Indicator */}
               {bulletin.actionRequired && (
                 <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-white/90 text-red-700 border border-white shadow-sm">
-                  <ExclamationTriangleIcon className="h-4 w-4" />
+                  <AlertTriangle className="h-4 w-4" />
                   Action Required
                 </span>
               )}
@@ -142,7 +142,7 @@ export function BulletinDetailModal({ bulletin, onClose }: BulletinDetailModalPr
               {/* Expired Badge */}
               {isExpired && (
                 <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-white/90 text-forvis-gray-700 border border-white shadow-sm">
-                  <ClockIcon className="h-4 w-4" />
+                  <Clock className="h-4 w-4" />
                   Expired
                 </span>
               )}
@@ -192,7 +192,7 @@ export function BulletinDetailModal({ bulletin, onClose }: BulletinDetailModalPr
                 }}
                 className="inline-flex items-center gap-2 px-4 py-3 text-sm font-medium text-forvis-blue-700 bg-forvis-blue-50 border border-forvis-blue-200 rounded-lg hover:bg-forvis-blue-100 hover:border-forvis-blue-300 transition-colors"
               >
-                <DocumentArrowDownIcon className="h-5 w-5" />
+                <FileDown className="h-5 w-5" />
                 <div className="flex flex-col items-start">
                   <span>{bulletin.documentFileName}</span>
                   <span className="text-xs text-forvis-blue-600">
@@ -211,7 +211,7 @@ export function BulletinDetailModal({ bulletin, onClose }: BulletinDetailModalPr
             <div className="flex flex-wrap items-center gap-4 text-sm text-forvis-gray-600">
               {/* Effective Date */}
               <span className="inline-flex items-center gap-1.5">
-                <CalendarIcon className="h-4 w-4 text-forvis-gray-400" />
+                <Calendar className="h-4 w-4 text-forvis-gray-400" />
                 <span className="font-medium">Published:</span>
                 {formatDate(bulletin.effectiveDate)}
               </span>
@@ -219,7 +219,7 @@ export function BulletinDetailModal({ bulletin, onClose }: BulletinDetailModalPr
               {/* Expires At */}
               {bulletin.expiresAt && (
                 <span className="inline-flex items-center gap-1.5">
-                  <ClockIcon className="h-4 w-4 text-forvis-gray-400" />
+                  <Clock className="h-4 w-4 text-forvis-gray-400" />
                   <span className="font-medium">Expires:</span>
                   {formatShortDate(bulletin.expiresAt)}
                 </span>

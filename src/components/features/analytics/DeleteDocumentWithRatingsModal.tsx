@@ -1,7 +1,7 @@
 'use client';
 
 import { Fragment } from 'react';
-import { ExclamationTriangleIcon, XMarkIcon, ChartBarIcon, CalendarIcon } from '@heroicons/react/24/outline';
+import { AlertTriangle, X, BarChart3, Calendar } from 'lucide-react';
 
 interface AffectedRating {
   id: number;
@@ -60,7 +60,7 @@ export function DeleteDocumentWithRatingsModal({
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <ExclamationTriangleIcon className="h-6 w-6 text-white" />
+              <AlertTriangle className="h-6 w-6 text-white" />
               <h3 className="text-lg font-bold text-white">Delete Document & Credit Ratings</h3>
             </div>
             <button
@@ -68,7 +68,7 @@ export function DeleteDocumentWithRatingsModal({
               disabled={isDeleting}
               className="text-white hover:text-forvis-gray-200 transition-colors disabled:opacity-50"
             >
-              <XMarkIcon className="h-6 w-6" />
+              <X className="h-6 w-6" />
             </button>
           </div>
         </div>
@@ -113,11 +113,11 @@ export function DeleteDocumentWithRatingsModal({
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 text-sm text-forvis-gray-900">
-                      <ChartBarIcon className="h-4 w-4 text-forvis-gray-600" />
+                      <BarChart3 className="h-4 w-4 text-forvis-gray-600" />
                       <span className="font-semibold">Score: {rating.ratingScore}/100</span>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-forvis-gray-600 mt-1">
-                      <CalendarIcon className="h-3.5 w-3.5" />
+                      <Calendar className="h-3.5 w-3.5" />
                       <span>
                         {new Date(rating.ratingDate).toLocaleDateString()}
                       </span>

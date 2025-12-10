@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { XMarkIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { X, Check } from 'lucide-react';
 import { ServiceLine, ServiceLineRole } from '@/types';
 import { SERVICE_LINE_DETAILS } from '@/types/service-line';
 
@@ -119,7 +119,7 @@ export function AddServiceLineModal({
               onClick={handleClose}
               className="text-gray-400 hover:text-gray-600 transition-colors"
             >
-              <XMarkIcon className="h-6 w-6" />
+              <X className="h-6 w-6" />
             </button>
           </div>
         </div>
@@ -161,7 +161,7 @@ export function AddServiceLineModal({
                         )}
                       </div>
                       {selectedServiceLine === sl && (
-                        <CheckIcon className="h-5 w-5 text-green-600" />
+                        <Check className="h-5 w-5 text-green-600" />
                       )}
                     </div>
                   </button>
@@ -196,7 +196,7 @@ export function AddServiceLineModal({
                       </div>
                     </div>
                     {assignmentType === 'main' && (
-                      <CheckIcon className="h-5 w-5 text-blue-600 ml-3 flex-shrink-0" />
+                      <Check className="h-5 w-5 text-blue-600 ml-3 flex-shrink-0" />
                     )}
                   </div>
                 </button>
@@ -220,7 +220,7 @@ export function AddServiceLineModal({
                       </div>
                     </div>
                     {assignmentType === 'subgroup' && (
-                      <CheckIcon className="h-5 w-5 text-blue-600 ml-3 flex-shrink-0" />
+                      <Check className="h-5 w-5 text-blue-600 ml-3 flex-shrink-0" />
                     )}
                   </div>
                 </button>
@@ -270,7 +270,7 @@ export function AddServiceLineModal({
                             </div>
                           </div>
                           {isSelected && (
-                            <CheckIcon className="h-5 w-5 text-blue-600 ml-3" />
+                            <Check className="h-5 w-5 text-blue-600 ml-3" />
                           )}
                         </div>
                       </button>

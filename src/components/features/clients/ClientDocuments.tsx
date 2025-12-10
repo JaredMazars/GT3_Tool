@@ -2,12 +2,12 @@
 
 import { useState, useMemo } from 'react';
 import {
-  DocumentTextIcon,
-  ArrowDownTrayIcon,
-  FolderOpenIcon,
-  MagnifyingGlassIcon,
-  XMarkIcon,
-} from '@heroicons/react/24/outline';
+  FileText,
+  Download,
+  FolderOpen,
+  Search,
+  X,
+} from 'lucide-react';
 import { useClientDocuments, downloadClientDocument } from '@/hooks/clients/useClientDocuments';
 import { DocumentType, ClientDocument } from '@/types';
 import { formatDate } from '@/lib/utils/taskUtils';
@@ -162,7 +162,7 @@ export function ClientDocuments({ GSClientID }: ClientDocumentsProps) {
       {/* Search Bar */}
       <div className="px-6 pt-4 pb-2">
         <div className="relative">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
           <input
             type="text"
             placeholder="Search documents by name, project, uploaded by, category..."
@@ -175,7 +175,7 @@ export function ClientDocuments({ GSClientID }: ClientDocumentsProps) {
               onClick={() => setSearchTerm('')}
               className="absolute right-3 top-1/2 transform -translate-y-1/2 text-forvis-gray-400 hover:text-forvis-gray-600"
             >
-              <XMarkIcon className="h-5 w-5" />
+              <X className="h-5 w-5" />
             </button>
           )}
         </div>
@@ -196,7 +196,7 @@ export function ClientDocuments({ GSClientID }: ClientDocumentsProps) {
           </div>
         ) : documents.length === 0 ? (
           <div className="text-center py-12">
-            <FolderOpenIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
+            <FolderOpen className="mx-auto h-12 w-12 text-forvis-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">
               {searchTerm ? 'No documents found' : `No ${DOCUMENT_TYPE_LABELS[activeTab].toLowerCase()}`}
             </h3>
@@ -295,7 +295,7 @@ export function ClientDocuments({ GSClientID }: ClientDocumentsProps) {
                   <tr key={`${doc.documentType}-${doc.id}`} className="hover:bg-forvis-gray-50">
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center">
-                        <DocumentTextIcon className="h-5 w-5 text-forvis-gray-400 mr-2 flex-shrink-0" />
+                        <FileText className="h-5 w-5 text-forvis-gray-400 mr-2 flex-shrink-0" />
                         <span className="text-sm font-medium text-forvis-gray-900 truncate max-w-xs">
                           {doc.fileName}
                         </span>
@@ -349,7 +349,7 @@ export function ClientDocuments({ GSClientID }: ClientDocumentsProps) {
                         className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-forvis-blue-600 hover:text-forvis-blue-700 hover:bg-forvis-blue-50 rounded-lg transition-colors"
                         title="Download document"
                       >
-                        <ArrowDownTrayIcon className="h-4 w-4 mr-1" />
+                        <Download className="h-4 w-4 mr-1" />
                         Download
                       </button>
                     </td>

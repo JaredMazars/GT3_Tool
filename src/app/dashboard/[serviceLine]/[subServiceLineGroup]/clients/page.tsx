@@ -5,12 +5,12 @@ import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { 
-  MagnifyingGlassIcon,
-  BuildingOfficeIcon,
-  ChevronRightIcon,
-  FolderIcon,
-  ClockIcon,
-} from '@heroicons/react/24/outline';
+  Search,
+  Building2,
+  ChevronRight,
+  Folder,
+  Clock,
+} from 'lucide-react';
 import { isValidServiceLine, formatServiceLineName, isSharedService, formatTaskType, getTaskTypeColor } from '@/lib/utils/serviceLineUtils';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { ServiceLine } from '@/types';
@@ -220,21 +220,21 @@ export default function ServiceLineClientsPage() {
           <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1">
             Home
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}`} 
             className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1"
           >
             {formatServiceLineName(serviceLine)}
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}`} 
             className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1"
           >
             {subServiceLineGroupDescription}
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <span className="text-forvis-gray-900 font-medium">
             {activeTab === 'clients' ? 'Clients' : activeTab === 'all-tasks' ? 'All Tasks' : 'My Tasks'}
           </span>
@@ -276,7 +276,7 @@ export default function ServiceLineClientsPage() {
               }`}
             >
               <div className="flex items-center space-x-2">
-                <BuildingOfficeIcon className="h-5 w-5" />
+                <Building2 className="h-5 w-5" />
                 <span>Clients</span>
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                   activeTab === 'clients'
@@ -296,7 +296,7 @@ export default function ServiceLineClientsPage() {
               }`}
             >
               <div className="flex items-center space-x-2">
-                <FolderIcon className="h-5 w-5" />
+                <Folder className="h-5 w-5" />
                 <span>All Tasks</span>
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                   activeTab === 'all-tasks'
@@ -316,7 +316,7 @@ export default function ServiceLineClientsPage() {
               }`}
             >
               <div className="flex items-center space-x-2">
-                <ClockIcon className="h-5 w-5" />
+                <Clock className="h-5 w-5" />
                 <span>My Tasks</span>
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                   activeTab === 'my-tasks'
@@ -333,7 +333,7 @@ export default function ServiceLineClientsPage() {
         {/* Search and Filter Bar */}
         <div className="mb-6 flex gap-4 items-center">
           <div className="relative flex-1 max-w-md">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
             <input
               type="text"
               placeholder={
@@ -377,7 +377,7 @@ export default function ServiceLineClientsPage() {
           /* Clients List */
           clients.length === 0 ? (
             <div className="card text-center py-12">
-              <BuildingOfficeIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
+              <Building2 className="mx-auto h-12 w-12 text-forvis-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No clients</h3>
               <p className="mt-1 text-sm text-forvis-gray-600">
                 {searchTerm ? 'No clients match your search.' : 'No clients available for this service line.'}
@@ -424,7 +424,7 @@ export default function ServiceLineClientsPage() {
                           <td className="px-3 py-2 truncate">
                             <div className="flex items-center space-x-2 min-w-0">
                               <div className="w-7 h-7 rounded-lg bg-forvis-blue-100 flex items-center justify-center flex-shrink-0">
-                                <BuildingOfficeIcon className="h-3.5 w-3.5 text-forvis-blue-600" />
+                                <Building2 className="h-3.5 w-3.5 text-forvis-blue-600" />
                               </div>
                               <div className="min-w-0 flex-1">
                                 <div className="text-sm font-medium text-forvis-gray-900 truncate">
@@ -538,7 +538,7 @@ export default function ServiceLineClientsPage() {
           /* Tasks List (All Tasks or My Tasks) */
           currentData.length === 0 ? (
             <div className="card text-center py-12">
-              <FolderIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
+              <Folder className="mx-auto h-12 w-12 text-forvis-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No tasks</h3>
               <p className="mt-1 text-sm text-forvis-gray-600">
                 {searchTerm 
@@ -581,7 +581,7 @@ export default function ServiceLineClientsPage() {
                             <td className="px-6 py-4">
                               <div className="flex items-center space-x-3">
                                 <div className="w-8 h-8 rounded-lg bg-forvis-blue-100 flex items-center justify-center flex-shrink-0">
-                                  <FolderIcon className="h-4 w-4 text-forvis-blue-600" />
+                                  <Folder className="h-4 w-4 text-forvis-blue-600" />
                                 </div>
                                 <div>
                                   <div className="text-sm font-medium text-forvis-gray-900">
@@ -620,7 +620,7 @@ export default function ServiceLineClientsPage() {
                             </td>
                             <td className="px-6 py-4 text-center">
                               <div className="flex items-center justify-center text-sm text-forvis-gray-600">
-                                <ClockIcon className="h-4 w-4 mr-1" />
+                                <Clock className="h-4 w-4 mr-1" />
                                 {formatDate(task.updatedAt)}
                               </div>
                             </td>

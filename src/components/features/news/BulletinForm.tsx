@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { SparklesIcon, DocumentArrowUpIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Sparkles, FileUp, X } from 'lucide-react';
 import { NewsBulletin, BulletinCategory, ServiceLine } from '@/types';
 import type { CreateNewsBulletinInput } from '@/lib/validation/schemas';
 import { Button, Input } from '@/components/ui';
@@ -341,7 +341,7 @@ export function BulletinForm({
       >
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <DocumentArrowUpIcon className="h-5 w-5 text-forvis-blue-600" />
+            <FileUp className="h-5 w-5 text-forvis-blue-600" />
             <h3 className="text-sm font-medium text-forvis-gray-900">Upload Document for AI Extraction</h3>
           </div>
         </div>
@@ -361,7 +361,7 @@ export function BulletinForm({
           {uploadedFile && (
             <div className="flex items-center justify-between bg-white rounded-lg border border-forvis-blue-200 p-3">
               <div className="flex items-center gap-2">
-                <DocumentArrowUpIcon className="h-5 w-5 text-forvis-blue-600" />
+                <FileUp className="h-5 w-5 text-forvis-blue-600" />
                 <div>
                   <p className="text-sm font-medium text-forvis-gray-900">{uploadedFile.name}</p>
                   <p className="text-xs text-forvis-gray-500">{(uploadedFile.size / 1024).toFixed(2)} KB</p>
@@ -385,7 +385,7 @@ export function BulletinForm({
                     </>
                   ) : (
                     <>
-                      <SparklesIcon className="h-3.5 w-3.5" />
+                      <Sparkles className="h-3.5 w-3.5" />
                       Extract Content
                     </>
                   )}
@@ -395,7 +395,7 @@ export function BulletinForm({
                   onClick={handleRemoveDocument}
                   className="p-1.5 text-forvis-gray-400 hover:text-forvis-gray-600 rounded-lg hover:bg-forvis-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2"
                 >
-                  <XMarkIcon className="h-4 w-4" />
+                  <X className="h-4 w-4" />
                 </button>
               </div>
             </div>
@@ -419,7 +419,7 @@ export function BulletinForm({
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <SparklesIcon className="h-5 w-5 text-forvis-blue-600" />
+              <Sparkles className="h-5 w-5 text-forvis-blue-600" />
               <h3 className="text-sm font-semibold text-forvis-gray-900">AI-Generated Suggestions</h3>
             </div>
             <button
@@ -427,7 +427,7 @@ export function BulletinForm({
               onClick={handleRejectSuggestions}
               className="p-1 text-forvis-gray-400 hover:text-forvis-gray-600 rounded-lg hover:bg-white/50"
             >
-              <XMarkIcon className="h-5 w-5" />
+              <X className="h-5 w-5" />
             </button>
           </div>
 
@@ -573,7 +573,7 @@ export function BulletinForm({
               </>
             ) : (
               <>
-                <SparklesIcon className="h-3.5 w-3.5" />
+                <Sparkles className="h-3.5 w-3.5" />
                 Generate with AI
               </>
             )}

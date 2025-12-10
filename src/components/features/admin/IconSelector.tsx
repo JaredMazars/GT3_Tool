@@ -5,20 +5,20 @@ import {
   LinkIcon,
   GlobeAltIcon,
   ServerIcon,
-  CloudIcon,
+  Cloud,
   CommandLineIcon,
-  DocumentTextIcon,
-  ChartBarIcon,
+  FileText,
+  BarChart3,
   CogIcon,
   CubeIcon,
   CircleStackIcon,
-  FolderIcon,
+  Folder,
   InboxIcon,
   PaperClipIcon,
   RocketLaunchIcon,
-  ShieldCheckIcon,
-  SparklesIcon,
-} from '@heroicons/react/24/outline';
+  ShieldCheck,
+  Sparkles,
+} from 'lucide-react';
 import { Button } from '@/components/ui';
 
 interface IconOption {
@@ -31,19 +31,19 @@ const ICON_OPTIONS: IconOption[] = [
   { name: 'LinkIcon', component: LinkIcon, label: 'Link' },
   { name: 'GlobeAltIcon', component: GlobeAltIcon, label: 'Globe' },
   { name: 'ServerIcon', component: ServerIcon, label: 'Server' },
-  { name: 'CloudIcon', component: CloudIcon, label: 'Cloud' },
+  { name: 'Cloud', component: Cloud, label: 'Cloud' },
   { name: 'CommandLineIcon', component: CommandLineIcon, label: 'Command Line' },
-  { name: 'DocumentTextIcon', component: DocumentTextIcon, label: 'Document' },
-  { name: 'ChartBarIcon', component: ChartBarIcon, label: 'Chart' },
+  { name: 'FileText', component: FileText, label: 'Document' },
+  { name: 'BarChart3', component: BarChart3, label: 'Chart' },
   { name: 'CogIcon', component: CogIcon, label: 'Settings' },
   { name: 'CubeIcon', component: CubeIcon, label: 'Cube' },
   { name: 'CircleStackIcon', component: CircleStackIcon, label: 'Database' },
-  { name: 'FolderIcon', component: FolderIcon, label: 'Folder' },
+  { name: 'Folder', component: Folder, label: 'Folder' },
   { name: 'InboxIcon', component: InboxIcon, label: 'Inbox' },
   { name: 'PaperClipIcon', component: PaperClipIcon, label: 'Attachment' },
   { name: 'RocketLaunchIcon', component: RocketLaunchIcon, label: 'Rocket' },
-  { name: 'ShieldCheckIcon', component: ShieldCheckIcon, label: 'Shield' },
-  { name: 'SparklesIcon', component: SparklesIcon, label: 'Sparkles' },
+  { name: 'ShieldCheck', component: ShieldCheck, label: 'Shield' },
+  { name: 'Sparkles', component: Sparkles, label: 'Sparkles' },
 ];
 
 interface IconSelectorProps {

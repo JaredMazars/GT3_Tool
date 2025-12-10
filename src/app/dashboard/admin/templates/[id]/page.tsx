@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeftIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { ArrowLeft, Check } from 'lucide-react';
 import { TemplateSectionManager } from '@/components/features/templates/TemplateSectionManager';
 import { MarkdownRenderer } from '@/components/shared/MarkdownRenderer';
 
@@ -228,7 +228,7 @@ export default function TemplateEditorPage() {
             onClick={() => router.push('/dashboard/admin/templates')}
             className="text-sm text-forvis-blue-600 hover:text-forvis-blue-700 flex items-center mb-4"
           >
-            <ArrowLeftIcon className="h-4 w-4 mr-2" />
+            <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Templates
           </button>
           
@@ -242,7 +242,7 @@ export default function TemplateEditorPage() {
               disabled={saving || !template.name}
               className="btn-primary flex items-center"
             >
-              <CheckIcon className="h-5 w-5 mr-2" />
+              <Check className="h-5 w-5 mr-2" />
               {saving ? 'Saving...' : 'Save Template'}
             </button>
           </div>

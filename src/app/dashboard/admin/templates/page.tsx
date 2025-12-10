@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { DocumentTextIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { FileText, Plus } from 'lucide-react';
 import { TemplateList } from '@/components/features/templates/TemplateList';
 
 interface TemplateSection {
@@ -157,7 +157,7 @@ export default function TemplatesPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-semibold text-forvis-gray-900 flex items-center">
-                <DocumentTextIcon className="h-8 w-8 mr-3 text-forvis-blue-600" />
+                <FileText className="h-8 w-8 mr-3 text-forvis-blue-600" />
                 Template Management
               </h1>
               <p className="mt-2 text-sm font-normal text-forvis-gray-600">
@@ -166,7 +166,7 @@ export default function TemplatesPage() {
             </div>
             
             <button onClick={handleCreateNew} className="btn-primary flex items-center">
-              <PlusIcon className="h-5 w-5 mr-2" />
+              <Plus className="h-5 w-5 mr-2" />
               Create Template
             </button>
           </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { CloudArrowUpIcon, DocumentIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { CloudUpload, File, Trash2 } from 'lucide-react';
 import { useUploadDocument, useAcceptanceDocuments, useDeleteDocument } from '@/hooks/acceptance/useAcceptanceQuestionnaire';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 
@@ -107,7 +107,7 @@ export function DocumentUpload({ taskId, documentType = 'OTHER', disabled }: Doc
         }}
       >
         <div className="space-y-2 text-center">
-          <CloudArrowUpIcon className="mx-auto h-10 w-10" style={{ color: '#2E5AAC' }} />
+          <CloudUpload className="mx-auto h-10 w-10" style={{ color: '#2E5AAC' }} />
           <div className="flex text-sm" style={{ color: '#1C3667' }}>
             <span className="font-bold transition-all" style={{ color: '#2E5AAC' }}>
               Upload a file
@@ -150,7 +150,7 @@ export function DocumentUpload({ taskId, documentType = 'OTHER', disabled }: Doc
               className="flex items-center justify-between p-3 bg-white border border-forvis-gray-200 rounded-lg hover:border-forvis-blue-300 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <DocumentIcon className="h-5 w-5 text-forvis-blue-500" />
+                <File className="h-5 w-5 text-forvis-blue-500" />
                 <div>
                   <p className="text-sm font-medium text-forvis-gray-900">{doc.fileName}</p>
                   <p className="text-xs text-forvis-gray-600">
@@ -163,7 +163,7 @@ export function DocumentUpload({ taskId, documentType = 'OTHER', disabled }: Doc
                 disabled={disabled || deleteMutation.isPending}
                 className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
               >
-                <TrashIcon className="h-4 w-4" />
+                <Trash2 className="h-4 w-4" />
               </button>
             </div>
           ))}

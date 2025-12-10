@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { mappingGuide } from '@/lib/services/tasks/mappingGuide';
 import { formatAmount } from '@/lib/utils/formatters';
 import { MappedData } from '@/types';
-import { ChevronRightIcon } from '@heroicons/react/24/outline';
+import { ChevronRight } from 'lucide-react';
 import { useMappedAccounts, useUpdateMappedAccount } from '@/hooks/tasks/useTaskData';
 import { RemappingModal } from '@/components/tools/tax-calculation';
 const subsectionDisplayNames: Record<string, string> = {
@@ -99,7 +99,7 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
               onClick={() => toggleItem(sarsItem)}
             >
               <div className="col-span-7 pl-4 py-1.5 flex items-center gap-2">
-                <ChevronRightIcon 
+                <ChevronRight 
                   className={`h-3.5 w-3.5 text-forvis-gray-500 group-hover:text-forvis-blue-600 transition-all duration-200 ${expandedItems[sarsItem] ? 'rotate-90' : ''}`}
                 />
                 <span className="text-forvis-gray-900 group-hover:text-forvis-blue-900 text-xs">{sarsItem}</span>

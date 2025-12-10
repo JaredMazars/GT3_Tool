@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChatBubbleLeftIcon, ArrowUturnLeftIcon } from '@heroicons/react/24/outline';
+import { MessageCircle, Undo2 } from 'lucide-react';
 import { InAppNotificationWithUser } from '@/types/notification';
 import { formatTimeAgo } from '@/lib/utils/notificationHelpers';
 import { useMarkAsRead } from '@/hooks/notifications/useNotifications';
@@ -20,7 +20,7 @@ export function MessageThread({ messages, currentUserId }: MessageThreadProps) {
   if (messages.length === 0) {
     return (
       <div className="text-center py-12">
-        <ChatBubbleLeftIcon className="mx-auto h-12 w-12 text-gray-400" />
+        <MessageCircle className="mx-auto h-12 w-12 text-gray-400" />
         <h3 className="mt-2 text-sm font-medium text-gray-900">No messages</h3>
         <p className="mt-1 text-sm text-gray-500">
           Messages between users will appear here.
@@ -105,7 +105,7 @@ export function MessageThread({ messages, currentUserId }: MessageThreadProps) {
                   onClick={() => handleReply(otherUserId, otherUserName)}
                   className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                 >
-                  <ArrowUturnLeftIcon className="h-3 w-3 mr-1" />
+                  <Undo2 className="h-3 w-3 mr-1" />
                   Reply
                 </button>
               </div>

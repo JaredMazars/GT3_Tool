@@ -2,14 +2,14 @@
 
 import Link from 'next/link';
 import { 
-  ShieldCheckIcon,
-  MegaphoneIcon,
-  ComputerDesktopIcon,
-  BanknotesIcon,
-  UserGroupIcon,
-  PresentationChartLineIcon,
-  ArrowRightIcon,
-} from '@heroicons/react/24/outline';
+  ShieldCheck,
+  Megaphone,
+  Monitor,
+  Banknote,
+  Users,
+  Presentation,
+  ArrowRight,
+} from 'lucide-react';
 import { ServiceLine } from '@/types';
 import { ServiceLineWithStats } from '@/types/dto';
 import { 
@@ -21,12 +21,12 @@ import {
 import { ForwardRefExoticComponent, SVGProps } from 'react';
 
 const iconMap: Record<string, ForwardRefExoticComponent<SVGProps<SVGSVGElement>>> = {
-  [ServiceLine.QRM]: ShieldCheckIcon,
-  [ServiceLine.BUSINESS_DEV]: MegaphoneIcon,
-  [ServiceLine.IT]: ComputerDesktopIcon,
-  [ServiceLine.FINANCE]: BanknotesIcon,
-  [ServiceLine.HR]: UserGroupIcon,
-  [ServiceLine.COUNTRY_MANAGEMENT]: PresentationChartLineIcon,
+  [ServiceLine.QRM]: ShieldCheck,
+  [ServiceLine.BUSINESS_DEV]: Megaphone,
+  [ServiceLine.IT]: Monitor,
+  [ServiceLine.FINANCE]: Banknote,
+  [ServiceLine.HR]: Users,
+  [ServiceLine.COUNTRY_MANAGEMENT]: Presentation,
 };
 
 interface SharedServiceCardProps {
@@ -36,7 +36,7 @@ interface SharedServiceCardProps {
 export function SharedServiceCard({ serviceLineData }: SharedServiceCardProps) {
   const { serviceLine } = serviceLineData;
   
-  const Icon = iconMap[serviceLine as ServiceLine] || ShieldCheckIcon;
+  const Icon = iconMap[serviceLine as ServiceLine] || ShieldCheck;
   const name = formatServiceLineName(serviceLine);
   const color = getServiceLineColor(serviceLine);
   const bgColor = getServiceLineBgColor(serviceLine);
@@ -94,7 +94,7 @@ export function SharedServiceCard({ serviceLineData }: SharedServiceCardProps) {
             </h3>
           </div>
 
-          <ArrowRightIcon className="h-4 w-4 text-forvis-blue-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200 flex-shrink-0" />
+          <ArrowRight className="h-4 w-4 text-forvis-blue-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200 flex-shrink-0" />
         </div>
 
         {/* Description */}

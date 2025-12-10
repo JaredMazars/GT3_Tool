@@ -7,7 +7,7 @@
 import React, { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRightIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { ChevronRight, X } from 'lucide-react';
 import { useOpportunity, useUpdateOpportunity, useConvertOpportunity } from '@/hooks/bd/useOpportunities';
 import { useActivities } from '@/hooks/bd/useActivities';
 import { 
@@ -154,21 +154,21 @@ export default function OpportunityDetailPage() {
           <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-colors">
             Home
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}`} 
             className="hover:text-forvis-gray-900 transition-colors"
           >
             {formatServiceLineName(serviceLine.toUpperCase())}
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}/bd`} 
             className="hover:text-forvis-gray-900 transition-colors"
           >
             BD Pipeline
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <span className="text-forvis-gray-900 font-medium">{opportunity.title}</span>
         </nav>
 
@@ -378,7 +378,7 @@ export default function OpportunityDetailPage() {
                 onClick={() => setIsEditModalOpen(false)}
                 className="text-forvis-gray-400 hover:text-forvis-gray-600 transition-colors"
               >
-                <XMarkIcon className="h-6 w-6" />
+                <X className="h-6 w-6" />
               </button>
             </div>
             <div className="p-6">
@@ -417,7 +417,7 @@ export default function OpportunityDetailPage() {
                 onClick={() => setIsConvertModalOpen(false)}
                 className="text-forvis-gray-400 hover:text-forvis-gray-600 transition-colors"
               >
-                <XMarkIcon className="h-6 w-6" />
+                <X className="h-6 w-6" />
               </button>
             </div>
             <div className="p-6">
@@ -489,7 +489,7 @@ export default function OpportunityDetailPage() {
                 onClick={() => setIsServiceLineModalOpen(false)}
                 className="text-forvis-gray-400 hover:text-forvis-gray-600 transition-colors"
               >
-                <XMarkIcon className="h-6 w-6" />
+                <X className="h-6 w-6" />
               </button>
             </div>
             <div className="p-6">

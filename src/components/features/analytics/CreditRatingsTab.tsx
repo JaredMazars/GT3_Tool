@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChartBarIcon, CalendarIcon, DocumentTextIcon, ArrowTrendingUpIcon, ArrowTrendingDownIcon } from '@heroicons/react/24/outline';
+import { BarChart3, Calendar, FileText, TrendingUp, TrendingDown } from 'lucide-react';
 import { useLatestCreditRating, useCreditRatings } from '@/hooks/analytics/useClientAnalytics';
 import { CreditRating, CreditRatingGrade } from '@/types/analytics';
 import { RatingReportModal } from './RatingReportModal';
@@ -87,7 +87,7 @@ export function CreditRatingsTab({ clientId }: CreditRatingsTabProps) {
   if (!latestRating) {
     return (
       <div className="text-center py-16 rounded-xl border-3 border-dashed shadow-lg" style={{ borderColor: '#2E5AAC', borderWidth: '3px', background: 'linear-gradient(135deg, #F8FBFE 0%, #EEF6FC 100%)' }}>
-        <ChartBarIcon className="mx-auto h-16 w-16" style={{ color: '#2E5AAC' }} />
+        <BarChart3 className="mx-auto h-16 w-16" style={{ color: '#2E5AAC' }} />
         <h3 className="mt-4 text-lg font-bold" style={{ color: '#1C3667' }}>No credit ratings yet</h3>
         <p className="mt-2 text-sm font-medium" style={{ color: '#2E5AAC' }}>
           Upload financial documents and generate your first credit rating to see analytics here
@@ -133,7 +133,7 @@ export function CreditRatingsTab({ clientId }: CreditRatingsTabProps) {
                     Confidence: {(latestRating.confidence * 100).toFixed(0)}%
                   </p>
                   <p className="text-xs text-forvis-gray-500 mt-1 flex items-center gap-1">
-                    <CalendarIcon className="h-4 w-4" />
+                    <Calendar className="h-4 w-4" />
                     Generated on {new Date(latestRating.ratingDate).toLocaleDateString()} by {latestRating.analyzedBy}
                   </p>
 
@@ -142,7 +142,7 @@ export function CreditRatingsTab({ clientId }: CreditRatingsTabProps) {
                     className="mt-4 inline-flex items-center gap-2 px-4 py-2 text-sm font-bold text-white rounded-lg shadow-lg hover:shadow-xl transition-all"
                     style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
                   >
-                    <DocumentTextIcon className="h-5 w-5" />
+                    <FileText className="h-5 w-5" />
                     View Full Report
                   </button>
                 </div>
@@ -168,9 +168,9 @@ export function CreditRatingsTab({ clientId }: CreditRatingsTabProps) {
                     </div>
                     <div>
                       {trend.isPositive ? (
-                        <ArrowTrendingUpIcon className="h-10 w-10 opacity-80" />
+                        <TrendingUp className="h-10 w-10 opacity-80" />
                       ) : (
-                        <ArrowTrendingDownIcon className="h-10 w-10 opacity-80" />
+                        <TrendingDown className="h-10 w-10 opacity-80" />
                       )}
                     </div>
                   </div>
@@ -197,7 +197,7 @@ export function CreditRatingsTab({ clientId }: CreditRatingsTabProps) {
               className="rounded-full p-2.5"
               style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
             >
-              <ChartBarIcon className="w-5 h-5 text-white" />
+              <BarChart3 className="w-5 h-5 text-white" />
             </div>
           </div>
         </div>
@@ -218,7 +218,7 @@ export function CreditRatingsTab({ clientId }: CreditRatingsTabProps) {
               className="rounded-full p-2.5"
               style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
             >
-              <ChartBarIcon className="w-5 h-5 text-white" />
+              <BarChart3 className="w-5 h-5 text-white" />
             </div>
           </div>
         </div>
@@ -237,7 +237,7 @@ export function CreditRatingsTab({ clientId }: CreditRatingsTabProps) {
               className="rounded-full p-2.5"
               style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
             >
-              <ChartBarIcon className="w-5 h-5 text-white" />
+              <BarChart3 className="w-5 h-5 text-white" />
             </div>
           </div>
         </div>
@@ -256,7 +256,7 @@ export function CreditRatingsTab({ clientId }: CreditRatingsTabProps) {
               className="rounded-full p-2.5"
               style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
             >
-              <DocumentTextIcon className="w-5 h-5 text-white" />
+              <FileText className="w-5 h-5 text-white" />
             </div>
           </div>
         </div>
@@ -327,9 +327,9 @@ export function CreditRatingsTab({ clientId }: CreditRatingsTabProps) {
                       {change !== 0 && (
                         <div className={`flex items-center gap-1 text-sm font-medium ${change > 0 ? 'text-green-600' : 'text-red-600'}`}>
                           {change > 0 ? (
-                            <ArrowTrendingUpIcon className="h-5 w-5" />
+                            <TrendingUp className="h-5 w-5" />
                           ) : (
-                            <ArrowTrendingDownIcon className="h-5 w-5" />
+                            <TrendingDown className="h-5 w-5" />
                           )}
                           <span>{change > 0 ? '+' : ''}{change}</span>
                         </div>

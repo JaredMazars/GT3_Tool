@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import Link from 'next/link';
-import { ArrowRightIcon } from '@heroicons/react/24/outline';
+import { ArrowRight } from 'lucide-react';
 
 export interface DashboardCardProps {
   title: string;
@@ -73,7 +73,7 @@ export function DashboardCard({
                 {title}
               </h3>
             </div>
-            <ArrowRightIcon className="h-4 w-4 text-forvis-blue-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200 flex-shrink-0" />
+            <ArrowRight className="h-4 w-4 text-forvis-blue-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200 flex-shrink-0" />
           </div>
         ) : (
           // Default layout (vertical)
@@ -88,7 +88,7 @@ export function DashboardCard({
                   {icon}
                 </div>
               )}
-              <ArrowRightIcon className="h-5 w-5 text-forvis-blue-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200" />
+              <ArrowRight className="h-5 w-5 text-forvis-blue-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200" />
             </div>
 
             {/* Title and Description */}

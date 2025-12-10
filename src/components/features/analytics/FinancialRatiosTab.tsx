@@ -1,6 +1,6 @@
 'use client';
 
-import { CalculatorIcon } from '@heroicons/react/24/outline';
+import { Calculator } from 'lucide-react';
 import { useFinancialRatios } from '@/hooks/analytics/useClientAnalytics';
 import { FinancialRatios } from '@/types/analytics';
 import { FinancialRatioCalculator } from '@/lib/services/analytics/financialRatioCalculator';
@@ -64,7 +64,7 @@ export function FinancialRatiosTab({ clientId }: FinancialRatiosTabProps) {
   if (!ratios) {
     return (
       <div className="text-center py-16 rounded-xl border-3 border-dashed shadow-lg" style={{ borderColor: '#2E5AAC', borderWidth: '3px', background: 'linear-gradient(135deg, #F8FBFE 0%, #EEF6FC 100%)' }}>
-        <CalculatorIcon className="mx-auto h-16 w-16" style={{ color: '#2E5AAC' }} />
+        <Calculator className="mx-auto h-16 w-16" style={{ color: '#2E5AAC' }} />
         <h3 className="mt-4 text-lg font-bold" style={{ color: '#1C3667' }}>No financial ratios available</h3>
         <p className="mt-2 text-sm font-medium" style={{ color: '#2E5AAC' }}>
           Generate a credit rating first to see calculated financial ratios
@@ -78,7 +78,7 @@ export function FinancialRatiosTab({ clientId }: FinancialRatiosTabProps) {
       {/* Header */}
       <div className="rounded-xl p-4 border-2 shadow-corporate" style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)', borderColor: '#2E5AAC' }}>
         <div className="flex items-center gap-3">
-          <CalculatorIcon className="h-6 w-6" style={{ color: '#2E5AAC' }} />
+          <Calculator className="h-6 w-6" style={{ color: '#2E5AAC' }} />
           <div>
             <h2 className="font-bold" style={{ color: '#1C3667' }}>Financial Ratios Analysis</h2>
             {ratingDate && (

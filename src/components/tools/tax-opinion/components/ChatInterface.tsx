@@ -2,18 +2,18 @@
 
 import { useState, useEffect, useRef } from 'react';
 import {
-  PaperAirplaneIcon,
-  SparklesIcon,
-  DocumentTextIcon,
+  Send,
+  Sparkles,
+  FileText,
   ArrowPathIcon,
-  MagnifyingGlassIcon,
+  Search,
   ScaleIcon,
   BookOpenIcon,
   GlobeAltIcon,
   ChevronDownIcon,
   ChevronUpIcon,
-  PlusIcon,
-} from '@heroicons/react/24/outline';
+  Plus,
+} from 'lucide-react';
 import { OpinionChatMessage } from '@/types';
 
 interface ChatInterfaceProps {
@@ -196,7 +196,7 @@ export default function ChatInterface({ taskId, draftId }: ChatInterfaceProps) {
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                 title={showResearch ? 'Hide Research' : 'Show Research'}
               >
-                <MagnifyingGlassIcon className="w-5 h-5 text-gray-600" />
+                <Search className="w-5 h-5 text-gray-600" />
               </button>
             </div>
           </div>
@@ -206,7 +206,7 @@ export default function ChatInterface({ taskId, draftId }: ChatInterfaceProps) {
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 bg-gray-50">
         {messages.length === 0 && !isLoading && (
           <div className="text-center py-12">
-            <SparklesIcon className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+            <Sparkles className="w-16 h-16 mx-auto text-gray-400 mb-4" />
             <h4 className="text-lg font-semibold text-gray-900 mb-2">
               Welcome to the Tax Opinion Assistant
             </h4>
@@ -215,13 +215,13 @@ export default function ChatInterface({ taskId, draftId }: ChatInterfaceProps) {
             </p>
             <div className="max-w-md mx-auto text-left space-y-2 mb-6">
               <div className="flex items-start gap-3 text-sm text-gray-600">
-                <DocumentTextIcon className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                <FileText className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
                 <div>
                   <strong>Search Documents:</strong> Ask questions about uploaded documents like "What does the assessment say about penalties?"
                 </div>
               </div>
               <div className="flex items-start gap-3 text-sm text-gray-600">
-                <SparklesIcon className="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" />
+                <Sparkles className="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" />
                 <div>
                   <strong>Discuss Tax Issues:</strong> Get guidance on tax law, positions, and structuring your opinion
                 </div>
@@ -245,7 +245,7 @@ export default function ChatInterface({ taskId, draftId }: ChatInterfaceProps) {
               {!isUser && (
                 <div className="flex-shrink-0">
                   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
-                    <SparklesIcon className="w-5 h-5 text-white" />
+                    <Sparkles className="w-5 h-5 text-white" />
                   </div>
                 </div>
               )}
@@ -272,7 +272,7 @@ export default function ChatInterface({ taskId, draftId }: ChatInterfaceProps) {
                             key={idx}
                             className="flex items-center gap-2 text-xs text-gray-600"
                           >
-                            <DocumentTextIcon className="w-4 h-4" />
+                            <FileText className="w-4 h-4" />
                             <span className="font-medium">{source.fileName}</span>
                             <span className="text-gray-500">({source.category})</span>
                           </div>
@@ -298,7 +298,7 @@ export default function ChatInterface({ taskId, draftId }: ChatInterfaceProps) {
           <div className="flex gap-3 justify-start">
             <div className="flex-shrink-0">
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
-                <SparklesIcon className="w-5 h-5 text-white" />
+                <Sparkles className="w-5 h-5 text-white" />
               </div>
             </div>
             <div className="bg-white border border-gray-200 rounded-lg px-4 py-3 shadow-sm">
@@ -341,7 +341,7 @@ export default function ChatInterface({ taskId, draftId }: ChatInterfaceProps) {
               disabled={!input.trim() || isLoading}
               className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
             >
-              <PaperAirplaneIcon className="w-5 h-5" />
+              <Send className="w-5 h-5" />
               <span>Send</span>
             </button>
           </div>
@@ -425,7 +425,7 @@ export default function ChatInterface({ taskId, draftId }: ChatInterfaceProps) {
                     disabled={isResearching || !researchQuery.trim()}
                     className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                   >
-                    <MagnifyingGlassIcon className="w-5 h-5" />
+                    <Search className="w-5 h-5" />
                   </button>
                 </div>
               </div>
@@ -442,7 +442,7 @@ export default function ChatInterface({ taskId, draftId }: ChatInterfaceProps) {
 
             {!isResearching && researchResults.length === 0 && researchType && (
               <div className="text-center py-8">
-                <MagnifyingGlassIcon className="w-12 h-12 mx-auto text-gray-400 mb-2" />
+                <Search className="w-12 h-12 mx-auto text-gray-400 mb-2" />
                 <p className="text-sm text-gray-600">
                   {researchQuery ? 'No results found' : 'Enter a search query above'}
                 </p>
@@ -494,7 +494,7 @@ export default function ChatInterface({ taskId, draftId }: ChatInterfaceProps) {
                           onClick={() => addResultToChat(result)}
                           className="w-full flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                         >
-                          <PlusIcon className="w-4 h-4" />
+                          <Plus className="w-4 h-4" />
                           Add to Chat
                         </button>
                       </div>

@@ -5,16 +5,16 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { 
-  ChevronRightIcon,
-  FolderIcon,
-  DocumentTextIcon,
-  ChartBarIcon,
-  UserGroupIcon,
-  ClockIcon,
-  PlusIcon,
-  MagnifyingGlassIcon,
-  PresentationChartLineIcon,
-} from '@heroicons/react/24/outline';
+  ChevronRight,
+  Folder,
+  FileText,
+  BarChart3,
+  Users,
+  Clock,
+  Plus,
+  Search,
+  ChartSpline,
+} from 'lucide-react';
 import { formatDate } from '@/lib/utils/taskUtils';
 import { getTaskTypeColor, formatTaskType } from '@/lib/utils/serviceLineUtils';
 import { TaskStageIndicator } from '@/components/features/tasks/TaskStageIndicator';
@@ -245,28 +245,28 @@ export default function ServiceLineClientDetailPage() {
           <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-colors">
             Home
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}`} 
             className="hover:text-forvis-gray-900 transition-colors"
           >
             {formatServiceLineName(serviceLine)}
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}/${client.groupCode}`} 
             className="hover:text-forvis-gray-900 transition-colors"
           >
             {client.groupDesc}
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}/clients`} 
             className="hover:text-forvis-gray-900 transition-colors"
           >
             Clients
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <span className="text-forvis-gray-900 font-medium">{client.clientNameFull || client.clientCode}</span>
         </nav>
 
@@ -434,7 +434,7 @@ export default function ServiceLineClientDetailPage() {
                   onClick={() => setShowCreateModal(true)}
                   className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-forvis-blue-600 rounded-lg hover:bg-forvis-blue-700 transition-colors"
                 >
-                  <PlusIcon className="h-4 w-4 mr-1" />
+                  <Plus className="h-4 w-4 mr-1" />
                   New Task
                 </button>
               </div>
@@ -523,7 +523,7 @@ export default function ServiceLineClientDetailPage() {
               {/* Search Bar */}
               <div className="px-4 pt-4 flex-shrink-0">
                 <div className="relative">
-                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
                   <input
                     type="text"
                     placeholder="Search tasks by description, code, or status..."
@@ -549,7 +549,7 @@ export default function ServiceLineClientDetailPage() {
                   </div>
                 ) : filteredTasks.length === 0 ? (
                   <div className="text-center py-8">
-                    <FolderIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
+                    <Folder className="mx-auto h-12 w-12 text-forvis-gray-400" />
                     <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">
                       {searchTerm ? 'No tasks found' : `No tasks in ${formatServiceLineName(activeServiceLineTab)}`}
                     </h3>
@@ -640,7 +640,7 @@ export default function ServiceLineClientDetailPage() {
                                 Manager: {task.TaskManagerName || task.TaskManager}
                               </span>
                               <span className="flex items-center">
-                                <ClockIcon className="h-3.5 w-3.5 mr-1" />
+                                <Clock className="h-3.5 w-3.5 mr-1" />
                                 {formatDate(task.updatedAt)}
                               </span>
                             </div>
@@ -662,7 +662,7 @@ export default function ServiceLineClientDetailPage() {
                 className="card hover:shadow-lg hover:border-forvis-blue-500 transition-all cursor-pointer"
               >
                 <div className="p-4 text-center">
-                  <DocumentTextIcon className="mx-auto h-10 w-10 text-forvis-blue-500 mb-2" />
+                  <FileText className="mx-auto h-10 w-10 text-forvis-blue-500 mb-2" />
                   <h3 className="text-sm font-semibold text-forvis-gray-900 mb-1">Documents</h3>
                   <p className="text-xs text-forvis-gray-500">View & download</p>
                 </div>
@@ -671,7 +671,7 @@ export default function ServiceLineClientDetailPage() {
               {/* Reports Card */}
               <div className="card opacity-60">
                 <div className="p-4 text-center">
-                  <ChartBarIcon className="mx-auto h-10 w-10 text-forvis-gray-300 mb-2" />
+                  <BarChart3 className="mx-auto h-10 w-10 text-forvis-gray-300 mb-2" />
                   <h3 className="text-sm font-semibold text-forvis-gray-900 mb-1">Reports</h3>
                   <p className="text-xs text-forvis-gray-500">Coming Soon</p>
                 </div>
@@ -683,7 +683,7 @@ export default function ServiceLineClientDetailPage() {
                 className="card hover:shadow-lg hover:border-forvis-blue-500 transition-all cursor-pointer"
               >
                 <div className="p-4 text-center">
-                  <PresentationChartLineIcon className="mx-auto h-10 w-10 text-forvis-blue-500 mb-2" />
+                  <ChartSpline className="mx-auto h-10 w-10 text-forvis-blue-500 mb-2" />
                   <h3 className="text-sm font-semibold text-forvis-gray-900 mb-1">Analytics</h3>
                   <p className="text-xs text-forvis-gray-500">Credit ratings & analysis</p>
                 </div>
@@ -692,7 +692,7 @@ export default function ServiceLineClientDetailPage() {
               {/* Contacts Card */}
               <div className="card opacity-60">
                 <div className="p-4 text-center">
-                  <UserGroupIcon className="mx-auto h-10 w-10 text-forvis-gray-300 mb-2" />
+                  <Users className="mx-auto h-10 w-10 text-forvis-gray-300 mb-2" />
                   <h3 className="text-sm font-semibold text-forvis-gray-900 mb-1">Contacts</h3>
                   <p className="text-xs text-forvis-gray-500">Coming Soon</p>
                 </div>

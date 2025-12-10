@@ -1,11 +1,11 @@
 import { HTMLAttributes, ReactNode } from 'react';
 import {
-  InformationCircleIcon,
-  ExclamationTriangleIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  XMarkIcon,
-} from '@heroicons/react/24/outline';
+  Info,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  X,
+} from 'lucide-react';
 
 export type BannerVariant = 'info' | 'error' | 'warning' | 'success';
 
@@ -71,10 +71,10 @@ export function Banner({
   };
 
   const defaultIcons: Record<BannerVariant, ReactNode> = {
-    info: <InformationCircleIcon className="w-5 h-5" />,
-    error: <XCircleIcon className="w-5 h-5" />,
-    warning: <ExclamationTriangleIcon className="w-5 h-5" />,
-    success: <CheckCircleIcon className="w-5 h-5" />,
+    info: <Info className="w-5 h-5" />,
+    error: <XCircle className="w-5 h-5" />,
+    warning: <AlertTriangle className="w-5 h-5" />,
+    success: <CheckCircle className="w-5 h-5" />,
   };
 
   const styles = variantStyles[variant];
@@ -127,7 +127,7 @@ export function Banner({
             className={`${styles.closeHover} transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-forvis-blue-500 rounded`}
             aria-label="Dismiss"
           >
-            <XMarkIcon className="h-5 w-5" />
+            <X className="h-5 w-5" />
           </button>
         )}
       </div>

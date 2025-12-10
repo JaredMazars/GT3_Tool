@@ -2,17 +2,17 @@
 
 import { useState, useEffect, useRef } from 'react';
 import {
-  PlusIcon,
-  SparklesIcon,
-  CheckCircleIcon,
-  PencilIcon,
-  TrashIcon,
+  Plus,
+  Sparkles,
+  CheckCircle,
+  Pencil,
+  Trash2,
   ArrowUpIcon,
   ArrowDownIcon,
-  XMarkIcon,
-  DocumentArrowUpIcon,
-  DocumentTextIcon,
-} from '@heroicons/react/24/outline';
+  X,
+  FileUp,
+  FileText,
+} from 'lucide-react';
 import { OpinionSection } from '@/types';
 import { MarkdownRenderer } from '@/components/shared/MarkdownRenderer';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
@@ -482,7 +482,7 @@ export default function SectionEditor({ taskId, draftId }: SectionEditorProps) {
           onClick={() => setShowCreateModal(true)}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
-          <PlusIcon className="w-5 h-5" />
+          <Plus className="w-5 h-5" />
           Add Section
         </button>
       </div>
@@ -490,7 +490,7 @@ export default function SectionEditor({ taskId, draftId }: SectionEditorProps) {
       {/* Sections List */}
       {sections.length === 0 ? (
         <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-          <SparklesIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+          <Sparkles className="w-12 h-12 text-gray-400 mx-auto mb-3" />
           <p className="text-gray-600 mb-2">No sections yet</p>
           <p className="text-sm text-gray-500">
             Click "Add Section" to start building your tax opinion
@@ -543,10 +543,10 @@ export default function SectionEditor({ taskId, draftId }: SectionEditorProps) {
                           {section.title}
                         </h4>
                         {section.aiGenerated && (
-                          <SparklesIcon className="w-4 h-4 text-blue-500" title="AI Generated" />
+                          <Sparkles className="w-4 h-4 text-blue-500" title="AI Generated" />
                         )}
                         {section.reviewed && (
-                          <CheckCircleIcon className="w-4 h-4 text-green-500" title="Reviewed" />
+                          <CheckCircle className="w-4 h-4 text-green-500" title="Reviewed" />
                         )}
                       </div>
                       <p className="text-sm text-gray-500">{section.sectionType}</p>
@@ -580,7 +580,7 @@ export default function SectionEditor({ taskId, draftId }: SectionEditorProps) {
                         className="p-1 text-gray-400 hover:text-blue-600"
                         title="Edit"
                       >
-                        <PencilIcon className="w-4 h-4" />
+                        <Pencil className="w-4 h-4" />
                       </button>
                       
                       {/* Regenerate button (only for AI sections) */}
@@ -590,7 +590,7 @@ export default function SectionEditor({ taskId, draftId }: SectionEditorProps) {
                           className="p-1 text-gray-400 hover:text-blue-600"
                           title="Regenerate with AI"
                         >
-                          <SparklesIcon className="w-4 h-4" />
+                          <Sparkles className="w-4 h-4" />
                         </button>
                       )}
                       
@@ -600,7 +600,7 @@ export default function SectionEditor({ taskId, draftId }: SectionEditorProps) {
                         className="p-1 text-gray-400 hover:text-red-600"
                         title="Delete"
                       >
-                        <TrashIcon className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
@@ -629,7 +629,7 @@ export default function SectionEditor({ taskId, draftId }: SectionEditorProps) {
                   onClick={closeModal}
                   className="text-gray-400 hover:text-gray-600"
                 >
-                  <XMarkIcon className="w-6 h-6" />
+                  <X className="w-6 h-6" />
                 </button>
               </div>
 
@@ -699,7 +699,7 @@ export default function SectionEditor({ taskId, draftId }: SectionEditorProps) {
                   {generationState.documentFindings && generationState.documentFindings.length > 0 && (
                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                       <p className="text-xs font-semibold text-gray-800 mb-2 flex items-center gap-2">
-                        <DocumentTextIcon className="w-4 h-4" />
+                        <FileText className="w-4 h-4" />
                         Referenced Documents ({generationState.documentFindings.length}):
                       </p>
                       <div className="space-y-2">
@@ -751,7 +751,7 @@ export default function SectionEditor({ taskId, draftId }: SectionEditorProps) {
                         disabled={isUploadingDoc}
                         className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 disabled:text-gray-400"
                       >
-                        <DocumentArrowUpIcon className="w-4 h-4" />
+                        <FileUp className="w-4 h-4" />
                         {isUploadingDoc ? 'Uploading...' : 'Upload Additional Document'}
                       </button>
                       {uploadProgress && (

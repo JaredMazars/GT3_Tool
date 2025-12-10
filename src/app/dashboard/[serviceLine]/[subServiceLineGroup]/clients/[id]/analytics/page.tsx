@@ -3,7 +3,7 @@
 import { useState, Suspense } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRightIcon, ChartBarIcon, DocumentTextIcon, CalculatorIcon, CloudArrowUpIcon, BriefcaseIcon, BanknotesIcon } from '@heroicons/react/24/outline';
+import { ChevronRight, BarChart3, FileText, Calculator, CloudUpload, Briefcase, Banknote } from 'lucide-react';
 import { ClientHeader } from '@/components/features/clients/ClientHeader';
 import { useClient } from '@/hooks/clients/useClients';
 import { formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';
@@ -86,37 +86,37 @@ function ClientAnalyticsContent() {
     {
       id: 'profitability' as TabType,
       name: 'Profitability',
-      icon: ChartBarIcon,
+      icon: BarChart3,
       description: 'View client profitability analysis',
     },
     {
       id: 'recoverability' as TabType,
       name: 'Recoverability',
-      icon: BanknotesIcon,
+      icon: Banknote,
       description: 'View recoverability information',
     },
     {
       id: 'upload' as TabType,
       name: 'Upload & Analyze',
-      icon: CloudArrowUpIcon,
+      icon: CloudUpload,
       description: 'Upload financial documents',
     },
     {
       id: 'ratings' as TabType,
       name: 'Credit Ratings',
-      icon: ChartBarIcon,
+      icon: BarChart3,
       description: 'View credit ratings and history',
     },
     {
       id: 'ratios' as TabType,
       name: 'Financial Ratios',
-      icon: CalculatorIcon,
+      icon: Calculator,
       description: 'View financial ratios and metrics',
     },
     {
       id: 'documents' as TabType,
       name: 'Documents',
-      icon: DocumentTextIcon,
+      icon: FileText,
       description: 'Manage uploaded documents',
     },
   ];
@@ -129,35 +129,35 @@ function ClientAnalyticsContent() {
           <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1">
             Home
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <Link
             href={`/dashboard/${serviceLine.toLowerCase()}`}
             className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1"
           >
             {formatServiceLineName(serviceLine)}
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <Link
             href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}`}
             className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1"
           >
             {subServiceLineGroupDescription}
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <Link
             href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients`}
             className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1"
           >
             Clients
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <Link
             href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${GSClientID}`}
             className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1"
           >
             {clientName}
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <span className="text-forvis-gray-900 font-medium">Analytics</span>
         </nav>
 

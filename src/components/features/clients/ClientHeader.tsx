@@ -1,6 +1,6 @@
 'use client';
 
-import { BuildingOfficeIcon, BanknotesIcon } from '@heroicons/react/24/outline';
+import { Building2, HandCoins, FileClock } from 'lucide-react';
 import { Client } from '@/types';
 import { useClientBalances } from '@/hooks/clients/useClientBalances';
 
@@ -30,7 +30,7 @@ export function ClientHeader({ client, tasks }: ClientHeaderProps) {
               className="w-16 h-16 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm"
               style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
             >
-              <BuildingOfficeIcon className="h-8 w-8 text-white" />
+              <Building2 className="h-8 w-8 text-white" />
             </div>
             <div className="flex-1">
               <h1 className="text-3xl font-bold text-forvis-gray-900 mb-2">
@@ -67,7 +67,7 @@ export function ClientHeader({ client, tasks }: ClientHeaderProps) {
                     className="rounded-full p-2.5 ml-3"
                     style={{ background: 'linear-gradient(135deg, #5B93D7, #2E5AAC)' }}
                   >
-                    <BuildingOfficeIcon className="w-5 h-5 text-white" />
+                    <FileClock className="w-5 h-5 text-white" />
                   </div>
                 </div>
               </div>
@@ -85,7 +85,7 @@ export function ClientHeader({ client, tasks }: ClientHeaderProps) {
                     className="rounded-full p-2.5 ml-3"
                     style={{ background: 'linear-gradient(135deg, #5B93D7, #2E5AAC)' }}
                   >
-                    <BanknotesIcon className="w-5 h-5 text-white" />
+                    <HandCoins className="w-5 h-5 text-white" />
                   </div>
                 </div>
               </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { DocumentArrowDownIcon } from '@heroicons/react/24/outline';
+import { FileDown } from 'lucide-react';
 import TrialBalanceReport from '@/components/features/reports/TrialBalanceReport';
 import BalanceSheetReport from '@/components/features/reports/BalanceSheetReport';
 import IncomeStatementReport from '@/components/features/reports/IncomeStatementReport';
@@ -342,7 +342,7 @@ export default function ReportingPage({ params }: ReportingPageProps) {
                 </>
               ) : (
                 <>
-                  <DocumentArrowDownIcon className="h-5 w-5" />
+                  <FileDown className="h-5 w-5" />
                   <span className="text-sm font-medium">Export to PDF</span>
                 </>
               )}

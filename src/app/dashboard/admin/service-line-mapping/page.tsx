@@ -3,12 +3,12 @@
 import { useState, useEffect } from 'react';
 import {
   ArrowPathIcon,
-  MagnifyingGlassIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  ChartBarIcon,
+  Search,
+  CheckCircle,
+  XCircle,
+  BarChart3,
   LinkIcon,
-} from '@heroicons/react/24/outline';
+} from 'lucide-react';
 import { AlertModal } from '@/components/shared/AlertModal';
 
 interface ExternalServiceLine {
@@ -250,7 +250,7 @@ export default function ServiceLineMappingPage() {
                 className="rounded-full p-2"
                 style={{ backgroundColor: 'rgba(28, 54, 103, 0.5)' }}
               >
-                <ChartBarIcon className="w-5 h-5" />
+                <BarChart3 className="w-5 h-5" />
               </div>
             </div>
           </div>
@@ -268,7 +268,7 @@ export default function ServiceLineMappingPage() {
                 className="rounded-full p-2"
                 style={{ backgroundColor: 'rgba(21, 128, 61, 0.5)' }}
               >
-                <CheckCircleIcon className="w-5 h-5" />
+                <CheckCircle className="w-5 h-5" />
               </div>
             </div>
           </div>
@@ -286,7 +286,7 @@ export default function ServiceLineMappingPage() {
                 className="rounded-full p-2"
                 style={{ backgroundColor: 'rgba(202, 138, 4, 0.5)' }}
               >
-                <XCircleIcon className="w-5 h-5" />
+                <XCircle className="w-5 h-5" />
               </div>
             </div>
           </div>
@@ -317,7 +317,7 @@ export default function ServiceLineMappingPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Search */}
             <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
               <input
                 type="text"
                 placeholder="Search external service lines..."

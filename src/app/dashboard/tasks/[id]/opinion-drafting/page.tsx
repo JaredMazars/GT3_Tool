@@ -4,17 +4,17 @@ import { useState, useEffect } from 'react';
 import { useTask } from '@/hooks/tasks/useTaskData';
 import { OpinionDraft } from '@/types';
 import {
-  PlusIcon,
+  Plus,
   ChatBubbleLeftRightIcon,
-  DocumentTextIcon,
+  FileText,
   RectangleStackIcon,
-  EyeIcon,
-  ClockIcon,
-  PencilIcon,
-  TrashIcon,
-  XMarkIcon,
-  CheckIcon,
-} from '@heroicons/react/24/outline';
+  Eye,
+  Clock,
+  Pencil,
+  Trash2,
+  X,
+  Check,
+} from 'lucide-react';
 import ChatInterface from '@/components/tools/tax-opinion/components/ChatInterface';
 import DocumentManager from '@/components/tools/tax-opinion/components/DocumentManager';
 import SectionEditor from '@/components/tools/tax-opinion/components/SectionEditor';
@@ -178,9 +178,9 @@ export default function OpinionDraftingPage({ params }: OpinionDraftingPageProps
 
   const tabs = [
     { id: 'chat' as TabType, label: 'AI Assistant', icon: ChatBubbleLeftRightIcon },
-    { id: 'documents' as TabType, label: 'Documents', icon: DocumentTextIcon },
+    { id: 'documents' as TabType, label: 'Documents', icon: FileText },
     { id: 'sections' as TabType, label: 'Sections', icon: RectangleStackIcon },
-    { id: 'preview' as TabType, label: 'Preview', icon: EyeIcon },
+    { id: 'preview' as TabType, label: 'Preview', icon: Eye },
   ];
 
   if (taskLoading || isLoading) {
@@ -206,7 +206,7 @@ export default function OpinionDraftingPage({ params }: OpinionDraftingPageProps
           className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-lg transition-colors shadow-corporate"
           style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
         >
-          <PlusIcon className="w-5 h-5" />
+          <Plus className="w-5 h-5" />
           New Opinion
         </button>
       </div>
@@ -268,7 +268,7 @@ export default function OpinionDraftingPage({ params }: OpinionDraftingPageProps
                             className="p-1 text-green-600 hover:text-green-700"
                             title="Save"
                           >
-                            <CheckIcon className="w-4 h-4" />
+                            <Check className="w-4 h-4" />
                           </button>
                           <button
                             onClick={(e) => {
@@ -278,7 +278,7 @@ export default function OpinionDraftingPage({ params }: OpinionDraftingPageProps
                             className="p-1 text-red-600 hover:text-red-700"
                             title="Cancel"
                           >
-                            <XMarkIcon className="w-4 h-4" />
+                            <X className="w-4 h-4" />
                           </button>
                         </div>
                       ) : (
@@ -293,14 +293,14 @@ export default function OpinionDraftingPage({ params }: OpinionDraftingPageProps
                                 className="p-1 text-forvis-gray-400 hover:text-forvis-blue-600"
                                 title="Rename"
                               >
-                                <PencilIcon className="w-4 h-4" />
+                                <Pencil className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={(e) => handleDeleteClick(draft, e)}
                                 className="p-1 text-forvis-gray-400 hover:text-red-600"
                                 title="Delete"
                               >
-                                <TrashIcon className="w-4 h-4" />
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
                           </div>
@@ -316,7 +316,7 @@ export default function OpinionDraftingPage({ params }: OpinionDraftingPageProps
                     </div>
                     {editingDraftId !== draft.id && (
                       <div className="flex items-center gap-2 text-xs text-forvis-gray-600">
-                        <ClockIcon className="w-4 h-4" />
+                        <Clock className="w-4 h-4" />
                         <span>v{draft.version}</span>
                         <span>•</span>
                         <span>{new Date(draft.updatedAt).toLocaleDateString()}</span>
@@ -382,7 +382,7 @@ export default function OpinionDraftingPage({ params }: OpinionDraftingPageProps
           ) : (
             <div className="bg-white rounded-lg shadow-corporate border-2 h-full flex items-center justify-center" style={{ borderColor: '#2E5AAC' }}>
               <div className="text-center">
-                <DocumentTextIcon className="w-16 h-16 mx-auto text-forvis-gray-400 mb-4" />
+                <FileText className="w-16 h-16 mx-auto text-forvis-gray-400 mb-4" />
                 <h3 className="text-lg font-semibold text-forvis-gray-900 mb-2">
                   No Opinion Selected
                 </h3>

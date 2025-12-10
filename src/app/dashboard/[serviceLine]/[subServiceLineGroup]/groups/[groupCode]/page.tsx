@@ -4,16 +4,16 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { 
-  ChevronRightIcon,
-  BuildingOfficeIcon,
-  MagnifyingGlassIcon,
-  ClockIcon,
-  DocumentTextIcon,
-  ChartBarIcon,
-  UserGroupIcon,
-  PresentationChartLineIcon,
-  FolderIcon,
-} from '@heroicons/react/24/outline';
+  ChevronRight,
+  Building2,
+  Search,
+  Clock,
+  FileText,
+  BarChart3,
+  Users,
+  Presentation,
+  Folder,
+} from 'lucide-react';
 import { formatDate } from '@/lib/utils/taskUtils';
 import { formatServiceLineName, isValidServiceLine, isSharedService } from '@/lib/utils/serviceLineUtils';
 import { ServiceLine } from '@/types';
@@ -225,28 +225,28 @@ export default function GroupDetailPage() {
           <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-colors">
             Home
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}`} 
             className="hover:text-forvis-gray-900 transition-colors"
           >
             {formatServiceLineName(serviceLine)}
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}`} 
             className="hover:text-forvis-gray-900 transition-colors"
           >
             {subServiceLineGroupDescription}
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}`} 
             className="hover:text-forvis-gray-900 transition-colors"
           >
             Groups
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <span className="text-forvis-gray-900 font-medium">{clientsData?.groupDesc || tasksData?.groupDesc || ''}</span>
         </nav>
 
@@ -319,7 +319,7 @@ export default function GroupDetailPage() {
                         : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
                     }`}
                   >
-                    <BuildingOfficeIcon className="h-5 w-5" />
+                    <Building2 className="h-5 w-5" />
                     <span>Clients</span>
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                       activeMainTab === 'clients'
@@ -337,7 +337,7 @@ export default function GroupDetailPage() {
                         : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
                     }`}
                   >
-                    <FolderIcon className="h-5 w-5" />
+                    <Folder className="h-5 w-5" />
                     <span>Tasks</span>
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                       activeMainTab === 'tasks'
@@ -381,7 +381,7 @@ export default function GroupDetailPage() {
               {/* Search Bar */}
               <div className="px-4 pt-4 flex-shrink-0">
                 <div className="relative">
-                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
                   <input
                     type="text"
                     placeholder={activeMainTab === 'clients' 
@@ -425,7 +425,7 @@ export default function GroupDetailPage() {
                     </div>
                   ) : clients.length === 0 ? (
                     <div className="text-center py-8">
-                      <BuildingOfficeIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
+                      <Building2 className="mx-auto h-12 w-12 text-forvis-gray-400" />
                       <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">
                         {searchTerm ? 'No clients found' : 'No clients in this group'}
                       </h3>
@@ -522,7 +522,7 @@ export default function GroupDetailPage() {
                     </div>
                   ) : tasks.length === 0 ? (
                     <div className="text-center py-8">
-                      <FolderIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
+                      <Folder className="mx-auto h-12 w-12 text-forvis-gray-400" />
                       <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">
                         {searchTerm ? 'No projects found' : 'No projects available'}
                       </h3>
@@ -583,7 +583,7 @@ export default function GroupDetailPage() {
               {/* Documents Card */}
               <div className="card opacity-60">
                 <div className="p-4 text-center">
-                  <DocumentTextIcon className="mx-auto h-10 w-10 text-forvis-gray-300 mb-2" />
+                  <FileText className="mx-auto h-10 w-10 text-forvis-gray-300 mb-2" />
                   <h3 className="text-sm font-semibold text-forvis-gray-900 mb-1">Documents</h3>
                   <p className="text-xs text-forvis-gray-500">Coming Soon</p>
                 </div>
@@ -592,7 +592,7 @@ export default function GroupDetailPage() {
               {/* Reports Card */}
               <div className="card opacity-60">
                 <div className="p-4 text-center">
-                  <ChartBarIcon className="mx-auto h-10 w-10 text-forvis-gray-300 mb-2" />
+                  <BarChart3 className="mx-auto h-10 w-10 text-forvis-gray-300 mb-2" />
                   <h3 className="text-sm font-semibold text-forvis-gray-900 mb-1">Reports</h3>
                   <p className="text-xs text-forvis-gray-500">Coming Soon</p>
                 </div>
@@ -605,7 +605,7 @@ export default function GroupDetailPage() {
               >
                 <div className="p-4 text-center">
                   <div className="mx-auto h-10 w-10 rounded-lg flex items-center justify-center mb-2" style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #25488A)' }}>
-                    <PresentationChartLineIcon className="h-6 w-6 text-white" />
+                    <Presentation className="h-6 w-6 text-white" />
                   </div>
                   <h3 className="text-sm font-semibold text-forvis-gray-900 mb-1">Analytics</h3>
                   <p className="text-xs text-forvis-gray-600">View profitability & recoverability</p>
@@ -615,7 +615,7 @@ export default function GroupDetailPage() {
               {/* Contacts Card */}
               <div className="card opacity-60">
                 <div className="p-4 text-center">
-                  <UserGroupIcon className="mx-auto h-10 w-10 text-forvis-gray-300 mb-2" />
+                  <Users className="mx-auto h-10 w-10 text-forvis-gray-300 mb-2" />
                   <h3 className="text-sm font-semibold text-forvis-gray-900 mb-1">Contacts</h3>
                   <p className="text-xs text-forvis-gray-500">Coming Soon</p>
                 </div>

@@ -2,7 +2,7 @@
 
 import { Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon, DocumentTextIcon, ExclamationTriangleIcon, LightBulbIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { X, FileText, AlertTriangle, Lightbulb, CheckCircle } from 'lucide-react';
 import { useCreditRating } from '@/hooks/analytics/useClientAnalytics';
 import { CreditRatingGrade } from '@/types/analytics';
 
@@ -76,7 +76,7 @@ export function RatingReportModal({ clientId, ratingId, onClose }: RatingReportM
                       onClick={onClose}
                       className="rounded-lg p-2 text-white hover:bg-white/20 transition-colors"
                     >
-                      <XMarkIcon className="h-6 w-6" />
+                      <X className="h-6 w-6" />
                     </button>
                   </div>
                 </div>
@@ -126,7 +126,7 @@ export function RatingReportModal({ clientId, ratingId, onClose }: RatingReportM
                     {rating.analysisReport.strengths.length > 0 && (
                       <div>
                         <h3 className="text-lg font-bold mb-3 flex items-center gap-2" style={{ color: '#1C3667' }}>
-                          <CheckCircleIcon className="h-6 w-6 text-green-600" />
+                          <CheckCircle className="h-6 w-6 text-green-600" />
                           Strengths
                         </h3>
                         <div className="space-y-2">
@@ -146,7 +146,7 @@ export function RatingReportModal({ clientId, ratingId, onClose }: RatingReportM
                     {rating.analysisReport.weaknesses.length > 0 && (
                       <div>
                         <h3 className="text-lg font-bold mb-3 flex items-center gap-2" style={{ color: '#1C3667' }}>
-                          <ExclamationTriangleIcon className="h-6 w-6 text-amber-600" />
+                          <AlertTriangle className="h-6 w-6 text-amber-600" />
                           Weaknesses
                         </h3>
                         <div className="space-y-2">
@@ -166,7 +166,7 @@ export function RatingReportModal({ clientId, ratingId, onClose }: RatingReportM
                     {rating.analysisReport.riskFactors.length > 0 && (
                       <div>
                         <h3 className="text-lg font-bold mb-3 flex items-center gap-2" style={{ color: '#1C3667' }}>
-                          <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
+                          <AlertTriangle className="h-6 w-6 text-red-600" />
                           Risk Factors
                         </h3>
                         <div className="space-y-3">
@@ -208,7 +208,7 @@ export function RatingReportModal({ clientId, ratingId, onClose }: RatingReportM
                     {rating.analysisReport.recommendations.length > 0 && (
                       <div>
                         <h3 className="text-lg font-bold mb-3 flex items-center gap-2" style={{ color: '#1C3667' }}>
-                          <LightBulbIcon className="h-6 w-6 text-blue-600" />
+                          <Lightbulb className="h-6 w-6 text-blue-600" />
                           Recommendations
                         </h3>
                         <div className="space-y-2">
@@ -241,7 +241,7 @@ export function RatingReportModal({ clientId, ratingId, onClose }: RatingReportM
                         <div className="space-y-2">
                           {rating.documents.map((doc) => (
                             <div key={doc.id} className="flex items-center gap-3 p-3 rounded-lg bg-forvis-gray-50 border border-forvis-gray-200">
-                              <DocumentTextIcon className="h-5 w-5 text-forvis-blue-600 flex-shrink-0" />
+                              <FileText className="h-5 w-5 text-forvis-blue-600 flex-shrink-0" />
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-forvis-gray-900 truncate">{doc.fileName}</p>
                                 <p className="text-xs text-forvis-gray-600">{doc.documentType.replace(/_/g, ' ')}</p>

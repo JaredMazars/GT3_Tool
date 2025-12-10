@@ -5,16 +5,16 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { 
-  ChevronRightIcon,
-  FolderIcon,
-  DocumentTextIcon,
-  ChartBarIcon,
-  UserGroupIcon,
-  ClockIcon,
-  PlusIcon,
-  MagnifyingGlassIcon,
-  PresentationChartLineIcon,
-} from '@heroicons/react/24/outline';
+  ChevronRight,
+  Folder,
+  FileText,
+  BarChart3,
+  Users,
+  Clock,
+  Plus,
+  Search,
+  ChartSpline,
+} from 'lucide-react';
 import { formatDate } from '@/lib/utils/taskUtils';
 import { getTaskTypeColor, formatTaskType } from '@/lib/utils/serviceLineUtils';
 import { TaskStageIndicator } from '@/components/features/tasks/TaskStageIndicator';
@@ -260,21 +260,21 @@ export default function ServiceLineClientDetailPage() {
           <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1">
             Home
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}`} 
             className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1"
           >
             {formatServiceLineName(serviceLine)}
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}`} 
             className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1"
           >
             {subServiceLineGroupDescription}
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <span className="text-forvis-gray-900 font-medium">{client.clientNameFull || client.clientCode}</span>
         </nav>
 
@@ -443,7 +443,7 @@ export default function ServiceLineClientDetailPage() {
                   onClick={() => setShowCreateModal(true)}
                   variant="gradient"
                   size="sm"
-                  icon={<PlusIcon className="h-4 w-4" />}
+                  icon={<Plus className="h-4 w-4" />}
                 >
                   New Task
                 </Button>
@@ -492,7 +492,7 @@ export default function ServiceLineClientDetailPage() {
               {/* Search Bar */}
               <div className="px-4 pt-4 flex-shrink-0">
                 <div className="relative">
-                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
                   <input
                     type="text"
                     placeholder="Search tasks by name, type, tax year, or status..."
@@ -518,7 +518,7 @@ export default function ServiceLineClientDetailPage() {
                   </div>
                 ) : filteredTasks.length === 0 ? (
                   <div className="text-center py-8">
-                    <FolderIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
+                    <Folder className="mx-auto h-12 w-12 text-forvis-gray-400" />
                     <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">
                       {searchTerm ? 'No tasks found' : activeTab === 'current' ? `No tasks in ${subServiceLineGroupDescription}` : 'No other tasks'}
                     </h3>
@@ -568,7 +568,7 @@ export default function ServiceLineClientDetailPage() {
                     className="w-12 h-12 rounded-lg flex items-center justify-center mx-auto mb-3 shadow-sm transition-transform duration-200 group-hover:scale-110"
                     style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
                   >
-                    <DocumentTextIcon className="h-6 w-6 text-white" />
+                    <FileText className="h-6 w-6 text-white" />
                   </div>
                   <h3 className="text-sm font-semibold text-forvis-gray-900 mb-1">Documents</h3>
                   <p className="text-xs text-forvis-gray-500">View & download</p>
@@ -579,7 +579,7 @@ export default function ServiceLineClientDetailPage() {
               <div className="card opacity-60">
                 <div className="p-4 text-center">
                   <div className="w-12 h-12 rounded-lg flex items-center justify-center mx-auto mb-3 bg-forvis-gray-200">
-                    <ChartBarIcon className="h-6 w-6 text-forvis-gray-400" />
+                    <BarChart3 className="h-6 w-6 text-forvis-gray-400" />
                   </div>
                   <h3 className="text-sm font-semibold text-forvis-gray-900 mb-1">Reports</h3>
                   <p className="text-xs text-forvis-gray-500">Coming Soon</p>
@@ -596,7 +596,7 @@ export default function ServiceLineClientDetailPage() {
                     className="w-12 h-12 rounded-lg flex items-center justify-center mx-auto mb-3 shadow-sm transition-transform duration-200 group-hover:scale-110"
                     style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
                   >
-                    <PresentationChartLineIcon className="h-6 w-6 text-white" />
+                    <ChartSpline className="h-6 w-6 text-white" />
                   </div>
                   <h3 className="text-sm font-semibold text-forvis-gray-900 mb-1">Analytics</h3>
                   <p className="text-xs text-forvis-gray-500">Credit ratings & analysis</p>
@@ -607,7 +607,7 @@ export default function ServiceLineClientDetailPage() {
               <div className="card opacity-60">
                 <div className="p-4 text-center">
                   <div className="w-12 h-12 rounded-lg flex items-center justify-center mx-auto mb-3 bg-forvis-gray-200">
-                    <UserGroupIcon className="h-6 w-6 text-forvis-gray-400" />
+                    <Users className="h-6 w-6 text-forvis-gray-400" />
                   </div>
                   <h3 className="text-sm font-semibold text-forvis-gray-900 mb-1">Contacts</h3>
                   <p className="text-xs text-forvis-gray-500">Coming Soon</p>

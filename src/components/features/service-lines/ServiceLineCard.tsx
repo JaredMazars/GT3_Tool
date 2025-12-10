@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 import { 
-  DocumentTextIcon,
-  ClipboardDocumentCheckIcon,
-  CalculatorIcon,
-  LightBulbIcon,
-} from '@heroicons/react/24/outline';
+  FileText,
+  ClipboardCheck,
+  Calculator,
+  Lightbulb,
+} from 'lucide-react';
 import { ServiceLine } from '@/types';
 import { ServiceLineWithStats } from '@/types/dto';
 import { DashboardCard } from '@/components/ui';
@@ -17,11 +17,11 @@ import {
   formatServiceLineName 
 } from '@/lib/utils/serviceLineUtils';
 
-const iconMap: Partial<Record<ServiceLine, typeof DocumentTextIcon>> = {
-  [ServiceLine.TAX]: DocumentTextIcon,
-  [ServiceLine.AUDIT]: ClipboardDocumentCheckIcon,
-  [ServiceLine.ACCOUNTING]: CalculatorIcon,
-  [ServiceLine.ADVISORY]: LightBulbIcon,
+const iconMap: Partial<Record<ServiceLine, typeof FileText>> = {
+  [ServiceLine.TAX]: FileText,
+  [ServiceLine.AUDIT]: ClipboardCheck,
+  [ServiceLine.ACCOUNTING]: Calculator,
+  [ServiceLine.ADVISORY]: Lightbulb,
 };
 
 interface ServiceLineCardProps {
@@ -32,7 +32,7 @@ export function ServiceLineCard({ serviceLineData }: ServiceLineCardProps) {
   const { serviceLine } = serviceLineData;
   const [isNavigating, setIsNavigating] = useState(false);
   
-  const Icon = iconMap[serviceLine as ServiceLine] || DocumentTextIcon;
+  const Icon = iconMap[serviceLine as ServiceLine] || FileText;
   const name = formatServiceLineName(serviceLine);
   const color = getServiceLineColor(serviceLine);
   const bgColor = getServiceLineBgColor(serviceLine);

@@ -1,13 +1,13 @@
 import {
-  UserPlusIcon,
+  UserPlus,
   UserMinusIcon,
-  ChatBubbleLeftIcon,
-  DocumentCheckIcon,
-  DocumentTextIcon,
-  CalculatorIcon,
-  BellIcon,
-  CheckCircleIcon,
-} from '@heroicons/react/24/outline';
+  MessageCircle,
+  DocumentCheck,
+  FileText,
+  Calculator,
+  Bell,
+  CheckCircle,
+} from 'lucide-react';
 import { NotificationType } from '@/types/notification';
 
 /**
@@ -48,25 +48,25 @@ export function formatTimeAgo(date: Date | string): string {
 export function getNotificationIcon(type: string) {
   switch (type) {
     case NotificationType.USER_ADDED:
-      return UserPlusIcon;
+      return UserPlus;
     case NotificationType.USER_REMOVED:
       return UserMinusIcon;
     case NotificationType.USER_ROLE_CHANGED:
-      return UserPlusIcon;
+      return UserPlus;
     case NotificationType.USER_MESSAGE:
-      return ChatBubbleLeftIcon;
+      return MessageCircle;
     case NotificationType.DOCUMENT_PROCESSED:
-      return DocumentCheckIcon;
+      return DocumentCheck;
     case NotificationType.OPINION_DRAFT_READY:
-      return DocumentTextIcon;
+      return FileText;
     case NotificationType.TAX_CALCULATION_COMPLETE:
-      return CalculatorIcon;
+      return Calculator;
     case NotificationType.FILING_STATUS_UPDATED:
-      return CheckCircleIcon;
+      return CheckCircle;
     case NotificationType.COMMENT_MENTION:
-      return ChatBubbleLeftIcon;
+      return MessageCircle;
     default:
-      return BellIcon;
+      return Bell;
   }
 }
 

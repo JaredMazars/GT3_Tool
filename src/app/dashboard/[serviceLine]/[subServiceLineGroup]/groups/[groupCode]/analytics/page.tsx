@@ -3,7 +3,7 @@
 import { useState, Suspense } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRightIcon, ChartBarIcon, BanknotesIcon } from '@heroicons/react/24/outline';
+import { ChevronRight, BarChart3, Banknote } from 'lucide-react';
 import { GroupHeader } from '@/components/features/clients/GroupHeader';
 import { useClientGroup } from '@/hooks/clients/useClientGroup';
 import { formatServiceLineName } from '@/lib/utils/serviceLineUtils';
@@ -69,13 +69,13 @@ function GroupAnalyticsContent() {
     {
       id: 'profitability' as TabType,
       name: 'Profitability',
-      icon: ChartBarIcon,
+      icon: BarChart3,
       description: 'View group profitability analysis',
     },
     {
       id: 'recoverability' as TabType,
       name: 'Recoverability',
-      icon: BanknotesIcon,
+      icon: Banknote,
       description: 'View recoverability information',
     },
   ];
@@ -88,35 +88,35 @@ function GroupAnalyticsContent() {
           <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-colors">
             Home
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <Link
             href={`/dashboard/${serviceLine.toLowerCase()}`}
             className="hover:text-forvis-gray-900 transition-colors"
           >
             {formatServiceLineName(serviceLine)}
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <Link
             href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}`}
             className="hover:text-forvis-gray-900 transition-colors"
           >
             {subServiceLineGroupDescription}
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <Link
             href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}`}
             className="hover:text-forvis-gray-900 transition-colors"
           >
             Groups
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <Link
             href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/groups/${encodeURIComponent(groupCode)}`}
             className="hover:text-forvis-gray-900 transition-colors"
           >
             {groupData.groupDesc || groupCode}
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <span className="text-forvis-gray-900 font-medium">Analytics</span>
         </nav>
 

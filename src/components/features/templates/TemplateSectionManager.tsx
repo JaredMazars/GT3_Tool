@@ -2,14 +2,14 @@
 
 import { useState } from 'react';
 import {
-  PlusIcon,
-  TrashIcon,
-  PencilIcon,
+  Plus,
+  Trash2,
+  Pencil,
   ArrowUpIcon,
   ArrowDownIcon,
-  CheckIcon,
-  XMarkIcon,
-} from '@heroicons/react/24/outline';
+  Check,
+  X,
+} from 'lucide-react';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 
 interface TemplateSection {
@@ -135,7 +135,7 @@ export function TemplateSectionManager({
           className="btn-primary flex items-center"
           disabled={showAddForm || editingId !== null}
         >
-          <PlusIcon className="h-5 w-5 mr-2" />
+          <Plus className="h-5 w-5 mr-2" />
           Add Section
         </button>
       </div>
@@ -219,11 +219,11 @@ export function TemplateSectionManager({
 
             <div className="flex items-center gap-3 pt-4">
               <button onClick={handleSave} className="btn-primary flex items-center">
-                <CheckIcon className="h-5 w-5 mr-2" />
+                <Check className="h-5 w-5 mr-2" />
                 Save
               </button>
               <button onClick={handleCancel} className="btn-secondary flex items-center">
-                <XMarkIcon className="h-5 w-5 mr-2" />
+                <X className="h-5 w-5 mr-2" />
                 Cancel
               </button>
             </div>
@@ -295,7 +295,7 @@ export function TemplateSectionManager({
                   className="p-2 text-forvis-blue-600 hover:bg-forvis-blue-50 rounded disabled:opacity-30"
                   title="Edit"
                 >
-                  <PencilIcon className="h-4 w-4" />
+                  <Pencil className="h-4 w-4" />
                 </button>
 
                 <button
@@ -307,7 +307,7 @@ export function TemplateSectionManager({
                   className="p-2 text-red-600 hover:bg-red-50 rounded disabled:opacity-30"
                   title="Delete"
                 >
-                  <TrashIcon className="h-4 w-4" />
+                  <Trash2 className="h-4 w-4" />
                 </button>
               </div>
             </div>

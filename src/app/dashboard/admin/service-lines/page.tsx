@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { 
-  UserPlusIcon, 
-  TrashIcon,
-  PencilIcon,
-  ShieldCheckIcon,
-  MagnifyingGlassIcon,
-} from '@heroicons/react/24/outline';
+  UserPlus, 
+  Trash2,
+  Pencil,
+  ShieldCheck,
+  Search,
+} from 'lucide-react';
 import { ServiceLine, ServiceLineRole } from '@/types';
 import { formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';
 import { 
@@ -186,7 +186,7 @@ export default function ServiceLineAdminPage() {
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center space-x-3 mb-2">
-            <ShieldCheckIcon className="h-8 w-8 text-forvis-blue-600" />
+            <ShieldCheck className="h-8 w-8 text-forvis-blue-600" />
             <h1 className="text-3xl font-bold text-forvis-gray-900">
               Service Line Access Management
             </h1>
@@ -260,7 +260,7 @@ export default function ServiceLineAdminPage() {
           <div className="flex items-center justify-between">
             <div className="flex-1 max-w-md">
               <div className="relative">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
                 <input
                   type="text"
                   placeholder="Search users..."
@@ -275,7 +275,7 @@ export default function ServiceLineAdminPage() {
               onClick={() => setShowGrantModal(true)}
               className="ml-4 inline-flex items-center px-4 py-2 bg-forvis-blue-600 text-white font-semibold rounded-lg hover:bg-forvis-blue-700 transition-colors"
             >
-              <UserPlusIcon className="h-5 w-5 mr-2" />
+              <UserPlus className="h-5 w-5 mr-2" />
               Grant Access
             </button>
           </div>
@@ -339,7 +339,7 @@ export default function ServiceLineAdminPage() {
                         onClick={() => handleRevokeAccess(user.id)}
                         className="text-red-600 hover:text-red-900"
                       >
-                        <TrashIcon className="h-5 w-5" />
+                        <Trash2 className="h-5 w-5" />
                       </button>
                     </td>
                   </tr>

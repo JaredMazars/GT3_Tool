@@ -9,12 +9,12 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { 
-  ChevronRightIcon, 
-  PlusIcon,
+  ChevronRight, 
+  Plus,
   FunnelIcon,
-  MagnifyingGlassIcon,
-  NewspaperIcon,
-} from '@heroicons/react/24/outline';
+  Search,
+  Newspaper,
+} from 'lucide-react';
 import { BulletinCard } from '@/components/features/news/BulletinCard';
 import { BulletinForm } from '@/components/features/news/BulletinForm';
 import { BulletinDetailModal } from '@/components/features/news/BulletinDetailModal';
@@ -151,14 +151,14 @@ export default function NewsPage() {
           <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-colors">
             Home
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <Link 
             href="/dashboard/business_dev" 
             className="hover:text-forvis-gray-900 transition-colors"
           >
             Business Development
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <span className="text-forvis-gray-900 font-medium">Company News</span>
         </nav>
 
@@ -178,7 +178,7 @@ export default function NewsPage() {
               <Button
                 variant="gradient"
                 onClick={() => setShowCreateModal(true)}
-                icon={<PlusIcon className="w-5 h-5" />}
+                icon={<Plus className="w-5 h-5" />}
               >
                 New Bulletin
               </Button>
@@ -198,7 +198,7 @@ export default function NewsPage() {
                     setPage(1);
                   }}
                   placeholder="Search bulletins..."
-                  icon={<MagnifyingGlassIcon className="h-5 w-5" />}
+                  icon={<Search className="h-5 w-5" />}
                 />
               </div>
 
@@ -244,7 +244,7 @@ export default function NewsPage() {
             />
           ) : !bulletinsData?.bulletins || bulletinsData.bulletins.length === 0 ? (
             <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate p-12 text-center">
-              <NewspaperIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
+              <Newspaper className="mx-auto h-12 w-12 text-forvis-gray-400" />
               <h3 className="mt-4 text-lg font-medium text-forvis-gray-900">No bulletins found</h3>
               <p className="mt-2 text-sm text-forvis-gray-600">
                 {search || categoryFilter 
@@ -257,7 +257,7 @@ export default function NewsPage() {
                 <Button
                   variant="gradient"
                   onClick={() => setShowCreateModal(true)}
-                  icon={<PlusIcon className="w-4 h-4" />}
+                  icon={<Plus className="w-4 h-4" />}
                   className="mt-6"
                 >
                   Create Bulletin

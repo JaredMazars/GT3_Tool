@@ -1,6 +1,6 @@
 'use client';
 
-import { UserGroupIcon } from '@heroicons/react/24/outline';
+import { Users } from 'lucide-react';
 import { useGroupWip } from '@/hooks/clients/useGroupWip';
 
 interface GroupHeaderProps {
@@ -27,7 +27,7 @@ export function GroupHeader({ groupCode, groupDesc, clientCount }: GroupHeaderPr
         <div className="flex items-start justify-between">
           <div className="flex items-start space-x-4 flex-1">
             <div className="w-16 h-16 rounded-lg bg-forvis-blue-100 flex items-center justify-center flex-shrink-0">
-              <UserGroupIcon className="h-8 w-8 text-forvis-blue-600" />
+              <Users className="h-8 w-8 text-forvis-blue-600" />
             </div>
             <div className="flex-1">
               <h1 className="text-3xl font-bold text-forvis-gray-900 mb-2">

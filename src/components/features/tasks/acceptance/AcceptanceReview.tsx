@@ -1,12 +1,12 @@
 'use client';
 
 import { 
-  CheckCircleIcon, 
-  ExclamationTriangleIcon,
-  ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon,
-  ChartBarIcon
-} from '@heroicons/react/24/outline';
+  CheckCircle, 
+  AlertTriangle,
+  TrendingUp,
+  TrendingDown,
+  BarChart3
+} from 'lucide-react';
 import { useQuestionnaire } from '@/hooks/acceptance/useAcceptanceQuestionnaire';
 import { QuestionSection } from '@/constants/acceptance-questions';
 
@@ -115,7 +115,7 @@ export function AcceptanceReview({ taskId, onApprove, canApprove, isApproving = 
           {riskAssessment.highRiskQuestions && riskAssessment.highRiskQuestions.length > 0 && (
             <div className="mt-4">
               <h4 className="text-sm font-semibold text-red-700 mb-2 flex items-center gap-2">
-                <ExclamationTriangleIcon className="h-4 w-4" />
+                <AlertTriangle className="h-4 w-4" />
                 High Risk Indicators ({riskAssessment.highRiskQuestions.length})
               </h4>
               <div className="space-y-2">
@@ -192,7 +192,7 @@ export function AcceptanceReview({ taskId, onApprove, canApprove, isApproving = 
                         </div>
                       )}
                     </div>
-                    {isHighRisk && <ExclamationTriangleIcon className="h-5 w-5 text-red-600 flex-shrink-0" />}
+                    {isHighRisk && <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0" />}
                   </div>
                 </div>
               );
@@ -258,7 +258,7 @@ export function AcceptanceReview({ taskId, onApprove, canApprove, isApproving = 
               </>
             ) : (
               <>
-                <CheckCircleIcon className="h-5 w-5" />
+                <CheckCircle className="h-5 w-5" />
                 Approve Client Acceptance
               </>
             )}
@@ -270,7 +270,7 @@ export function AcceptanceReview({ taskId, onApprove, canApprove, isApproving = 
       {response.reviewedAt && !hideReviewedMessage && (
         <div className="p-4 bg-green-50 border-2 border-green-200 rounded-lg">
           <div className="flex items-center gap-2">
-            <CheckCircleIcon className="h-5 w-5 text-green-600" />
+            <CheckCircle className="h-5 w-5 text-green-600" />
             <div>
               <p className="text-sm font-semibold text-green-900">Reviewed and Approved</p>
               <p className="text-xs text-green-700 mt-1">

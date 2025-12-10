@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { CheckIcon } from '@heroicons/react/24/outline';
+import { Check } from 'lucide-react';
 import { useNotifications, useMarkAllAsRead } from '@/hooks/notifications/useNotifications';
 import { NotificationItem } from './NotificationItem';
 import { ROUTES } from '@/constants/routes';
@@ -29,7 +29,7 @@ export function NotificationDropdown({ onClose }: NotificationDropdownProps) {
             disabled={markAllAsRead.isPending}
             className="text-xs text-forvis-blue-600 hover:text-forvis-blue-800 font-medium disabled:opacity-50"
           >
-            <CheckIcon className="h-4 w-4 inline mr-1" />
+            <Check className="h-4 w-4 inline mr-1" />
             Mark all read
           </button>
         )}

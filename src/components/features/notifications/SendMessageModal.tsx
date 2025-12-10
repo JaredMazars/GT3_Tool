@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { XMarkIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
+import { X, Send } from 'lucide-react';
 import { useSendMessage } from '@/hooks/notifications/useNotifications';
 import { SendMessageData } from '@/types/notification';
 import { AlertModal } from '@/components/shared/AlertModal';
@@ -169,7 +169,7 @@ export function SendMessageModal({
               onClick={onClose}
               className="bg-white rounded-md text-gray-400 hover:text-gray-500"
             >
-              <XMarkIcon className="h-6 w-6" />
+              <X className="h-6 w-6" />
             </button>
           </div>
 
@@ -314,7 +314,7 @@ export function SendMessageModal({
                       disabled={sendMessage.isPending}
                       className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <PaperAirplaneIcon className="h-5 w-5 mr-2" />
+                      <Send className="h-5 w-5 mr-2" />
                       {sendMessage.isPending ? 'Sending...' : 'Send Message'}
                     </button>
                     <button

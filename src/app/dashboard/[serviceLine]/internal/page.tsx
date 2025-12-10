@@ -5,11 +5,11 @@ import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { 
-  MagnifyingGlassIcon,
-  FolderIcon,
-  ChevronRightIcon,
-  PlusIcon,
-} from '@heroicons/react/24/outline';
+  Search,
+  Folder,
+  ChevronRight,
+  Plus,
+} from 'lucide-react';
 import { isValidServiceLine, formatServiceLineName, formatTaskType } from '@/lib/utils/serviceLineUtils';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { ServiceLine } from '@/types';
@@ -99,14 +99,14 @@ export default function InternalTasksPage() {
           <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-colors">
             Home
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}`} 
             className="hover:text-forvis-gray-900 transition-colors"
           >
             {formatServiceLineName(serviceLine)}
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <span className="text-forvis-gray-900 font-medium">Internal Tasks</span>
         </nav>
 
@@ -129,7 +129,7 @@ export default function InternalTasksPage() {
               onClick={() => setShowCreateModal(true)}
               className="inline-flex items-center px-4 py-2 bg-forvis-blue-600 text-white rounded-lg hover:bg-forvis-blue-700 transition-colors"
             >
-              <PlusIcon className="h-5 w-5 mr-2" />
+              <Plus className="h-5 w-5 mr-2" />
               New Task
             </button>
           </div>
@@ -147,7 +147,7 @@ export default function InternalTasksPage() {
         {/* Search and Filter Bar */}
         <div className="mb-6 flex flex-wrap gap-4 items-center">
           <div className="relative flex-1 max-w-md">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
             <input
               type="text"
               placeholder="Search by name, description, or type..."
@@ -195,7 +195,7 @@ export default function InternalTasksPage() {
         {/* Projects List */}
         {filteredProjects.length === 0 ? (
           <div className="card text-center py-12">
-            <FolderIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
+            <Folder className="mx-auto h-12 w-12 text-forvis-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No internal tasks</h3>
             <p className="mt-1 text-sm text-forvis-gray-600">
               {searchTerm 
@@ -207,7 +207,7 @@ export default function InternalTasksPage() {
                 onClick={() => setShowCreateModal(true)}
                 className="inline-flex items-center px-4 py-2 bg-forvis-blue-600 text-white rounded-lg hover:bg-forvis-blue-700 transition-colors"
               >
-                <PlusIcon className="h-5 w-5 mr-2" />
+                <Plus className="h-5 w-5 mr-2" />
                 Create Internal Task
               </button>
             </div>
@@ -245,7 +245,7 @@ export default function InternalTasksPage() {
                         <td className="px-6 py-4">
                           <div className="flex items-center space-x-3">
                             <div className="w-8 h-8 rounded-lg bg-forvis-blue-100 flex items-center justify-center flex-shrink-0">
-                              <FolderIcon className="h-4 w-4 text-forvis-blue-600" />
+                              <Folder className="h-4 w-4 text-forvis-blue-600" />
                             </div>
                             <div>
                               <div className="text-sm font-medium text-forvis-gray-900">

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import { X } from 'lucide-react';
 import { ServiceLine } from '@/types';
 import { ClientSelector } from '../../features/clients/ClientSelector';
 import { UserSelector } from '../../features/users/UserSelector';
@@ -323,7 +323,7 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
               onClick={handleClose}
               className="text-white hover:text-gray-200 transition-colors"
             >
-              <XMarkIcon className="h-6 w-6" />
+              <X className="h-6 w-6" />
             </button>
           </div>
           

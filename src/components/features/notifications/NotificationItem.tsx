@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { TrashIcon } from '@heroicons/react/24/outline';
+import { Trash2 } from 'lucide-react';
 import { InAppNotificationWithUser } from '@/types/notification';
 import { useMarkAsRead, useDeleteNotification } from '@/hooks/notifications/useNotifications';
 import { 
@@ -112,7 +112,7 @@ export function NotificationItem({
           className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 rounded"
           title="Delete notification"
         >
-          <TrashIcon className="h-4 w-4 text-red-600" />
+          <Trash2 className="h-4 w-4 text-red-600" />
         </button>
       </div>
     </div>
