@@ -4,12 +4,12 @@ import {
   X,
   AlertTriangle,
   Calendar,
-  UserIcon,
-  ArrowTopRightOnSquareIcon,
+  User,
+  ExternalLink,
   Clock,
   FileDown,
+  MapPin,
 } from 'lucide-react';
-import { MapPin } from 'lucide-react';
 import { NewsBulletin, BulletinCategory } from '@/types';
 import { formatServiceLineName } from '@/lib/utils/serviceLineUtils';
 import { Button } from '@/components/ui';
@@ -228,7 +228,7 @@ export function BulletinDetailModal({ bulletin, onClose }: BulletinDetailModalPr
               {/* Contact Person */}
               {bulletin.contactPerson && (
                 <span className="inline-flex items-center gap-1.5">
-                  <UserIcon className="h-4 w-4 text-forvis-gray-400" />
+                  <User className="h-4 w-4 text-forvis-gray-400" />
                   <span className="font-medium">Contact:</span>
                   {bulletin.contactPerson}
                 </span>
@@ -246,7 +246,7 @@ export function BulletinDetailModal({ bulletin, onClose }: BulletinDetailModalPr
                 >
                   <Button
                     variant="gradient"
-                    icon={<ArrowTopRightOnSquareIcon className="h-4 w-4" />}
+                    icon={<ExternalLink className="h-4 w-4" />}
                   >
                     {bulletin.callToActionText || 'Learn More'}
                   </Button>

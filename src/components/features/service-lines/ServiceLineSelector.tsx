@@ -233,7 +233,7 @@ export function ServiceLineSelector() {
                     </h3>
                   </div>
 
-                  <ArrowRightIcon className="h-4 w-4 text-forvis-blue-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200 flex-shrink-0" />
+                  <ArrowRight className="h-4 w-4 text-forvis-blue-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200 flex-shrink-0" />
                 </div>
 
                 {/* Description */}

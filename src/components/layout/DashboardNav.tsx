@@ -127,6 +127,13 @@ export default function DashboardNav() {
       description: 'Map external to master service lines',
     });
   }
+  if (hasServiceLineMappingAccess) {
+    adminMenuItems.push({
+      label: 'Service Line Master',
+      href: '/dashboard/admin/service-line-master',
+      description: 'Manage master service line definitions',
+    });
+  }
   if (hasTemplatesAccess) {
     adminMenuItems.push({
       label: 'Template Management',
@@ -151,7 +158,11 @@ export default function DashboardNav() {
       ]
     : [];
 
-  const navItems: NavItem[] = [...baseNavItems, ...linksNavItems, ...serviceLineNavItems, ...adminNavItems];
+  // Left side nav items (Home and service line items)
+  const leftNavItems: NavItem[] = [...baseNavItems, ...serviceLineNavItems];
+  
+  // Right side nav items (Links and Admin)
+  const rightNavItems: NavItem[] = [...linksNavItems, ...adminNavItems];
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -193,7 +204,7 @@ export default function DashboardNav() {
               {formatServiceLineName(currentServiceLine)}
             </div>
           )}
-          {navItems.map((item) => {
+          {leftNavItems.map((item) => {
             const isActive = item.href === pathname;
             
             if (item.href) {
@@ -305,8 +316,122 @@ export default function DashboardNav() {
           })}
           </div>
           
-          {/* Notification Bell */}
-          <NotificationBell />
+          {/* Right side items */}
+          <div className="flex items-center space-x-1">
+            {rightNavItems.map((item) => {
+              const isActive = item.href === pathname;
+              
+              if (item.href) {
+                return (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    className="flex items-center px-4 py-3 text-sm font-semibold transition-all text-white"
+                    style={{ 
+                      color: 'white',
+                      backgroundColor: isActive ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+                      borderBottom: isActive ? '2px solid rgba(255, 255, 255, 0.5)' : '2px solid transparent'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }
+                    }}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              }
+
+              return (
+                <div key={item.label} className="relative">
+                  <button
+                    onClick={() => toggleMenu(item.label)}
+                    className="flex items-center px-4 py-3 text-sm font-semibold transition-all text-white"
+                    style={{ 
+                      color: 'white',
+                      backgroundColor: openMenu === item.label ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+                      borderBottom: openMenu === item.label ? '2px solid rgba(255, 255, 255, 0.5)' : '2px solid transparent'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (openMenu !== item.label) {
+                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (openMenu !== item.label) {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }
+                    }}
+                  >
+                    {item.label}
+                    <ChevronDown
+                      className={`ml-1 h-4 w-4 transition-transform ${
+                        openMenu === item.label ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+
+                  {openMenu === item.label && item.items && (
+                    <div className="absolute right-0 mt-0 w-72 bg-white rounded-lg shadow-corporate-lg border border-forvis-gray-200 py-2 z-50">
+                      {item.items.map((subItem) => {
+                        // Check if this is an external link
+                        const isExternal = subItem.href.startsWith('http://') || subItem.href.startsWith('https://');
+                        
+                        if (isExternal) {
+                          return (
+                            <a
+                              key={subItem.href}
+                              href={subItem.href}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={() => setOpenMenu(null)}
+                              className="block px-4 py-3 hover:bg-forvis-blue-50 transition-colors group"
+                            >
+                              <div className="font-medium text-forvis-gray-900 group-hover:text-forvis-blue-700">
+                                {subItem.label}
+                              </div>
+                              {subItem.description && (
+                                <div className="text-xs text-forvis-gray-700 mt-0.5">
+                                  {subItem.description}
+                                </div>
+                              )}
+                            </a>
+                          );
+                        }
+
+                        return (
+                          <Link
+                            key={subItem.href}
+                            href={subItem.href}
+                            onClick={() => setOpenMenu(null)}
+                            className="block px-4 py-3 hover:bg-forvis-blue-50 transition-colors group"
+                          >
+                            <div className="font-medium text-forvis-gray-900 group-hover:text-forvis-blue-700">
+                              {subItem.label}
+                            </div>
+                            {subItem.description && (
+                              <div className="text-xs text-forvis-gray-700 mt-0.5">
+                                {subItem.description}
+                              </div>
+                            )}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            
+            {/* Notification Bell */}
+            <NotificationBell />
+          </div>
         </div>
       </div>
     </nav>

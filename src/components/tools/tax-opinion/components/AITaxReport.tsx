@@ -7,7 +7,7 @@ import {
   CheckCircle, 
   Info,
   Sparkles,
-  ArrowPathIcon
+  RefreshCw
 } from 'lucide-react';
 
 interface AITaxReportProps {
@@ -292,7 +292,7 @@ export default function AITaxReport({ taskId, onReportLoaded }: AITaxReportProps
                 className="px-6 py-3 text-white rounded-lg font-semibold shadow-corporate hover:shadow-corporate-md transition-all duration-200 flex items-center gap-2 justify-center"
                 style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
               >
-                <ArrowPathIcon className="w-5 h-5" />
+                <RefreshCw className="w-5 h-5" />
                 Try Again
               </button>
               <button
@@ -328,7 +328,7 @@ export default function AITaxReport({ taskId, onReportLoaded }: AITaxReportProps
           disabled={loading}
           className="px-4 py-2 bg-white border border-forvis-gray-300 text-forvis-gray-700 rounded-lg hover:bg-forvis-gray-50 transition-colors font-medium flex items-center gap-2 shadow-corporate hover:shadow-corporate-md"
         >
-          <ArrowPathIcon className="w-4 h-4" />
+          <RefreshCw className="w-4 h-4" />
           Regenerate Report
         </button>
       </div>

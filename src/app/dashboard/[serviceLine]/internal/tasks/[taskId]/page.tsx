@@ -6,20 +6,20 @@ import { useRouter, useSearchParams, useParams } from 'next/navigation';
 import { TaskType, Task, TaskTeam, TaskRole } from '@/types';
 import { 
   ChevronRight,
-  TableCellsIcon,
+  Table,
   FileText,
   Calculator,
   Settings,
   Pencil,
-  ArchiveBoxIcon,
+  Archive,
   Download,
-  ClipboardDocumentListIcon,
-  UsersIcon,
-  BookOpenIcon,
+  ClipboardList,
+  Users,
+  BookOpen,
   Mail,
   Folder,
-  ClipboardDocumentCheck,
-  DocumentCheck
+  ClipboardCheck,
+  FileCheck
 } from 'lucide-react';
 import BalanceSheetPage from '@/app/dashboard/tasks/[id]/balance-sheet/page';
 import IncomeStatementPage from '@/app/dashboard/tasks/[id]/income-statement/page';
@@ -285,7 +285,7 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
               onClick={() => setShowDeleteModal(true)}
               className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 border border-red-300 rounded-lg hover:bg-red-100 transition-colors"
             >
-              <ArchiveBoxIcon className="h-3.5 w-3.5 mr-1.5" />
+              <Archive className="h-3.5 w-3.5 mr-1.5" />
               Archive
             </button>
           </div>
@@ -617,7 +617,7 @@ export default function InternalTaskPage() {
                   <Tab
                     onClick={() => setActiveTab('mapping')}
                     selected={activeTab === 'mapping'}
-                    icon={TableCellsIcon}
+                    icon={Table}
                   >
                     Mapping
                   </Tab>
@@ -645,7 +645,7 @@ export default function InternalTaskPage() {
                   <Tab
                     onClick={() => setActiveTab('reporting')}
                     selected={activeTab === 'reporting'}
-                    icon={ClipboardDocumentListIcon}
+                    icon={ClipboardList}
                   >
                     Reporting
                   </Tab>
@@ -657,7 +657,7 @@ export default function InternalTaskPage() {
                 <Tab
                   onClick={() => setActiveTab('tax-opinion')}
                   selected={activeTab === 'tax-opinion'}
-                  icon={BookOpenIcon}
+                  icon={BookOpen}
                 >
                   Tax Opinion
                 </Tab>
@@ -683,14 +683,14 @@ export default function InternalTaskPage() {
                   <Tab
                     onClick={() => setActiveTab('compliance-checklist')}
                     selected={activeTab === 'compliance-checklist'}
-                    icon={ClipboardDocumentCheck}
+                    icon={ClipboardCheck}
                   >
                     Compliance Checklist
                   </Tab>
                   <Tab
                     onClick={() => setActiveTab('filing-status')}
                     selected={activeTab === 'filing-status'}
-                    icon={DocumentCheck}
+                    icon={FileCheck}
                   >
                     Filing Status
                   </Tab>
@@ -701,7 +701,7 @@ export default function InternalTaskPage() {
               <Tab
                 onClick={() => setActiveTab('team')}
                 selected={activeTab === 'team'}
-                icon={UsersIcon}
+                icon={Users}
               >
                 Team
               </Tab>

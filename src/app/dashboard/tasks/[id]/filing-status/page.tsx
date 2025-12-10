@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useTask } from '@/hooks/tasks/useTaskData';
 import { FilingStatus } from '@/types';
-import { Plus, DocumentCheck, Calendar, CheckCircle } from 'lucide-react';
+import { Plus, FileCheck, Calendar, CheckCircle } from 'lucide-react';
 
 interface FilingStatusPageProps {
   params: { id: string };
@@ -121,7 +121,7 @@ export default function FilingStatusPage({ params }: FilingStatusPageProps) {
               <p className="text-xs font-medium text-forvis-gray-600">Total Filings</p>
               <p className="text-2xl font-bold text-forvis-blue-600 mt-1">{filings.length}</p>
             </div>
-            <DocumentCheck className="w-8 h-8 text-forvis-blue-600" />
+            <FileCheck className="w-8 h-8 text-forvis-blue-600" />
           </div>
         </div>
         <div className="bg-white rounded-lg p-4 shadow-corporate border-2 border-yellow-300">
@@ -236,7 +236,7 @@ export default function FilingStatusPage({ params }: FilingStatusPageProps) {
 
       {filings.length === 0 && (
         <div className="bg-white rounded-lg shadow-corporate border-2 p-12 text-center" style={{ borderColor: '#2E5AAC' }}>
-          <DocumentCheck className="w-16 h-16 mx-auto text-forvis-gray-400 mb-4" />
+          <FileCheck className="w-16 h-16 mx-auto text-forvis-gray-400 mb-4" />
           <h3 className="text-lg font-semibold text-forvis-gray-900 mb-2">No Filings Yet</h3>
           <p className="text-sm text-forvis-gray-600">
             Add filings to track your submission status.

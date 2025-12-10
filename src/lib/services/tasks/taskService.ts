@@ -487,10 +487,11 @@ export async function createTask(data: {
 
       return await prisma.task.create({
         data: {
-          GSClientID,
+          GSClientID: GSClientID ?? undefined,
           GSTaskID: crypto.randomUUID(),
           TaskCode: data.TaskCode,
           TaskDesc: data.name,
+          taskYear: new Date().getFullYear(),
           TaskPartner: '',
           TaskPartnerName: '',
           TaskManager: '',

@@ -186,9 +186,17 @@ export default function DocumentManager({ taskId, draftId }: DocumentManagerProp
 
   const getStatusIcon = (doc: OpinionDocument) => {
     if (doc.vectorized) {
-      return <CheckCircle className="w-5 h-5 text-green-600" title="Indexed and ready for AI search" />;
+      return (
+        <span title="Indexed and ready for AI search">
+          <CheckCircle className="w-5 h-5 text-green-600" />
+        </span>
+      );
     } else {
-      return <Clock className="w-5 h-5 text-yellow-600 animate-spin" title="Processing embeddings in background" />;
+      return (
+        <span title="Processing embeddings in background">
+          <Clock className="w-5 h-5 text-yellow-600 animate-spin" />
+        </span>
+      );
     }
   };
 

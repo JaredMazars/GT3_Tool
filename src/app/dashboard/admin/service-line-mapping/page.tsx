@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import {
-  ArrowPathIcon,
+  RefreshCw,
   Search,
   CheckCircle,
   XCircle,
   BarChart3,
-  LinkIcon,
+  Link,
 } from 'lucide-react';
 import { AlertModal } from '@/components/shared/AlertModal';
 
@@ -225,7 +225,7 @@ export default function ServiceLineMappingPage() {
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center space-x-3 mb-2">
-            <LinkIcon className="h-8 w-8 text-forvis-blue-600" />
+            <Link className="h-8 w-8 text-forvis-blue-600" />
             <h1 className="text-3xl font-bold text-forvis-gray-900">
               Service Line Mapping
             </h1>
@@ -306,7 +306,7 @@ export default function ServiceLineMappingPage() {
                 className="rounded-full p-2"
                 style={{ backgroundColor: 'rgba(28, 54, 103, 0.5)' }}
               >
-                <ArrowPathIcon className="w-5 h-5" />
+                <RefreshCw className="w-5 h-5" />
               </div>
             </div>
           </div>

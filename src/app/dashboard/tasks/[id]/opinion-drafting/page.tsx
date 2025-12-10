@@ -5,9 +5,9 @@ import { useTask } from '@/hooks/tasks/useTaskData';
 import { OpinionDraft } from '@/types';
 import {
   Plus,
-  ChatBubbleLeftRightIcon,
+  MessageSquare,
   FileText,
-  RectangleStackIcon,
+  Layers,
   Eye,
   Clock,
   Pencil,
@@ -177,9 +177,9 @@ export default function OpinionDraftingPage({ params }: OpinionDraftingPageProps
   };
 
   const tabs = [
-    { id: 'chat' as TabType, label: 'AI Assistant', icon: ChatBubbleLeftRightIcon },
+    { id: 'chat' as TabType, label: 'AI Assistant', icon: MessageSquare },
     { id: 'documents' as TabType, label: 'Documents', icon: FileText },
-    { id: 'sections' as TabType, label: 'Sections', icon: RectangleStackIcon },
+    { id: 'sections' as TabType, label: 'Sections', icon: Layers },
     { id: 'preview' as TabType, label: 'Preview', icon: Eye },
   ];
 

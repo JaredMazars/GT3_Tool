@@ -121,6 +121,7 @@ export async function convertOpportunityToClient(
         GSClientID: client.GSClientID, // External GUID for client relationship
         TaskCode: taskCode,
         TaskDesc: finalTaskName,
+        taskYear: new Date().getFullYear(),
         TaskPartner: 'TBD',
         TaskPartnerName: 'TBD',
         TaskManager: 'TBD',

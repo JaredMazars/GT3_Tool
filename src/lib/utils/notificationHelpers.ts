@@ -1,8 +1,8 @@
 import {
   UserPlus,
-  UserMinusIcon,
+  UserMinus,
   MessageCircle,
-  DocumentCheck,
+  FileCheck,
   FileText,
   Calculator,
   Bell,
@@ -50,13 +50,13 @@ export function getNotificationIcon(type: string) {
     case NotificationType.USER_ADDED:
       return UserPlus;
     case NotificationType.USER_REMOVED:
-      return UserMinusIcon;
+      return UserMinus;
     case NotificationType.USER_ROLE_CHANGED:
       return UserPlus;
     case NotificationType.USER_MESSAGE:
       return MessageCircle;
     case NotificationType.DOCUMENT_PROCESSED:
-      return DocumentCheck;
+      return FileCheck;
     case NotificationType.OPINION_DRAFT_READY:
       return FileText;
     case NotificationType.TAX_CALCULATION_COMPLETE:

@@ -177,18 +177,39 @@ export async function PUT(
 
     // Create in-app notification (non-blocking)
     try {
-      const task = await prisma.task.findUnique({
+      const taskForNotification = await prisma.task.findUnique({
         where: { id: taskId },
-        select: { TaskDesc: true },
+        select: { 
+          TaskDesc: true,
+          ServLineCode: true,
+          GSClientID: true,
+          Client: {
+            select: {
+              id: true,
+            },
+          },
+        },
       });
 
-      if (task) {
+      if (taskForNotification) {
+        // Get service line mapping for the notification URL
+        const serviceLineMapping = await prisma.serviceLineExternal.findFirst({
+          where: { ServLineCode: taskForNotification.ServLineCode },
+          select: { 
+            SubServlineGroupCode: true,
+            masterCode: true,
+          },
+        });
+
         const notification = createUserRoleChangedNotification(
-          task.TaskDesc,
+          taskForNotification.TaskDesc,
           taskId,
           user.name || user.email,
           oldRole,
-          validatedData.role
+          validatedData.role,
+          serviceLineMapping?.masterCode,
+          serviceLineMapping?.SubServlineGroupCode,
+          taskForNotification.Client?.id
         );
 
         await notificationService.createNotification(

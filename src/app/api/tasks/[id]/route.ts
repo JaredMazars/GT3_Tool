@@ -154,6 +154,18 @@ export async function GET(
       );
     }
 
+    // Get service line mapping for URL construction
+    let serviceLineMapping = null;
+    if (task.ServLineCode) {
+      serviceLineMapping = await prisma.serviceLineExternal.findFirst({
+        where: { ServLineCode: task.ServLineCode },
+        select: {
+          SubServlineGroupCode: true,
+          masterCode: true,
+        },
+      });
+    }
+
     // Transform data to match expected format
     const { Client, TaskAcceptance, TaskEngagementLetter, TaskTeam, ...taskData } = task;
     
@@ -196,6 +208,9 @@ export async function GET(
       },
       currentUserRole, // Include current user's role for permission checks
       currentUserId: user.id, // Include current user ID for easy access
+      // Include service line mapping for URL construction
+      subServiceLineGroupCode: serviceLineMapping?.SubServlineGroupCode || null,
+      masterServiceLine: serviceLineMapping?.masterCode || null,
       ...(includeTeam && { users: TaskTeam }),
     };
 

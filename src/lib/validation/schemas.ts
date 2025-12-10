@@ -900,4 +900,36 @@ export const UpdateExternalLinkSchema = z.object({
 export type CreateExternalLinkInput = z.infer<typeof CreateExternalLinkSchema>;
 export type UpdateExternalLinkInput = z.infer<typeof UpdateExternalLinkSchema>;
 
+/**
+ * Service Line Master validation schemas
+ */
+export const CreateServiceLineMasterSchema = z.object({
+  code: z.string().min(1, 'Code is required').max(50, 'Code must be 50 characters or less').transform(val => val.toUpperCase().trim()),
+  name: z.string().min(1, 'Name is required').max(200, 'Name must be 200 characters or less').transform(val => val.trim()),
+  description: z.string().max(500, 'Description must be 500 characters or less').nullable().optional(),
+  active: z.boolean().default(true),
+  sortOrder: z.number().int().default(0),
+}).strict();
+
+export const UpdateServiceLineMasterSchema = z.object({
+  name: z.string().min(1).max(200).transform(val => val.trim()).optional(),
+  description: z.string().max(500).nullable().optional(),
+  active: z.boolean().optional(),
+  sortOrder: z.number().int().optional(),
+}).strict();
+
+export const ReorderServiceLineMasterSchema = z.object({
+  items: z.array(
+    z.object({
+      code: z.string().min(1),
+      sortOrder: z.number().int(),
+    })
+  ).min(1, 'At least one item is required'),
+}).strict();
+
+// Inferred types
+export type CreateServiceLineMasterInput = z.infer<typeof CreateServiceLineMasterSchema>;
+export type UpdateServiceLineMasterInput = z.infer<typeof UpdateServiceLineMasterSchema>;
+export type ReorderServiceLineMasterInput = z.infer<typeof ReorderServiceLineMasterSchema>;
+
 

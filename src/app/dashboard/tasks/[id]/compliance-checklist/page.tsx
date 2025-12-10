@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useTask } from '@/hooks/tasks/useTaskData';
 import { ComplianceChecklistItem } from '@/types';
-import { Plus, CheckCircle, Clock, ExclamationCircleIcon } from 'lucide-react';
+import { Plus, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 
 interface ComplianceChecklistPageProps {
   params: { id: string };

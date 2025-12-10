@@ -166,7 +166,7 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
     return years;
   };
 
-  const handleFieldChange = (field: string, value: string | number) => {
+  const handleFieldChange = (field: string, value: string | number | null) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -253,7 +253,7 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
         estimatedDisbursements: formData.estimatedDisbursements ? parseFloat(formData.estimatedDisbursements as string) : undefined,
         estimatedAdjustments: formData.estimatedAdjustments ? parseFloat(formData.estimatedAdjustments as string) : undefined,
         // Convert dates
-        TaskDateOpen: new Date(formData.TaskDateOpen),
+        TaskDateOpen: formData.TaskDateOpen ? new Date(formData.TaskDateOpen) : new Date(),
         TaskDateTerminate: formData.TaskDateTerminate ? new Date(formData.TaskDateTerminate) : undefined,
       };
 

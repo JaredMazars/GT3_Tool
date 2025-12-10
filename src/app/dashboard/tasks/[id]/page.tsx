@@ -22,14 +22,16 @@ export default function ProjectRedirect() {
 
   useEffect(() => {
     if (project && !isLoading) {
-      const serviceLine = project.ServLineCode?.toLowerCase() || 'tax';
+      // Get service line mapping data if available
+      const subServiceLineGroup = (project as any).subServiceLineGroupCode || 'default';
+      const masterServiceLine = ((project as any).masterServiceLine || project.ServLineCode)?.toLowerCase() || 'tax';
       
       if (project.GSClientID && project.client) {
-        // Redirect to client project URL
-        router.replace(`/dashboard/${serviceLine}/clients/${project.GSClientID}/tasks/${taskId}`);
+        // Redirect to client project URL with full path including sub-service line group
+        router.replace(`/dashboard/${masterServiceLine}/${subServiceLineGroup}/clients/${project.client.id}/tasks/${taskId}`);
       } else {
         // Redirect to internal project URL
-        router.replace(`/dashboard/${serviceLine}/internal/tasks/${taskId}`);
+        router.replace(`/dashboard/${masterServiceLine}/internal/tasks/${taskId}`);
       }
     }
   }, [project, isLoading, taskId, router]);

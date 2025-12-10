@@ -1,5 +1,6 @@
 import { ROUTES } from '@/constants/routes';
 import { formatRole } from '@/lib/utils/taskUtils';
+import { buildTaskUrl } from '@/lib/utils/taskUrlBuilder';
 
 /**
  * Notification template result
@@ -12,17 +13,27 @@ interface NotificationTemplate {
 
 /**
  * Create user added to project notification
+ * @param taskName - Task name to display
+ * @param taskId - Internal task ID
+ * @param addedByName - Name of user who added this user
+ * @param role - Task role assigned
+ * @param serviceLine - Service line code (e.g., 'TAX', 'AUDIT')
+ * @param subServiceLineGroup - Sub-service line group code
+ * @param clientId - Internal client ID
  */
 export function createUserAddedNotification(
   taskName: string,
   taskId: number,
   addedByName: string,
-  role: string
+  role: string,
+  serviceLine?: string,
+  subServiceLineGroup?: string,
+  clientId?: number
 ): NotificationTemplate {
   return {
     title: `Added to ${taskName}`,
     message: `${addedByName} added you to the task as ${formatRole(role)}.`,
-    actionUrl: `${ROUTES.DASHBOARD.PROJECTS}/${taskId}`,
+    actionUrl: buildTaskUrl({ taskId, serviceLine, subServiceLineGroup, clientId }),
   };
 }
 
@@ -43,77 +54,123 @@ export function createUserRemovedNotification(
 
 /**
  * Create user role changed notification
+ * @param taskName - Task name to display
+ * @param taskId - Internal task ID
+ * @param changedByName - Name of user who changed the role
+ * @param oldRole - Previous role
+ * @param newRole - New role
+ * @param serviceLine - Service line code (e.g., 'TAX', 'AUDIT')
+ * @param subServiceLineGroup - Sub-service line group code
+ * @param clientId - Internal client ID
  */
 export function createUserRoleChangedNotification(
   taskName: string,
   taskId: number,
   changedByName: string,
   oldRole: string,
-  newRole: string
+  newRole: string,
+  serviceLine?: string,
+  subServiceLineGroup?: string,
+  clientId?: number
 ): NotificationTemplate {
   return {
     title: `Role Changed in ${taskName}`,
     message: `${changedByName} changed your role from ${formatRole(oldRole)} to ${formatRole(newRole)}.`,
-    actionUrl: `${ROUTES.DASHBOARD.PROJECTS}/${taskId}`,
+    actionUrl: buildTaskUrl({ taskId, serviceLine, subServiceLineGroup, clientId }),
   };
 }
 
 /**
  * Create document processed notification
+ * @param taskName - Task name to display
+ * @param taskId - Internal task ID
+ * @param documentName - Name of processed document
+ * @param serviceLine - Service line code (e.g., 'TAX', 'AUDIT')
+ * @param subServiceLineGroup - Sub-service line group code
+ * @param clientId - Internal client ID
  */
 export function createDocumentProcessedNotification(
   taskName: string,
   taskId: number,
-  documentName: string
+  documentName: string,
+  serviceLine?: string,
+  subServiceLineGroup?: string,
+  clientId?: number
 ): NotificationTemplate {
   return {
     title: `Document Processed in ${taskName}`,
     message: `"${documentName}" has been successfully processed.`,
-    actionUrl: `${ROUTES.DASHBOARD.PROJECTS}/${taskId}/document-management`,
+    actionUrl: buildTaskUrl({ taskId, serviceLine, subServiceLineGroup, clientId, tab: 'document-management' }),
   };
 }
 
 /**
  * Create opinion draft ready notification
+ * @param taskName - Task name to display
+ * @param taskId - Internal task ID
+ * @param draftId - Draft ID
+ * @param serviceLine - Service line code (e.g., 'TAX', 'AUDIT')
+ * @param subServiceLineGroup - Sub-service line group code
+ * @param clientId - Internal client ID
  */
 export function createOpinionDraftReadyNotification(
   taskName: string,
   taskId: number,
-  draftId: number
+  draftId: number,
+  serviceLine?: string,
+  subServiceLineGroup?: string,
+  clientId?: number
 ): NotificationTemplate {
   return {
     title: `Opinion Draft Ready in ${taskName}`,
     message: `A new opinion draft is ready for review.`,
-    actionUrl: `${ROUTES.DASHBOARD.PROJECTS}/${taskId}/opinion-drafting`,
+    actionUrl: buildTaskUrl({ taskId, serviceLine, subServiceLineGroup, clientId, tab: 'tax-opinion' }),
   };
 }
 
 /**
  * Create tax calculation complete notification
+ * @param taskName - Task name to display
+ * @param taskId - Internal task ID
+ * @param serviceLine - Service line code (e.g., 'TAX', 'AUDIT')
+ * @param subServiceLineGroup - Sub-service line group code
+ * @param clientId - Internal client ID
  */
 export function createTaxCalculationCompleteNotification(
   taskName: string,
-  taskId: number
+  taskId: number,
+  serviceLine?: string,
+  subServiceLineGroup?: string,
+  clientId?: number
 ): NotificationTemplate {
   return {
     title: `Tax Calculation Complete in ${taskName}`,
     message: `Tax calculations have been completed and are ready for review.`,
-    actionUrl: `${ROUTES.DASHBOARD.PROJECTS}/${taskId}/tax-calculation`,
+    actionUrl: buildTaskUrl({ taskId, serviceLine, subServiceLineGroup, clientId, tab: 'tax-calculation' }),
   };
 }
 
 /**
  * Create filing status updated notification
+ * @param taskName - Task name to display
+ * @param taskId - Internal task ID
+ * @param newStatus - New filing status
+ * @param serviceLine - Service line code (e.g., 'TAX', 'AUDIT')
+ * @param subServiceLineGroup - Sub-service line group code
+ * @param clientId - Internal client ID
  */
 export function createFilingStatusUpdatedNotification(
   taskName: string,
   taskId: number,
-  newStatus: string
+  newStatus: string,
+  serviceLine?: string,
+  subServiceLineGroup?: string,
+  clientId?: number
 ): NotificationTemplate {
   return {
     title: `Filing Status Updated in ${taskName}`,
     message: `Filing status has been updated to: ${newStatus}`,
-    actionUrl: `${ROUTES.DASHBOARD.PROJECTS}/${taskId}/filing-status`,
+    actionUrl: buildTaskUrl({ taskId, serviceLine, subServiceLineGroup, clientId, tab: 'filing-status' }),
   };
 }
 

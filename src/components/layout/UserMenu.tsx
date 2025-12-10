@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { UserCircle, ArrowRightOnRectangleIcon } from 'lucide-react';
+import { UserCircle, LogOut } from 'lucide-react';
 import type { SessionUser } from '@/lib/services/auth/auth';
 
 interface UserMenuProps {
@@ -102,7 +102,7 @@ export default function UserMenu({ user }: UserMenuProps) {
               </>
             ) : (
               <>
-                <ArrowRightOnRectangleIcon className="h-4 w-4 mr-3" />
+                <LogOut className="h-4 w-4 mr-3" />
                 Sign out
               </>
             )}

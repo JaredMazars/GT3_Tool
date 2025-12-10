@@ -47,6 +47,11 @@ const PROJECT_TYPE_DESCRIPTIONS: Record<TaskType, string> = {
   [TaskType.HR_RECRUITMENT]: 'Recruitment and hiring',
   [TaskType.HR_TRAINING]: 'Training and development',
   [TaskType.HR_POLICY]: 'Policy development and implementation',
+  // Country
+  [TaskType.COUNTRY_REPORT]: 'Country-specific reporting',
+  [TaskType.COUNTRY_ANALYSIS]: 'Country analysis and research',
+  [TaskType.COUNTRY_DASHBOARD]: 'Country dashboard and metrics',
+  [TaskType.COUNTRY_METRICS]: 'Country performance metrics',
 };
 
 export function TaskTypeSelector({ value, onChange, serviceLine }: TaskTypeSelectorProps) {

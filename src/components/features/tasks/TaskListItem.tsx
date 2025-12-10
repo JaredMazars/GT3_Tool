@@ -115,13 +115,13 @@ export function TaskListItem({
         
         {/* Service Line Hierarchy - Right Aligned */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          {task.masterServiceLine && (
+          {(masterServiceLine || task.masterServiceLineDesc) && (
             <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
               isAccessible
                 ? 'bg-forvis-blue-50 text-forvis-blue-700 border border-forvis-blue-200'
                 : 'bg-forvis-gray-50 text-forvis-gray-500 border border-forvis-gray-200'
             }`}>
-              {task.masterServiceLine}
+              {masterServiceLine || task.masterServiceLineDesc}
             </span>
           )}
           {task.subServiceLineGroupCode && (

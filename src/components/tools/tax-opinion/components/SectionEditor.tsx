@@ -543,10 +543,14 @@ export default function SectionEditor({ taskId, draftId }: SectionEditorProps) {
                           {section.title}
                         </h4>
                         {section.aiGenerated && (
-                          <Sparkles className="w-4 h-4 text-blue-500" title="AI Generated" />
+                          <span title="AI Generated">
+                            <Sparkles className="w-4 h-4 text-blue-500" />
+                          </span>
                         )}
                         {section.reviewed && (
-                          <CheckCircle className="w-4 h-4 text-green-500" title="Reviewed" />
+                          <span title="Reviewed">
+                            <CheckCircle className="w-4 h-4 text-green-500" />
+                          </span>
                         )}
                       </div>
                       <p className="text-sm text-gray-500">{section.sectionType}</p>

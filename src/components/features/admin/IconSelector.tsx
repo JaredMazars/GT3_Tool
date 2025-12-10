@@ -2,20 +2,20 @@
 
 import { useState } from 'react';
 import {
-  LinkIcon,
-  GlobeAltIcon,
-  ServerIcon,
+  Link,
+  Globe,
+  Server,
   Cloud,
-  CommandLineIcon,
+  Terminal,
   FileText,
   BarChart3,
-  CogIcon,
-  CubeIcon,
-  CircleStackIcon,
+  Settings,
+  Box,
+  Database,
   Folder,
-  InboxIcon,
-  PaperClipIcon,
-  RocketLaunchIcon,
+  Inbox,
+  Paperclip,
+  Rocket,
   ShieldCheck,
   Sparkles,
 } from 'lucide-react';
@@ -28,20 +28,20 @@ interface IconOption {
 }
 
 const ICON_OPTIONS: IconOption[] = [
-  { name: 'LinkIcon', component: LinkIcon, label: 'Link' },
-  { name: 'GlobeAltIcon', component: GlobeAltIcon, label: 'Globe' },
-  { name: 'ServerIcon', component: ServerIcon, label: 'Server' },
+  { name: 'Link', component: Link, label: 'Link' },
+  { name: 'Globe', component: Globe, label: 'Globe' },
+  { name: 'Server', component: Server, label: 'Server' },
   { name: 'Cloud', component: Cloud, label: 'Cloud' },
-  { name: 'CommandLineIcon', component: CommandLineIcon, label: 'Command Line' },
+  { name: 'Terminal', component: Terminal, label: 'Command Line' },
   { name: 'FileText', component: FileText, label: 'Document' },
   { name: 'BarChart3', component: BarChart3, label: 'Chart' },
-  { name: 'CogIcon', component: CogIcon, label: 'Settings' },
-  { name: 'CubeIcon', component: CubeIcon, label: 'Cube' },
-  { name: 'CircleStackIcon', component: CircleStackIcon, label: 'Database' },
+  { name: 'Settings', component: Settings, label: 'Settings' },
+  { name: 'Box', component: Box, label: 'Cube' },
+  { name: 'Database', component: Database, label: 'Database' },
   { name: 'Folder', component: Folder, label: 'Folder' },
-  { name: 'InboxIcon', component: InboxIcon, label: 'Inbox' },
-  { name: 'PaperClipIcon', component: PaperClipIcon, label: 'Attachment' },
-  { name: 'RocketLaunchIcon', component: RocketLaunchIcon, label: 'Rocket' },
+  { name: 'Inbox', component: Inbox, label: 'Inbox' },
+  { name: 'Paperclip', component: Paperclip, label: 'Attachment' },
+  { name: 'Rocket', component: Rocket, label: 'Rocket' },
   { name: 'ShieldCheck', component: ShieldCheck, label: 'Shield' },
   { name: 'Sparkles', component: Sparkles, label: 'Sparkles' },
 ];
@@ -157,7 +157,7 @@ export function IconSelector({ value, onChange, label, error }: IconSelectorProp
  */
 export function getIconComponent(iconName: string) {
   const icon = ICON_OPTIONS.find((i) => i.name === iconName);
-  return icon?.component || LinkIcon;
+  return icon?.component || Link;
 }
 
 

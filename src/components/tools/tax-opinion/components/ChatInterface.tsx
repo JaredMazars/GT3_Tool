@@ -5,13 +5,13 @@ import {
   Send,
   Sparkles,
   FileText,
-  ArrowPathIcon,
+  RefreshCw,
   Search,
-  ScaleIcon,
-  BookOpenIcon,
-  GlobeAltIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
+  Scale,
+  BookOpen,
+  Globe,
+  ChevronDown,
+  ChevronUp,
   Plus,
 } from 'lucide-react';
 import { OpinionChatMessage } from '@/types';
@@ -189,7 +189,7 @@ export default function ChatInterface({ taskId, draftId }: ChatInterfaceProps) {
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                 title="Refresh"
               >
-                <ArrowPathIcon className="w-5 h-5 text-gray-600" />
+                <RefreshCw className="w-5 h-5 text-gray-600" />
               </button>
               <button
                 onClick={() => setShowResearch(!showResearch)}
@@ -371,7 +371,7 @@ export default function ChatInterface({ taskId, draftId }: ChatInterfaceProps) {
                     : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
                 }`}
               >
-                <ScaleIcon className="w-5 h-5" />
+                <Scale className="w-5 h-5" />
                 <span>Legal Precedents</span>
               </button>
               <button
@@ -385,7 +385,7 @@ export default function ChatInterface({ taskId, draftId }: ChatInterfaceProps) {
                     : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
                 }`}
               >
-                <BookOpenIcon className="w-5 h-5" />
+                <BookOpen className="w-5 h-5" />
                 <span>Tax Law</span>
               </button>
               <button
@@ -399,7 +399,7 @@ export default function ChatInterface({ taskId, draftId }: ChatInterfaceProps) {
                     : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
                 }`}
               >
-                <GlobeAltIcon className="w-5 h-5" />
+                <Globe className="w-5 h-5" />
                 <span>Web Search</span>
               </button>
             </div>
@@ -468,9 +468,9 @@ export default function ChatInterface({ taskId, draftId }: ChatInterfaceProps) {
                           <p className="text-xs text-gray-600 mt-1">{result.source}</p>
                         </div>
                         {expandedResult === idx ? (
-                          <ChevronUpIcon className="w-4 h-4 text-gray-500 flex-shrink-0 mt-1" />
+                          <ChevronUp className="w-4 h-4 text-gray-500 flex-shrink-0 mt-1" />
                         ) : (
-                          <ChevronDownIcon className="w-4 h-4 text-gray-500 flex-shrink-0 mt-1" />
+                          <ChevronDown className="w-4 h-4 text-gray-500 flex-shrink-0 mt-1" />
                         )}
                       </div>
                     </button>

@@ -3,12 +3,11 @@
 import { 
   AlertTriangle,
   Calendar,
-  UserIcon,
-  ArrowTopRightOnSquareIcon,
-  MapPin as MapPinOutlineIcon,
+  User,
+  ExternalLink,
+  MapPin,
   FileDown,
 } from 'lucide-react';
-import { MapPin } from 'lucide-react';
 import { NewsBulletin, BulletinCategory } from '@/types';
 import { Badge, BadgeVariant } from '@/components/ui';
 import { formatServiceLineName } from '@/lib/utils/serviceLineUtils';
@@ -135,7 +134,7 @@ export function BulletinCard({
                 className="p-1.5 rounded-md text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-1"
                 title={bulletin.isPinned ? 'Unpin' : 'Pin to top'}
               >
-                <MapPinOutlineIcon className="h-4 w-4" />
+                <MapPin className="h-4 w-4" />
               </button>
               <button
                 onClick={() => onEdit?.(bulletin)}
@@ -221,7 +220,7 @@ export function BulletinCard({
             {/* Contact Person */}
             {bulletin.contactPerson && (
               <span className="inline-flex items-center gap-1">
-                <UserIcon className="h-3.5 w-3.5" />
+                <User className="h-3.5 w-3.5" />
                 {bulletin.contactPerson}
               </span>
             )}
@@ -244,7 +243,7 @@ export function BulletinCard({
               style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
             >
               {bulletin.callToActionText || 'Learn More'}
-              <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
+              <ExternalLink className="h-3.5 w-3.5" />
             </a>
           )}
         </div>

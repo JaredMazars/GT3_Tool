@@ -6,22 +6,22 @@ import { useRouter, useSearchParams, useParams } from 'next/navigation';
 import { TaskType, Task } from '@/types';
 import { 
   ChevronRight,
-  TableCellsIcon,
+  Table,
   FileText,
   Calculator,
   Settings,
   Pencil,
-  ArchiveBoxIcon,
+  Archive,
   Download,
-  ClipboardDocumentListIcon,
-  UsersIcon,
-  BookOpenIcon,
+  ClipboardList,
+  Users,
+  BookOpen,
   Mail,
   Folder,
-  ClipboardDocumentCheck,
-  DocumentCheck,
+  ClipboardCheck,
+  FileCheck,
   CheckCircle,
-  LockClosedIcon,
+  Lock,
   AlertTriangle,
   Plus
 } from 'lucide-react';
@@ -73,7 +73,7 @@ function Tab({ selected, children, onClick, icon: Icon, disabled = false, toolti
     >
       <Icon className="h-4 w-4" />
       <span>{children}</span>
-      {disabled && <LockClosedIcon className="h-3 w-3 ml-1" />}
+      {disabled && <Lock className="h-3 w-3 ml-1" />}
     </button>
   );
 
@@ -278,7 +278,7 @@ function SettingsTab({ task, onUpdate }: SettingsTabProps) {
               variant="danger"
               size="sm"
               onClick={() => setShowDeleteModal(true)}
-              icon={<ArchiveBoxIcon className="h-3.5 w-3.5" />}
+              icon={<Archive className="h-3.5 w-3.5" />}
             >
               Archive
             </Button>
@@ -329,6 +329,9 @@ export default function ClientProjectPage() {
   const GSClientID = params.id as string;
   const taskId = params.taskId as string;
   
+  const [hasAccess, setHasAccess] = useState<boolean | null>(null);
+  const [accessError, setAccessError] = useState<string>('');
+  
   // Lazy load sub-service line groups to get the description (non-critical for breadcrumb)
   const { data: subGroups } = useSubServiceLineGroups({
     serviceLine: serviceLine || '',
@@ -341,6 +344,57 @@ export default function ClientProjectPage() {
   const subServiceLineGroupDescription = currentSubGroup?.description || subServiceLineGroup;
   
   const { data: task, isLoading, refetch: fetchTask } = useTask(taskId);
+  
+  // Verify user has access to this task and service line
+  useEffect(() => {
+    async function validateAccess() {
+      if (!taskId || !serviceLine || !subServiceLineGroup) {
+        setHasAccess(false);
+        setAccessError('Invalid request parameters');
+        return;
+      }
+
+      try {
+        // Check if user has access to the sub-service line group
+        const response = await fetch('/api/service-lines');
+        if (!response.ok) {
+          setHasAccess(false);
+          setAccessError('Unable to verify service line access');
+          return;
+        }
+
+        const result = await response.json();
+        const serviceLines = result.data;
+
+        // Check if user has access to this specific sub-service-line group
+        const hasSubGroupAccess = serviceLines.some((sl: any) => 
+          sl.subGroups?.some((sg: any) => sg.code === subServiceLineGroup)
+        );
+
+        if (!hasSubGroupAccess) {
+          setHasAccess(false);
+          setAccessError('You do not have access to this service line');
+          return;
+        }
+
+        // Check if user has access to the task
+        const taskResponse = await fetch(`/api/tasks/${taskId}/users/me`);
+        if (!taskResponse.ok) {
+          setHasAccess(false);
+          setAccessError('You do not have access to this task');
+          return;
+        }
+
+        setHasAccess(true);
+      } catch (error) {
+        console.error('Error validating access:', error);
+        setHasAccess(false);
+        setAccessError('Error verifying access');
+      }
+    }
+
+    validateAccess();
+  }, [taskId, serviceLine, subServiceLineGroup]);
   
   // Set default active tab based on task type and workflow status
   const getDefaultTab = () => {
@@ -546,6 +600,40 @@ export default function ClientProjectPage() {
         return null;
     }
   };
+
+  // Show loading while checking access
+  if (hasAccess === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-forvis-gray-50">
+        <div className="text-center">
+          <LoadingSpinner size="lg" className="mx-auto mb-4" />
+          <p className="text-sm text-forvis-gray-600">Verifying access...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show access denied if user doesn't have permission
+  if (hasAccess === false) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-forvis-gray-50">
+        <div className="text-center max-w-md px-4">
+          <AlertTriangle className="mx-auto h-12 w-12 text-yellow-500 mb-4" />
+          <h1 className="text-2xl font-bold text-forvis-gray-900 mb-2">Access Denied</h1>
+          <p className="text-forvis-gray-600 mb-4">
+            {accessError || 'You do not have access to this task or service line.'}
+          </p>
+          <Button
+            variant="primary"
+            size="md"
+            onClick={() => router.push('/dashboard')}
+          >
+            Return to Dashboard
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -758,47 +846,6 @@ export default function ClientProjectPage() {
                     <span>{task.users.length} team members</span>
                   )}
                 </div>
-
-                {/* WIP Balances */}
-                {task?.wip && (
-                  <div className="mt-3 pt-3 border-t border-forvis-gray-200">
-                    <div className="flex items-center space-x-4">
-                      <div className="flex-1">
-                        <p className="text-xs font-medium text-forvis-gray-600">WIP Balance</p>
-                        <p className="text-sm font-semibold text-forvis-gray-900">
-                          {new Intl.NumberFormat('en-ZA', {
-                            style: 'currency',
-                            currency: 'ZAR',
-                            minimumFractionDigits: 0,
-                            maximumFractionDigits: 0,
-                          }).format(task.wip.balWIP)}
-                        </p>
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-xs font-medium text-forvis-gray-600">Time</p>
-                        <p className="text-sm font-semibold text-forvis-gray-900">
-                          {new Intl.NumberFormat('en-ZA', {
-                            style: 'currency',
-                            currency: 'ZAR',
-                            minimumFractionDigits: 0,
-                            maximumFractionDigits: 0,
-                          }).format(task.wip.balTime)}
-                        </p>
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-xs font-medium text-forvis-gray-600">Disb</p>
-                        <p className="text-sm font-semibold text-forvis-gray-900">
-                          {new Intl.NumberFormat('en-ZA', {
-                            style: 'currency',
-                            currency: 'ZAR',
-                            minimumFractionDigits: 0,
-                            maximumFractionDigits: 0,
-                          }).format(task.wip.balDisb)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -834,7 +881,7 @@ export default function ClientProjectPage() {
                   <Tab
                     onClick={() => setActiveTab('mapping')}
                     selected={activeTab === 'mapping'}
-                    icon={TableCellsIcon}
+                    icon={Table}
                     disabled={!canAccessWorkTabs(task)}
                     tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
                   >
@@ -870,7 +917,7 @@ export default function ClientProjectPage() {
                   <Tab
                     onClick={() => setActiveTab('reporting')}
                     selected={activeTab === 'reporting'}
-                    icon={ClipboardDocumentListIcon}
+                    icon={ClipboardList}
                     disabled={!canAccessWorkTabs(task)}
                     tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
                   >
@@ -884,7 +931,7 @@ export default function ClientProjectPage() {
                 <Tab
                   onClick={() => setActiveTab('tax-opinion')}
                   selected={activeTab === 'tax-opinion'}
-                  icon={BookOpenIcon}
+                  icon={BookOpen}
                   disabled={!canAccessWorkTabs(task)}
                   tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
                 >
@@ -916,7 +963,7 @@ export default function ClientProjectPage() {
                   <Tab
                     onClick={() => setActiveTab('compliance-checklist')}
                     selected={activeTab === 'compliance-checklist'}
-                    icon={ClipboardDocumentCheck}
+                    icon={ClipboardCheck}
                     disabled={!canAccessWorkTabs(task)}
                     tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
                   >
@@ -925,7 +972,7 @@ export default function ClientProjectPage() {
                   <Tab
                     onClick={() => setActiveTab('filing-status')}
                     selected={activeTab === 'filing-status'}
-                    icon={DocumentCheck}
+                    icon={FileCheck}
                     disabled={!canAccessWorkTabs(task)}
                     tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
                   >
@@ -938,7 +985,7 @@ export default function ClientProjectPage() {
               <Tab
                 onClick={() => setActiveTab('team')}
                 selected={activeTab === 'team'}
-                icon={UsersIcon}
+                icon={Users}
               >
                 Team
               </Tab>
