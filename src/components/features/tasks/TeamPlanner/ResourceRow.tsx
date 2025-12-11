@@ -14,15 +14,12 @@ interface ResourceRowProps {
   dateRange: DateRange;
   onEditAllocation: (allocation: AllocationData) => void;
   onUpdateDates?: (allocationId: number, startDate: Date, endDate: Date) => void;
-  onTransferAllocation?: (allocationId: number, targetUserId: string, startDate: Date, endDate: Date) => void;
   onRemoveMember?: (userId: string) => void;
   canEdit: boolean;
   onSelectionStart: (userId: string, columnIndex: number) => void;
   onSelectionMove: (columnIndex: number) => void;
   dateSelection: DateSelection | null;
   isSelecting: boolean;
-  isHoveredTarget?: boolean;
-  onRowHover?: (sourceUserId: string, offset: number | null) => void;
   rowMetadata: RowMetadata;
 }
 
@@ -33,15 +30,12 @@ export function ResourceRow({
   dateRange,
   onEditAllocation,
   onUpdateDates,
-  onTransferAllocation,
   onRemoveMember,
   canEdit,
   onSelectionStart,
   onSelectionMove,
   dateSelection,
   isSelecting,
-  isHoveredTarget = false,
-  onRowHover,
   rowMetadata
 }: ResourceRowProps) {
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
@@ -81,11 +75,7 @@ export function ResourceRow({
 
   return (
     <div 
-      className={`flex border-b transition-colors group ${
-        isHoveredTarget 
-          ? 'bg-forvis-blue-100 border-forvis-blue-400 border-2' 
-          : 'border-forvis-gray-200 hover:bg-forvis-blue-50'
-      }`}
+      className="flex border-b transition-colors group border-forvis-gray-200 hover:bg-forvis-blue-50"
       style={{ height: `${rowHeight}px` }}
     >
       {/* User Info Sidebar */}
@@ -214,10 +204,8 @@ export function ResourceRow({
                 columnWidth={columnWidth}
                 onEdit={onEditAllocation}
                 onUpdateDates={onUpdateDates}
-                onTransfer={onTransferAllocation}
                 isDraggable={canEdit}
                 currentUserId={resource.userId}
-                onRowHover={(offset) => onRowHover?.(resource.userId, offset)}
                 lane={allocation.lane ?? 0}
                 rowMetadata={rowMetadata}
               />

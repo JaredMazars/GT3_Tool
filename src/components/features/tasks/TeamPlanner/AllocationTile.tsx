@@ -14,10 +14,8 @@ interface AllocationTileProps {
   columnWidth: number;
   onEdit: (allocation: AllocationData) => void;
   onUpdateDates?: (allocationId: number, startDate: Date, endDate: Date) => void;
-  onTransfer?: (allocationId: number, targetUserId: string, startDate: Date, endDate: Date) => void;
   isDraggable?: boolean;
   currentUserId?: string;
-  onRowHover?: (rowOffset: number | null) => void;
   lane: number;
   rowMetadata: RowMetadata;
 }
@@ -29,10 +27,8 @@ export function AllocationTile({
   columnWidth,
   onEdit,
   onUpdateDates,
-  onTransfer,
   isDraggable = true,
   currentUserId,
-  onRowHover,
   lane,
   rowMetadata
 }: AllocationTileProps): JSX.Element {
@@ -41,12 +37,10 @@ export function AllocationTile({
   const [isResizing, setIsResizing] = useState<'left' | 'right' | null>(null);
   const [previewDates, setPreviewDates] = useState<{ start: Date; end: Date } | null>(null);
   const [currentDelta, setCurrentDelta] = useState(0);
-  const [dragDeltaY, setDragDeltaY] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [expectedDates, setExpectedDates] = useState<{ start: Date; end: Date } | null>(null);
   const [hasDragged, setHasDragged] = useState(false);
   const dragStartX = useRef(0);
-  const dragStartY = useRef(0);
   const originalLeft = useRef(0);
   const originalWidth = useRef(0);
   const lastAppliedDelta = useRef(0);
@@ -123,14 +117,12 @@ export function AllocationTile({
     e.preventDefault();
     
     dragStartX.current = e.clientX;
-    dragStartY.current = e.clientY;
     // Capture current VISUAL position as snapshot (use livePosition, not position)
     // This ensures we capture what the user actually sees, not the server position
     originalLeft.current = livePosition.left;
     originalWidth.current = livePosition.width;
     
     setCurrentDelta(0);
-    setDragDeltaY(0);
     setHasDragged(false);
     
     if (action === 'drag') {
@@ -147,57 +139,13 @@ export function AllocationTile({
     if (!isDragging && !isResizing) return;
     
     const deltaX = e.clientX - dragStartX.current;
-    const deltaY = e.clientY - dragStartY.current;
-    
-    // Track Y-axis movement for cross-lane dragging (only during drag, not resize)
-    if (isDragging) {
-      setDragDeltaY(deltaY);
-      
-      // Calculate which row we're hovering over using cumulative heights
-      // This accounts for variable row heights (rows with multiple lanes are taller)
-      const { rowIndex, cumulativeHeights } = rowMetadata;
-      
-      // Calculate absolute position from source row start
-      const sourceRowStart = rowIndex === 0 ? 0 : cumulativeHeights[rowIndex - 1];
-      const currentAbsoluteY = sourceRowStart + deltaY;
-      
-      // Find which row index we're hovering over
-      let targetRowIndex = rowIndex;
-      
-      if (currentAbsoluteY < 0) {
-        // Dragging above first row - clamp to first row
-        targetRowIndex = 0;
-      } else if (currentAbsoluteY >= cumulativeHeights[cumulativeHeights.length - 1]) {
-        // Dragging below last row - clamp to last row
-        targetRowIndex = cumulativeHeights.length - 1;
-      } else {
-        // Normal case - find the row based on cumulative heights
-        for (let i = 0; i < cumulativeHeights.length; i++) {
-          if (currentAbsoluteY < cumulativeHeights[i]) {
-            targetRowIndex = i;
-            break;
-          }
-        }
-      }
-      
-      const rowOffset = targetRowIndex - rowIndex;
-      
-      // Notify parent of row hover if handler provided
-      // Use source row height for threshold (minimum distance before hover triggers)
-      const sourceRowHeight = rowMetadata.rowHeight;
-      if (onRowHover && Math.abs(deltaY) > sourceRowHeight / 4) {
-        onRowHover(rowOffset);
-      } else if (onRowHover && Math.abs(deltaY) <= sourceRowHeight / 4) {
-        onRowHover(null);
-      }
-    }
     
     // Snap delta to day boundaries
     const snappedDelta = snapToDay(deltaX, dayPixelWidth);
     setCurrentDelta(snappedDelta);
     
-    // Mark as dragged if moved more than half a day or moved vertically
-    if (Math.abs(snappedDelta) > dayPixelWidth / 2 || Math.abs(deltaY) > 10) {
+    // Mark as dragged if moved more than half a day
+    if (Math.abs(snappedDelta) > dayPixelWidth / 2) {
       setHasDragged(true);
     }
     
@@ -238,7 +186,7 @@ export function AllocationTile({
     }
     
     setPreviewDates({ start: newStart, end: newEnd });
-  }, [isDragging, isResizing, allocation.startDate, allocation.endDate, dayPixelWidth, onRowHover]);
+  }, [isDragging, isResizing, allocation.startDate, allocation.endDate, dayPixelWidth]);
 
   // Debounce the mouse move handler for ~60fps performance
   const handleMouseMove = useMemo(
@@ -247,49 +195,8 @@ export function AllocationTile({
   );
 
   const handleMouseUp = useCallback(() => {
-    // Clear row hover indicator
-    if (onRowHover) {
-      onRowHover(null);
-    }
-    
-    // Check if we're dropping on a different row (cross-lane transfer)
-    // Use cumulative heights to calculate actual row offset (accounts for variable heights)
-    const { rowIndex, cumulativeHeights, rowHeight } = rowMetadata;
-    const sourceRowStart = rowIndex === 0 ? 0 : cumulativeHeights[rowIndex - 1];
-    const currentAbsoluteY = sourceRowStart + dragDeltaY;
-    
-    // Find target row index
-    let targetRowIndex = rowIndex;
-    
-    if (currentAbsoluteY < 0) {
-      // Dragging above first row - clamp to first row
-      targetRowIndex = 0;
-    } else if (currentAbsoluteY >= cumulativeHeights[cumulativeHeights.length - 1]) {
-      // Dragging below last row - clamp to last row
-      targetRowIndex = cumulativeHeights.length - 1;
-    } else {
-      // Normal case - find the row based on cumulative heights
-      for (let i = 0; i < cumulativeHeights.length; i++) {
-        if (currentAbsoluteY < cumulativeHeights[i]) {
-          targetRowIndex = i;
-          break;
-        }
-      }
-    }
-    
-    const rowOffset = targetRowIndex - rowIndex;
-    const isCrossLaneTransfer = isDragging && Math.abs(dragDeltaY) > rowHeight / 4 && rowOffset !== 0;
-    
-    if (previewDates && isCrossLaneTransfer && onTransfer) {
-      // Cross-lane transfer - call onTransfer which will handle the API call
-      // The parent (GanttTimeline) will determine the target user ID based on rowOffset
-      setIsSaving(true);
-      setExpectedDates(previewDates);
-      // Parent component will handle the transfer and refetch
-      // We don't update position here - wait for server data
-      onTransfer(allocation.id, '', previewDates.start, previewDates.end);
-    } else if (previewDates && onUpdateDates && !isCrossLaneTransfer) {
-      // Same-lane date update
+    // Handle date update if there are preview dates
+    if (previewDates && onUpdateDates) {
       lastAppliedDelta.current = currentDelta; // Store for isSaving state
       // Store which action was performed BEFORE clearing the states
       if (isDragging) {
@@ -307,14 +214,13 @@ export function AllocationTile({
     setIsDragging(false);
     setIsResizing(null);
     setPreviewDates(null);
-    setDragDeltaY(0);
     // Don't reset currentDelta here if saving - keep it for position calculation
     if (!previewDates) {
       setCurrentDelta(0);
     }
     
     setTimeout(() => setHasDragged(false), 100);
-  }, [previewDates, onUpdateDates, onTransfer, allocation.id, currentDelta, dragDeltaY, isDragging, isResizing, onRowHover, rowMetadata]);
+  }, [previewDates, onUpdateDates, allocation.id, currentDelta, isDragging, isResizing]);
 
   // Store handlers in refs to avoid recreating listeners on every render
   const handleMouseMoveRef = useRef(handleMouseMove);
@@ -434,10 +340,9 @@ export function AllocationTile({
   // Determine opacity based on drag state
   const tileOpacity = useMemo(() => {
     if (isSaving) return 1;
-    if (isDragging && Math.abs(dragDeltaY) > rowMetadata.rowHeight / 4) return 0.6; // Cross-lane drag
     if (isDragging || isResizing) return 0.8;
     return 1;
-  }, [isDragging, isResizing, isSaving, dragDeltaY, rowMetadata.rowHeight]);
+  }, [isDragging, isResizing, isSaving]);
   
   // Calculate tile positioning based on lane
   const LANE_HEIGHT = 36;
@@ -467,9 +372,7 @@ export function AllocationTile({
         pointerEvents: 'auto', // Allow clicks on tiles even though container has pointer-events: none
         // No transition - instant snapping for responsive feel
         transition: 'none',
-        opacity: isEditable ? tileOpacity : 0.7,
-        // Apply Y-axis transform during drag for visual feedback
-        transform: isDragging && Math.abs(dragDeltaY) > 10 ? `translateY(${dragDeltaY}px)` : 'none'
+        opacity: isEditable ? tileOpacity : 0.7
       }}
       onClick={(e) => {
         // Only open modal for current task allocations, and only if not dragged
