@@ -33,8 +33,9 @@ export function getDateRange(scale: TimeScale, referenceDate: Date = new Date())
       };
     case 'week':
       return {
-        start: startOfWeek(addWeeks(referenceDate, -2)),
-        end: endOfWeek(addWeeks(referenceDate, 12))
+        // CRITICAL: Use weekStartsOn: 1 (Monday) to match generateTimelineColumns
+        start: startOfWeek(addWeeks(referenceDate, -2), { weekStartsOn: 1 }),
+        end: endOfWeek(addWeeks(referenceDate, 12), { weekStartsOn: 1 })
       };
     case 'month':
       return {
@@ -52,29 +53,62 @@ export function generateTimelineColumns(range: DateRange, scale: TimeScale): Tim
   
   switch (scale) {
     case 'day':
-      return eachDayOfInterval(range).map(date => ({
-        date,
-        label: format(date, 'EEE d'),
-        isWeekend: isWeekend(date),
-        isToday: isToday(date)
-      }));
+      return eachDayOfInterval(range).map(date => {
+        // Normalize to start of day to match position calculations
+        const normalizedDate = startOfDay(date);
+        return {
+          date: normalizedDate,
+          label: format(normalizedDate, 'd MMM yy'), // Show day, month, and abbreviated year (e.g., "11 Dec 24")
+          isWeekend: isWeekend(normalizedDate),
+          isToday: isToday(normalizedDate)
+        };
+      });
       
     case 'week':
       return eachWeekOfInterval(range, { weekStartsOn: 1 }).map(date => {
-        const weekEnd = endOfWeek(date, { weekStartsOn: 1 });
+        // Normalize to start of day to match position calculations
+        const normalizedDate = startOfDay(date);
+        const weekEnd = endOfWeek(normalizedDate, { weekStartsOn: 1 });
+        
+        // Check if week spans different months or years
+        const sameMonth = format(normalizedDate, 'MMM') === format(weekEnd, 'MMM');
+        const sameYear = format(normalizedDate, 'yyyy') === format(weekEnd, 'yyyy');
+        
+        let label: string;
+        let yearLabel: string;
+        
+        if (!sameYear) {
+          // Different years: show date range without year, put year range below
+          label = `${format(normalizedDate, 'd MMM')} - ${format(weekEnd, 'd MMM')}`;
+          yearLabel = `${format(normalizedDate, 'yyyy')} - ${format(weekEnd, 'yyyy')}`;
+        } else if (!sameMonth) {
+          // Same year, different months
+          label = `${format(normalizedDate, 'd MMM')} - ${format(weekEnd, 'd MMM')}`;
+          yearLabel = format(normalizedDate, 'yyyy');
+        } else {
+          // Same month and year
+          label = `${format(normalizedDate, 'd')} - ${format(weekEnd, 'd MMM')}`;
+          yearLabel = format(normalizedDate, 'yyyy');
+        }
+        
         return {
-          date,
-          label: `${format(date, 'MMM d')} - ${format(weekEnd, 'd')}`,
-          isToday: isSameDay(startOfWeek(now, { weekStartsOn: 1 }), date)
+          date: normalizedDate,
+          label,
+          yearLabel,
+          isToday: isSameDay(startOfWeek(now, { weekStartsOn: 1 }), normalizedDate)
         };
       });
       
     case 'month':
-      return eachMonthOfInterval(range).map(date => ({
-        date,
-        label: format(date, 'MMM yyyy'),
-        isToday: format(now, 'yyyy-MM') === format(date, 'yyyy-MM')
-      }));
+      return eachMonthOfInterval(range).map(date => {
+        // Normalize to start of day to match position calculations
+        const normalizedDate = startOfDay(date);
+        return {
+          date: normalizedDate,
+          label: format(normalizedDate, 'MMM yyyy'),
+          isToday: format(now, 'yyyy-MM') === format(normalizedDate, 'yyyy-MM')
+        };
+      });
   }
 }
 
@@ -84,9 +118,9 @@ export function generateTimelineColumns(range: DateRange, scale: TimeScale): Tim
 export function getColumnWidth(scale: TimeScale): number {
   switch (scale) {
     case 'day':
-      return 60;
+      return 70; // Compact format: "6 Dec 25"
     case 'week':
-      return 100;
+      return 120; // Compact format with year below
     case 'month':
       return 120;
   }
@@ -99,11 +133,11 @@ export function getColumnWidth(scale: TimeScale): number {
 export function getDayPixelWidth(scale: TimeScale, columnWidth: number): number {
   switch (scale) {
     case 'day':
-      return columnWidth; // 60px per day
+      return columnWidth; // 70px per day
     case 'week':
-      return columnWidth / 7; // ~14.29px per day
+      return columnWidth / 7; // ~17.14px per day (120px / 7 days)
     case 'month':
-      return columnWidth / 30; // 4px per day (average)
+      return columnWidth / 30; // ~4px per day (average)
   }
 }
 
@@ -142,23 +176,26 @@ export function calculateTilePosition(
     return null;
   }
 
-  const start = new Date(allocation.startDate);
-  const end = new Date(allocation.endDate);
+  // Normalize dates to start of day to avoid time component issues
+  const start = startOfDay(new Date(allocation.startDate));
+  const end = startOfDay(new Date(allocation.endDate));
+  const rangeStart = startOfDay(range.start);
+  const rangeEnd = startOfDay(range.end);
   
   // Check if allocation overlaps with visible range
-  if (end < range.start || start > range.end) {
+  if (end < rangeStart || start > rangeEnd) {
     return null;
   }
 
   // Clamp dates to visible range
-  const visibleStart = start < range.start ? range.start : start;
-  const visibleEnd = end > range.end ? range.end : end;
+  const visibleStart = start < rangeStart ? rangeStart : start;
+  const visibleEnd = end > rangeEnd ? rangeEnd : end;
 
   // Get pixel width of one day for this scale
   const dayPixelWidth = getDayPixelWidth(scale, columnWidth);
   
-  // Calculate position in days from range start
-  const startDays = differenceInDays(visibleStart, range.start);
+  // Calculate position in days from range start (now using normalized dates)
+  const startDays = differenceInDays(visibleStart, rangeStart);
   const durationDays = differenceInDays(visibleEnd, visibleStart) + 1;
   
   // Convert days to pixels

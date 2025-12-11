@@ -10,6 +10,7 @@ export interface DateRange {
 export interface TimelineColumn {
   date: Date;
   label: string;
+  yearLabel?: string; // Optional year label for week view
   isWeekend?: boolean;
   isToday?: boolean;
 }

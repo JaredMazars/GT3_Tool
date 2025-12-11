@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { AllocationData } from './types';
 import { Button, Input } from '@/components/ui';
 import { X, Calendar, Clock, Percent } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, startOfDay } from 'date-fns';
 import { TaskRole } from '@/types';
 
 interface AllocationModalProps {
@@ -34,8 +34,9 @@ export function AllocationModal({ allocation, isOpen, onClose, onSave, onClear }
   useEffect(() => {
     if (allocation && isOpen) {
       setFormData({
-        startDate: allocation.startDate ? format(new Date(allocation.startDate), 'yyyy-MM-dd') : '',
-        endDate: allocation.endDate ? format(new Date(allocation.endDate), 'yyyy-MM-dd') : '',
+        // Normalize dates to start of day before formatting
+        startDate: allocation.startDate ? format(startOfDay(new Date(allocation.startDate)), 'yyyy-MM-dd') : '',
+        endDate: allocation.endDate ? format(startOfDay(new Date(allocation.endDate)), 'yyyy-MM-dd') : '',
         allocatedHours: allocation.allocatedHours?.toString() || '',
         allocatedPercentage: allocation.allocatedPercentage?.toString() || '',
         actualHours: allocation.actualHours?.toString() || '',
@@ -71,8 +72,9 @@ export function AllocationModal({ allocation, isOpen, onClose, onSave, onClear }
     try {
       await onSave({
         id: allocation.id,
-        startDate: new Date(formData.startDate),
-        endDate: new Date(formData.endDate),
+        // Normalize dates to start of day to match calendar display
+        startDate: startOfDay(new Date(formData.startDate)),
+        endDate: startOfDay(new Date(formData.endDate)),
         allocatedHours: formData.allocatedHours ? parseFloat(formData.allocatedHours) : null,
         allocatedPercentage: formData.allocatedPercentage ? parseInt(formData.allocatedPercentage) : null,
         actualHours: formData.actualHours ? parseFloat(formData.actualHours) : null,

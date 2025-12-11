@@ -64,7 +64,7 @@ export function ResourceRow({
   return (
     <div className="flex border-b border-forvis-gray-200 hover:bg-forvis-blue-50 transition-colors group">
       {/* User Info Sidebar */}
-      <div className="w-64 flex-shrink-0 px-3 py-2 bg-white border-r-2 border-forvis-gray-300 sticky left-0 z-10 group-hover:bg-forvis-blue-50">
+      <div className="w-64 flex-shrink-0 px-3 py-3 bg-white border-r-2 border-forvis-gray-300 sticky left-0 z-10 group-hover:bg-forvis-blue-50">
         <div className="flex items-center gap-2">
           <div 
             className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-corporate flex-shrink-0"
@@ -167,7 +167,7 @@ export function ResourceRow({
         </div>
 
         {/* Allocation tiles */}
-        <div className="relative h-16 z-10">
+        <div className={`relative z-10 ${scale === 'month' ? 'h-14' : 'h-16'}`}>
           {/* Show add button when no allocations */}
           {resource.allocations.length === 0 && canEdit && onCreateAllocation && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">

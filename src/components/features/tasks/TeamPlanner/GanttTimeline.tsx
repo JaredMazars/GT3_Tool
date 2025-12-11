@@ -9,6 +9,7 @@ import { getDateRange, generateTimelineColumns, calculateTotalHours, calculateTo
 import { Button, LoadingSpinner } from '@/components/ui';
 import { Calendar, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
 import { TaskRole } from '@/types';
+import { startOfDay } from 'date-fns';
 
 interface GanttTimelineProps {
   taskId: number;
@@ -43,8 +44,9 @@ export function GanttTimeline({
         taskId: member.taskId,
         taskName: 'Current Task',
         role: member.role,
-        startDate: new Date(member.startDate),
-        endDate: new Date(member.endDate),
+        // Normalize dates to start of day for consistent display
+        startDate: startOfDay(new Date(member.startDate)),
+        endDate: startOfDay(new Date(member.endDate)),
         allocatedHours: member.allocatedHours ? parseFloat(member.allocatedHours.toString()) : null,
         allocatedPercentage: member.allocatedPercentage,
         actualHours: member.actualHours ? parseFloat(member.actualHours.toString()) : null

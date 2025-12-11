@@ -17,7 +17,7 @@ export function TimelineHeader({ columns, scale }: TimelineHeaderProps) {
       {columns.map((column, index) => (
         <div
           key={index}
-          className={`flex-shrink-0 px-2 py-3 text-center border-r border-forvis-gray-200 ${
+          className={`flex-shrink-0 px-1 py-3 text-center border-r border-forvis-gray-200 ${
             column.isToday
               ? 'bg-forvis-blue-50 border-forvis-blue-400 border-r-2'
               : column.isWeekend
@@ -29,7 +29,7 @@ export function TimelineHeader({ columns, scale }: TimelineHeaderProps) {
             minWidth: `${columnWidth}px`
           }}
         >
-          <div className={`text-xs font-semibold ${
+          <div className={`text-xs font-semibold leading-tight ${
             column.isToday
               ? 'text-forvis-blue-700'
               : 'text-forvis-gray-700'
@@ -42,7 +42,16 @@ export function TimelineHeader({ columns, scale }: TimelineHeaderProps) {
                 ? 'text-forvis-blue-600'
                 : 'text-forvis-gray-500'
             }`}>
-              {format(column.date, 'd')}
+              {format(column.date, 'EEE')}
+            </div>
+          )}
+          {scale === 'week' && column.yearLabel && (
+            <div className={`text-xs mt-0.5 ${
+              column.isToday
+                ? 'text-forvis-blue-600'
+                : 'text-forvis-gray-500'
+            }`}>
+              {column.yearLabel}
             </div>
           )}
         </div>

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { AllocationData, GanttPosition, TimeScale } from './types';
 import { getRoleGradient, formatHours, formatPercentage, getDayPixelWidth, snapToDay, pixelsToDays } from './utils';
-import { format, addDays } from 'date-fns';
+import { format, addDays, startOfDay } from 'date-fns';
 
 interface AllocationTileProps {
   allocation: AllocationData;
@@ -61,16 +61,17 @@ export function AllocationTile({
   // Detect when server data matches expected dates (server sync detection)
   useEffect(() => {
     if (isSaving && expectedDates && allocation.startDate && allocation.endDate) {
-      const serverStart = new Date(allocation.startDate).getTime();
-      const serverEnd = new Date(allocation.endDate).getTime();
-      const expectedStart = expectedDates.start.getTime();
-      const expectedEnd = expectedDates.end.getTime();
-      
+      // Normalize all dates to start of day for accurate comparison
+      const serverStart = startOfDay(new Date(allocation.startDate)).getTime();
+      const serverEnd = startOfDay(new Date(allocation.endDate)).getTime();
+      const expectedStart = startOfDay(expectedDates.start).getTime();
+      const expectedEnd = startOfDay(expectedDates.end).getTime();
+
       // Day-level tolerance (dates normalized to midnight)
       const DAY_IN_MS = 24 * 60 * 60 * 1000;
       const startMatches = Math.abs(serverStart - expectedStart) < DAY_IN_MS;
       const endMatches = Math.abs(serverEnd - expectedEnd) < DAY_IN_MS;
-      
+
       if (startMatches && endMatches) {
         // Server confirmed our expected dates
         setIsSaving(false);
@@ -97,9 +98,10 @@ export function AllocationTile({
     e.preventDefault();
     
     dragStartX.current = e.clientX;
-    // Capture current position as snapshot
-    originalLeft.current = position.left;
-    originalWidth.current = position.width;
+    // Capture current VISUAL position as snapshot (use livePosition, not position)
+    // This ensures we capture what the user actually sees, not the server position
+    originalLeft.current = livePosition.left;
+    originalWidth.current = livePosition.width;
     
     setCurrentDelta(0);
     setHasDragged(false);
@@ -132,8 +134,9 @@ export function AllocationTile({
     
     if (!allocation.startDate || !allocation.endDate) return;
     
-    const currentStart = new Date(allocation.startDate);
-    const currentEnd = new Date(allocation.endDate);
+    // Normalize dates to start of day to match position calculations
+    const currentStart = startOfDay(new Date(allocation.startDate));
+    const currentEnd = startOfDay(new Date(allocation.endDate));
     
     let newStart: Date;
     let newEnd: Date;
@@ -292,12 +295,12 @@ export function AllocationTile({
         <div className="text-white text-xs font-semibold truncate">
           {allocation.taskName}
         </div>
-        {position.width > 80 && (
+        {livePosition.width > 80 && (
           <>
             <div className="text-white text-xs opacity-90 truncate">
               {allocation.role}
             </div>
-            {position.width > 120 && (
+            {livePosition.width > 120 && (
               <div className="text-white text-xs opacity-80">
                 {allocation.allocatedHours ? formatHours(allocation.allocatedHours) : formatPercentage(allocation.allocatedPercentage)}
               </div>
@@ -317,7 +320,7 @@ export function AllocationTile({
       </div>
 
       {/* Resize handles */}
-      {isDraggable && position.width > 60 && !isDragging && !isResizing && (
+      {isDraggable && livePosition.width > 60 && !isDragging && !isResizing && (
         <>
           <div 
             className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-white hover:bg-opacity-30 opacity-0 group-hover:opacity-100 transition-opacity"
