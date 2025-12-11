@@ -62,35 +62,25 @@ export function ResourceRow({
   };
 
   return (
-    <div className="flex border-b border-forvis-gray-200 hover:bg-forvis-blue-50 transition-colors group">
+    <div className="flex border-b border-forvis-gray-200 hover:bg-forvis-blue-50 transition-colors group h-14">
       {/* User Info Sidebar */}
-      <div className="w-64 flex-shrink-0 px-3 py-3 bg-white border-r-2 border-forvis-gray-300 sticky left-0 z-10 group-hover:bg-forvis-blue-50">
-        <div className="flex items-center gap-2">
+      <div className="w-64 flex-shrink-0 px-3 py-2 bg-white border-r-2 border-forvis-gray-300 sticky left-0 z-10 group-hover:bg-forvis-blue-50 flex items-center">
+        <div className="flex items-center w-full gap-2">
           <div 
-            className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-corporate flex-shrink-0"
+            className="rounded-full flex items-center justify-center text-white font-bold shadow-corporate flex-shrink-0 w-8 h-8 text-xs"
             style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
           >
             {getInitials(resource.userName, resource.userEmail)}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="font-semibold text-sm text-forvis-gray-900 truncate">
+            <div className="font-semibold text-forvis-gray-900 truncate text-xs">
               {resource.userName || resource.userEmail}
             </div>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className={`text-xs px-1.5 py-0.5 rounded border font-medium ${getRoleBadgeColor(resource.role)}`}>
+            <div className="flex items-center gap-1.5">
+              <span className={`px-1.5 py-0.5 rounded border font-medium ${getRoleBadgeColor(resource.role)} text-[10px]`}>
                 {resource.role}
               </span>
-              {resource.jobTitle && (
-                <span className="text-xs text-forvis-gray-600">
-                  {resource.jobTitle}
-                </span>
-              )}
             </div>
-            {resource.officeLocation && (
-              <div className="text-xs text-forvis-gray-500 truncate mt-0.5">
-                📍 {resource.officeLocation}
-              </div>
-            )}
           </div>
           {canEdit && onRemoveMember && (
             <button
@@ -167,7 +157,7 @@ export function ResourceRow({
         </div>
 
         {/* Allocation tiles */}
-        <div className={`relative z-10 ${scale === 'month' ? 'h-14' : 'h-16'}`}>
+        <div className="relative z-10 h-full">
           {/* Show add button when no allocations */}
           {resource.allocations.length === 0 && canEdit && onCreateAllocation && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">

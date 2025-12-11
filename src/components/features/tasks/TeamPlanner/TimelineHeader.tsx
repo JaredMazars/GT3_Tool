@@ -13,11 +13,11 @@ export function TimelineHeader({ columns, scale }: TimelineHeaderProps) {
   const columnWidth = getColumnWidth(scale);
 
   return (
-    <div className="flex bg-white border-b-2 border-forvis-gray-300 sticky top-0 z-20">
+    <div className="flex bg-white border-b-2 border-forvis-gray-300 sticky top-0 z-20 h-14">
       {columns.map((column, index) => (
         <div
           key={index}
-          className={`flex-shrink-0 px-1 py-3 text-center border-r border-forvis-gray-200 ${
+          className={`flex-shrink-0 px-1 flex flex-col items-center justify-center text-center border-r border-forvis-gray-200 ${
             column.isToday
               ? 'bg-forvis-blue-50 border-forvis-blue-400 border-r-2'
               : column.isWeekend

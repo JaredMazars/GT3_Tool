@@ -298,7 +298,7 @@ export function GanttTimeline({
           {/* Header */}
           <div className="flex sticky top-0 z-20">
             {/* User info column header */}
-            <div className="w-64 flex-shrink-0 px-4 py-3 bg-white border-b-2 border-r-2 border-forvis-gray-300 sticky left-0 z-30">
+            <div className="w-64 flex-shrink-0 px-4 flex items-center bg-white border-b-2 border-r-2 border-forvis-gray-300 sticky left-0 z-30 h-14">
               <div className="text-sm font-semibold text-forvis-gray-900">Team Member</div>
             </div>
             {/* Timeline header */}
