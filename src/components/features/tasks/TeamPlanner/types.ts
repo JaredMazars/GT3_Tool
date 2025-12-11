@@ -39,6 +39,7 @@ export interface AllocationData {
   allocatedPercentage: number | null;
   actualHours: number | null;
   lane?: number; // Which lane (0-indexed) this allocation occupies in the row
+  isCurrentTask?: boolean; // Whether this allocation belongs to the current task being viewed
 }
 
 export interface ResourceData {
@@ -64,6 +65,12 @@ export interface DateSelection {
   userId: string;
   startColumnIndex: number;
   endColumnIndex: number | null;
+}
+
+export interface RowMetadata {
+  rowIndex: number;
+  rowHeight: number;
+  cumulativeHeights: number[]; // Cumulative heights of all rows up to and including this index
 }
 
 

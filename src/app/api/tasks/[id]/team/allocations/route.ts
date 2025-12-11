@@ -75,16 +75,50 @@ export async function GET(
       return handleApiError(new AppError(404, 'Task not found'), 'Get team allocations');
     }
 
-    // 5. Transform to response format
-    const teamMembersWithAllocations = task.TaskTeam.map(member => ({
-      userId: member.userId,
-      user: {
-        id: member.User.id,
-        name: member.User.name,
-        email: member.User.email || '',
-        image: member.User.image
+    // 5. Fetch all other allocations for these team members
+    const userIds = task.TaskTeam.map(member => member.userId);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:47',message:'Fetching other allocations',data:{currentTaskId:taskId,userIds:userIds,userCount:userIds.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    const otherAllocations = await prisma.taskTeam.findMany({
+      where: {
+        userId: { in: userIds },
+        taskId: { not: taskId },
+        startDate: { not: null },
+        endDate: { not: null }
       },
-      allocations: member.startDate && member.endDate ? [{
+      select: {
+        id: true,
+        userId: true,
+        taskId: true,
+        role: true,
+        startDate: true,
+        endDate: true,
+        allocatedHours: true,
+        allocatedPercentage: true,
+        actualHours: true,
+        Task: {
+          select: {
+            TaskDesc: true,
+            TaskCode: true,
+            Client: {
+              select: {
+                clientCode: true,
+                clientNameFull: true
+              }
+            }
+          }
+        }
+      }
+    });
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:78',message:'Other allocations fetched',data:{otherAllocationsCount:otherAllocations.length,sampleAllocation:otherAllocations[0]||null},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+
+    // 6. Transform to response format
+    const teamMembersWithAllocations = task.TaskTeam.map(member => {
+      // Current task allocation
+      const currentAllocation = member.startDate && member.endDate ? [{
         id: member.id,
         taskId: task.id,
         taskName: task.TaskDesc,
@@ -96,9 +130,45 @@ export async function GET(
         endDate: member.endDate,
         allocatedHours: member.allocatedHours ? parseFloat(member.allocatedHours.toString()) : null,
         allocatedPercentage: member.allocatedPercentage,
-        actualHours: member.actualHours ? parseFloat(member.actualHours.toString()) : null
-      }] : []
-    }));
+        actualHours: member.actualHours ? parseFloat(member.actualHours.toString()) : null,
+        isCurrentTask: true
+      }] : [];
+
+      // Other task allocations for this user
+      const otherUserAllocations = otherAllocations
+        .filter(alloc => alloc.userId === member.userId)
+        .map(alloc => ({
+          id: alloc.id,
+          taskId: alloc.taskId,
+          taskName: alloc.Task.TaskDesc,
+          taskCode: alloc.Task.TaskCode,
+          clientName: alloc.Task.Client?.clientNameFull || null,
+          clientCode: alloc.Task.Client?.clientCode || null,
+          role: alloc.role,
+          startDate: alloc.startDate!,
+          endDate: alloc.endDate!,
+          allocatedHours: alloc.allocatedHours ? parseFloat(alloc.allocatedHours.toString()) : null,
+          allocatedPercentage: alloc.allocatedPercentage,
+          actualHours: alloc.actualHours ? parseFloat(alloc.actualHours.toString()) : null,
+          isCurrentTask: false
+        }));
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:117',message:'User allocations prepared',data:{userId:member.userId,currentCount:currentAllocation.length,otherCount:otherUserAllocations.length,totalCount:currentAllocation.length+otherUserAllocations.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+
+      return {
+        id: member.id, // TaskTeam.id for the current task - needed for creating/updating allocations
+        userId: member.userId,
+        role: member.role, // Current task role
+        user: {
+          id: member.User.id,
+          name: member.User.name,
+          email: member.User.email || '',
+          image: member.User.image
+        },
+        allocations: [...currentAllocation, ...otherUserAllocations]
+      };
+    });
 
     return NextResponse.json(successResponse({ teamMembers: teamMembersWithAllocations }));
   } catch (error) {

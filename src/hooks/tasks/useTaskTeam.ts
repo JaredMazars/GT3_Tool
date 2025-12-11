@@ -13,15 +13,38 @@ export const taskTeamKeys = {
 export interface TaskTeamMember {
   id: number;
   userId: string;
-  taskId: number;
+  taskId?: number;
   role: TaskRole;
-  createdAt: string;
+  createdAt?: string;
   startDate?: string | null;
   endDate?: string | null;
   allocatedHours?: number | null;
   allocatedPercentage?: number | null;
   actualHours?: number | null;
-  User: {
+  allocations?: Array<{
+    id: number;
+    taskId: number;
+    taskName: string;
+    taskCode?: string;
+    clientName?: string | null;
+    clientCode?: string | null;
+    role: TaskRole;
+    startDate: string | Date;
+    endDate: string | Date;
+    allocatedHours: number | null;
+    allocatedPercentage: number | null;
+    actualHours: number | null;
+    isCurrentTask?: boolean;
+  }>;
+  User?: {
+    id: string;
+    name: string;
+    email: string;
+    image?: string | null;
+    jobTitle?: string | null;
+    officeLocation?: string | null;
+  };
+  user?: {
     id: string;
     name: string;
     email: string;
@@ -32,22 +55,26 @@ export interface TaskTeamMember {
 }
 
 /**
- * Fetch team members for a task
+ * Fetch team members for a task with all their allocations (current task + other tasks)
  * Only loads when explicitly called (lazy loading)
  */
 export function useTaskTeam(taskId: string, enabled = true) {
   return useQuery<TaskTeamMember[]>({
     queryKey: taskTeamKeys.list(taskId),
     queryFn: async () => {
-      const response = await fetch(`/api/tasks/${taskId}/users`);
+      const response = await fetch(`/api/tasks/${taskId}/team/allocations`);
       if (!response.ok) throw new Error('Failed to fetch team members');
       
       const result = await response.json();
-      return result.success ? result.data : result;
+      const teamMembers = result.success ? result.data.teamMembers : result.teamMembers || result;
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useTaskTeam.ts:46',message:'Hook received data',data:{teamMembersCount:teamMembers?.length||0,firstMemberAllocations:teamMembers?.[0]?.allocations?.length||0,firstMemberId:teamMembers?.[0]?.id,firstMemberRole:teamMembers?.[0]?.role},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'F'})}).catch(()=>{});
+      // #endregion
+      return teamMembers;
     },
     enabled: enabled && !!taskId,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000,
+    staleTime: 0, // TEMPORARILY DISABLE CACHE for debugging - change back to 5 * 60 * 1000 after fix verified
+    gcTime: 0, // TEMPORARILY DISABLE CACHE for debugging - change back to 10 * 60 * 1000 after fix verified
   });
 }
 

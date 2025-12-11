@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ResourceData, TimelineColumn, TimeScale, DateRange, DateSelection } from './types';
+import { ResourceData, TimelineColumn, TimeScale, DateRange, DateSelection, RowMetadata } from './types';
 import { AllocationTile } from './AllocationTile';
 import { getColumnWidth, calculateTilePosition, formatHours, formatPercentage, getRoleGradient } from './utils';
 import { AllocationData } from './types';
@@ -23,6 +23,7 @@ interface ResourceRowProps {
   isSelecting: boolean;
   isHoveredTarget?: boolean;
   onRowHover?: (sourceUserId: string, offset: number | null) => void;
+  rowMetadata: RowMetadata;
 }
 
 export function ResourceRow({ 
@@ -40,7 +41,8 @@ export function ResourceRow({
   dateSelection,
   isSelecting,
   isHoveredTarget = false,
-  onRowHover
+  onRowHover,
+  rowMetadata
 }: ResourceRowProps) {
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const columnWidth = getColumnWidth(scale);
@@ -87,7 +89,7 @@ export function ResourceRow({
       style={{ height: `${rowHeight}px` }}
     >
       {/* User Info Sidebar */}
-      <div className="w-64 flex-shrink-0 px-3 py-1 bg-white border-r-2 border-forvis-gray-300 sticky left-0 z-10 group-hover:bg-forvis-blue-50 flex items-center h-9">
+      <div className="w-64 flex-shrink-0 px-3 py-1 bg-white border-r-2 border-forvis-gray-300 sticky left-0 z-10 group-hover:bg-forvis-blue-50 flex items-center h-full">
         <div className="flex items-center w-full gap-2">
           <div 
             className="rounded-full flex items-center justify-center text-white font-bold shadow-corporate flex-shrink-0 w-6 h-6 text-[10px]"
@@ -198,6 +200,9 @@ export function ResourceRow({
           {/* Allocation tiles with higher z-index */}
           {resource.allocations.map((allocation) => {
             const position = calculateTilePosition(allocation, dateRange, scale, columnWidth);
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ResourceRow.tsx:202',message:'Calculating tile position',data:{allocationId:allocation.id,taskName:allocation.taskName,isCurrentTask:allocation.isCurrentTask,hasPosition:!!position,startDate:allocation.startDate,endDate:allocation.endDate},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C,E'})}).catch(()=>{});
+            // #endregion
             if (!position) return null;
 
             return (
@@ -214,6 +219,7 @@ export function ResourceRow({
                 currentUserId={resource.userId}
                 onRowHover={(offset) => onRowHover?.(resource.userId, offset)}
                 lane={allocation.lane ?? 0}
+                rowMetadata={rowMetadata}
               />
             );
           })}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { TimeScale, ResourceData, AllocationData, DateSelection } from './types';
+import { TimeScale, ResourceData, AllocationData, DateSelection, RowMetadata } from './types';
 import { TimelineHeader } from './TimelineHeader';
 import { ResourceRow } from './ResourceRow';
 import { AllocationModal } from './AllocationModal';
@@ -64,8 +64,52 @@ export function GanttTimeline({
   const dateRange = useMemo(() => getDateRange(scale, referenceDate), [scale, referenceDate]);
   const columns = useMemo(() => generateTimelineColumns(dateRange, scale), [dateRange, scale]);
 
+  // Calculate cumulative row heights for accurate cross-lane drag targeting
+  const cumulativeHeights = useMemo(() => {
+    const heights: number[] = [];
+    let cumulative = 0;
+    
+    teamMembers.forEach((member, index) => {
+      const user = member.User || member.user;
+      
+      // Check if allocations array exists
+      const allocations: AllocationData[] = (member as any).allocations?.length > 0
+        ? (member as any).allocations.map((alloc: any) => ({
+            ...alloc,
+            startDate: startOfDay(new Date(alloc.startDate)),
+            endDate: startOfDay(new Date(alloc.endDate))
+          }))
+        : member.startDate && member.endDate ? [{
+            id: member.id,
+            taskId: member.taskId,
+            taskName: (member as any).taskName || 'Current Task',
+            taskCode: (member as any).taskCode,
+            clientName: (member as any).clientName,
+            clientCode: (member as any).clientCode,
+            role: member.role,
+            startDate: startOfDay(new Date(member.startDate)),
+            endDate: startOfDay(new Date(member.endDate)),
+            allocatedHours: member.allocatedHours ? parseFloat(member.allocatedHours.toString()) : null,
+            allocatedPercentage: member.allocatedPercentage,
+            actualHours: member.actualHours ? parseFloat(member.actualHours.toString()) : null
+          }] : [];
+
+      const allocationsWithLanes = assignLanes(allocations);
+      const maxLanes = calculateMaxLanes(allocationsWithLanes);
+      const rowHeight = maxLanes * 36; // LANE_HEIGHT = 36px
+      
+      cumulative += rowHeight;
+      heights.push(cumulative);
+    });
+    
+    return heights;
+  }, [teamMembers]);
+
   // Transform team members to resource data with optimistic updates applied
   const resources: ResourceData[] = useMemo(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GanttTimeline.tsx:110',message:'Processing team members',data:{teamMembersCount:teamMembers.length,firstMemberAllocations:(teamMembers[0] as any)?.allocations?.length||0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     return teamMembers.map(member => {
       const user = member.User || member.user;
       
@@ -77,13 +121,17 @@ export function GanttTimeline({
               ...alloc,
               // Normalize dates to start of day for consistent display
               startDate: startOfDay(new Date(alloc.startDate)),
-              endDate: startOfDay(new Date(alloc.endDate))
+              endDate: startOfDay(new Date(alloc.endDate)),
+              // Preserve isCurrentTask flag (defaults to true for backwards compatibility)
+              isCurrentTask: alloc.isCurrentTask !== undefined ? alloc.isCurrentTask : true
             };
             
-            // Apply optimistic update if exists
-            const optimisticUpdate = optimisticUpdates.get(alloc.id);
-            if (optimisticUpdate) {
-              return { ...normalizedAlloc, ...optimisticUpdate };
+            // Apply optimistic update if exists (only for current task allocations)
+            if (alloc.isCurrentTask !== false) {
+              const optimisticUpdate = optimisticUpdates.get(alloc.id);
+              if (optimisticUpdate) {
+                return { ...normalizedAlloc, ...optimisticUpdate };
+              }
             }
             
             return normalizedAlloc;
@@ -101,7 +149,8 @@ export function GanttTimeline({
             endDate: startOfDay(new Date(member.endDate)),
             allocatedHours: member.allocatedHours ? parseFloat(member.allocatedHours.toString()) : null,
             allocatedPercentage: member.allocatedPercentage,
-            actualHours: member.actualHours ? parseFloat(member.actualHours.toString()) : null
+            actualHours: member.actualHours ? parseFloat(member.actualHours.toString()) : null,
+            isCurrentTask: true // Flat member data is always current task
           }].map(alloc => {
             // Apply optimistic update if exists for flat member data
             const optimisticUpdate = optimisticUpdates.get(alloc.id);
@@ -114,7 +163,13 @@ export function GanttTimeline({
       // Assign lanes to allocations for multi-lane display
       const allocationsWithLanes = assignLanes(allocations);
       const maxLanes = calculateMaxLanes(allocationsWithLanes);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GanttTimeline.tsx:169',message:'Allocations with lanes',data:{userId:member.userId,totalAllocations:allocationsWithLanes.length,currentTask:allocationsWithLanes.filter(a=>a.isCurrentTask!==false).length,otherTasks:allocationsWithLanes.filter(a=>a.isCurrentTask===false).length,maxLanes},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C,D'})}).catch(()=>{});
+      // #endregion
 
+      // Calculate totals only for current task allocations
+      const currentTaskAllocations = allocationsWithLanes.filter(alloc => alloc.isCurrentTask !== false);
+      
       return {
         userId: member.userId,
         userName: user?.name || '',
@@ -123,15 +178,19 @@ export function GanttTimeline({
         jobTitle: user?.jobTitle,
         officeLocation: user?.officeLocation,
         role: member.role,
-        allocations: allocationsWithLanes,
-        totalAllocatedHours: memoizedCalculateTotalHours(allocationsWithLanes),
-        totalAllocatedPercentage: memoizedCalculateTotalPercentage(allocationsWithLanes),
+        allocations: allocationsWithLanes, // Show all allocations
+        totalAllocatedHours: memoizedCalculateTotalHours(currentTaskAllocations), // Total only current task
+        totalAllocatedPercentage: memoizedCalculateTotalPercentage(currentTaskAllocations), // Total only current task
         maxLanes
       };
     });
   }, [teamMembers, optimisticUpdates]);
 
   const handleEditAllocation = useCallback((allocation: AllocationData) => {
+    // Only allow editing current task allocations
+    if (allocation.isCurrentTask === false) {
+      return;
+    }
     setSelectedAllocation(allocation);
     setIsModalOpen(true);
   }, []);
@@ -139,6 +198,9 @@ export function GanttTimeline({
   const handleCreateAllocation = useCallback((userId: string, startDate?: Date, endDate?: Date) => {
     // Find the team member
     const member = teamMembers.find(m => m.userId === userId);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GanttTimeline.tsx:201',message:'Creating allocation',data:{userId,foundMember:!!member,memberId:member?.id,memberTaskId:member?.taskId},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H'})}).catch(()=>{});
+    // #endregion
     if (!member) {
       setErrorModal({ 
         isOpen: true, 
@@ -527,6 +589,7 @@ export function GanttTimeline({
 
     try {
       // Make API call to transfer
+      // Note: AllocationTile sets isSaving=true which keeps the tile visually stable during transfer
       const response = await fetch(
         `/api/tasks/${taskId}/team/${allocationId}/transfer`,
         {
@@ -547,6 +610,7 @@ export function GanttTimeline({
       }
 
       // Success - refetch to get fresh data
+      // The allocation will move from source to target user
       onAllocationUpdate();
       
     } catch (error) {
@@ -586,7 +650,11 @@ export function GanttTimeline({
             </div>
             <div className="flex gap-2">
               <button
-                onClick={() => setScale('day')}
+                onClick={() => {
+                  setScale('day');
+                  setReferenceDate(new Date());
+                  setScrollToToday(true);
+                }}
                 className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${
                   scale === 'day'
                     ? 'text-white shadow-corporate'
@@ -597,7 +665,11 @@ export function GanttTimeline({
                 Days
               </button>
               <button
-                onClick={() => setScale('week')}
+                onClick={() => {
+                  setScale('week');
+                  setReferenceDate(new Date());
+                  setScrollToToday(true);
+                }}
                 className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${
                   scale === 'week'
                     ? 'text-white shadow-corporate'
@@ -678,6 +750,11 @@ export function GanttTimeline({
                   return sourceIndex !== -1 && (sourceIndex + hoveredRowOffset.offset) === index;
                 })()}
                 onRowHover={handleRowHover}
+                rowMetadata={{
+                  rowIndex: index,
+                  rowHeight: resource.maxLanes * 36,
+                  cumulativeHeights: cumulativeHeights
+                }}
               />
             ))
           )}

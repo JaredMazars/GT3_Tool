@@ -439,23 +439,28 @@ export default function ClientProjectPage() {
   } = useTaskTeam(taskId, activeTab === 'team');
   
   // Convert ProjectTeamMember[] to TaskTeam[] format
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:442',message:'Before mapping teamMembers',data:{teamMembersDataCount:teamMembersData.length,firstMemberHasAllocations:!!teamMembersData[0]?.allocations,firstMemberAllocationsCount:teamMembersData[0]?.allocations?.length||0,firstMemberId:teamMembersData[0]?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'G'})}).catch(()=>{});
+  // #endregion
   const teamMembers: TaskTeam[] = teamMembersData.map(member => ({
-    id: member.id,
-    taskId: member.taskId,
+    id: member.id, // TaskTeam.id from API
+    taskId: parseInt(taskId), // Current task being viewed
     userId: member.userId,
     role: member.role,
-    createdAt: new Date(member.createdAt),
+    createdAt: new Date(member.createdAt || Date.now()),
     startDate: member.startDate ? new Date(member.startDate) : undefined,
     endDate: member.endDate ? new Date(member.endDate) : undefined,
     allocatedHours: member.allocatedHours,
     allocatedPercentage: member.allocatedPercentage,
     actualHours: member.actualHours,
-    User: member.User,
+    User: member.User || member.user,
     // Add task/client info from API response for allocation display
     taskName: (member as any).taskName,
     taskCode: (member as any).taskCode,
     clientName: (member as any).clientName,
     clientCode: (member as any).clientCode,
+    // CRITICAL: Include allocations array for team planner
+    allocations: member.allocations,
   }));
 
   // Handle tab query parameter and update default tab when task loads

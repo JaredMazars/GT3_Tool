@@ -28,7 +28,7 @@ export function getDateRange(scale: TimeScale, referenceDate: Date = new Date())
   switch (scale) {
     case 'day':
       return {
-        start: startOfDay(addDays(referenceDate, -7)),
+        start: startOfDay(addDays(referenceDate, -20)),
         end: endOfDay(addDays(referenceDate, 30))
       };
     case 'week':

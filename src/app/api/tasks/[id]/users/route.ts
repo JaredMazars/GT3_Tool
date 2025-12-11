@@ -120,11 +120,6 @@ export async function GET(
         },
       };
     });
-    
-    // #region agent log
-    console.log(JSON.stringify({location:'users/route.ts:93',message:'API Response Data',data:{taskName:task?.TaskDesc,clientName:task?.Client?.clientNameFull,clientCode:task?.Client?.clientCode,teamCount:enrichedTaskTeams.length,firstMember:enrichedTaskTeams[0]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'}));
-    // #endregion
-
     return NextResponse.json(successResponse(enrichedTaskTeams));
   } catch (error) {
     return handleApiError(error, 'Get Project Users');

@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { AllocationData, GanttPosition, TimeScale } from './types';
+import { AllocationData, GanttPosition, TimeScale, RowMetadata } from './types';
 import { getRoleGradient, formatHours, formatPercentage, getDayPixelWidth, snapToDay, pixelsToDays, calculateBusinessDays, calculateAvailableHours } from './utils';
 import { debounce } from './optimizations';
 import { format, addDays, startOfDay } from 'date-fns';
@@ -19,6 +19,7 @@ interface AllocationTileProps {
   currentUserId?: string;
   onRowHover?: (rowOffset: number | null) => void;
   lane: number;
+  rowMetadata: RowMetadata;
 }
 
 export function AllocationTile({ 
@@ -32,7 +33,8 @@ export function AllocationTile({
   isDraggable = true,
   currentUserId,
   onRowHover,
-  lane
+  lane,
+  rowMetadata
 }: AllocationTileProps): JSX.Element {
   const [showTooltip, setShowTooltip] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -53,8 +55,14 @@ export function AllocationTile({
   const tileRef = useRef<HTMLDivElement>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Memoize gradient calculation - only depends on role
-  const gradient = useMemo(() => getRoleGradient(allocation.role), [allocation.role]);
+  // Memoize gradient calculation - only depends on role and whether it's current task
+  const gradient = useMemo(() => {
+    // Grey out other task allocations
+    if (allocation.isCurrentTask === false) {
+      return 'linear-gradient(135deg, #9CA3AF 0%, #6B7280 100%)'; // Grey gradient
+    }
+    return getRoleGradient(allocation.role);
+  }, [allocation.role, allocation.isCurrentTask]);
   
   // Calculate day pixel width based on current scale
   const dayPixelWidth = useMemo(() => 
@@ -106,7 +114,8 @@ export function AllocationTile({
   };
 
   const handleMouseDown = (e: React.MouseEvent, action: 'drag' | 'resize-left' | 'resize-right') => {
-    if (!isDraggable || !allocation.startDate || !allocation.endDate) {
+    // Disable dragging/resizing for other task allocations
+    if (!isDraggable || !allocation.startDate || !allocation.endDate || allocation.isCurrentTask === false) {
       return;
     }
     
@@ -144,14 +153,41 @@ export function AllocationTile({
     if (isDragging) {
       setDragDeltaY(deltaY);
       
-      // Calculate which row we're hovering over
-      const ROW_HEIGHT = 36; // Base lane height = 36px
-      const rowOffset = Math.round(deltaY / ROW_HEIGHT);
+      // Calculate which row we're hovering over using cumulative heights
+      // This accounts for variable row heights (rows with multiple lanes are taller)
+      const { rowIndex, cumulativeHeights } = rowMetadata;
+      
+      // Calculate absolute position from source row start
+      const sourceRowStart = rowIndex === 0 ? 0 : cumulativeHeights[rowIndex - 1];
+      const currentAbsoluteY = sourceRowStart + deltaY;
+      
+      // Find which row index we're hovering over
+      let targetRowIndex = rowIndex;
+      
+      if (currentAbsoluteY < 0) {
+        // Dragging above first row - clamp to first row
+        targetRowIndex = 0;
+      } else if (currentAbsoluteY >= cumulativeHeights[cumulativeHeights.length - 1]) {
+        // Dragging below last row - clamp to last row
+        targetRowIndex = cumulativeHeights.length - 1;
+      } else {
+        // Normal case - find the row based on cumulative heights
+        for (let i = 0; i < cumulativeHeights.length; i++) {
+          if (currentAbsoluteY < cumulativeHeights[i]) {
+            targetRowIndex = i;
+            break;
+          }
+        }
+      }
+      
+      const rowOffset = targetRowIndex - rowIndex;
       
       // Notify parent of row hover if handler provided
-      if (onRowHover && Math.abs(deltaY) > ROW_HEIGHT / 4) {
+      // Use source row height for threshold (minimum distance before hover triggers)
+      const sourceRowHeight = rowMetadata.rowHeight;
+      if (onRowHover && Math.abs(deltaY) > sourceRowHeight / 4) {
         onRowHover(rowOffset);
-      } else if (onRowHover && Math.abs(deltaY) <= ROW_HEIGHT / 4) {
+      } else if (onRowHover && Math.abs(deltaY) <= sourceRowHeight / 4) {
         onRowHover(null);
       }
     }
@@ -217,9 +253,32 @@ export function AllocationTile({
     }
     
     // Check if we're dropping on a different row (cross-lane transfer)
-    const ROW_HEIGHT = 36;
-    const rowOffset = Math.round(dragDeltaY / ROW_HEIGHT);
-    const isCrossLaneTransfer = isDragging && Math.abs(dragDeltaY) > ROW_HEIGHT / 2 && rowOffset !== 0;
+    // Use cumulative heights to calculate actual row offset (accounts for variable heights)
+    const { rowIndex, cumulativeHeights, rowHeight } = rowMetadata;
+    const sourceRowStart = rowIndex === 0 ? 0 : cumulativeHeights[rowIndex - 1];
+    const currentAbsoluteY = sourceRowStart + dragDeltaY;
+    
+    // Find target row index
+    let targetRowIndex = rowIndex;
+    
+    if (currentAbsoluteY < 0) {
+      // Dragging above first row - clamp to first row
+      targetRowIndex = 0;
+    } else if (currentAbsoluteY >= cumulativeHeights[cumulativeHeights.length - 1]) {
+      // Dragging below last row - clamp to last row
+      targetRowIndex = cumulativeHeights.length - 1;
+    } else {
+      // Normal case - find the row based on cumulative heights
+      for (let i = 0; i < cumulativeHeights.length; i++) {
+        if (currentAbsoluteY < cumulativeHeights[i]) {
+          targetRowIndex = i;
+          break;
+        }
+      }
+    }
+    
+    const rowOffset = targetRowIndex - rowIndex;
+    const isCrossLaneTransfer = isDragging && Math.abs(dragDeltaY) > rowHeight / 4 && rowOffset !== 0;
     
     if (previewDates && isCrossLaneTransfer && onTransfer) {
       // Cross-lane transfer - call onTransfer which will handle the API call
@@ -255,7 +314,7 @@ export function AllocationTile({
     }
     
     setTimeout(() => setHasDragged(false), 100);
-  }, [previewDates, onUpdateDates, onTransfer, allocation.id, currentDelta, dragDeltaY, isDragging, isResizing, onRowHover]);
+  }, [previewDates, onUpdateDates, onTransfer, allocation.id, currentDelta, dragDeltaY, isDragging, isResizing, onRowHover, rowMetadata]);
 
   // Store handlers in refs to avoid recreating listeners on every render
   const handleMouseMoveRef = useRef(handleMouseMove);
@@ -375,10 +434,10 @@ export function AllocationTile({
   // Determine opacity based on drag state
   const tileOpacity = useMemo(() => {
     if (isSaving) return 1;
-    if (isDragging && Math.abs(dragDeltaY) > 18) return 0.6; // Cross-lane drag (half of 36)
+    if (isDragging && Math.abs(dragDeltaY) > rowMetadata.rowHeight / 4) return 0.6; // Cross-lane drag
     if (isDragging || isResizing) return 0.8;
     return 1;
-  }, [isDragging, isResizing, isSaving, dragDeltaY]);
+  }, [isDragging, isResizing, isSaving, dragDeltaY, rowMetadata.rowHeight]);
   
   // Calculate tile positioning based on lane
   const LANE_HEIGHT = 36;
@@ -386,12 +445,18 @@ export function AllocationTile({
   const tileTop = lane * LANE_HEIGHT + TILE_GAP;
   const tileHeight = LANE_HEIGHT - TILE_GAP * 2;
   
+  // Determine if this allocation is editable
+  const isEditable = allocation.isCurrentTask !== false;
+  const cursorClass = isEditable 
+    ? (isDragging || isResizing ? 'cursor-grabbing z-20' : 'cursor-grab hover:z-[5]')
+    : 'cursor-default hover:z-[5]';
+
   return (
     <div
       ref={tileRef}
-      className={`absolute rounded-lg shadow-corporate border-2 border-white ${
-        isDragging || isResizing ? 'cursor-grabbing z-20' : 'cursor-grab hover:z-[5]'
-      } hover:shadow-corporate-md overflow-hidden group`}
+      className={`absolute rounded-lg shadow-corporate border-2 ${
+        isEditable ? 'border-white' : 'border-forvis-gray-400'
+      } ${cursorClass} hover:shadow-corporate-md overflow-hidden group`}
       style={{
         top: `${tileTop}px`,
         height: `${tileHeight}px`,
@@ -402,19 +467,22 @@ export function AllocationTile({
         pointerEvents: 'auto', // Allow clicks on tiles even though container has pointer-events: none
         // No transition - instant snapping for responsive feel
         transition: 'none',
-        opacity: tileOpacity,
+        opacity: isEditable ? tileOpacity : 0.7,
         // Apply Y-axis transform during drag for visual feedback
         transform: isDragging && Math.abs(dragDeltaY) > 10 ? `translateY(${dragDeltaY}px)` : 'none'
       }}
       onClick={(e) => {
-        // Don't open modal if this was a drag operation
-        if (!hasDragged) {
+        // Only open modal for current task allocations, and only if not dragged
+        if (isEditable && !hasDragged) {
           onEdit(allocation);
         }
       }}
       onDoubleClick={(e) => {
-        e.stopPropagation();
-        onEdit(allocation);
+        // Only open modal for current task allocations
+        if (isEditable) {
+          e.stopPropagation();
+          onEdit(allocation);
+        }
       }}
       onMouseDown={(e) => handleMouseDown(e, 'drag')}
       onMouseEnter={handleMouseEnter}
@@ -464,8 +532,8 @@ export function AllocationTile({
         </div>
       )}
 
-      {/* Resize handles */}
-      {isDraggable && livePosition.width >= dayPixelWidth && !isDragging && !isResizing && (
+      {/* Resize handles - only for current task allocations */}
+      {isEditable && isDraggable && livePosition.width >= dayPixelWidth && !isDragging && !isResizing && (
         <>
           <div 
             className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-white hover:bg-opacity-30 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -594,6 +662,8 @@ export default React.memo(AllocationTile, (prevProps, nextProps) => {
     prevProps.scale === nextProps.scale &&
     prevProps.columnWidth === nextProps.columnWidth &&
     prevProps.isDraggable === nextProps.isDraggable &&
-    prevProps.currentUserId === nextProps.currentUserId
+    prevProps.currentUserId === nextProps.currentUserId &&
+    prevProps.rowMetadata.rowIndex === nextProps.rowMetadata.rowIndex &&
+    prevProps.rowMetadata.rowHeight === nextProps.rowMetadata.rowHeight
   );
 });
