@@ -193,6 +193,10 @@ export function ResourceRow({
             const position = calculateTilePosition(allocation, dateRange, scale, columnWidth);
             if (!position) return null;
 
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ResourceRow.tsx:197',message:'Rendering AllocationTile',data:{allocId:allocation.id,allocStartDate:allocation.startDate?.toISOString(),allocEndDate:allocation.endDate?.toISOString(),positionLeft:position.left,positionWidth:position.width},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H5'})}).catch(()=>{});
+            // #endregion
+
             return (
               <AllocationTile
                 key={allocation.id}

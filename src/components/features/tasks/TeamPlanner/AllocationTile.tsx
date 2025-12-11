@@ -311,11 +311,9 @@ export function AllocationTile({
         background: gradient,
         minWidth: '40px',
         pointerEvents: 'auto', // Allow clicks on tiles even though container has pointer-events: none
-        // Smooth transition when not dragging (includes when isSaving completes)
-        transition: (isDragging || isResizing) 
-          ? 'none' 
-          : 'left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        opacity: isSaving ? 0.9 : 1 // Visual feedback during save
+        // No transition - instant snapping for responsive feel
+        transition: 'none',
+        opacity: 1 // No visual feedback during save for seamless UX
       }}
       onClick={(e) => {
         // Don't open modal if this was a drag operation

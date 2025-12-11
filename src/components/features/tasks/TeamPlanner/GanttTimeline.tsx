@@ -34,6 +34,7 @@ export function GanttTimeline({
   const [scrollToToday, setScrollToToday] = useState(false);
   const [dateSelection, setDateSelection] = useState<DateSelection | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
+  const [optimisticUpdates, setOptimisticUpdates] = useState<Map<number, Partial<AllocationData>>>(new Map());
   
   const timelineContainerRef = useRef<HTMLDivElement>(null);
 
@@ -58,10 +59,10 @@ export function GanttTimeline({
   const dateRange = useMemo(() => getDateRange(scale, referenceDate), [scale, referenceDate]);
   const columns = useMemo(() => generateTimelineColumns(dateRange, scale), [dateRange, scale]);
 
-  // Transform team members to resource data
+  // Transform team members to resource data with optimistic updates applied
   const resources: ResourceData[] = useMemo(() => {
     // #region agent log
-    console.log(JSON.stringify({location:'GanttTimeline.tsx:64',message:'TeamMembers Input',data:{count:teamMembers.length,firstMember:teamMembers[0]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'}));
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GanttTimeline.tsx:63',message:'resources useMemo computing',data:{teamMembersCount:teamMembers.length,optimisticUpdatesSize:optimisticUpdates.size,optimisticKeys:Array.from(optimisticUpdates.keys())},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
     // #endregion
     
     return teamMembers.map(member => {
@@ -70,12 +71,25 @@ export function GanttTimeline({
       // Check if allocations array exists (from /api/tasks/:id/team/allocations endpoint)
       // Otherwise construct from flat member data (from /api/tasks/:id/users endpoint)
       const allocations: AllocationData[] = (member as any).allocations?.length > 0
-        ? (member as any).allocations.map((alloc: any) => ({
-            ...alloc,
-            // Normalize dates to start of day for consistent display
-            startDate: startOfDay(new Date(alloc.startDate)),
-            endDate: startOfDay(new Date(alloc.endDate))
-          }))
+        ? (member as any).allocations.map((alloc: any) => {
+            const normalizedAlloc = {
+              ...alloc,
+              // Normalize dates to start of day for consistent display
+              startDate: startOfDay(new Date(alloc.startDate)),
+              endDate: startOfDay(new Date(alloc.endDate))
+            };
+            
+            // Apply optimistic update if exists
+            const optimisticUpdate = optimisticUpdates.get(alloc.id);
+            if (optimisticUpdate) {
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GanttTimeline.tsx:84',message:'Applying optimistic update to allocation',data:{allocId:alloc.id,serverStartDate:normalizedAlloc.startDate.toISOString(),serverEndDate:normalizedAlloc.endDate.toISOString(),optimisticStartDate:optimisticUpdate.startDate?.toISOString(),optimisticEndDate:optimisticUpdate.endDate?.toISOString()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+              // #endregion
+              return { ...normalizedAlloc, ...optimisticUpdate };
+            }
+            
+            return normalizedAlloc;
+          })
         : member.startDate && member.endDate ? [{
             id: member.id,
             taskId: member.taskId,
@@ -90,7 +104,14 @@ export function GanttTimeline({
             allocatedHours: member.allocatedHours ? parseFloat(member.allocatedHours.toString()) : null,
             allocatedPercentage: member.allocatedPercentage,
             actualHours: member.actualHours ? parseFloat(member.actualHours.toString()) : null
-          }] : [];
+          }].map(alloc => {
+            // Apply optimistic update if exists for flat member data
+            const optimisticUpdate = optimisticUpdates.get(alloc.id);
+            if (optimisticUpdate) {
+              return { ...alloc, ...optimisticUpdate };
+            }
+            return alloc;
+          }) : [];
 
       return {
         userId: member.userId,
@@ -105,7 +126,7 @@ export function GanttTimeline({
         totalAllocatedPercentage: memoizedCalculateTotalPercentage(allocations)
       };
     });
-  }, [teamMembers]);
+  }, [teamMembers, optimisticUpdates]);
 
   const handleEditAllocation = useCallback((allocation: AllocationData) => {
     console.log('Opening modal to edit allocation:', allocation);
@@ -280,6 +301,25 @@ export function GanttTimeline({
       return;
     }
 
+    // Apply optimistic update immediately
+    if (updates.startDate || updates.endDate || updates.allocatedHours !== undefined || 
+        updates.allocatedPercentage !== undefined || updates.role || updates.actualHours !== undefined) {
+      setOptimisticUpdates(prev => {
+        const newMap = new Map(prev);
+        const optimisticData: Partial<AllocationData> = {};
+        
+        if (updates.startDate) optimisticData.startDate = startOfDay(updates.startDate);
+        if (updates.endDate) optimisticData.endDate = startOfDay(updates.endDate);
+        if (updates.allocatedHours !== undefined) optimisticData.allocatedHours = updates.allocatedHours;
+        if (updates.allocatedPercentage !== undefined) optimisticData.allocatedPercentage = updates.allocatedPercentage;
+        if (updates.role) optimisticData.role = updates.role;
+        if (updates.actualHours !== undefined) optimisticData.actualHours = updates.actualHours;
+        
+        newMap.set(selectedAllocation.id, optimisticData);
+        return newMap;
+      });
+    }
+
     setIsSaving(true);
     console.log('Saving allocation:', { teamMemberId: selectedAllocation.id, updates });
     
@@ -307,11 +347,29 @@ export function GanttTimeline({
       }
 
       console.log('Allocation saved successfully');
+      
+      // Clear optimistic update immediately - modal save is explicit user action
+      // The refetch will provide fresh server data
+      setOptimisticUpdates(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(selectedAllocation.id);
+        return newMap;
+      });
+      
+      // Trigger refetch to get fresh server data
       onAllocationUpdate();
+      
       setIsModalOpen(false);
       setCreatingForUserId(null);
       setSelectedAllocation(null);
     } catch (error) {
+      // Revert optimistic update on error
+      setOptimisticUpdates(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(selectedAllocation.id);
+        return newMap;
+      });
+      
       console.error('Error saving allocation:', error);
       const message = error instanceof Error ? error.message : 'Failed to save allocation';
       alert(message);
@@ -354,7 +412,25 @@ export function GanttTimeline({
   }, [taskId, onAllocationUpdate]);
 
   const handleUpdateDates = useCallback(async (allocationId: number, startDate: Date, endDate: Date) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GanttTimeline.tsx:408',message:'handleUpdateDates called',data:{allocationId,startDate:startDate.toISOString(),endDate:endDate.toISOString(),timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
+    
+    // Apply optimistic update immediately for instant UI feedback
+    setOptimisticUpdates(prev => {
+      const newMap = new Map(prev);
+      newMap.set(allocationId, {
+        startDate: startOfDay(startDate),
+        endDate: startOfDay(endDate)
+      });
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GanttTimeline.tsx:417',message:'Optimistic update applied',data:{allocationId,optimisticMapSize:newMap.size,optimisticData:{startDate:startOfDay(startDate).toISOString(),endDate:startOfDay(endDate).toISOString()}},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+      // #endregion
+      return newMap;
+    });
+
     try {
+      // Make API call in background
       const response = await fetch(
         `/api/tasks/${taskId}/team/${allocationId}/allocation`,
         {
@@ -373,9 +449,26 @@ export function GanttTimeline({
         throw new Error(errorMessage);
       }
 
-      // Refetch to update UI
-      onAllocationUpdate();
+      // #region agent log
+      const apiCallEndTime = Date.now();
+      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GanttTimeline.tsx:439',message:'API call succeeded - keeping optimistic update',data:{allocationId,apiCallEndTime},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H6'})}).catch(()=>{});
+      // #endregion
+      
+      // DON'T refetch - the optimistic update already shows correct data
+      // The drag operation saved to DB, so we can trust the optimistic update
+      // Next natural refetch (modal save, page refresh, etc) will sync with server
+      
+      // Keep optimistic update indefinitely - it will be replaced by server data
+      // on next refetch or when component unmounts
+      // No need to clear since drag already saved the correct dates to DB
     } catch (error) {
+      // Revert optimistic update on error
+      setOptimisticUpdates(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(allocationId);
+        return newMap;
+      });
+      
       console.error('Error updating dates:', error);
       const message = error instanceof Error ? error.message : 'Failed to update dates';
       alert(message);
