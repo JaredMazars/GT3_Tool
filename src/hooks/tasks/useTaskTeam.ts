@@ -66,11 +66,7 @@ export function useTaskTeam(taskId: string, enabled = true) {
       if (!response.ok) throw new Error('Failed to fetch team members');
       
       const result = await response.json();
-      const teamMembers = result.success ? result.data.teamMembers : result.teamMembers || result;
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useTaskTeam.ts:46',message:'Hook received data',data:{teamMembersCount:teamMembers?.length||0,firstMemberAllocations:teamMembers?.[0]?.allocations?.length||0,firstMemberId:teamMembers?.[0]?.id,firstMemberRole:teamMembers?.[0]?.role},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'F'})}).catch(()=>{});
-      // #endregion
-      return teamMembers;
+      const teamMembers = result.success ? result.data.teamMembers : result.teamMembers || result;      return teamMembers;
     },
     enabled: enabled && !!taskId,
     staleTime: 0, // TEMPORARILY DISABLE CACHE for debugging - change back to 5 * 60 * 1000 after fix verified

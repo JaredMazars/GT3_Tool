@@ -16,20 +16,11 @@ export async function GET(
   { params }: { params: { serviceLine: string; subServiceLineGroup: string } }
 ) {
   try {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route.ts:18',message:'API entry',data:{serviceLine:params.serviceLine,subServiceLineGroup:params.subServiceLineGroup},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D,E'})}).catch(()=>{});
-    // #endregion
-
     // 1. Authenticate
     const user = await getCurrentUser();
     if (!user?.id) {
       return handleApiError(new AppError(401, 'Unauthorized'), 'Get sub-service line employees');
     }
-
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route.ts:29',message:'Auth passed',data:{userId:user.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
-
     // 2. Extract subServiceLineGroup from params
     const subServiceLineGroup = params.subServiceLineGroup;
     if (!subServiceLineGroup) {
@@ -41,11 +32,6 @@ export async function GET(
     const hasAccess = userServiceLines.some(sl => 
       sl.subGroups?.some((sg: any) => sg.code === subServiceLineGroup)
     );
-
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route.ts:46',message:'Access check',data:{hasAccess:hasAccess,subServiceLineGroup:subServiceLineGroup,userSubGroups:userServiceLines.flatMap(sl=>sl.subGroups||[]).map((sg:any)=>sg.code)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
-
     if (!hasAccess) {
       return handleApiError(
         new AppError(403, 'You do not have access to this sub-service line group'),
@@ -64,26 +50,15 @@ export async function GET(
         SubServlineGroupDesc: true
       }
     });
-
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route.ts:63',message:'ServiceLineExternal mapping',data:{subServiceLineGroup:subServiceLineGroup,mappingCount:serviceLineExternalMappings.length,mappedCodes:serviceLineExternalMappings.map(m=>m.ServLineCode)},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'FIX'})}).catch(()=>{});
-    // #endregion
-
     const externalServLineCodes = serviceLineExternalMappings
       .map(m => m.ServLineCode)
       .filter((code): code is string => !!code);
 
     if (externalServLineCodes.length === 0) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route.ts:75',message:'No external mappings found',data:{subServiceLineGroup:subServiceLineGroup},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'FIX'})}).catch(()=>{});
-      // #endregion
       return NextResponse.json(successResponse({ users: [] }));
     }
 
     // 5. Get all employees whose ServLineCode matches any of the external codes
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route.ts:85',message:'Before employee query',data:{externalServLineCodes,activeFilter:'Yes'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,E'})}).catch(()=>{});
-    // #endregion
     const employees = await prisma.employee.findMany({
       where: {
         ServLineCode: { in: externalServLineCodes },
@@ -111,15 +86,6 @@ export async function GET(
         EmpNameFull: 'asc'
       }
     });
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route.ts:112',message:'After employee query',data:{totalCount:employees.length,activeValues:[...new Set(employees.map(e=>e.Active))],employeesWithLeftDate:employees.filter(e=>e.EmpDateLeft).length,sampleEmployees:employees.slice(0,5).map(e=>({name:e.EmpNameFull,active:e.Active,dateLeft:e.EmpDateLeft,hasLeft:!!e.EmpDateLeft,code:e.EmpCatCode}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'F,G'})}).catch(()=>{});
-    // #endregion
-
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route.ts:107',message:'Employee query result - ACTIVE ONLY',data:{employeeCount:employees.length,activeFilter:'Yes',queriedExternalCodes:externalServLineCodes,sampleEmployee:employees[0]||null,uniqueServLineCodes:[...new Set(employees.map(e=>e.ServLineCode))],uniqueSubServLineCodes:[...new Set(employees.map(e=>e.SubServLineCode))]},timestamp:Date.now(),sessionId:'debug-session',runId:'active-check',hypothesisId:'ACTIVE'})}).catch(()=>{});
-    // #endregion
-
     if (employees.length === 0) {
       return NextResponse.json(successResponse({ users: [] }));
     }
@@ -269,10 +235,6 @@ export async function GET(
 
       // Map employee category to service line role
       const serviceLineRole = mapEmployeeCategoryToRole(employee.EmpCatDesc);
-
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route.ts:253',message:'Mapping employee',data:{employeeName:employee.EmpNameFull,active:employee.Active,catCode:employee.EmpCatCode,catDesc:employee.EmpCatDesc},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
       
       return {
         employeeId: employee.id,
@@ -292,15 +254,8 @@ export async function GET(
       };
     });
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route.ts:244',message:'Returning response',data:{userCount:employeesWithAllocations.length,sampleUser:employeesWithAllocations[0]||null},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'ALL'})}).catch(()=>{});
-    // #endregion
-
     return NextResponse.json(successResponse({ users: employeesWithAllocations }));
   } catch (error) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route.ts:252',message:'API error',data:{error:error instanceof Error?error.message:String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
     return handleApiError(error, 'Get sub-service line employees');
   }
 }

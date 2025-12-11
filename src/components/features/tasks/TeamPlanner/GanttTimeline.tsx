@@ -47,6 +47,7 @@ export function GanttTimeline({
   const [isAdminPlanningModalOpen, setIsAdminPlanningModalOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [adminModalInitialDates, setAdminModalInitialDates] = useState<{ startDate?: Date; endDate?: Date }>({});
+  const [overlayScrollTop, setOverlayScrollTop] = useState(0);
   
   const timelineContainerRef = useRef<HTMLDivElement>(null);
 
@@ -371,6 +372,19 @@ export function GanttTimeline({
       document.removeEventListener('mouseup', handleGlobalMouseUp);
     };
   }, [handleSelectionEnd]);
+
+  // Sync overlay scroll position with timeline container
+  useEffect(() => {
+    const container = timelineContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      setOverlayScrollTop(container.scrollTop);
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const handleRemoveMember = useCallback(async (userId: string) => {
     try {
@@ -767,51 +781,97 @@ export function GanttTimeline({
         </div>
       </div>
 
-      {/* Timeline Container */}
-      <div ref={timelineContainerRef} className="overflow-x-auto overflow-y-auto max-h-[600px]">
-        <div className="min-w-full">
-          {/* Header */}
-          <div className="flex sticky top-0 z-20">
-            {/* User info column header */}
-            <div className="w-64 flex-shrink-0 px-4 flex items-center bg-white border-b-2 border-r-2 border-forvis-gray-300 sticky left-0 z-30 h-14">
-              <div className="text-sm font-semibold text-forvis-gray-900">Team Member</div>
+      {/* Timeline Container - Wrapper with fixed column */}
+      <div className="relative max-h-[600px] overflow-hidden">
+        {/* Scrollable container */}
+        <div ref={timelineContainerRef} className="overflow-x-auto overflow-y-auto max-h-[600px]">
+          <div className="min-w-full">
+            {/* Header */}
+            <div className="flex sticky top-0 z-20 bg-white">
+              {/* Spacer for fixed column */}
+              <div className="w-64 flex-shrink-0 h-14 border-b-2 border-forvis-gray-300"></div>
+              {/* Timeline header */}
+              <div className="flex-1">
+                <TimelineHeader columns={columns} scale={scale} />
+              </div>
             </div>
-            {/* Timeline header */}
-            <div className="flex-1">
-              <TimelineHeader columns={columns} scale={scale} />
-            </div>
-          </div>
 
-          {/* Resource Rows */}
-          {resources.length === 0 ? (
-            <div className="text-center py-12 text-forvis-gray-600">
-              <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p className="font-semibold">No team members</p>
-              <p className="text-sm mt-1">Add team members to see their allocations</p>
+            {/* Resource Rows */}
+            {resources.length === 0 ? (
+              <div className="text-center py-12 text-forvis-gray-600 ml-64">
+                <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p className="font-semibold">No team members</p>
+                <p className="text-sm mt-1">Add team members to see their allocations</p>
+              </div>
+            ) : (
+              resources.map((resource, index) => (
+                <ResourceRow
+                  key={resource.userId}
+                  resource={resource}
+                  columns={columns}
+                  scale={scale}
+                  dateRange={dateRange}
+                  onEditAllocation={canEdit ? handleEditAllocation : () => {}}
+                  onUpdateDates={canEdit ? handleUpdateDates : undefined}
+                  onRemoveMember={taskId !== 0 && canEdit ? handleRemoveMember : undefined}
+                  canEdit={canEdit}
+                  onSelectionStart={handleSelectionStart}
+                  onSelectionMove={handleSelectionMove}
+                  dateSelection={dateSelection}
+                  isSelecting={isSelecting}
+                  rowMetadata={{
+                    rowIndex: index,
+                    rowHeight: resource.maxLanes * 36,
+                    cumulativeHeights: cumulativeHeights
+                  }}
+                />
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Fixed Team Member Column Overlay */}
+        <div className="absolute top-0 left-0 w-64 pointer-events-none z-30">
+          {/* Sticky Header */}
+          <div 
+            className="h-14 px-4 flex items-center bg-white border-b-2 border-r-2 border-forvis-gray-300 pointer-events-auto sticky top-0 z-10"
+          >
+            <div className="text-sm font-semibold text-forvis-gray-900">Team Member</div>
+          </div>
+          
+          {/* Scrolling Team Member Rows */}
+          {resources.length > 0 && (
+            <div 
+              className="overflow-hidden"
+              style={{ 
+                transform: `translateY(-${overlayScrollTop}px)`,
+              }}
+            >
+              {resources.map((resource) => (
+                <div 
+                  key={resource.userId}
+                  className="px-3 py-1 bg-white border-b border-r-2 border-forvis-gray-200 border-r-forvis-gray-300 hover:bg-forvis-blue-50 transition-colors flex items-center pointer-events-auto"
+                  style={{ height: `${resource.maxLanes * 36}px` }}
+                >
+                  <div className="flex items-center w-full gap-2">
+                    <div 
+                      className="rounded-full flex items-center justify-center text-white font-bold shadow-corporate flex-shrink-0 w-6 h-6 text-[10px]"
+                      style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+                    >
+                      {resource.userName ? resource.userName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() : resource.userEmail.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0 flex items-center gap-2">
+                      <div className="font-semibold text-forvis-gray-900 text-xs truncate">
+                        {resource.userName || resource.userEmail}
+                      </div>
+                      <span className="px-1.5 py-0.5 rounded border font-medium bg-blue-100 text-blue-800 border-blue-300 text-[10px] flex-shrink-0">
+                        {resource.jobGradeCode || resource.jobTitle || resource.role}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-          ) : (
-            resources.map((resource, index) => (
-              <ResourceRow
-                key={resource.userId}
-                resource={resource}
-                columns={columns}
-                scale={scale}
-                dateRange={dateRange}
-                onEditAllocation={canEdit ? handleEditAllocation : () => {}}
-                onUpdateDates={canEdit ? handleUpdateDates : undefined}
-                onRemoveMember={canEdit ? handleRemoveMember : undefined}
-                canEdit={canEdit}
-                onSelectionStart={handleSelectionStart}
-                onSelectionMove={handleSelectionMove}
-                dateSelection={dateSelection}
-                isSelecting={isSelecting}
-                rowMetadata={{
-                  rowIndex: index,
-                  rowHeight: resource.maxLanes * 36,
-                  cumulativeHeights: cumulativeHeights
-                }}
-              />
-            ))
           )}
         </div>
       </div>

@@ -33,6 +33,7 @@ export function AllocationTile({
   rowMetadata
 }: AllocationTileProps): JSX.Element {
   const [showTooltip, setShowTooltip] = useState(false);
+  const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState<'left' | 'right' | null>(null);
   const [previewDates, setPreviewDates] = useState<{ start: Date; end: Date } | null>(null);
@@ -313,7 +314,7 @@ export function AllocationTile({
   }, []);
 
   // Handle mouse enter with 2 second delay
-  const handleMouseEnter = useCallback(() => {
+  const handleMouseEnter = useCallback((e: React.MouseEvent) => {
     if (isDragging || isResizing) return;
     
     // Clear any existing timeout
@@ -326,6 +327,13 @@ export function AllocationTile({
       setShowTooltip(true);
     }, 2000);
   }, [isDragging, isResizing]);
+
+  // Handle mouse move to update tooltip position
+  const handleTooltipMouseMove = useCallback((e: React.MouseEvent) => {
+    if (showTooltip) {
+      setTooltipPosition({ x: e.clientX, y: e.clientY });
+    }
+  }, [showTooltip]);
 
   // Handle mouse leave
   const handleMouseLeave = useCallback(() => {
@@ -389,6 +397,7 @@ export function AllocationTile({
       }}
       onMouseDown={(e) => handleMouseDown(e, 'drag')}
       onMouseEnter={handleMouseEnter}
+      onMouseMove={handleTooltipMouseMove}
       onMouseLeave={handleMouseLeave}
     >
       {/* Content - Progressive reveal from left to right */}
@@ -452,7 +461,7 @@ export function AllocationTile({
       )}
 
       {/* Detailed Tooltip (on tile hover for 2+ seconds) - Using Portal */}
-      {showTooltip && !isDragging && !isResizing && typeof document !== 'undefined' && tileRef.current && (() => {
+      {showTooltip && !isDragging && !isResizing && typeof document !== 'undefined' && (() => {
         // Calculate business days and available hours for tooltip
         const businessDays = allocation.startDate && allocation.endDate 
           ? calculateBusinessDays(new Date(allocation.startDate), new Date(allocation.endDate))
@@ -467,9 +476,10 @@ export function AllocationTile({
             className="fixed px-3 py-2.5 bg-forvis-gray-900 text-white rounded-lg shadow-xl min-w-[220px] max-w-[280px]" 
             style={{ 
               zIndex: 9999,
-              top: `${tileRef.current.getBoundingClientRect().top - 10}px`,
-              left: `${tileRef.current.getBoundingClientRect().left + (tileRef.current.getBoundingClientRect().width / 2)}px`,
-              transform: 'translate(-50%, -100%)'
+              top: `${tooltipPosition.y - 10}px`,
+              left: `${tooltipPosition.x}px`,
+              transform: 'translate(-50%, -100%)',
+              pointerEvents: 'none'
             }}
           >
             <div className="font-semibold mb-2 text-sm border-b border-white border-opacity-20 pb-1.5">

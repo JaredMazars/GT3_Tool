@@ -76,74 +76,15 @@ export function ResourceRow({
   return (
     <div 
       className="flex border-b transition-colors group border-forvis-gray-200 hover:bg-forvis-blue-50"
-      style={{ height: `${rowHeight}px` }}
+      style={{ height: `${rowHeight}px`, minWidth: `${totalWidth + 256}px` }}
     >
-      {/* User Info Sidebar */}
-      <div className="w-64 flex-shrink-0 px-3 py-1 bg-white border-r-2 border-forvis-gray-300 sticky left-0 z-10 group-hover:bg-forvis-blue-50 flex items-center h-full">
-        <div className="flex items-center w-full gap-2">
-          <div 
-            className="rounded-full flex items-center justify-center text-white font-bold shadow-corporate flex-shrink-0 w-6 h-6 text-[10px]"
-            style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
-          >
-            {getInitials(resource.userName, resource.userEmail)}
-          </div>
-          <div className="flex-1 min-w-0 flex items-center gap-2">
-            <div className="font-semibold text-forvis-gray-900 text-xs truncate">
-              {resource.userName || resource.userEmail}
-            </div>
-            <span className="px-1.5 py-0.5 rounded border font-medium bg-blue-100 text-blue-800 border-blue-300 text-[10px] flex-shrink-0">
-              {resource.jobGradeCode || resource.jobTitle || resource.role}
-            </span>
-          </div>
-          {canEdit && onRemoveMember && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowRemoveConfirm(true);
-              }}
-              className="flex-shrink-0 p-1.5 text-forvis-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-all opacity-0 group-hover:opacity-100 hover:scale-110"
-              title="Remove from team"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
-        </div>
-
-        {/* Remove confirmation */}
-        {showRemoveConfirm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-corporate-lg p-6 max-w-md mx-4">
-              <h3 className="text-lg font-semibold text-forvis-gray-900 mb-2">Remove Team Member</h3>
-              <p className="text-sm text-forvis-gray-600 mb-4">
-                Remove {resource.userName} from this task? They will lose access to all task data.
-              </p>
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => setShowRemoveConfirm(false)}
-                  className="px-4 py-2 text-sm font-medium text-forvis-gray-700 bg-white border-2 border-forvis-gray-300 rounded-lg hover:bg-forvis-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    onRemoveMember?.(resource.userId);
-                    setShowRemoveConfirm(false);
-                  }}
-                  className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors shadow-corporate"
-                  style={{ background: 'linear-gradient(135deg, #DC2626 0%, #B91C1C 100%)' }}
-                >
-                  Remove
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+      {/* Spacer for fixed column */}
+      <div className="w-64 flex-shrink-0"></div>
 
       {/* Timeline Grid */}
-      <div className="flex-1 relative" style={{ minWidth: `${totalWidth}px` }}>
+      <div className="relative" style={{ width: `${totalWidth}px`, minWidth: `${totalWidth}px` }}>
         {/* Grid background */}
-        <div className="absolute inset-0 flex z-0">
+        <div className="absolute inset-0 flex z-0" style={{ width: `${totalWidth}px` }}>
           {columns.map((column, index) => {
             // Determine if this cell is in the selection range
             const isInSelection = dateSelection && 
@@ -186,8 +127,7 @@ export function ResourceRow({
         </div>
 
         {/* Allocation tiles */}
-        <div className="relative h-full" style={{ pointerEvents: 'none', zIndex: 1 }}>
-          {/* Allocation tiles with higher z-index */}
+        <div className="relative h-full z-1" style={{ pointerEvents: 'none' }}>
           {resource.allocations.map((allocation) => {
             const position = calculateTilePosition(allocation, dateRange, scale, columnWidth);
             if (!position) return null;

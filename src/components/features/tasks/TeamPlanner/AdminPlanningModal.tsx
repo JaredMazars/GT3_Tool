@@ -148,16 +148,10 @@ export function AdminPlanningModal({
       try {
         // Fetch active tasks for this client
         const url = `/api/tasks?serviceLine=${serviceLine}&subServiceLineGroup=${subServiceLineGroup}&status=Active&clientCode=${encodeURIComponent(client.clientCode)}&limit=100`;
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminPlanningModal.tsx:141',message:'Fetching tasks for client',data:{url,selectedClientCode:client.clientCode,selectedClientName:client.clientNameFull,serviceLine,subServiceLineGroup},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B'})}).catch(()=>{});
-        // #endregion
         const response = await fetch(url);
         if (response.ok) {
           const result = await response.json();
           const tasks = result.data?.tasks || result.tasks || [];
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminPlanningModal.tsx:148',message:'Tasks received from API',data:{taskCount:tasks.length,selectedClientCode:client.clientCode,sampleTasks:tasks.slice(0,5).map((t:any)=>({id:t.id,name:t.name,TaskCode:t.TaskCode,clientCode:t.client?.clientCode,clientMatch:t.client?.clientCode===client.clientCode}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B,C'})}).catch(()=>{});
-          // #endregion
           setActiveTasks(tasks);
         }
       } catch (err) {

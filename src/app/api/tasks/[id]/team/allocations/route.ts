@@ -76,11 +76,7 @@ export async function GET(
     }
 
     // 5. Fetch all other allocations for these team members
-    const userIds = task.TaskTeam.map(member => member.userId);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:47',message:'Fetching other allocations',data:{currentTaskId:taskId,userIds:userIds,userCount:userIds.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-    const otherAllocations = await prisma.taskTeam.findMany({
+    const userIds = task.TaskTeam.map(member => member.userId);    const otherAllocations = await prisma.taskTeam.findMany({
       where: {
         userId: { in: userIds },
         taskId: { not: taskId },
@@ -111,10 +107,6 @@ export async function GET(
         }
       }
     });
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:78',message:'Other allocations fetched',data:{otherAllocationsCount:otherAllocations.length,sampleAllocation:otherAllocations[0]||null},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-
     // 6. Transform to response format
     const teamMembersWithAllocations = task.TaskTeam.map(member => {
       // Current task allocation
@@ -152,10 +144,6 @@ export async function GET(
           actualHours: alloc.actualHours ? parseFloat(alloc.actualHours.toString()) : null,
           isCurrentTask: false
         }));
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:117',message:'User allocations prepared',data:{userId:member.userId,currentCount:currentAllocation.length,otherCount:otherUserAllocations.length,totalCount:currentAllocation.length+otherUserAllocations.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
-
       return {
         id: member.id, // TaskTeam.id for the current task - needed for creating/updating allocations
         userId: member.userId,
