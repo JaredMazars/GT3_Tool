@@ -2,8 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { AllocationData, GanttPosition, TimeScale } from './types';
-import { getRoleGradient, formatHours, formatPercentage } from './utils';
-import { format, addDays, addWeeks, addMonths } from 'date-fns';
+import { getRoleGradient, formatHours, formatPercentage, getDayPixelWidth, snapToDay, pixelsToDays } from './utils';
+import { format, addDays } from 'date-fns';
 
 interface AllocationTileProps {
   allocation: AllocationData;
@@ -30,70 +30,62 @@ export function AllocationTile({
   const [previewDates, setPreviewDates] = useState<{ start: Date; end: Date } | null>(null);
   const [currentDelta, setCurrentDelta] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
+  const [expectedDates, setExpectedDates] = useState<{ start: Date; end: Date } | null>(null);
   const [hasDragged, setHasDragged] = useState(false);
   const dragStartX = useRef(0);
   const originalLeft = useRef(0);
   const originalWidth = useRef(0);
-  const savedDelta = useRef(0);
-  const savedAction = useRef<'drag' | 'resize-left' | 'resize-right' | null>(null);
-  const lastSyncedPosition = useRef({ left: position.left, width: position.width });
+  const lastAppliedDelta = useRef(0);
+  const lastAction = useRef<'drag' | 'resize-left' | 'resize-right' | null>(null);
   
   const gradient = getRoleGradient(allocation.role);
+  
+  // Calculate day pixel width based on current scale
+  const dayPixelWidth = useMemo(() => 
+    getDayPixelWidth(scale, columnWidth), 
+    [scale, columnWidth]
+  );
   
   const progress = allocation.actualHours && allocation.allocatedHours
     ? Math.min((allocation.actualHours / allocation.allocatedHours) * 100, 100)
     : 0;
 
-  // Update refs when not dragging/resizing/saving AND position actually changed
+  // Update refs when position changes and not actively dragging or saving
   useEffect(() => {
     if (!isDragging && !isResizing && !isSaving) {
-      const positionChanged = 
-        Math.abs(position.left - lastSyncedPosition.current.left) > 0.1 ||
-        Math.abs(position.width - lastSyncedPosition.current.width) > 0.1;
-      
-      if (positionChanged) {
-        console.log('📍 Refs synced (position changed):', { 
-          from: lastSyncedPosition.current,
-          to: { left: position.left, width: position.width }
-        });
-        originalLeft.current = position.left;
-        originalWidth.current = position.width;
-        lastSyncedPosition.current = { left: position.left, width: position.width };
-      }
+      originalLeft.current = position.left;
+      originalWidth.current = position.width;
     }
   }, [position.left, position.width, isDragging, isResizing, isSaving]);
-  
-  // Clear saving state after refetch completes
+
+  // Detect when server data matches expected dates (server sync detection)
   useEffect(() => {
-    if (isSaving) {
-      const timeout = setTimeout(() => {
-        console.log('⏰ Timeout: clearing isSaving (refs will sync automatically)');
-        savedDelta.current = 0;
-        savedAction.current = null;
-        // Just clear isSaving - refs will sync in the effect above on next render
-        setIsSaving(false);
-      }, 1500);
+    if (isSaving && expectedDates && allocation.startDate && allocation.endDate) {
+      const serverStart = new Date(allocation.startDate).getTime();
+      const serverEnd = new Date(allocation.endDate).getTime();
+      const expectedStart = expectedDates.start.getTime();
+      const expectedEnd = expectedDates.end.getTime();
       
-      return () => clearTimeout(timeout);
+      // Day-level tolerance (dates normalized to midnight)
+      const DAY_IN_MS = 24 * 60 * 60 * 1000;
+      const startMatches = Math.abs(serverStart - expectedStart) < DAY_IN_MS;
+      const endMatches = Math.abs(serverEnd - expectedEnd) < DAY_IN_MS;
+      
+      if (startMatches && endMatches) {
+        // Server confirmed our expected dates
+        setIsSaving(false);
+        setExpectedDates(null);
+        setCurrentDelta(0);
+        lastAppliedDelta.current = 0;
+        lastAction.current = null;
+      }
     }
-  }, [isSaving]);
+  }, [isSaving, expectedDates, allocation.startDate, allocation.endDate]);
 
   // Use preview dates during drag/resize for visual feedback
   const displayDates = previewDates || {
     start: allocation.startDate ? new Date(allocation.startDate) : null,
     end: allocation.endDate ? new Date(allocation.endDate) : null
-  };
-
-  const pixelsToTimeUnits = (pixels: number) => {
-    const units = pixels / columnWidth;
-    switch (scale) {
-      case 'day':
-        return Math.round(units);
-      case 'week':
-        return Math.round(units * 7);
-      case 'month':
-        return Math.round(units * 30);
-    }
   };
 
   const handleMouseDown = (e: React.MouseEvent, action: 'drag' | 'resize-left' | 'resize-right') => {
@@ -108,8 +100,6 @@ export function AllocationTile({
     // Capture current position as snapshot
     originalLeft.current = position.left;
     originalWidth.current = position.width;
-    
-    console.log('🖱️ Mouse down:', { action, left: position.left, width: position.width });
     
     setCurrentDelta(0);
     setHasDragged(false);
@@ -127,14 +117,18 @@ export function AllocationTile({
     if (!isDragging && !isResizing) return;
     
     const deltaX = e.clientX - dragStartX.current;
-    setCurrentDelta(deltaX);
     
-    // Mark as dragged if moved more than 10 pixels (increased sensitivity threshold)
-    if (Math.abs(deltaX) > 10) {
+    // Snap delta to day boundaries
+    const snappedDelta = snapToDay(deltaX, dayPixelWidth);
+    setCurrentDelta(snappedDelta);
+    
+    // Mark as dragged if moved more than half a day
+    if (Math.abs(snappedDelta) > dayPixelWidth / 2) {
       setHasDragged(true);
     }
     
-    const daysDelta = pixelsToTimeUnits(deltaX);
+    // Convert to days
+    const daysDelta = pixelsToDays(snappedDelta, dayPixelWidth);
     
     if (!allocation.startDate || !allocation.endDate) return;
     
@@ -145,17 +139,22 @@ export function AllocationTile({
     let newEnd: Date;
     
     if (isDragging) {
+      // Drag: move both dates by same amount
       newStart = addDays(currentStart, daysDelta);
       newEnd = addDays(currentEnd, daysDelta);
     } else if (isResizing === 'left') {
+      // Resize left: change start date, keep end date
       newStart = addDays(currentStart, daysDelta);
       newEnd = currentEnd;
+      // Enforce minimum 1 day
       if (newStart >= newEnd) {
         newStart = addDays(newEnd, -1);
       }
     } else if (isResizing === 'right') {
+      // Resize right: keep start date, change end date
       newStart = currentStart;
       newEnd = addDays(currentEnd, daysDelta);
+      // Enforce minimum 1 day
       if (newEnd <= newStart) {
         newEnd = addDays(newStart, 1);
       }
@@ -164,104 +163,99 @@ export function AllocationTile({
     }
     
     setPreviewDates({ start: newStart, end: newEnd });
-  }, [isDragging, isResizing, allocation, scale, columnWidth]);
+  }, [isDragging, isResizing, allocation.startDate, allocation.endDate, dayPixelWidth]);
 
   const handleMouseUp = useCallback(() => {
-    console.log('⬆️ Mouse up:', { currentDelta, hasPreview: !!previewDates });
-    
     if (previewDates && onUpdateDates) {
-      // Save delta and action type to keep position while saving
-      savedDelta.current = currentDelta;
+      lastAppliedDelta.current = currentDelta; // Store for isSaving state
+      // Store which action was performed BEFORE clearing the states
       if (isDragging) {
-        savedAction.current = 'drag';
-      } else if (isResizing) {
-        savedAction.current = isResizing === 'left' ? 'resize-left' : 'resize-right';
+        lastAction.current = 'drag';
+      } else if (isResizing === 'left') {
+        lastAction.current = 'resize-left';
+      } else if (isResizing === 'right') {
+        lastAction.current = 'resize-right';
       }
-      
-      console.log('💾 Setting saving state:', { savedDelta: savedDelta.current, savedAction: savedAction.current });
-      
       setIsSaving(true);
+      setExpectedDates(previewDates); // Store expected dates
       onUpdateDates(allocation.id, previewDates.start, previewDates.end);
     }
     
     setIsDragging(false);
     setIsResizing(null);
     setPreviewDates(null);
-    setCurrentDelta(0);
+    // Don't reset currentDelta here if saving - keep it for position calculation
+    if (!previewDates) {
+      setCurrentDelta(0);
+    }
     
     setTimeout(() => setHasDragged(false), 100);
   }, [previewDates, onUpdateDates, allocation.id, currentDelta, isDragging, isResizing]);
 
   // Add/remove global mouse event listeners
   useEffect(() => {
-    console.log('🔧 useEffect for event listeners:', { isDragging, isResizing });
-    
     if (isDragging || isResizing) {
-      console.log('➕ Attaching event listeners');
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
       return () => {
-        console.log('➖ Removing event listeners');
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
       };
     }
   }, [isDragging, isResizing, handleMouseMove, handleMouseUp]);
 
-  // Calculate live position during drag/resize
+  // Calculate live position during drag/resize/saving
   const livePosition = useMemo(() => {
-    // While saving, ALWAYS use saved calculation until timeout clears isSaving
-    if (isSaving && !isDragging && !isResizing) {
-      const delta = savedDelta.current;
-      const action = savedAction.current;
+    // CRITICAL: While saving, hold the position with lastAppliedDelta applied
+    // This prevents jumping back to old server position
+    if (isSaving) {
+      const delta = lastAppliedDelta.current;
+      const action = lastAction.current;
       
-      console.log('⏳ Using saved calculation:', { action, delta });
-      
-      if (action === 'drag') {
+      // Use stored action type to determine how to calculate position
+      if (action === 'resize-left') {
         return {
           left: originalLeft.current + delta,
-          width: originalWidth.current
-        };
-      } else if (action === 'resize-left') {
-        return {
-          left: originalLeft.current + delta,
-          width: originalWidth.current - delta
+          width: Math.max(originalWidth.current - delta, dayPixelWidth)
         };
       } else if (action === 'resize-right') {
         return {
           left: originalLeft.current,
-          width: originalWidth.current + delta
+          width: Math.max(originalWidth.current + delta, dayPixelWidth)
         };
       }
+      // Default to drag behavior
+      return {
+        left: originalLeft.current + delta,
+        width: originalWidth.current
+      };
     }
     
+    // Not saving and not dragging/resizing: use server position
     if (!isDragging && !isResizing) {
       return position;
     }
     
+    // Active drag/resize: show live preview
     if (isDragging) {
-      const newLeft = originalLeft.current + currentDelta;
       return {
-        left: newLeft,
+        left: originalLeft.current + currentDelta,
         width: originalWidth.current
       };
     } else if (isResizing === 'left') {
-      const newLeft = originalLeft.current + currentDelta;
-      const newWidth = originalWidth.current - currentDelta;
       return {
-        left: newLeft,
-        width: newWidth
+        left: originalLeft.current + currentDelta,
+        width: Math.max(originalWidth.current - currentDelta, dayPixelWidth) // Minimum one day
       };
     } else if (isResizing === 'right') {
-      const newWidth = originalWidth.current + currentDelta;
       return {
         left: originalLeft.current,
-        width: newWidth
+        width: Math.max(originalWidth.current + currentDelta, dayPixelWidth) // Minimum one day
       };
     }
     
     return position;
-  }, [position, currentDelta, isDragging, isResizing, isSaving]);
+  }, [position, currentDelta, isDragging, isResizing, isSaving, dayPixelWidth]);
 
   return (
     <div
@@ -273,7 +267,11 @@ export function AllocationTile({
         width: `${livePosition.width}px`,
         background: gradient,
         minWidth: '40px',
-        transition: isDragging || isResizing ? 'none' : 'all 0.2s'
+        // Smooth transition when not dragging (includes when isSaving completes)
+        transition: (isDragging || isResizing) 
+          ? 'none' 
+          : 'left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        opacity: isSaving ? 0.9 : 1 // Visual feedback during save
       }}
       onClick={(e) => {
         // Don't open modal if this was a drag operation

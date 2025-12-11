@@ -93,7 +93,44 @@ export function getColumnWidth(scale: TimeScale): number {
 }
 
 /**
+ * Get pixel width of one day based on current scale
+ * Day-based snapping: all views snap to individual days
+ */
+export function getDayPixelWidth(scale: TimeScale, columnWidth: number): number {
+  switch (scale) {
+    case 'day':
+      return columnWidth; // 60px per day
+    case 'week':
+      return columnWidth / 7; // ~14.29px per day
+    case 'month':
+      return columnWidth / 30; // 4px per day (average)
+  }
+}
+
+/**
+ * Snap pixel position to nearest day boundary
+ */
+export function snapToDay(pixelPosition: number, dayPixelWidth: number): number {
+  return Math.round(pixelPosition / dayPixelWidth) * dayPixelWidth;
+}
+
+/**
+ * Convert pixel position to day index from range start
+ */
+export function pixelsToDays(pixels: number, dayPixelWidth: number): number {
+  return Math.round(pixels / dayPixelWidth);
+}
+
+/**
+ * Convert days from range start to pixel position
+ */
+export function daysToPixels(days: number, dayPixelWidth: number): number {
+  return days * dayPixelWidth;
+}
+
+/**
  * Calculate position and width for an allocation tile
+ * Uses day-based pixel calculations for all scales
  */
 export function calculateTilePosition(
   allocation: AllocationData,
@@ -117,68 +154,20 @@ export function calculateTilePosition(
   const visibleStart = start < range.start ? range.start : start;
   const visibleEnd = end > range.end ? range.end : end;
 
-  // Calculate position based on scale
-  let leftPosition: number;
-  let width: number;
-
-  switch (scale) {
-    case 'day': {
-      // In day view, each column is one day
-      const startDays = differenceInDays(visibleStart, range.start);
-      const durationDays = differenceInDays(visibleEnd, visibleStart) + 1;
-      
-      leftPosition = startDays * columnWidth;
-      width = durationDays * columnWidth;
-      break;
-    }
-      
-    case 'week': {
-      // In week view, each column represents one week starting Monday
-      // Calculate partial week offsets for precise positioning
-      const rangeWeekStart = startOfWeek(range.start, { weekStartsOn: 1 });
-      const startWeekStart = startOfWeek(visibleStart, { weekStartsOn: 1 });
-      const endWeekStart = startOfWeek(visibleEnd, { weekStartsOn: 1 });
-      
-      // Calculate which week column the start date falls in
-      const weeksFromRangeToStart = differenceInWeeks(startWeekStart, rangeWeekStart);
-      
-      // Calculate day offset within the start week
-      const dayOffsetInStartWeek = differenceInDays(visibleStart, startWeekStart);
-      
-      // Calculate total duration in days
-      const durationDays = differenceInDays(visibleEnd, visibleStart) + 1;
-      
-      leftPosition = (weeksFromRangeToStart * columnWidth) + (dayOffsetInStartWeek / 7 * columnWidth);
-      width = (durationDays / 7) * columnWidth;
-      break;
-    }
-      
-    case 'month': {
-      // In month view, each column represents one month
-      const rangeMonthStart = startOfMonth(range.start);
-      const startMonthStart = startOfMonth(visibleStart);
-      const endMonthStart = startOfMonth(visibleEnd);
-      
-      // Calculate which month column the start date falls in
-      const monthsFromRangeToStart = differenceInMonths(startMonthStart, rangeMonthStart);
-      
-      // Calculate day offset within the start month
-      const dayOffsetInStartMonth = differenceInDays(visibleStart, startMonthStart);
-      const daysInStartMonth = differenceInDays(endOfMonth(startMonthStart), startMonthStart) + 1;
-      
-      // Calculate total duration in days
-      const durationDays = differenceInDays(visibleEnd, visibleStart) + 1;
-      const averageDaysInMonth = 30; // Approximate
-      
-      leftPosition = (monthsFromRangeToStart * columnWidth) + (dayOffsetInStartMonth / averageDaysInMonth * columnWidth);
-      width = (durationDays / averageDaysInMonth) * columnWidth;
-      break;
-    }
-  }
+  // Get pixel width of one day for this scale
+  const dayPixelWidth = getDayPixelWidth(scale, columnWidth);
+  
+  // Calculate position in days from range start
+  const startDays = differenceInDays(visibleStart, range.start);
+  const durationDays = differenceInDays(visibleEnd, visibleStart) + 1;
+  
+  // Convert days to pixels
+  const leftPosition = daysToPixels(startDays, dayPixelWidth);
+  const width = daysToPixels(durationDays, dayPixelWidth);
 
   return {
     left: leftPosition,
-    width: Math.max(width, columnWidth * 0.5) // Minimum half column width
+    width: Math.max(width, dayPixelWidth) // Minimum one day width
   };
 }
 
