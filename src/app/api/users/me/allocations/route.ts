@@ -55,6 +55,12 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    console.log('[API /api/users/me/allocations] Query results:', {
+      userId: user.id,
+      allocationsFound: userAllocations.length,
+      sampleAllocation: userAllocations[0]
+    });
+
     // 3. Get service line mappings for all tasks
     const servLineCodes = [...new Set(userAllocations.map(a => a.Task.ServLineCode).filter(Boolean))];
     const serviceLineMappings = await prisma.serviceLineExternal.findMany({
@@ -143,6 +149,13 @@ export async function GET(request: NextRequest) {
       if (a.clientId === null) return 1;
       if (b.clientId === null) return -1;
       return a.clientName.localeCompare(b.clientName);
+    });
+
+    console.log('[API /api/users/me/allocations] Response data:', {
+      clientsCount: clients.length,
+      flatListCount: flatList.length,
+      firstClient: clients[0],
+      firstClientAllocations: clients[0]?.allocations?.length || 0
     });
 
     return NextResponse.json(successResponse({ clients, flatList }));

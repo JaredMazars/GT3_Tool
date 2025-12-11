@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui';
 import { X, Calendar, Clock, Percent, Search, Building2, Briefcase, ChevronRight } from 'lucide-react';
 import { format, startOfDay } from 'date-fns';
@@ -62,8 +63,31 @@ export function AdminPlanningModal({
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   
   const [clientSearch, setClientSearch] = useState('');
-  const [clientResults, setClientResults] = useState<Client[]>([]);
-  const [isLoadingClients, setIsLoadingClients] = useState(false);
+  const [debouncedClientSearch, setDebouncedClientSearch] = useState('');
+
+  // Debounce client search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedClientSearch(clientSearch);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [clientSearch]);
+
+  // React Query for client search with debounced term
+  const { data: clientResults = [], isLoading: isLoadingClients } = useQuery({
+    queryKey: ['clients', 'search', debouncedClientSearch, serviceLine, subServiceLineGroup],
+    queryFn: async () => {
+      const response = await fetch(
+        `/api/clients?search=${encodeURIComponent(debouncedClientSearch)}&serviceLine=${serviceLine}&subServiceLineGroup=${subServiceLineGroup}&limit=10`
+      );
+      if (!response.ok) throw new Error('Failed to fetch clients');
+      const result = await response.json();
+      return result.data?.clients || result.clients || [];
+    },
+    enabled: debouncedClientSearch.length >= 2,
+    staleTime: 5000, // Cache for 5 seconds (shorter to avoid stale results)
+    gcTime: 2 * 60 * 1000, // Keep in cache for 2 minutes
+  });
   
   const [activeTasks, setActiveTasks] = useState<Task[]>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
@@ -90,7 +114,7 @@ export function AdminPlanningModal({
       setSelectedClient(null);
       setSelectedTask(null);
       setClientSearch('');
-      setClientResults([]);
+      setDebouncedClientSearch('');
       setActiveTasks([]);
       
       // Use initial dates if provided, otherwise empty
@@ -108,57 +132,76 @@ export function AdminPlanningModal({
     }
   }, [isOpen, initialStartDate, initialEndDate]);
 
-  // Debounced client search
+  // Fetch active tasks when client is selected - simple reload, no caching
   useEffect(() => {
-    if (!clientSearch || clientSearch.length < 2) {
-      setClientResults([]);
-      return;
-    }
-
-    const timer = setTimeout(async () => {
-      setIsLoadingClients(true);
-      try {
-        const response = await fetch(
-          `/api/clients?search=${encodeURIComponent(clientSearch)}&serviceLine=${serviceLine}&subServiceLineGroup=${subServiceLineGroup}&limit=10`
-        );
-        if (response.ok) {
-          const result = await response.json();
-          setClientResults(result.data?.clients || result.clients || []);
-        }
-      } catch (err) {
-        console.error('Error searching clients:', err);
-      } finally {
-        setIsLoadingClients(false);
-      }
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [clientSearch, serviceLine, subServiceLineGroup]);
-
-  // Fetch active tasks when client is selected
-  useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminPlanningModal.tsx:136',message:'Effect triggered',data:{hasSelectedClient:!!selectedClient,clientId:selectedClient?.id,clientCode:selectedClient?.clientCode,serviceLine,subServiceLineGroup,currentTasksCount:activeTasks.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,D,I'})}).catch(()=>{});
+    // #endregion
+    
     if (!selectedClient) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminPlanningModal.tsx:141',message:'Clearing tasks - no client',data:{previousTasksCount:activeTasks.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'I'})}).catch(()=>{});
+      // #endregion
+      
       setActiveTasks([]);
       return;
     }
 
-    const client = selectedClient; // Capture to avoid null reference
+    const client = selectedClient;
     async function fetchActiveTasks() {
       setIsLoadingTasks(true);
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminPlanningModal.tsx:144',message:'Starting fetch',data:{clientCode:client.clientCode,clientId:client.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,D'})}).catch(()=>{});
+      // #endregion
+      
       try {
-        // Fetch active tasks for this client
-        const url = `/api/tasks?serviceLine=${serviceLine}&subServiceLineGroup=${subServiceLineGroup}&status=Active&clientCode=${encodeURIComponent(client.clientCode)}&limit=100`;
-        const response = await fetch(url);
+        const url = `/api/tasks?serviceLine=${serviceLine}&subServiceLineGroup=${subServiceLineGroup}&status=Active&clientCode=${encodeURIComponent(client.clientCode)}&limit=100&_t=${Date.now()}`;
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminPlanningModal.tsx:147',message:'Constructed URL',data:{url},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A',runId:'post-fix'})}).catch(()=>{});
+        // #endregion
+        
+        const response = await fetch(url, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        });
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminPlanningModal.tsx:148',message:'Response received',data:{status:response.status,ok:response.ok},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B',runId:'post-fix'})}).catch(()=>{});
+        // #endregion
+        
         if (response.ok) {
           const result = await response.json();
+          
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminPlanningModal.tsx:150',message:'Parsed response',data:{hasDataTasks:!!result.data?.tasks,hasTasks:!!result.tasks,dataTasksLength:result.data?.tasks?.length,tasksLength:result.tasks?.length,resultKeys:Object.keys(result)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B',runId:'post-fix'})}).catch(()=>{});
+          // #endregion
+          
           const tasks = result.data?.tasks || result.tasks || [];
+          
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminPlanningModal.tsx:151',message:'Setting tasks',data:{tasksLength:tasks.length,taskIds:tasks.map((t:any)=>t.id).slice(0,5)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C',runId:'post-fix'})}).catch(()=>{});
+          // #endregion
+          
           setActiveTasks(tasks);
         }
       } catch (err) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminPlanningModal.tsx:154',message:'Fetch error',data:{error:err instanceof Error?err.message:String(err)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B'})}).catch(()=>{});
+        // #endregion
+        
         console.error('Error fetching tasks:', err);
         setActiveTasks([]);
       } finally {
         setIsLoadingTasks(false);
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminPlanningModal.tsx:157',message:'Fetch completed',data:{loadingState:false},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+        // #endregion
       }
     }
 
@@ -216,9 +259,12 @@ export function AdminPlanningModal({
   }, [formData.allocatedHours, calculatedInfo.availableHours]);
 
   const handleClientSelect = (client: Client) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminPlanningModal.tsx:251',message:'Client selected',data:{clientId:client.id,clientCode:client.clientCode,clientName:client.clientNameFull,currentActiveTasks:activeTasks.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'F,I'})}).catch(()=>{});
+    // #endregion
+    
     setSelectedClient(client);
     setClientSearch('');
-    setClientResults([]);
     setStep('task');
   };
 
@@ -357,14 +403,14 @@ export function AdminPlanningModal({
                 </div>
               </div>
 
-              {isLoadingClients && (
+              {(isLoadingClients || (clientSearch.length >= 2 && clientSearch !== debouncedClientSearch)) && (
                 <div className="text-center py-4 text-forvis-gray-600">
                   <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-forvis-blue-600"></div>
                   <p className="text-sm mt-2">Searching clients...</p>
                 </div>
               )}
 
-              {clientResults.length > 0 && (
+              {!isLoadingClients && clientSearch === debouncedClientSearch && clientResults.length > 0 && (
                 <div className="border-2 border-forvis-gray-200 rounded-lg divide-y divide-forvis-gray-200 max-h-80 overflow-y-auto">
                   {clientResults.map((client) => (
                     <button
@@ -387,7 +433,7 @@ export function AdminPlanningModal({
                 </div>
               )}
 
-              {clientSearch.length >= 2 && !isLoadingClients && clientResults.length === 0 && (
+              {clientSearch.length >= 2 && clientSearch === debouncedClientSearch && !isLoadingClients && clientResults.length === 0 && (
                 <div className="text-center py-8 text-forvis-gray-600">
                   <Building2 className="w-12 h-12 mx-auto mb-2 text-forvis-gray-400" />
                   <p className="text-sm">No clients found matching "{clientSearch}"</p>
@@ -399,6 +445,10 @@ export function AdminPlanningModal({
           {/* Step 2: Task Selection */}
           {step === 'task' && selectedClient && (
             <div className="space-y-4">
+              {/* #region agent log */}
+              {fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminPlanningModal.tsx:435',message:'Rendering task step',data:{step,hasSelectedClient:!!selectedClient,clientCode:selectedClient?.clientCode,activeTasks:activeTasks.length,isLoadingTasks,willShowTasks:!isLoadingTasks&&activeTasks.length>0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C,E'})}).catch(()=>{}) && null}
+              {/* #endregion */}
+              
               {/* Selected Client Display */}
               <div className="p-4 bg-green-50 border-2 border-green-300 rounded-lg flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -412,6 +462,10 @@ export function AdminPlanningModal({
                 </div>
                 <button
                   onClick={() => {
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminPlanningModal.tsx:454',message:'Change button clicked',data:{previousClient:selectedClient?.clientCode,previousClientId:selectedClient?.id,currentTasks:activeTasks.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'I'})}).catch(()=>{});
+                    // #endregion
+                    
                     setSelectedClient(null);
                     setStep('client');
                   }}
@@ -442,6 +496,9 @@ export function AdminPlanningModal({
 
               {!isLoadingTasks && activeTasks.length > 0 && (
                 <div className="border-2 border-forvis-gray-200 rounded-lg divide-y divide-forvis-gray-200 max-h-96 overflow-y-auto">
+                  {/* #region agent log */}
+                  {fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminPlanningModal.tsx:485',message:'Rendering task list',data:{selectedClientCode:selectedClient?.clientCode,taskCount:activeTasks.length,taskDetails:activeTasks.map(t=>({id:t.id,name:t.name,clientCode:t.client?.clientCode}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H,I',runId:'post-fix'})}).catch(()=>{}) && null}
+                  {/* #endregion */}
                   {activeTasks.map((task) => (
                     <button
                       key={task.id}
@@ -636,8 +693,10 @@ export function AdminPlanningModal({
                 size="md"
                 onClick={() => {
                   if (step === 'allocation') {
+                    setSelectedTask(null);
                     setStep('task');
                   } else if (step === 'task') {
+                    setSelectedClient(null);
                     setStep('client');
                   }
                 }}

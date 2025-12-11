@@ -28,6 +28,8 @@ interface ListCacheParams {
   myTasksOnly?: boolean;
   groupCode?: string;
   type?: 'clients' | 'tasks';
+  clientCode?: string;
+  status?: string;
 }
 
 /**
@@ -49,6 +51,8 @@ export function getListCacheKey(params: ListCacheParams): string {
     myTasksOnly,
     groupCode,
     type,
+    clientCode,
+    status,
   } = params;
 
   // Build key components
@@ -80,6 +84,8 @@ export function getListCacheKey(params: ListCacheParams): string {
   if (myTasksOnly) components.push('my');
   if (groupCode) components.push(`gc${groupCode}`);
   if (type) components.push(`t${type}`);
+  if (clientCode) components.push(`cc${clientCode}`);
+  if (status) components.push(`st${status}`);
 
   return components.join(':');
 }
@@ -101,7 +107,18 @@ export async function getCachedList<T>(params: ListCacheParams): Promise<T | nul
   }
 
   const cacheKey = getListCacheKey(params);
-  return await cache.get<T>(cacheKey);
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'listCache.ts:104',message:'Cache lookup',data:{cacheKey,clientCode:params.clientCode,status:params.status,endpoint:params.endpoint},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H',runId:'post-fix-v2'})}).catch(()=>{});
+  // #endregion
+  
+  const result = await cache.get<T>(cacheKey);
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'listCache.ts:111',message:'Cache result',data:{cacheKey,hit:!!result},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H',runId:'post-fix-v2'})}).catch(()=>{});
+  // #endregion
+  
+  return result;
 }
 
 /**
