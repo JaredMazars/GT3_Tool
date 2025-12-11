@@ -813,13 +813,18 @@ model Task {
 }
 
 model TaskTeam {
-  id        Int      @id @default(autoincrement())
-  taskId    Int
-  userId    String
-  role      String   @default("VIEWER")
-  createdAt DateTime @default(now())
-  Task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                   Int       @id @default(autoincrement())
+  taskId               Int
+  userId               String
+  role                 String    @default("VIEWER")
+  startDate            DateTime?
+  endDate              DateTime?
+  allocatedHours       Decimal?  @db.Decimal(10, 2)
+  allocatedPercentage  Int?
+  actualHours          Decimal?  @db.Decimal(10, 2)
+  createdAt            DateTime  @default(now())
+  Task                 Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  User                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([taskId, userId])
   @@index([taskId])
@@ -827,6 +832,9 @@ model TaskTeam {
   @@index([role])
   @@index([userId, taskId])
   @@index([userId, taskId, role])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([userId, startDate, endDate])
 }
 
 model TaskAcceptance {
@@ -1229,7 +1237,7 @@ model DrsTransactions {
   ClientManagerName   String    @db.NVarChar(50)
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
-  Client              Client    @relation(fields: [GSClientID], references: [GSClientID], onDelete: NoAction, onUpdate: NoAction)
+  Client              Client?   @relation(fields: [GSClientID], references: [GSClientID], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([GSClientID])
   @@index([TranDate])

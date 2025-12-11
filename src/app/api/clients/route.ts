@@ -5,6 +5,7 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { getServLineCodesBySubGroup } from '@/lib/utils/serviceLineExternal';
 import { getCachedList, setCachedList } from '@/lib/services/cache/listCache';
+import { enrichRecordsWithEmployeeNames } from '@/lib/services/employees/employeeQueries';
 
 export async function GET(request: NextRequest) {
   try {
@@ -138,6 +139,8 @@ export async function GET(request: NextRequest) {
         clientNameFull: true,
         groupDesc: true,
         clientPartner: true,
+        clientManager: true,
+        clientIncharge: true,
         industry: true,
         sector: true,
         createdAt: true,
@@ -150,8 +153,15 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Enrich clients with employee names
+    const enrichedClients = await enrichRecordsWithEmployeeNames(clients, [
+      { codeField: 'clientPartner', nameField: 'clientPartnerName' },
+      { codeField: 'clientManager', nameField: 'clientManagerName' },
+      { codeField: 'clientIncharge', nameField: 'clientInchargeName' },
+    ]);
+
     const responseData = {
-      clients,
+      clients: enrichedClients,
       pagination: {
         page,
         limit,

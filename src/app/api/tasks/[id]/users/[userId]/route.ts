@@ -207,8 +207,8 @@ export async function PUT(
           user.name || user.email,
           oldRole,
           validatedData.role,
-          serviceLineMapping?.masterCode,
-          serviceLineMapping?.SubServlineGroupCode,
+          serviceLineMapping?.masterCode ?? undefined,
+          serviceLineMapping?.SubServlineGroupCode ?? undefined,
           taskForNotification.Client?.id
         );
 

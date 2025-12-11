@@ -3,7 +3,7 @@ import { handleApiError } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { prisma } from '@/lib/db/prisma';
-import { searchADUsers } from '@/lib/services/auth/graphClient';
+import { searchActiveEmployees, EmployeeSearchFilters } from '@/lib/services/employees/employeeSearch';
 
 // Force dynamic rendering (uses cookies)
 export const dynamic = 'force-dynamic';
@@ -20,7 +20,9 @@ export async function GET(request: NextRequest) {
     const query = searchParams.get('q') || '';
     const limit = Number.parseInt(searchParams.get('limit') || '20');
     const taskId = searchParams.get('taskId');
-    const source = searchParams.get('source') || 'database'; // 'database' or 'ad'
+    const serviceLine = searchParams.get('serviceLine');
+    const jobGrade = searchParams.get('jobGrade');
+    const office = searchParams.get('office');
 
     // Validate limit
     if (limit < 1 || limit > 100) {
@@ -30,90 +32,48 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Search Active Directory if requested
-    if (source === 'ad') {
-      if (!query.trim()) {
-        return NextResponse.json(successResponse([]));
-      }
-
-      try {
-        const adUsers = await searchADUsers(query.trim(), limit);
-        
-        // Transform Graph users to ADUser format
-        const formattedUsers = adUsers.map(u => ({
-          id: u.id,
-          email: u.mail || u.userPrincipalName,
-          displayName: u.displayName,
-          userPrincipalName: u.userPrincipalName,
-          jobTitle: u.jobTitle,
-          department: u.department,
-          officeLocation: u.officeLocation,
-          mobilePhone: u.mobilePhone,
-          businessPhones: u.businessPhones,
-          city: u.city,
-          country: u.country,
-          companyName: u.companyName,
-          employeeId: u.employeeId,
-          employeeType: u.employeeType,
-          givenName: u.givenName,
-          surname: u.surname,
-        }));
-
-        return NextResponse.json(successResponse(formattedUsers));
-      } catch (error) {
-        // Fall back to database search if AD fails
-        console.error('AD search failed, falling back to database:', error);
-      }
-    }
-
-    // Build where clause for database search
-    interface WhereClause {
-      OR?: Array<{ name: { contains: string } } | { email: { contains: string } }>;
-    }
-    
-    const whereClause: WhereClause = {};
-    
-    if (query.trim()) {
-      // Search by name or email (SQL Server uses case-insensitive collation by default)
-      whereClause.OR = [
-        { name: { contains: query.trim() } },
-        { email: { contains: query.trim() } },
-      ];
-    }
-
-    // Get users from database
-    let users = await prisma.user.findMany({
-      where: whereClause,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        image: true,
-      },
-      take: limit,
-      orderBy: {
-        name: 'asc',
-      },
-    });
-
-    // If taskId is provided, filter out users already in the task
+    // Get list of user IDs already on the task (if taskId provided)
+    let excludeUserIds: string[] = [];
     if (taskId) {
       const taskUsers = await prisma.taskTeam.findMany({
         where: { taskId: Number.parseInt(taskId) },
         select: { userId: true },
       });
-      
-      const taskUserIds = new Set(taskUsers.map(tu => tu.userId));
-      users = users.filter(u => !taskUserIds.has(u.id));
+      excludeUserIds = taskUsers.map(tu => tu.userId);
     }
 
-    // Transform to expected format
-    const formattedUsers = users.map(u => ({
-      id: u.id,
-      email: u.email,
-      displayName: u.name || u.email,
-      jobTitle: null,
-      department: null,
+    // Build filters
+    const filters: EmployeeSearchFilters = {};
+    if (serviceLine) {
+      filters.serviceLine = serviceLine;
+    }
+    if (jobGrade) {
+      filters.jobGrade = jobGrade;
+    }
+    if (office) {
+      filters.office = office;
+    }
+
+    // Search active employees with User matching
+    const employees = await searchActiveEmployees(query, limit, excludeUserIds, filters);
+
+    // Transform to format expected by frontend (ADUser-compatible)
+    const formattedUsers = employees.map(emp => ({
+      id: emp.User?.id || '', // Empty string if no User account
+      email: emp.User?.email || emp.WinLogon || '',
+      displayName: emp.EmpNameFull,
+      userPrincipalName: emp.User?.email,
+      jobTitle: emp.EmpCatDesc,
+      department: emp.ServLineDesc,
+      officeLocation: emp.OfficeCode,
+      employeeId: emp.EmpCode,
+      employeeType: emp.Team,
+      // Additional employee-specific fields
+      hasUserAccount: emp.User !== null,
+      GSEmployeeID: emp.GSEmployeeID,
+      EmpCode: emp.EmpCode,
+      ServLineCode: emp.ServLineCode,
+      WinLogon: emp.WinLogon,
     }));
 
     return NextResponse.json(successResponse(formattedUsers));

@@ -150,8 +150,11 @@ export interface Client {
   groupCode: string;
   groupDesc: string;
   clientPartner: string;
+  clientPartnerName?: string; // Enriched from Employee table
   clientManager: string;
+  clientManagerName?: string; // Enriched from Employee table
   clientIncharge: string;
+  clientInchargeName?: string; // Enriched from Employee table
   active: string;
   clientOCFlag: boolean;
   rolePlayer: boolean;
@@ -263,6 +266,11 @@ export interface TaskTeam {
   taskId: number;
   userId: string;
   role: TaskRole;
+  startDate?: Date | null;
+  endDate?: Date | null;
+  allocatedHours?: number | null;
+  allocatedPercentage?: number | null;
+  actualHours?: number | null;
   createdAt: Date;
   user?: {
     id: string;
@@ -277,6 +285,29 @@ export interface TaskTeam {
     email: string;
     image?: string | null;
   };
+}
+
+export interface TeamAllocation {
+  id: number;
+  taskId: number;
+  taskName: string;
+  role: TaskRole;
+  startDate: Date | null;
+  endDate: Date | null;
+  allocatedHours: number | null;
+  allocatedPercentage: number | null;
+  actualHours: number | null;
+}
+
+export interface TeamMemberWithAllocations {
+  userId: string;
+  user: {
+    id: string;
+    name: string | null;
+    email: string;
+    image?: string | null;
+  };
+  allocations: TeamAllocation[];
 }
 
 export interface TaskAcceptance {
@@ -341,6 +372,27 @@ export interface ADUser {
   employeeType?: string | null;
   givenName?: string | null;
   surname?: string | null;
+}
+
+// Employee Search Result (from Employee table with User matching)
+export interface EmployeeSearchResult {
+  id: number;
+  GSEmployeeID: string;
+  EmpCode: string;
+  EmpName: string;
+  EmpNameFull: string;
+  WinLogon: string | null;
+  ServLineCode: string;
+  ServLineDesc: string;
+  OfficeCode: string;
+  Team: string | null;
+  EmpCatDesc: string;
+  User: {
+    id: string;
+    name: string | null;
+    email: string;
+    image: string | null;
+  } | null;
 }
 
 // Tax Opinion Models
@@ -596,6 +648,111 @@ export interface AdjustmentDocument {
   extractionStatus: string;
   extractedData?: string | null;
   extractionError?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Extended types with employee names (enriched via joins)
+
+/**
+ * Client with enriched employee names (DEPRECATED)
+ * The base Client interface now includes employee name fields.
+ * This type is kept for backwards compatibility but is now equivalent to Client.
+ * 
+ * @deprecated Use Client interface directly - it now includes enriched employee names
+ */
+export interface ClientWithEmployees extends Client {}
+
+/**
+ * Debtors with enriched biller name
+ * Extends Debtors with biller name from Employee table
+ */
+export interface DebtorsWithEmployee {
+  id: number;
+  PeriodRef?: number | null;
+  PeriodStart?: Date | null;
+  PeriodEnd?: Date | null;
+  GSClientID: string;
+  Biller: string;
+  BillerName?: string;
+  BillerNameFull?: string;
+  OfficeCode: string;
+  ServLineCode: string;
+  LTDInv?: number | null;
+  LTDFee?: number | null;
+  LTDVat?: number | null;
+  LTDCn?: number | null;
+  LTDRec?: number | null;
+  LTDInt?: number | null;
+  LTDPLFC?: number | null;
+  YTDInv?: number | null;
+  YTDFee?: number | null;
+  YTDVat?: number | null;
+  YTDCn?: number | null;
+  YTDRec?: number | null;
+  YTDInt?: number | null;
+  YTDPLFC?: number | null;
+  PTDInv?: number | null;
+  PTDFee?: number | null;
+  PTDVat?: number | null;
+  PTDCn?: number | null;
+  PTDRec?: number | null;
+  PTDInt?: number | null;
+  PTDPLFC?: number | null;
+  CBal?: number | null;
+  BalCurr?: number | null;
+  Bal30?: number | null;
+  Bal60?: number | null;
+  Bal90?: number | null;
+  Bal120?: number | null;
+  Bal150?: number | null;
+  Bal180?: number | null;
+  DebtorProvision?: number | null;
+  PTDDebtorProvision?: number | null;
+  YTDDebtorProvision?: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * DrsTransactions already has employee names from external system
+ * This type documents the structure for reference
+ */
+export interface DrsTransaction {
+  id: number;
+  GSDebtorsTranID: string;
+  GSClientID: string;
+  ClientCode: string;
+  ClientNameFull?: string | null;
+  GroupCode: string;
+  GroupDesc: string;
+  OfficeCode: string;
+  OfficeDesc: string;
+  ServLineCode: string;
+  ServLineDesc: string;
+  Biller: string;
+  BillerName: string; // Already provided by external system
+  TranDate: Date;
+  EntryType?: string | null;
+  Ordinal?: number | null;
+  Reference?: string | null;
+  InvNumber?: string | null;
+  Amount?: number | null;
+  Vat?: number | null;
+  Total?: number | null;
+  Batch?: string | null;
+  Allocation: string;
+  Narration?: string | null;
+  VatCode?: string | null;
+  PeriodKey: number;
+  EntryGroupCode?: string | null;
+  EntryGroup?: string | null;
+  DRAccount?: string | null;
+  CRAccount?: string | null;
+  ClientPartner: string;
+  ClientPartnerName: string; // Already provided by external system
+  ClientManager: string;
+  ClientManagerName: string; // Already provided by external system
   createdAt: Date;
   updatedAt: Date;
 } 

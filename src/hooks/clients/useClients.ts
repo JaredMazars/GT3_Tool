@@ -19,8 +19,11 @@ export interface Client {
   groupCode: string;
   groupDesc: string;
   clientPartner: string;
+  clientPartnerName?: string;
   clientManager: string;
+  clientManagerName?: string;
   clientIncharge: string;
+  clientInchargeName?: string;
   industry: string | null;
   sector: string | null;
   active: string;
@@ -33,7 +36,10 @@ export interface Client {
   };
 }
 
-export interface ClientWithTasks extends Client {
+export interface ClientWithTasks extends Omit<Client, 'clientPartnerName' | 'clientManagerName' | 'clientInchargeName'> {
+  clientPartnerName?: string;
+  clientManagerName?: string;
+  clientInchargeName?: string;
   tasks: Array<{
     id: number;
     TaskDesc: string;

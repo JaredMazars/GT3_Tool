@@ -371,15 +371,15 @@ export default function ServiceLineClientDetailPage() {
                     <div className="space-y-2 ml-2">
                       <div>
                         <dt className="text-xs font-medium text-forvis-gray-500">Partner</dt>
-                        <dd className="mt-0.5 text-sm text-forvis-gray-900">{client.clientPartner}</dd>
+                        <dd className="mt-0.5 text-sm text-forvis-gray-900">{client.clientPartnerName || client.clientPartner}</dd>
                       </div>
                       <div>
                         <dt className="text-xs font-medium text-forvis-gray-500">Manager</dt>
-                        <dd className="mt-0.5 text-sm text-forvis-gray-900">{client.clientManager}</dd>
+                        <dd className="mt-0.5 text-sm text-forvis-gray-900">{client.clientManagerName || client.clientManager}</dd>
                       </div>
                       <div>
-                        <dt className="text-xs font-medium text-forvis-gray-500">Incharge</dt>
-                        <dd className="mt-0.5 text-sm text-forvis-gray-900">{client.clientIncharge}</dd>
+                        <dt className="text-xs font-medium text-forvis-gray-500">In-Charge</dt>
+                        <dd className="mt-0.5 text-sm text-forvis-gray-900">{client.clientInchargeName || client.clientIncharge}</dd>
                       </div>
                     </div>
                   </div>

@@ -42,7 +42,7 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Get all users on this project
+    // Get all users on this project with Employee data
     const taskTeams = await prisma.taskTeam.findMany({
       where: { taskId },
       include: {
@@ -58,7 +58,38 @@ export async function GET(
       orderBy: { createdAt: 'asc' },
     });
 
-    return NextResponse.json(successResponse(taskTeams));
+    // Enrich with Employee data where available
+    const enrichedTaskTeams = await Promise.all(
+      taskTeams.map(async (tt) => {
+        // Try to find employee by email or WinLogon (SQL Server doesn't support mode parameter)
+        const emailPrefix = tt.User.email.split('@')[0];
+        
+        const employee = await prisma.employee.findFirst({
+          where: {
+            OR: [
+              { WinLogon: { equals: tt.User.email } },
+              { WinLogon: { startsWith: emailPrefix } },
+            ],
+            Active: 'Yes',
+          },
+          select: {
+            EmpCatDesc: true,
+            OfficeCode: true,
+          },
+        });
+
+        return {
+          ...tt,
+          User: {
+            ...tt.User,
+            jobTitle: employee?.EmpCatDesc || null,
+            officeLocation: employee?.OfficeCode || null,
+          },
+        };
+      })
+    );
+
+    return NextResponse.json(successResponse(enrichedTaskTeams));
   } catch (error) {
     return handleApiError(error, 'Get Project Users');
   }
@@ -142,9 +173,50 @@ export async function POST(
     const body = await request.json();
     const validatedData = AddTaskTeamSchema.parse(body);
 
+    let targetUserId = validatedData.userId;
+
+    // If no userId provided, try to find or create user from employee info
+    if (!targetUserId && validatedData.employeeCode) {
+      // Try to find existing user by email/winlogon
+      if (validatedData.email) {
+        const existingUser = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { email: { equals: validatedData.email } },
+              { email: { startsWith: validatedData.email.split('@')[0] } },
+            ],
+          },
+        });
+
+        if (existingUser) {
+          targetUserId = existingUser.id;
+        } else {
+          // Create a new user account for this employee
+          // Generate a unique ID based on employee code
+          const newUserId = `emp_${validatedData.employeeCode}_${Date.now()}`;
+          const newUser = await prisma.user.create({
+            data: {
+              id: newUserId,
+              name: validatedData.displayName || validatedData.employeeCode,
+              email: validatedData.email || `${validatedData.employeeCode}@pending.local`,
+              role: 'USER',
+            },
+          });
+          targetUserId = newUser.id;
+        }
+      }
+    }
+
+    if (!targetUserId) {
+      return NextResponse.json(
+        { error: 'Unable to identify user. Please provide employee information.' },
+        { status: 400 }
+      );
+    }
+
     // Check if user exists in system
     const targetUser = await prisma.user.findUnique({
-      where: { id: validatedData.userId },
+      where: { id: targetUserId },
     });
 
     if (!targetUser) {
@@ -159,7 +231,7 @@ export async function POST(
       where: {
         taskId_userId: {
           taskId,
-          userId: validatedData.userId,
+          userId: targetUserId,
         },
       },
     });
@@ -175,7 +247,7 @@ export async function POST(
     const taskTeam = await prisma.taskTeam.create({
       data: {
         taskId,
-        userId: validatedData.userId,
+        userId: targetUserId,
         role: validatedData.role || 'VIEWER',
       },
       include: {
@@ -252,8 +324,8 @@ export async function POST(
           taskId,
           user.name || user.email,
           taskTeam.role,
-          serviceLineMapping?.masterCode,
-          serviceLineMapping?.SubServlineGroupCode,
+          serviceLineMapping?.masterCode ?? undefined,
+          serviceLineMapping?.SubServlineGroupCode ?? undefined,
           taskForNotification.Client?.id
         );
 

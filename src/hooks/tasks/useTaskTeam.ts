@@ -16,11 +16,18 @@ export interface TaskTeamMember {
   taskId: number;
   role: TaskRole;
   createdAt: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  allocatedHours?: number | null;
+  allocatedPercentage?: number | null;
+  actualHours?: number | null;
   User: {
     id: string;
     name: string;
     email: string;
     image?: string | null;
+    jobTitle?: string | null;
+    officeLocation?: string | null;
   };
 }
 

@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db/prisma';
 import { withRetry, RetryPresets } from '@/lib/utils/retryUtils';
+import { enrichRecordsWithEmployeeNames } from '@/lib/services/employees/employeeQueries';
 
 export interface ClientFilters {
   search?: string;
@@ -67,17 +68,17 @@ export async function getClientsWithPagination(
 
       // Build where clause with improved search
       interface WhereClause {
-        OR?: Array<{ [key: string]: { contains: string; mode: 'insensitive' } }>;
+        OR?: Array<{ [key: string]: { contains: string } }>;
       }
       const where: WhereClause = {};
       if (search) {
         where.OR = [
-          { clientNameFull: { contains: search, mode: 'insensitive' } },
-          { clientCode: { contains: search, mode: 'insensitive' } },
-          { groupDesc: { contains: search, mode: 'insensitive' } },
-          { groupCode: { contains: search, mode: 'insensitive' } },
-          { industry: { contains: search, mode: 'insensitive' } },
-          { sector: { contains: search, mode: 'insensitive' } },
+          { clientNameFull: { contains: search } },
+          { clientCode: { contains: search } },
+          { groupDesc: { contains: search } },
+          { groupCode: { contains: search } },
+          { industry: { contains: search } },
+          { sector: { contains: search } },
         ];
       }
 
@@ -125,8 +126,15 @@ export async function getClientsWithPagination(
         },
       });
 
+      // Enrich clients with employee names
+      const enrichedClients = await enrichRecordsWithEmployeeNames(clients, [
+        { codeField: 'clientPartner', nameField: 'clientPartnerName' },
+        { codeField: 'clientManager', nameField: 'clientManagerName' },
+        { codeField: 'clientIncharge', nameField: 'clientInchargeName' },
+      ]);
+
       return {
-        clients,
+        clients: enrichedClients,
         pagination: {
           page,
           limit: take,
@@ -191,6 +199,13 @@ export async function getClientWithProjects(
         return null;
       }
 
+      // Enrich client with employee names
+      const [enrichedClient] = await enrichRecordsWithEmployeeNames([client], [
+        { codeField: 'clientPartner', nameField: 'clientPartnerName' },
+        { codeField: 'clientManager', nameField: 'clientManagerName' },
+        { codeField: 'clientIncharge', nameField: 'clientInchargeName' },
+      ]);
+
       // Build task where clause using GSClientID
       interface TaskWhereClause {
         GSClientID?: string;
@@ -239,7 +254,7 @@ export async function getClientWithProjects(
 
       return {
         client: {
-          ...client,
+          ...enrichedClient,
           Task: tasks,
         },
         totalTasks,

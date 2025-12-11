@@ -355,6 +355,7 @@ export default function ServiceLineAdminPage() {
                         icon={<Trash2 className="h-4 w-4" />}
                         className="px-2 py-1"
                       >
+                        Revoke
                       </Button>
                     </td>
                   </tr>

@@ -37,6 +37,7 @@ import { TaskTypeSelector } from '@/components/features/tasks/TaskTypeSelector';
 import { TaxYearInput } from '@/components/shared/TaxYearInput';
 import { TaskUserList } from '@/components/features/tasks/UserManagement/TaskUserList';
 import { UserSearchModal } from '@/components/features/tasks/UserManagement/UserSearchModal';
+import { GanttTimeline } from '@/components/features/tasks/TeamPlanner';
 
 interface TabProps {
   selected: boolean;
@@ -449,16 +450,16 @@ export default function InternalTaskPage() {
       case 'team':
         return (
           <div className="p-6 bg-forvis-gray-50">
-            <div className="max-w-5xl mx-auto">
+            <div className="max-w-full mx-auto">
               {/* Header Card */}
               <div className="bg-white rounded-lg border-2 border-forvis-gray-200 shadow-corporate p-6 mb-6">
                 <div className="flex justify-between items-center">
                   <div>
-                    <h2 className="text-2xl font-bold text-forvis-gray-900">Team Members</h2>
+                    <h2 className="text-2xl font-bold text-forvis-gray-900">Team Planner</h2>
                     <p className="text-sm text-forvis-gray-600 mt-1">
                       {currentUserRole === 'ADMIN' 
-                        ? 'Manage project access and roles' 
-                        : `View team members • Your role: ${currentUserRole || 'Loading...'}`
+                        ? 'Manage resource allocations and capacity' 
+                        : `View team member allocations • Your role: ${currentUserRole || 'Loading...'}`
                       }
                     </p>
                   </div>
@@ -492,13 +493,11 @@ export default function InternalTaskPage() {
                   <div className="h-20 bg-forvis-gray-200 rounded-lg"></div>
                 </div>
               ) : (
-                <TaskUserList
+                <GanttTimeline
                   taskId={parseInt(taskId)}
-                  users={teamMembers}
-                  currentUserId={currentUserId}
+                  teamMembers={teamMembers}
                   currentUserRole={currentUserRole}
-                  onUserRemoved={refetchTeam}
-                  onRoleChanged={refetchTeam}
+                  onAllocationUpdate={refetchTeam}
                 />
               )}
 

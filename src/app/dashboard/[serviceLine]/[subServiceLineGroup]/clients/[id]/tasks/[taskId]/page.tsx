@@ -45,6 +45,7 @@ import { TaskUserList } from '@/components/features/tasks/UserManagement/TaskUse
 import { UserSearchModal } from '@/components/features/tasks/UserManagement/UserSearchModal';
 import { AcceptanceTab } from '@/components/features/tasks/AcceptanceTab';
 import { EngagementLetterTab } from '@/components/features/tasks/EngagementLetterTab';
+import { GanttTimeline } from '@/components/features/tasks/TeamPlanner';
 import { TaskTeam, TaskRole } from '@/types';
 import { canAccessWorkTabs, isClientTask, getBlockedTabMessage } from '@/lib/utils/taskWorkflow';
 
@@ -444,6 +445,11 @@ export default function ClientProjectPage() {
     userId: member.userId,
     role: member.role,
     createdAt: new Date(member.createdAt),
+    startDate: member.startDate ? new Date(member.startDate) : undefined,
+    endDate: member.endDate ? new Date(member.endDate) : undefined,
+    allocatedHours: member.allocatedHours,
+    allocatedPercentage: member.allocatedPercentage,
+    actualHours: member.actualHours,
     User: member.User,
   }));
 
@@ -464,11 +470,13 @@ export default function ClientProjectPage() {
       try {
         const response = await fetch(`/api/tasks/${taskId}/users/me`);
         if (response.ok) {
-          const data = await response.json();
+          const result = await response.json();
+          const data = result.data || result; // Handle both wrapped and unwrapped responses
           setCurrentUserRole((data.role as TaskRole) || 'VIEWER');
           setCurrentUserId(data.userId || '');
         }
       } catch (error) {
+        console.error('Error fetching user role:', error);
         // Default to VIEWER on error
         setCurrentUserRole('VIEWER' as TaskRole);
       }
@@ -531,16 +539,16 @@ export default function ClientProjectPage() {
       case 'team':
         return (
           <div className="p-6 bg-forvis-gray-50">
-            <div className="max-w-5xl mx-auto">
+            <div className="max-w-full mx-auto">
               {/* Header Card */}
               <Card variant="standard" className="p-6 mb-6">
                 <div className="flex justify-between items-center">
                   <div>
-                    <h2 className="text-2xl font-semibold text-forvis-gray-900">Team Members</h2>
+                    <h2 className="text-2xl font-semibold text-forvis-gray-900">Team Planner</h2>
                     <p className="text-sm font-normal text-forvis-gray-600 mt-1">
                       {currentUserRole === 'ADMIN' 
-                        ? 'Manage task access and roles' 
-                        : `View team members • Your role: ${currentUserRole || 'Loading...'}`
+                        ? 'Manage resource allocations and capacity • Your role: ADMIN' 
+                        : `View team member allocations • Your role: ${currentUserRole || 'Loading...'}`
                       }
                     </p>
                   </div>
@@ -572,13 +580,11 @@ export default function ClientProjectPage() {
                   <div className="h-20 bg-forvis-gray-200 rounded-lg"></div>
                 </div>
               ) : (
-                <TaskUserList
+                <GanttTimeline
                   taskId={parseInt(taskId)}
-                  users={teamMembers}
-                  currentUserId={currentUserId}
+                  teamMembers={teamMembers}
                   currentUserRole={currentUserRole}
-                  onUserRemoved={refetchTeam}
-                  onRoleChanged={refetchTeam}
+                  onAllocationUpdate={refetchTeam}
                 />
               )}
 

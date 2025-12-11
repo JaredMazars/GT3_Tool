@@ -445,8 +445,8 @@ export default function ServiceLineClientsPage() {
                             </div>
                           </td>
                           <td className="px-3 py-2">
-                            <div className="text-sm text-forvis-gray-600 text-center truncate" title={client.clientPartner}>
-                              {client.clientPartner}
+                            <div className="text-sm text-forvis-gray-600 text-center truncate" title={client.clientPartnerName || client.clientPartner}>
+                              {client.clientPartnerName || client.clientPartner}
                             </div>
                           </td>
                           <td className="px-3 py-2 text-center">

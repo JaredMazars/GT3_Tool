@@ -9,6 +9,7 @@ import { getExternalServiceLinesByMaster } from '@/lib/utils/serviceLineExternal
 import { getTaskCountsByServiceLine, getTotalTaskCount } from '@/lib/services/tasks/taskAggregation';
 import { getCachedClient, setCachedClient, invalidateClientCache } from '@/lib/services/clients/clientCache';
 import { invalidateClientListCache } from '@/lib/services/cache/listCache';
+import { enrichRecordsWithEmployeeNames } from '@/lib/services/employees/employeeQueries';
 
 export async function GET(
   request: NextRequest,
@@ -247,8 +248,15 @@ export async function GET(
       };
     });
 
+    // Enrich client with employee names
+    const [enrichedClient] = await enrichRecordsWithEmployeeNames([client], [
+      { codeField: 'clientPartner', nameField: 'clientPartnerName' },
+      { codeField: 'clientManager', nameField: 'clientManagerName' },
+      { codeField: 'clientIncharge', nameField: 'clientInchargeName' },
+    ]);
+
     const responseData = {
-      ...client,
+      ...enrichedClient,
       tasks: tasksWithMasterServiceLine,
       _count: {
         Task: totalAcrossAllServiceLines, // Total across all service lines (not filtered by active tab)

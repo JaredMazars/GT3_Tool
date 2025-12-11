@@ -121,9 +121,9 @@ export async function getTasksWithPagination(
       // Add search filter
       if (search) {
         where.OR = [
-          { name: { contains: search, mode: 'insensitive' } },
-          { description: { contains: search, mode: 'insensitive' } },
-          { TaskDesc: { contains: search, mode: 'insensitive' } },
+          { name: { contains: search } },
+          { description: { contains: search } },
+          { TaskDesc: { contains: search } },
         ];
       }
 

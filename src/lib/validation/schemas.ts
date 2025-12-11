@@ -104,8 +104,13 @@ export const CreateTaskSchema = z.object({
  * Project User Management validation schemas
  */
 export const AddTaskTeamSchema = z.object({
-  userId: z.string().min(1),
+  userId: z.string().optional(),
   role: z.enum(['ADMIN', 'REVIEWER', 'EDITOR', 'VIEWER']).optional().default('VIEWER'),
+  // Fields for auto-creating user from employee
+  employeeCode: z.string().optional(),
+  GSEmployeeID: z.string().optional(),
+  displayName: z.string().optional(),
+  email: z.string().optional(),
 }).strict();
 
 export const UpdateTaskTeamSchema = z.object({
