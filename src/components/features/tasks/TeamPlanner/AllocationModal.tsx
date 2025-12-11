@@ -23,7 +23,7 @@ export function AllocationModal({ allocation, isOpen, onClose, onSave, onClear }
     allocatedHours: '',
     allocatedPercentage: '',
     actualHours: '',
-    role: 'VIEWER' as TaskRole
+    role: TaskRole.VIEWER
   });
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');

@@ -74,7 +74,7 @@ export async function GET(
     });
 
     // Batch fetch all employees for better performance
-    const emailPrefixes = taskTeams.map(tt => tt.User.email.split('@')[0]);
+    const emailPrefixes = taskTeams.map(tt => tt.User.email.split('@')[0]).filter((p): p is string => !!p);
     const fullEmails = taskTeams.map(tt => tt.User.email);
     
     const employees = await prisma.employee.findMany({
@@ -105,7 +105,7 @@ export async function GET(
     const enrichedTaskTeams = taskTeams.map((tt) => {
       const emailPrefix = tt.User.email.split('@')[0];
       const employee = employeeMap.get(tt.User.email.toLowerCase()) || 
-                       employeeMap.get(emailPrefix.toLowerCase());
+                       (emailPrefix ? employeeMap.get(emailPrefix.toLowerCase()) : undefined);
 
       return {
         ...tt,
@@ -139,6 +139,10 @@ export async function POST(
     
     const params = await context.params;
     
+    // #region agent log
+    await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route.ts:138',message:'POST /api/tasks/[id]/users',data:{rawId:params?.id,userId:user.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'F'})}).catch(()=>{});
+    // #endregion
+    
     // Handle "new" route
     if (params?.id === 'new') {
       return NextResponse.json(
@@ -148,12 +152,20 @@ export async function POST(
     }
     
     const taskId = toTaskId(params?.id);
+    
+    // #region agent log
+    await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route.ts:152',message:'TaskId parsed',data:{taskId,rawId:params?.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'F,G'})}).catch(()=>{});
+    // #endregion
 
     // Get project details
     const task = await prisma.task.findUnique({
       where: { id: taskId },
       select: { ServLineCode: true },
     });
+    
+    // #region agent log
+    await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route.ts:163',message:'Task lookup result',data:{taskId,found:!!task,servLineCode:task?.ServLineCode},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'G,H'})}).catch(()=>{});
+    // #endregion
 
     if (!task) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
@@ -165,6 +177,10 @@ export async function POST(
         taskId_userId: { taskId, userId: user.id },
       },
     });
+    
+    // #region agent log
+    await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route.ts:175',message:'User project membership check',data:{userId:user.id,taskId,onProject:!!currentUserOnProject},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'I'})}).catch(()=>{});
+    // #endregion
 
     // Check if user is service line admin
     // First, map ServLineCode to SubServlineGroupCode
@@ -172,6 +188,10 @@ export async function POST(
       where: { ServLineCode: task.ServLineCode },
       select: { SubServlineGroupCode: true },
     });
+    
+    // #region agent log
+    await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route.ts:187',message:'Service line mapping',data:{servLineCode:task.ServLineCode,subGroup:serviceLineMapping?.SubServlineGroupCode},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'I'})}).catch(()=>{});
+    // #endregion
 
     let isServiceLineAdmin = false;
     if (serviceLineMapping?.SubServlineGroupCode) {
@@ -184,6 +204,10 @@ export async function POST(
         },
       });
       isServiceLineAdmin = serviceLineAccess?.role === 'ADMINISTRATOR' || serviceLineAccess?.role === 'PARTNER';
+      
+      // #region agent log
+      await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route.ts:203',message:'Service line access check',data:{userId:user.id,subGroup:serviceLineMapping.SubServlineGroupCode,hasAccess:!!serviceLineAccess,role:serviceLineAccess?.role,isAdmin:isServiceLineAdmin},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'I'})}).catch(()=>{});
+      // #endregion
     }
     
     // Get user from earlier check for role
@@ -192,6 +216,10 @@ export async function POST(
       select: { role: true },
     });
     const isSystemAdmin = currentUser?.role === 'SYSTEM_ADMIN';
+    
+    // #region agent log
+    await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route.ts:215',message:'Authorization summary',data:{onProject:!!currentUserOnProject,isServiceLineAdmin,isSystemAdmin,allowed:(currentUserOnProject || isServiceLineAdmin || isSystemAdmin)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'I,J'})}).catch(()=>{});
+    // #endregion
 
     // Allow if user is: System Admin OR project member OR service line admin
     if (!currentUserOnProject && !isServiceLineAdmin && !isSystemAdmin) {
@@ -202,9 +230,84 @@ export async function POST(
     }
 
     const body = await request.json();
+    
+    // #region agent log
+    await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route.ts:228',message:'Request body',data:{body},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'K'})}).catch(()=>{});
+    // #endregion
+    
     const validatedData = AddTaskTeamSchema.parse(body);
+    
+    // #region agent log
+    await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route.ts:235',message:'Validation passed',data:{userId:validatedData.userId,role:validatedData.role},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'K'})}).catch(()=>{});
+    // #endregion
 
     let targetUserId = validatedData.userId;
+    
+    // #region agent log
+    await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route.ts:242',message:'Target user ID',data:{targetUserId,isSyntheticId:targetUserId?.startsWith('employee-')},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'K,L'})}).catch(()=>{});
+    // #endregion
+    
+    // Handle synthetic employee IDs from planner (format: "employee-{employeeId}")
+    if (targetUserId?.startsWith('employee-')) {
+      const employeeId = parseInt(targetUserId.split('-')[1]);
+      
+      // #region agent log
+      await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route.ts:251',message:'Extracting employee ID from synthetic ID',data:{syntheticId:targetUserId,employeeId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'N'})}).catch(()=>{});
+      // #endregion
+      
+      if (!isNaN(employeeId)) {
+        // Look up employee
+        const employee = await prisma.employee.findUnique({
+          where: { id: employeeId },
+          select: {
+            id: true,
+            WinLogon: true,
+            EmpName: true,
+            EmpNameFull: true,
+            EmpCode: true,
+          },
+        });
+        
+        // #region agent log
+        await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route.ts:269',message:'Employee lookup result',data:{employeeId,found:!!employee,email:employee?.WinLogon},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'N'})}).catch(()=>{});
+        // #endregion
+        
+        if (employee?.WinLogon) {
+          // Try to find existing user by email
+          const existingUser = await prisma.user.findFirst({
+            where: {
+              OR: [
+                { email: employee.WinLogon },
+                { email: { startsWith: employee.WinLogon.split('@')[0] } },
+              ],
+            },
+          });
+          
+          if (existingUser) {
+            targetUserId = existingUser.id;
+            
+            // #region agent log
+            await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route.ts:289',message:'Found existing user account',data:{userId:existingUser.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'N'})}).catch(()=>{});
+            // #endregion
+          } else {
+            // Create user account for this employee
+            const newUser = await prisma.user.create({
+              data: {
+                id: `emp_${employee.EmpCode}_${Date.now()}`,
+                name: employee.EmpNameFull || employee.EmpName,
+                email: employee.WinLogon,
+                role: 'USER',
+              },
+            });
+            targetUserId = newUser.id;
+            
+            // #region agent log
+            await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route.ts:304',message:'Created new user account',data:{userId:newUser.id,email:newUser.email},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'N'})}).catch(()=>{});
+            // #endregion
+          }
+        }
+      }
+    }
 
     // If no userId provided, try to find or create user from employee info
     if (!targetUserId && validatedData.employeeCode) {
@@ -239,6 +342,9 @@ export async function POST(
     }
 
     if (!targetUserId) {
+      // #region agent log
+      await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route.ts:267',message:'No target user ID - returning 400',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'L'})}).catch(()=>{});
+      // #endregion
       return NextResponse.json(
         { error: 'Unable to identify user. Please provide employee information.' },
         { status: 400 }
@@ -249,8 +355,15 @@ export async function POST(
     const targetUser = await prisma.user.findUnique({
       where: { id: targetUserId },
     });
+    
+    // #region agent log
+    await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route.ts:282',message:'Target user lookup',data:{targetUserId,found:!!targetUser},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'L,M'})}).catch(()=>{});
+    // #endregion
 
     if (!targetUser) {
+      // #region agent log
+      await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route.ts:288',message:'User not found - returning 404',data:{targetUserId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'M'})}).catch(()=>{});
+      // #endregion
       return NextResponse.json(
         { error: 'User not found in system' },
         { status: 404 }

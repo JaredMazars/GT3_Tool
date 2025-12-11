@@ -307,7 +307,10 @@ export function assignLanes(allocations: AllocationData[]): AllocationData[] {
     // Find first lane where this allocation doesn't overlap
     let assignedLane = -1;
     for (let i = 0; i < lanes.length; i++) {
-      const laneHasOverlap = lanes[i].some(existing => 
+      const lane = lanes[i];
+      if (!lane) continue;
+      
+      const laneHasOverlap = lane.some(existing =>
         allocationsOverlap(existing, allocation)
       );
       if (!laneHasOverlap) {
@@ -323,7 +326,10 @@ export function assignLanes(allocations: AllocationData[]): AllocationData[] {
     }
     
     allocation.lane = assignedLane;
-    lanes[assignedLane].push(allocation);
+    const lane = lanes[assignedLane];
+    if (lane) {
+      lane.push(allocation);
+    }
   }
   
   return allocations;

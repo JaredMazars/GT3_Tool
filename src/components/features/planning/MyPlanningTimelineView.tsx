@@ -6,7 +6,6 @@ import { TimelineHeader } from '../tasks/TeamPlanner/TimelineHeader';
 import { ResourceRow } from '../tasks/TeamPlanner/ResourceRow';
 import { getDateRange, generateTimelineColumns, getColumnWidth, assignLanes, calculateMaxLanes } from '../tasks/TeamPlanner/utils';
 import { memoizedCalculateTotalHours, memoizedCalculateTotalPercentage } from '../tasks/TeamPlanner/optimizations';
-import { LoadingSpinner } from '@/components/ui';
 import { Calendar, Building2, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { startOfDay, format, isSameDay, addDays, addWeeks } from 'date-fns';
 
@@ -17,42 +16,17 @@ interface ClientAllocationData {
   allocations: any[];
 }
 
-export function MyPlanningTimeline() {
+interface MyPlanningTimelineViewProps {
+  clientsData: ClientAllocationData[];
+}
+
+export function MyPlanningTimelineView({ clientsData }: MyPlanningTimelineViewProps) {
   const [scale, setScale] = useState<TimeScale>('week');
   const [referenceDate, setReferenceDate] = useState(new Date());
   const [scrollToToday, setScrollToToday] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [clientsData, setClientsData] = useState<ClientAllocationData[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   
   const timelineContainerRef = useRef<HTMLDivElement>(null);
-
-  // Fetch user's allocations
-  useEffect(() => {
-    const fetchAllocations = async () => {
-      try {
-        setIsLoading(true);
-        const response = await fetch('/api/users/me/allocations');
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch allocations');
-        }
-
-        const result = await response.json();
-        const data = result.data || result;
-        setClientsData(data.clients || []);
-        setError(null);
-      } catch (err) {
-        console.error('Error fetching allocations:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load planning data');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchAllocations();
-  }, []);
 
   // Handler to go to today
   const handleGoToToday = useCallback(() => {
@@ -174,26 +148,6 @@ export function MyPlanningTimeline() {
       setScrollToToday(false);
     }
   }, [scrollToToday, columns, scale]);
-
-  if (isLoading) {
-    return (
-      <div className="bg-white rounded-lg shadow-corporate border-2 border-forvis-gray-200 p-12">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-white rounded-lg shadow-corporate border-2 border-forvis-gray-200 p-8">
-        <div className="text-center">
-          <Calendar className="w-12 h-12 mx-auto mb-3 text-red-400" />
-          <p className="font-semibold text-forvis-gray-900">Failed to Load Planning Data</p>
-          <p className="text-sm mt-1 text-forvis-gray-600">{error}</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="bg-white rounded-lg shadow-corporate border-2 border-forvis-gray-200 overflow-hidden">

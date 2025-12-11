@@ -46,6 +46,12 @@ export async function GET(request: NextRequest) {
     const myTasksOnly = searchParams.get('myTasksOnly') === 'true';
     const sortBy = searchParams.get('sortBy') || 'updatedAt';
     const sortOrder = (searchParams.get('sortOrder') || 'desc') as 'asc' | 'desc';
+    const clientCode = searchParams.get('clientCode') || undefined;
+    const status = searchParams.get('status') || undefined;
+    
+    // #region agent log
+    await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:37',message:'Query params parsed',data:{clientCode,status,serviceLine,subServiceLineGroup,includeArchived,search},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
 
     const skip = (page - 1) * limit;
 
@@ -63,6 +69,8 @@ export async function GET(request: NextRequest) {
       internalOnly,
       clientTasksOnly,
       myTasksOnly,
+      clientCode,
+      status,
     };
     
     // Don't cache user-specific queries
@@ -140,6 +148,32 @@ export async function GET(request: NextRequest) {
     // If neither serviceLine nor subServiceLineGroup is provided, show no tasks
     // (this prevents showing all tasks in the system)
 
+    // #region agent log
+    await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:146',message:'Before clientCode check',data:{clientCode,hasClientCode:!!clientCode,clientCodeType:typeof clientCode,clientCodeLength:clientCode?.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
+    
+    // Filter by specific client code
+    if (clientCode) {
+      // #region agent log
+      await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:153',message:'Applying clientCode filter',data:{clientCode,serviceLine,subServiceLineGroup,status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      where.Client = {
+        clientCode: clientCode
+      };
+    }
+
+    // Filter by status (Active/Inactive)
+    if (status) {
+      // #region agent log
+      await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:155',message:'Applying status filter',data:{status,mappedValue:status==='Active'?'Yes':'No'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+      if (status === 'Active') {
+        where.Active = 'Yes';
+      } else if (status === 'Inactive') {
+        where.Active = 'No';
+      }
+    }
+
     // Add search filter
     if (search) {
       where.OR = [
@@ -173,6 +207,7 @@ export async function GET(request: NextRequest) {
           id: true,
           GSClientID: true,
           TaskDesc: true,
+          TaskCode: true,
           ServLineCode: true,
           ServLineDesc: true,
           Active: true,
@@ -201,11 +236,16 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
+    // #region agent log
+    await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:236',message:'Tasks fetched from DB',data:{totalCount:tasks.length,totalFromCount:total,clientCode,status,whereCondition:JSON.stringify(where),sampleTasks:tasks.slice(0,5).map(t=>({id:t.id,TaskCode:t.TaskCode,name:t.TaskDesc,clientCode:t.Client?.clientCode,active:t.Active}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,C,D'})}).catch(()=>{});
+    // #endregion
+    
     // Transform tasks to match expected format
     const tasksWithCounts = tasks.map(task => {
       return {
         id: task.id,
         name: task.TaskDesc,
+        TaskCode: task.TaskCode,
         description: null,
         projectType: task.ServLineDesc,
         serviceLine: task.ServLineCode,

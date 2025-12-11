@@ -38,6 +38,7 @@ export async function GET(request: NextRequest) {
             id: true,
             TaskDesc: true,
             TaskCode: true,
+            ServLineCode: true,
             GSClientID: true,
             Client: {
               select: {
@@ -54,7 +55,31 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // 3. Group allocations by client
+    // 3. Get service line mappings for all tasks
+    const servLineCodes = [...new Set(userAllocations.map(a => a.Task.ServLineCode).filter(Boolean))];
+    const serviceLineMappings = await prisma.serviceLineExternal.findMany({
+      where: {
+        ServLineCode: { in: servLineCodes as string[] }
+      },
+      select: {
+        ServLineCode: true,
+        SubServlineGroupCode: true,
+        masterCode: true
+      }
+    });
+
+    // 4. Create service line lookup map
+    const serviceLineMap = new Map<string, { masterCode: string; subServiceLineGroup: string }>();
+    serviceLineMappings.forEach(mapping => {
+      if (mapping.ServLineCode && mapping.masterCode) {
+        serviceLineMap.set(mapping.ServLineCode, {
+          masterCode: mapping.masterCode,
+          subServiceLineGroup: mapping.SubServlineGroupCode || ''
+        });
+      }
+    });
+
+    // 5. Group allocations by client
     const clientMap = new Map<number | null, {
       clientId: number | null;
       clientName: string;
@@ -62,9 +87,15 @@ export async function GET(request: NextRequest) {
       allocations: any[];
     }>();
 
+    // 6. Build flat list for table view
+    const flatList: any[] = [];
+
     userAllocations.forEach(allocation => {
       const task = allocation.Task;
       const client = task.Client;
+      
+      // Get service line info
+      const serviceLineInfo = task.ServLineCode ? serviceLineMap.get(task.ServLineCode) : null;
       
       // Use client ID as key (null for internal tasks)
       const clientId = client?.id || null;
@@ -78,14 +109,13 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      // Add allocation to client's list
-      clientMap.get(clientId)!.allocations.push({
+      const allocationData = {
         id: allocation.id,
         taskId: task.id,
         taskName: task.TaskDesc,
         taskCode: task.TaskCode,
-        clientName: client?.clientNameFull || null,
-        clientCode: client?.clientCode || null,
+        clientName: client?.clientNameFull || 'Internal Projects',
+        clientCode: client?.clientCode || 'INTERNAL',
         role: allocation.role,
         startDate: allocation.startDate,
         endDate: allocation.endDate,
@@ -93,10 +123,21 @@ export async function GET(request: NextRequest) {
         allocatedPercentage: allocation.allocatedPercentage,
         actualHours: allocation.actualHours ? parseFloat(allocation.actualHours.toString()) : null,
         isCurrentTask: false // All tasks are "other" tasks from user perspective
+      };
+
+      // Add allocation to client's list (for timeline view)
+      clientMap.get(clientId)!.allocations.push(allocationData);
+
+      // Add to flat list (for table view) with navigation info
+      flatList.push({
+        ...allocationData,
+        clientId,
+        serviceLine: serviceLineInfo?.masterCode || null,
+        subServiceLineGroup: serviceLineInfo?.subServiceLineGroup || null
       });
     });
 
-    // 4. Convert map to array and sort by client name
+    // 7. Convert map to array and sort by client name
     const clients = Array.from(clientMap.values()).sort((a, b) => {
       // Put "Internal Projects" last
       if (a.clientId === null) return 1;
@@ -104,7 +145,7 @@ export async function GET(request: NextRequest) {
       return a.clientName.localeCompare(b.clientName);
     });
 
-    return NextResponse.json(successResponse({ clients }));
+    return NextResponse.json(successResponse({ clients, flatList }));
   } catch (error) {
     return handleApiError(error, 'Get user allocations');
   }

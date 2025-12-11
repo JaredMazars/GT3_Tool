@@ -24,8 +24,11 @@ import { useClientGroups } from '@/hooks/clients/useClientGroups';
 import { ServiceLineSelector } from '@/components/features/service-lines/ServiceLineSelector';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/utils/taskUtils';
-import { Button, LoadingSpinner } from '@/components/ui';
-import { MyPlanningTimeline } from '@/components/features/planning';
+import { Button, LoadingSpinner, Card } from '@/components/ui';
+import { MyPlanningView } from '@/components/features/planning';
+import { useSubServiceLineUsers } from '@/hooks/service-lines/useSubServiceLineUsers';
+import { GanttTimeline } from '@/components/features/tasks/TeamPlanner';
+import { TaskRole, ServiceLineRole } from '@/types';
 
 export default function SubServiceLineWorkspacePage() {
   const router = useRouter();
@@ -34,12 +37,19 @@ export default function SubServiceLineWorkspacePage() {
   const subServiceLineGroup = params.subServiceLineGroup as string;
   const { setCurrentServiceLine } = useServiceLine();
   const [hasAccess, setHasAccess] = useState<boolean | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [currentUserSubGroupRole, setCurrentUserSubGroupRole] = useState<string>('VIEWER');
   
   const [activeTab, setActiveTab] = useState<'groups' | 'clients' | 'tasks' | 'planner' | 'my-tasks' | 'my-planning'>('groups');
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
+  
+  // Planner filters
+  const [plannerSearchTerm, setPlannerSearchTerm] = useState('');
+  const [jobGradingFilter, setJobGradingFilter] = useState<string>('');
+  const [officeFilter, setOfficeFilter] = useState<string>('');
 
   // Fetch sub-service line groups to get the description
   const { data: subGroups } = useSubServiceLineGroups({
@@ -116,6 +126,17 @@ export default function SubServiceLineWorkspacePage() {
   const myTasks = myTasksData?.tasks || [];
   const myTasksPagination = myTasksData?.pagination;
 
+  // Fetch sub-service line users for the Planner tab
+  const { 
+    data: plannerUsers = [],
+    isLoading: isLoadingPlannerUsers,
+    refetch: refetchPlannerUsers
+  } = useSubServiceLineUsers({
+    serviceLine,
+    subServiceLineGroup,
+    enabled: activeTab === 'planner' && !!subServiceLineGroup && !!serviceLine
+  });
+ 
   // Fetch groups for the Groups tab
   const {
     data: groupsData,
@@ -130,8 +151,92 @@ export default function SubServiceLineWorkspacePage() {
   const groups = groupsData?.groups || [];
   const groupsPagination = groupsData?.pagination;
   
-  const isLoading = activeTab === 'clients' ? isLoadingClients : activeTab === 'tasks' ? isLoadingTasks : activeTab === 'my-tasks' ? isLoadingMyTasks : activeTab === 'groups' ? isLoadingGroups : false;
+  const isLoading = activeTab === 'clients' ? isLoadingClients : activeTab === 'tasks' ? isLoadingTasks : activeTab === 'my-tasks' ? isLoadingMyTasks : activeTab === 'groups' ? isLoadingGroups : activeTab === 'planner' ? isLoadingPlannerUsers : false;
   const isFetching = activeTab === 'clients' ? false : activeTab === 'tasks' ? isFetchingTasks : activeTab === 'my-tasks' ? isFetchingMyTasks : activeTab === 'groups' ? isFetchingGroups : false;
+  
+  // Map ServiceLineRole to TaskRole for GanttTimeline display
+  const mapServiceLineRoleToTaskRole = (serviceLineRole: string): TaskRole => {
+    switch (serviceLineRole) {
+      case 'ADMINISTRATOR':
+        return TaskRole.ADMIN;
+      case 'PARTNER':
+        return TaskRole.REVIEWER;
+      case 'MANAGER':
+      case 'SUPERVISOR':
+        return TaskRole.EDITOR;
+      case 'USER':
+      case 'VIEWER':
+      default:
+        return TaskRole.VIEWER;
+    }
+  };
+
+  // Use the current user's role from state (default to VIEWER)
+  const currentUserServiceLineRole = currentUserSubGroupRole;
+
+  // Filter planner users based on search and filters
+  const filteredPlannerUsers = useMemo(() => {
+    let filtered = plannerUsers;
+
+    // Search filter (name or email)
+    if (plannerSearchTerm) {
+      const searchLower = plannerSearchTerm.toLowerCase();
+      filtered = filtered.filter(u => 
+        u.user.name?.toLowerCase().includes(searchLower) ||
+        u.user.email.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Job Grading filter
+    if (jobGradingFilter) {
+      filtered = filtered.filter(u => u.user.jobTitle === jobGradingFilter);
+    }
+
+    // Office filter
+    if (officeFilter) {
+      filtered = filtered.filter(u => u.user.officeLocation?.trim() === officeFilter.trim());
+    }
+
+    return filtered;
+  }, [plannerUsers, plannerSearchTerm, jobGradingFilter, officeFilter]);
+
+  // Get unique job gradings for filter dropdown
+  const uniqueJobGradings = useMemo(() => {
+    const jobGradings = new Set(
+      plannerUsers
+        .map(u => u.user.jobTitle)
+        .filter((jt): jt is string => !!jt)
+    );
+    return Array.from(jobGradings).sort();
+  }, [plannerUsers]);
+
+  // Get unique offices for filter dropdown
+  const uniqueOffices = useMemo(() => {
+    const offices = new Set(
+      plannerUsers
+        .map(u => u.user.officeLocation?.trim())
+        .filter((office): office is string => !!office)
+    );
+    return Array.from(offices).sort();
+  }, [plannerUsers]);
+
+  // Transform users to match GanttTimeline's expected format
+  const transformedPlannerUsers = useMemo(() => {
+    const transformed = filteredPlannerUsers.map(user => ({
+      userId: user.user.id, // Use user.user.id which is never null (fallback for employees without accounts)
+      User: {
+        ...user.user,
+        jobGradeCode: user.user.jobGradeCode
+      },
+      role: mapServiceLineRoleToTaskRole(user.serviceLineRole),
+      allocations: user.allocations.map(alloc => ({
+        ...alloc,
+        startDate: new Date(alloc.startDate),
+        endDate: new Date(alloc.endDate)
+      }))
+    }));
+    return transformed;
+  }, [filteredPlannerUsers]);
 
   // Validate service line
   useEffect(() => {
@@ -142,7 +247,7 @@ export default function SubServiceLineWorkspacePage() {
     }
   }, [serviceLine, router, setCurrentServiceLine]);
 
-  // Check if user has access to this sub-service-line group
+  // Check if user has access to this sub-service-line group and get current user info
   useEffect(() => {
     async function checkAccess() {
       if (!subServiceLineGroup) {
@@ -161,9 +266,15 @@ export default function SubServiceLineWorkspacePage() {
         const serviceLines = result.data;
 
         // Check if user has access to this specific sub-service-line group
-        const hasSubGroupAccess = serviceLines.some((sl: any) => 
-          sl.subGroups?.some((sg: any) => sg.code === subServiceLineGroup)
-        );
+        // Roles are assigned at SERVICE LINE level, not sub-group level
+        const hasSubGroupAccess = serviceLines.some((sl: any) => {
+          const matchingSubGroup = sl.subGroups?.find((sg: any) => sg.code === subServiceLineGroup);
+          if (matchingSubGroup) {
+            // Use the service line's role (not subgroup role - subgroups don't have individual roles)
+            setCurrentUserSubGroupRole(sl.role || 'VIEWER');
+          }
+          return !!matchingSubGroup;
+        });
 
         setHasAccess(hasSubGroupAccess);
 
@@ -179,6 +290,25 @@ export default function SubServiceLineWorkspacePage() {
 
     checkAccess();
   }, [subServiceLineGroup, router]);
+
+  // Fetch current user ID
+  useEffect(() => {
+    async function fetchCurrentUser() {
+      try {
+        const response = await fetch('/api/auth/session');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.user?.id) {
+            setCurrentUserId(data.user.id);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching current user:', error);
+      }
+    }
+
+    fetchCurrentUser();
+  }, []);
 
   // Reset to first page when tab changes
   useEffect(() => {
@@ -468,19 +598,115 @@ export default function SubServiceLineWorkspacePage() {
 
           {/* Content - Groups, Clients, Tasks, Planner, My Tasks, or My Planning */}
           {activeTab === 'planner' ? (
-            /* Planner Placeholder */
-            <div className="bg-forvis-gray-50 rounded-lg border border-forvis-gray-200 shadow-sm p-4">
-              <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate text-center py-12">
-                <LayoutGrid className="mx-auto h-12 w-12 text-forvis-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">Planner Coming Soon</h3>
-                <p className="mt-1 text-sm text-forvis-gray-600">
-                  Team resource planning and allocation features will be available here.
-                </p>
+            /* Team Planner */
+            <div className="p-6 bg-forvis-gray-50">
+              <div className="max-w-full mx-auto">
+                {/* Header Card */}
+                <Card variant="standard" className="p-6 mb-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <div>
+                      <h2 className="text-2xl font-semibold text-forvis-gray-900">Team Planner</h2>
+                      <p className="text-sm font-normal text-forvis-gray-600 mt-1">
+                        View all team members and their task allocations in {subServiceLineGroupDescription}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-forvis-blue-600">
+                        {filteredPlannerUsers.length}
+                      </div>
+                      <div className="text-sm text-forvis-gray-600">
+                        Team {filteredPlannerUsers.length === 1 ? 'Member' : 'Members'}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Search and Filters */}
+                  <div className="flex gap-4 items-center">
+                    <div className="relative flex-1 max-w-md">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Search by name or email..."
+                        value={plannerSearchTerm}
+                        onChange={(e) => setPlannerSearchTerm(e.target.value)}
+                        className="pl-10 pr-4 py-2 w-full border border-forvis-gray-300 rounded-lg bg-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent"
+                      />
+                    </div>
+                    
+                    <select
+                      value={jobGradingFilter}
+                      onChange={(e) => setJobGradingFilter(e.target.value)}
+                      className="border border-forvis-gray-300 rounded-md px-3 py-2 text-sm bg-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent"
+                    >
+                      <option value="">All Job Grades</option>
+                      {uniqueJobGradings.map(jg => (
+                        <option key={jg} value={jg}>{jg}</option>
+                      ))}
+                    </select>
+                    
+                    {uniqueOffices.length > 0 && (
+                      <select
+                        value={officeFilter}
+                        onChange={(e) => setOfficeFilter(e.target.value)}
+                        className="border border-forvis-gray-300 rounded-md px-3 py-2 text-sm bg-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent"
+                      >
+                        <option value="">All Offices</option>
+                        {uniqueOffices.map(office => (
+                          <option key={office} value={office}>{office}</option>
+                        ))}
+                      </select>
+                    )}
+                    
+                    {(plannerSearchTerm || jobGradingFilter || officeFilter) && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          setPlannerSearchTerm('');
+                          setJobGradingFilter('');
+                          setOfficeFilter('');
+                        }}
+                      >
+                        Clear Filters
+                      </Button>
+                    )}
+                  </div>
+                </Card>
+
+                {/* GanttTimeline */}
+                {isLoadingPlannerUsers ? (
+                  <div className="animate-pulse space-y-4">
+                    <div className="h-20 bg-forvis-gray-200 rounded-lg"></div>
+                    <div className="h-20 bg-forvis-gray-200 rounded-lg"></div>
+                    <div className="h-20 bg-forvis-gray-200 rounded-lg"></div>
+                  </div>
+                ) : filteredPlannerUsers.length === 0 ? (
+                  <Card variant="standard" className="text-center py-12">
+                    <Users className="mx-auto h-12 w-12 text-forvis-gray-400" />
+                    <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">
+                      {plannerSearchTerm || jobGradingFilter || officeFilter ? 'No matching team members' : 'No team members'}
+                    </h3>
+                    <p className="mt-1 text-sm text-forvis-gray-600">
+                      {plannerSearchTerm || jobGradingFilter || officeFilter
+                        ? 'Try adjusting your search or filters.'
+                        : 'No users are currently assigned to this sub-service line group.'}
+                    </p>
+                  </Card>
+                ) : (
+                  <GanttTimeline
+                    taskId={0}
+                    teamMembers={transformedPlannerUsers}
+                    currentUserRole={mapServiceLineRoleToTaskRole(currentUserServiceLineRole)}
+                    onAllocationUpdate={refetchPlannerUsers}
+                    serviceLine={serviceLine}
+                    subServiceLineGroup={subServiceLineGroup}
+                  />
+                )}
               </div>
             </div>
           ) : activeTab === 'my-planning' ? (
-            /* My Planning Timeline */
-            <MyPlanningTimeline />
+            /* My Planning View */
+            <MyPlanningView />
           ) : activeTab === 'groups' ? (
             /* Groups List */
             <div className="bg-forvis-gray-50 rounded-lg border border-forvis-gray-200 shadow-sm p-4">
@@ -731,7 +957,7 @@ export default function SubServiceLineWorkspacePage() {
                     {Math.min(currentPage * itemsPerPage, pagination.total)}
                   </span>{' '}
                   of <span className="font-medium">{pagination.total}</span> {debouncedSearch ? 'filtered ' : ''}
-                  {activeTab === 'groups' ? 'group' : activeTab === 'clients' ? 'client' : 'task'}{pagination.total !== 1 ? 's' : ''}
+                  client{pagination.total !== 1 ? 's' : ''}
                 </div>
               
               {pagination.totalPages > 1 && (

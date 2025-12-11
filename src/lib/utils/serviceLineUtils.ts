@@ -221,4 +221,42 @@ export function isSharedService(serviceLine: ServiceLine | string): boolean {
   return sharedServices.includes(serviceLine as ServiceLine);
 }
 
+/**
+ * Map Employee category description to ServiceLineRole
+ * Maps employee job titles/categories to appropriate service line roles
+ */
+export function mapEmployeeCategoryToRole(empCatDesc: string | null): string {
+  if (!empCatDesc) {
+    return 'VIEWER';
+  }
+
+  const categoryLower = empCatDesc.toLowerCase().trim();
+
+  // Partner level
+  if (categoryLower.includes('partner')) {
+    return 'PARTNER';
+  }
+
+  // Manager level (includes directors)
+  if (categoryLower.includes('director') || categoryLower.includes('manager')) {
+    return 'MANAGER';
+  }
+
+  // Supervisor level (seniors)
+  if (categoryLower.includes('senior') || categoryLower.includes('supervisor')) {
+    return 'SUPERVISOR';
+  }
+
+  // User level (staff, graduates, etc.)
+  if (categoryLower.includes('staff') || 
+      categoryLower.includes('graduate') || 
+      categoryLower.includes('assistant') ||
+      categoryLower.includes('junior')) {
+    return 'USER';
+  }
+
+  // Default to viewer for unknown categories
+  return 'VIEWER';
+}
+
 

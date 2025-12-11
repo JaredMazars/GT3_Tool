@@ -5,25 +5,30 @@ import { TimeScale, ResourceData, AllocationData, DateSelection, RowMetadata } f
 import { TimelineHeader } from './TimelineHeader';
 import { ResourceRow } from './ResourceRow';
 import { AllocationModal } from './AllocationModal';
+import { AdminPlanningModal } from './AdminPlanningModal';
 import { getDateRange, generateTimelineColumns, calculateTotalHours, calculateTotalPercentage, getColumnWidth, assignLanes, calculateMaxLanes } from './utils';
 import { memoizedCalculateTotalHours, memoizedCalculateTotalPercentage } from './optimizations';
 import { Button, LoadingSpinner, ErrorModal } from '@/components/ui';
 import { Calendar, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
 import { TaskRole } from '@/types';
-import { startOfDay, format, isSameDay } from 'date-fns';
+import { startOfDay, format, isSameDay, addDays, addWeeks } from 'date-fns';
 
 interface GanttTimelineProps {
   taskId: number;
   teamMembers: any[];
   currentUserRole: TaskRole;
   onAllocationUpdate: () => void;
+  serviceLine?: string;
+  subServiceLineGroup?: string;
 }
 
 export function GanttTimeline({ 
   taskId, 
   teamMembers, 
   currentUserRole,
-  onAllocationUpdate 
+  onAllocationUpdate,
+  serviceLine,
+  subServiceLineGroup
 }: GanttTimelineProps) {
   const [scale, setScale] = useState<TimeScale>('week');
   const [referenceDate, setReferenceDate] = useState(new Date());
@@ -39,11 +44,17 @@ export function GanttTimeline({
     isOpen: false, 
     message: '' 
   });
+  const [isAdminPlanningModalOpen, setIsAdminPlanningModalOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [adminModalInitialDates, setAdminModalInitialDates] = useState<{ startDate?: Date; endDate?: Date }>({});
   
   const timelineContainerRef = useRef<HTMLDivElement>(null);
 
   // Determine if user can edit
-  const canEdit = currentUserRole === 'ADMIN';
+  // For planner view (taskId === 0), allow ADMIN, REVIEWER, and EDITOR roles to create allocations
+  const canEdit = taskId === 0 
+    ? (currentUserRole === 'ADMIN' || currentUserRole === 'REVIEWER' || currentUserRole === 'EDITOR')
+    : currentUserRole === 'ADMIN';
 
   // Handler to go to today - memoized to prevent recreating on every render
   const handleGoToToday = useCallback(() => {
@@ -58,6 +69,20 @@ export function GanttTimeline({
       setReferenceDate(newDate);
     }
   }, []);
+
+  // Handler to go to previous period
+  const handlePrevious = useCallback(() => {
+    const amount = scale === 'day' ? 50 : 14;
+    const newDate = scale === 'day' ? addDays(referenceDate, -amount) : addWeeks(referenceDate, -amount);
+    setReferenceDate(newDate);
+  }, [scale, referenceDate]);
+
+  // Handler to go to next period
+  const handleNext = useCallback(() => {
+    const amount = scale === 'day' ? 50 : 14;
+    const newDate = scale === 'day' ? addDays(referenceDate, amount) : addWeeks(referenceDate, amount);
+    setReferenceDate(newDate);
+  }, [scale, referenceDate]);
 
   // Generate date range and columns
   const dateRange = useMemo(() => getDateRange(scale, referenceDate), [scale, referenceDate]);
@@ -106,9 +131,6 @@ export function GanttTimeline({
 
   // Transform team members to resource data with optimistic updates applied
   const resources: ResourceData[] = useMemo(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GanttTimeline.tsx:110',message:'Processing team members',data:{teamMembersCount:teamMembers.length,firstMemberAllocations:(teamMembers[0] as any)?.allocations?.length||0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
     return teamMembers.map(member => {
       const user = member.User || member.user;
       
@@ -162,9 +184,6 @@ export function GanttTimeline({
       // Assign lanes to allocations for multi-lane display
       const allocationsWithLanes = assignLanes(allocations);
       const maxLanes = calculateMaxLanes(allocationsWithLanes);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GanttTimeline.tsx:169',message:'Allocations with lanes',data:{userId:member.userId,totalAllocations:allocationsWithLanes.length,currentTask:allocationsWithLanes.filter(a=>a.isCurrentTask!==false).length,otherTasks:allocationsWithLanes.filter(a=>a.isCurrentTask===false).length,maxLanes},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C,D'})}).catch(()=>{});
-      // #endregion
 
       // Calculate totals only for current task allocations
       const currentTaskAllocations = allocationsWithLanes.filter(alloc => alloc.isCurrentTask !== false);
@@ -175,6 +194,7 @@ export function GanttTimeline({
         userEmail: user?.email || '',
         userImage: user?.image,
         jobTitle: user?.jobTitle,
+        jobGradeCode: (user as any)?.jobGradeCode,
         officeLocation: user?.officeLocation,
         role: member.role,
         allocations: allocationsWithLanes, // Show all allocations
@@ -195,11 +215,9 @@ export function GanttTimeline({
   }, []);
 
   const handleCreateAllocation = useCallback((userId: string, startDate?: Date, endDate?: Date) => {
+    
     // Find the team member
     const member = teamMembers.find(m => m.userId === userId);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GanttTimeline.tsx:201',message:'Creating allocation',data:{userId,foundMember:!!member,memberId:member?.id,memberTaskId:member?.taskId},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H'})}).catch(()=>{});
-    // #endregion
     if (!member) {
       setErrorModal({ 
         isOpen: true, 
@@ -209,6 +227,25 @@ export function GanttTimeline({
       return;
     }
 
+    // If admin and service line context available, show admin planning modal
+    if (canEdit && serviceLine && subServiceLineGroup) {
+      setSelectedUserId(userId);
+      // Store the selected dates or use defaults
+      const allocationStartDate = startDate || new Date();
+      const allocationEndDate = endDate || (() => {
+        const nextWeek = new Date(allocationStartDate);
+        nextWeek.setDate(allocationStartDate.getDate() + 7);
+        return nextWeek;
+      })();
+      setAdminModalInitialDates({ 
+        startDate: startOfDay(allocationStartDate), 
+        endDate: startOfDay(allocationEndDate) 
+      });
+      setIsAdminPlanningModalOpen(true);
+      return;
+    }
+
+    // Otherwise, use existing flow for current task
     // Use provided dates or default to today + 7 days
     const allocationStartDate = startDate || new Date();
     const allocationEndDate = endDate || (() => {
@@ -238,7 +275,7 @@ export function GanttTimeline({
     setSelectedAllocation(newAllocation);
     setCreatingForUserId(userId);
     setIsModalOpen(true);
-  }, [teamMembers, taskId]);
+  }, [teamMembers, taskId, canEdit, serviceLine, subServiceLineGroup]);
 
   const handleSelectionStart = useCallback((userId: string, columnIndex: number) => {
     if (!canEdit) {
@@ -250,7 +287,7 @@ export function GanttTimeline({
       startColumnIndex: columnIndex,
       endColumnIndex: columnIndex
     });
-  }, [canEdit]);
+  }, [canEdit, currentUserRole]);
 
   const handleSelectionMove = useCallback((columnIndex: number) => {
     setDateSelection((prev) => {
@@ -260,7 +297,7 @@ export function GanttTimeline({
         endColumnIndex: columnIndex
       };
     });
-  }, []);
+  }, [isSelecting]);
 
   const handleSelectionEnd = useCallback(() => {
     setIsSelecting((currentIsSelecting) => {
@@ -284,6 +321,7 @@ export function GanttTimeline({
         const startDate = columns[minIndex]?.date;
         const endDate = columns[maxIndex]?.date;
         
+        
         if (startDate && endDate) {
           handleCreateAllocation(userId, startDate, endDate);
         }
@@ -293,7 +331,7 @@ export function GanttTimeline({
       
       return false;
     });
-  }, [columns, handleCreateAllocation]);
+  }, [columns, handleCreateAllocation, isSelecting, dateSelection]);
 
   // Scroll to today when requested
   useEffect(() => {
@@ -386,8 +424,11 @@ export function GanttTimeline({
     setIsSaving(true);
     
     try {
+      // For planner view (taskId=0), use the allocation's actual taskId
+      const actualTaskId = taskId === 0 ? selectedAllocation.taskId : taskId;
+      
       const response = await fetch(
-        `/api/tasks/${taskId}/team/${selectedAllocation.id}/allocation`,
+        `/api/tasks/${actualTaskId}/team/${selectedAllocation.id}/allocation`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -446,8 +487,11 @@ export function GanttTimeline({
     setIsSaving(true);
     
     try {
+      // For planner view (taskId=0), use the allocation's actual taskId
+      const actualTaskId = taskId === 0 && selectedAllocation ? selectedAllocation.taskId : taskId;
+      
       const response = await fetch(
-        `/api/tasks/${taskId}/team/${allocationId}/allocation`,
+        `/api/tasks/${actualTaskId}/team/${allocationId}/allocation`,
         {
           method: 'DELETE'
         }
@@ -473,7 +517,102 @@ export function GanttTimeline({
     } finally {
       setIsSaving(false);
     }
-  }, [taskId, onAllocationUpdate]);
+  }, [taskId, selectedAllocation, onAllocationUpdate]);
+
+  const handleAdminPlanningModalSave = useCallback(async (data: {
+    taskId: number;
+    startDate: Date;
+    endDate: Date;
+    allocatedHours: number;
+    allocatedPercentage: number;
+    role: TaskRole;
+  }) => {
+    if (!selectedUserId) return;
+
+    setIsSaving(true);
+
+    try {
+      let teamMemberId: number | undefined;
+
+      // First, try to add the user to the task team
+      const addResponse = await fetch(`/api/tasks/${data.taskId}/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: selectedUserId,
+          role: data.role
+        })
+      });
+
+      if (addResponse.ok) {
+        // User was successfully added to the team
+        const addResult = await addResponse.json();
+        teamMemberId = addResult.data?.id || addResult.id;
+      } else if (addResponse.status === 400) {
+        // User is already on the team - fetch their team member ID
+        const errorData = await addResponse.json().catch(() => ({}));
+        if (errorData.error && errorData.error.includes('already on this project')) {
+          // Fetch the task team members to get the team member ID
+          const teamResponse = await fetch(`/api/tasks/${data.taskId}/users`);
+          if (teamResponse.ok) {
+            const teamResult = await teamResponse.json();
+            const teamMembers = teamResult.data || teamResult;
+            const existingMember = teamMembers.find((m: any) => m.userId === selectedUserId);
+            if (existingMember) {
+              teamMemberId = existingMember.id;
+            }
+          }
+        }
+        if (!teamMemberId) {
+          throw new Error(errorData.error || 'Failed to add user to task');
+        }
+      } else {
+        const errorData = await addResponse.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to add user to task');
+      }
+
+      if (!teamMemberId) {
+        throw new Error('Could not determine team member ID');
+      }
+
+      // Now create the allocation for this user on this task
+      const allocResponse = await fetch(
+        `/api/tasks/${data.taskId}/team/${teamMemberId}/allocation`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            startDate: data.startDate.toISOString(),
+            endDate: data.endDate.toISOString(),
+            allocatedHours: data.allocatedHours,
+            allocatedPercentage: data.allocatedPercentage,
+            role: data.role
+          })
+        }
+      );
+
+      if (!allocResponse.ok) {
+        const errorData = await allocResponse.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to create allocation');
+      }
+
+      // Refresh the planner data
+      onAllocationUpdate();
+      
+      setIsAdminPlanningModalOpen(false);
+      setSelectedUserId(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to save allocation';
+      setErrorModal({ 
+        isOpen: true, 
+        message, 
+        title: 'Save Failed' 
+      });
+      throw error;
+    } finally {
+      setIsSaving(false);
+    }
+  }, [selectedUserId, onAllocationUpdate]);
 
   const handleUpdateDates = useCallback(async (allocationId: number, startDate: Date, endDate: Date) => {
     // Apply optimistic update immediately for instant UI feedback
@@ -487,9 +626,22 @@ export function GanttTimeline({
     });
 
     try {
+      // For planner view (taskId=0), find the allocation's actual taskId
+      let actualTaskId = taskId;
+      if (taskId === 0) {
+        // Find the allocation in resources to get its taskId
+        for (const resource of resources) {
+          const allocation = resource.allocations.find(a => a.id === allocationId);
+          if (allocation) {
+            actualTaskId = allocation.taskId;
+            break;
+          }
+        }
+      }
+      
       // Make API call in background
       const response = await fetch(
-        `/api/tasks/${taskId}/team/${allocationId}/allocation`,
+        `/api/tasks/${actualTaskId}/team/${allocationId}/allocation`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -524,7 +676,7 @@ export function GanttTimeline({
       const message = error instanceof Error ? error.message : 'Failed to update dates';
       setErrorModal({ isOpen: true, message, title: 'Update Failed' });
     }
-  }, [taskId, onAllocationUpdate]);
+  }, [taskId, resources, onAllocationUpdate]);
 
 
   return (
@@ -590,6 +742,22 @@ export function GanttTimeline({
               title="Go to today"
             >
               Today
+            </button>
+            <button
+              onClick={handlePrevious}
+              className="px-3 py-1.5 text-sm font-medium text-white rounded-lg transition-all hover:scale-105 shadow-corporate"
+              style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+              title="Previous period"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleNext}
+              className="px-3 py-1.5 text-sm font-medium text-white rounded-lg transition-all hover:scale-105 shadow-corporate"
+              style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+              title="Next period"
+            >
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -688,6 +856,25 @@ export function GanttTimeline({
         onSave={handleSaveAllocation}
         onClear={handleClearAllocation}
       />
+
+      {/* Admin Planning Modal */}
+      {serviceLine && subServiceLineGroup && selectedUserId && (
+        <AdminPlanningModal
+          isOpen={isAdminPlanningModalOpen}
+          onClose={() => {
+            setIsAdminPlanningModalOpen(false);
+            setSelectedUserId(null);
+            setAdminModalInitialDates({});
+          }}
+          onSave={handleAdminPlanningModalSave}
+          serviceLine={serviceLine}
+          subServiceLineGroup={subServiceLineGroup}
+          userId={selectedUserId}
+          userName={resources.find(r => r.userId === selectedUserId)?.userName || 'Employee'}
+          initialStartDate={adminModalInitialDates.startDate}
+          initialEndDate={adminModalInitialDates.endDate}
+        />
+      )}
 
       {/* Error Modal */}
       <ErrorModal

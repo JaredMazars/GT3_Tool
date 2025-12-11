@@ -439,9 +439,6 @@ export default function ClientProjectPage() {
   } = useTaskTeam(taskId, activeTab === 'team');
   
   // Convert ProjectTeamMember[] to TaskTeam[] format
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:442',message:'Before mapping teamMembers',data:{teamMembersDataCount:teamMembersData.length,firstMemberHasAllocations:!!teamMembersData[0]?.allocations,firstMemberAllocationsCount:teamMembersData[0]?.allocations?.length||0,firstMemberId:teamMembersData[0]?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'G'})}).catch(()=>{});
-  // #endregion
   const teamMembers: TaskTeam[] = teamMembersData.map(member => ({
     id: member.id, // TaskTeam.id from API
     taskId: parseInt(taskId), // Current task being viewed

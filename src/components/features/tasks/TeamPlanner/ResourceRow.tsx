@@ -88,11 +88,11 @@ export function ResourceRow({
             {getInitials(resource.userName, resource.userEmail)}
           </div>
           <div className="flex-1 min-w-0 flex items-center gap-2">
-            <div className="font-semibold text-forvis-gray-900 truncate text-xs">
+            <div className="font-semibold text-forvis-gray-900 text-xs truncate">
               {resource.userName || resource.userEmail}
             </div>
-            <span className={`px-1.5 py-0.5 rounded border font-medium ${getRoleBadgeColor(resource.role)} text-[10px] flex-shrink-0`}>
-              {resource.role}
+            <span className="px-1.5 py-0.5 rounded border font-medium bg-blue-100 text-blue-800 border-blue-300 text-[10px] flex-shrink-0">
+              {resource.jobGradeCode || resource.jobTitle || resource.role}
             </span>
           </div>
           {canEdit && onRemoveMember && (
@@ -190,9 +190,6 @@ export function ResourceRow({
           {/* Allocation tiles with higher z-index */}
           {resource.allocations.map((allocation) => {
             const position = calculateTilePosition(allocation, dateRange, scale, columnWidth);
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ResourceRow.tsx:202',message:'Calculating tile position',data:{allocationId:allocation.id,taskName:allocation.taskName,isCurrentTask:allocation.isCurrentTask,hasPosition:!!position,startDate:allocation.startDate,endDate:allocation.endDate},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C,E'})}).catch(()=>{});
-            // #endregion
             if (!position) return null;
 
             return (

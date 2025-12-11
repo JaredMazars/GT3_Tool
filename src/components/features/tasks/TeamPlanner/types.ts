@@ -48,6 +48,7 @@ export interface ResourceData {
   userEmail: string;
   userImage?: string | null;
   jobTitle?: string | null;
+  jobGradeCode?: string | null;
   officeLocation?: string | null;
   role: string;
   allocations: AllocationData[];
