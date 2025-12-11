@@ -263,7 +263,7 @@ export function AllocationTile({
   return (
     <div
       className={`absolute top-1 bottom-1 rounded-lg shadow-corporate border-2 border-white ${
-        isDragging || isResizing ? 'cursor-grabbing z-20 opacity-80' : 'cursor-grab hover:z-10'
+        isDragging || isResizing ? 'cursor-grabbing z-20 opacity-80' : 'cursor-grab hover:z-[5]'
       } hover:shadow-corporate-md overflow-hidden group`}
       style={{
         left: `${livePosition.left}px`,

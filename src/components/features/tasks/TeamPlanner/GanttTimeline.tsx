@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { TimeScale, ResourceData, AllocationData } from './types';
 import { TimelineHeader } from './TimelineHeader';
 import { ResourceRow } from './ResourceRow';
@@ -9,7 +9,7 @@ import { getDateRange, generateTimelineColumns, calculateTotalHours, calculateTo
 import { Button, LoadingSpinner } from '@/components/ui';
 import { Calendar, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
 import { TaskRole } from '@/types';
-import { startOfDay } from 'date-fns';
+import { startOfDay, format, isSameDay } from 'date-fns';
 
 interface GanttTimelineProps {
   taskId: number;
@@ -25,15 +25,59 @@ export function GanttTimeline({
   onAllocationUpdate 
 }: GanttTimelineProps) {
   const [scale, setScale] = useState<TimeScale>('week');
-  const [referenceDate] = useState(new Date());
+  const [referenceDate, setReferenceDate] = useState(new Date());
   const [selectedAllocation, setSelectedAllocation] = useState<AllocationData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [creatingForUserId, setCreatingForUserId] = useState<string | null>(null);
+  const [scrollToToday, setScrollToToday] = useState(false);
+  
+  const timelineContainerRef = useRef<HTMLDivElement>(null);
+
+  // Handler to go to today
+  const handleGoToToday = () => {
+    setReferenceDate(new Date());
+    setScrollToToday(true);
+  };
+
+  // Handler for date input change
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newDate = new Date(e.target.value);
+    if (!isNaN(newDate.getTime())) {
+      setReferenceDate(newDate);
+    }
+  };
 
   // Generate date range and columns
   const dateRange = useMemo(() => getDateRange(scale, referenceDate), [scale, referenceDate]);
   const columns = useMemo(() => generateTimelineColumns(dateRange, scale), [dateRange, scale]);
+
+  // Scroll to today when requested
+  useEffect(() => {
+    if (scrollToToday && timelineContainerRef.current && columns.length > 0) {
+      const today = startOfDay(new Date());
+      const todayColumnIndex = columns.findIndex(col => 
+        isSameDay(startOfDay(col.date), today)
+      );
+      
+      if (todayColumnIndex !== -1) {
+        // Calculate column width based on scale
+        const columnWidth = scale === 'day' ? 120 : scale === 'week' ? 80 : 60;
+        const scrollPosition = todayColumnIndex * columnWidth;
+        
+        // Scroll to center the today column
+        const containerWidth = timelineContainerRef.current.clientWidth;
+        const scrollLeft = Math.max(0, scrollPosition - (containerWidth / 2) + (columnWidth / 2));
+        
+        timelineContainerRef.current.scrollTo({
+          left: scrollLeft,
+          behavior: 'smooth'
+        });
+      }
+      
+      setScrollToToday(false);
+    }
+  }, [scrollToToday, columns, scale]);
 
   // Transform team members to resource data
   const resources: ResourceData[] = useMemo(() => {
@@ -245,44 +289,65 @@ export function GanttTimeline({
         className="px-6 py-4 border-b-2 border-forvis-gray-200 flex items-center justify-between"
         style={{ background: 'linear-gradient(to right, #F0F7FD, #E5F1FB)' }}
       >
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-forvis-blue-600" />
-            <span className="text-sm font-semibold text-forvis-gray-900">Time Scale:</span>
+        <div className="flex items-center gap-6">
+          {/* Time Scale */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-forvis-blue-600" />
+              <span className="text-sm font-semibold text-forvis-gray-900">Time Scale:</span>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setScale('day')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${
+                  scale === 'day'
+                    ? 'text-white shadow-corporate'
+                    : 'text-forvis-gray-700 bg-white border-2 border-forvis-gray-300 hover:border-forvis-blue-400'
+                }`}
+                style={scale === 'day' ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' } : {}}
+              >
+                Days
+              </button>
+              <button
+                onClick={() => setScale('week')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${
+                  scale === 'week'
+                    ? 'text-white shadow-corporate'
+                    : 'text-forvis-gray-700 bg-white border-2 border-forvis-gray-300 hover:border-forvis-blue-400'
+                }`}
+                style={scale === 'week' ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' } : {}}
+              >
+                Weeks
+              </button>
+              <button
+                onClick={() => setScale('month')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${
+                  scale === 'month'
+                    ? 'text-white shadow-corporate'
+                    : 'text-forvis-gray-700 bg-white border-2 border-forvis-gray-300 hover:border-forvis-blue-400'
+                }`}
+                style={scale === 'month' ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' } : {}}
+              >
+                Months
+              </button>
+            </div>
           </div>
-          <div className="flex gap-2">
+
+          {/* Date Selector */}
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={format(referenceDate, 'yyyy-MM-dd')}
+              onChange={handleDateChange}
+              className="px-3 py-1.5 text-sm font-medium text-forvis-gray-700 bg-white border-2 border-forvis-gray-300 rounded-lg hover:border-forvis-blue-400 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 transition-all"
+            />
             <button
-              onClick={() => setScale('day')}
-              className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${
-                scale === 'day'
-                  ? 'text-white shadow-corporate'
-                  : 'text-forvis-gray-700 bg-white border-2 border-forvis-gray-300 hover:border-forvis-blue-400'
-              }`}
-              style={scale === 'day' ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' } : {}}
+              onClick={handleGoToToday}
+              className="px-3 py-1.5 text-sm font-medium text-white rounded-lg transition-all hover:scale-105 shadow-corporate"
+              style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+              title="Go to today"
             >
-              Days
-            </button>
-            <button
-              onClick={() => setScale('week')}
-              className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${
-                scale === 'week'
-                  ? 'text-white shadow-corporate'
-                  : 'text-forvis-gray-700 bg-white border-2 border-forvis-gray-300 hover:border-forvis-blue-400'
-              }`}
-              style={scale === 'week' ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' } : {}}
-            >
-              Weeks
-            </button>
-            <button
-              onClick={() => setScale('month')}
-              className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${
-                scale === 'month'
-                  ? 'text-white shadow-corporate'
-                  : 'text-forvis-gray-700 bg-white border-2 border-forvis-gray-300 hover:border-forvis-blue-400'
-              }`}
-              style={scale === 'month' ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' } : {}}
-            >
-              Months
+              Today
             </button>
           </div>
         </div>

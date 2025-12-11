@@ -157,10 +157,10 @@ export function ResourceRow({
         </div>
 
         {/* Allocation tiles */}
-        <div className="relative z-10 h-full">
+        <div className="relative z-0 h-full">
           {/* Show add button when no allocations */}
           {resource.allocations.length === 0 && canEdit && onCreateAllocation && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[5]">
               <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                   onClick={(e) => {
