@@ -169,7 +169,6 @@ export default function ReportingPage({ params }: ReportingPageProps) {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     } catch (err) {
-      console.error(err);
       setAlertModal({
         isOpen: true,
         title: 'Export Failed',

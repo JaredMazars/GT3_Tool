@@ -61,10 +61,6 @@ export function GanttTimeline({
 
   // Transform team members to resource data with optimistic updates applied
   const resources: ResourceData[] = useMemo(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GanttTimeline.tsx:63',message:'resources useMemo computing',data:{teamMembersCount:teamMembers.length,optimisticUpdatesSize:optimisticUpdates.size,optimisticKeys:Array.from(optimisticUpdates.keys())},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
-    // #endregion
-    
     return teamMembers.map(member => {
       const user = member.User || member.user;
       
@@ -82,9 +78,6 @@ export function GanttTimeline({
             // Apply optimistic update if exists
             const optimisticUpdate = optimisticUpdates.get(alloc.id);
             if (optimisticUpdate) {
-              // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GanttTimeline.tsx:84',message:'Applying optimistic update to allocation',data:{allocId:alloc.id,serverStartDate:normalizedAlloc.startDate.toISOString(),serverEndDate:normalizedAlloc.endDate.toISOString(),optimisticStartDate:optimisticUpdate.startDate?.toISOString(),optimisticEndDate:optimisticUpdate.endDate?.toISOString()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
-              // #endregion
               return { ...normalizedAlloc, ...optimisticUpdate };
             }
             
@@ -129,18 +122,14 @@ export function GanttTimeline({
   }, [teamMembers, optimisticUpdates]);
 
   const handleEditAllocation = useCallback((allocation: AllocationData) => {
-    console.log('Opening modal to edit allocation:', allocation);
     setSelectedAllocation(allocation);
     setIsModalOpen(true);
   }, []);
 
   const handleCreateAllocation = useCallback((userId: string, startDate?: Date, endDate?: Date) => {
-    console.log('Opening modal to create allocation for user:', userId, 'dates:', startDate, endDate);
-    
     // Find the team member
     const member = teamMembers.find(m => m.userId === userId);
     if (!member) {
-      console.error('Team member not found:', userId);
       alert('Team member not found. Please refresh the page and try again.');
       return;
     }
@@ -171,7 +160,6 @@ export function GanttTimeline({
       actualHours: null
     };
 
-    console.log('Created allocation template:', newAllocation);
     setSelectedAllocation(newAllocation);
     setCreatingForUserId(userId);
     setIsModalOpen(true);
@@ -181,7 +169,6 @@ export function GanttTimeline({
     if (!canEdit) {
       return;
     }
-    console.log('Selection started:', userId, columnIndex);
     setIsSelecting(true);
     setDateSelection({
       userId,
@@ -206,8 +193,6 @@ export function GanttTimeline({
       
       setDateSelection((currentSelection) => {
         if (!currentSelection) return null;
-        
-        console.log('Selection ended:', currentSelection);
         
         const { userId, startColumnIndex, endColumnIndex } = currentSelection;
         
@@ -290,14 +275,12 @@ export function GanttTimeline({
 
       onAllocationUpdate();
     } catch (error) {
-      console.error('Error removing team member:', error);
       alert('Failed to remove team member. Please try again.');
     }
   }, [teamMembers, taskId, onAllocationUpdate]);
 
   const handleSaveAllocation = useCallback(async (updates: Partial<AllocationData>) => {
     if (!selectedAllocation) {
-      console.error('No allocation selected for save');
       return;
     }
 
@@ -321,7 +304,6 @@ export function GanttTimeline({
     }
 
     setIsSaving(true);
-    console.log('Saving allocation:', { teamMemberId: selectedAllocation.id, updates });
     
     try {
       const response = await fetch(
@@ -346,8 +328,6 @@ export function GanttTimeline({
         throw new Error(errorMessage);
       }
 
-      console.log('Allocation saved successfully');
-      
       // Clear optimistic update immediately - modal save is explicit user action
       // The refetch will provide fresh server data
       setOptimisticUpdates(prev => {
@@ -370,7 +350,6 @@ export function GanttTimeline({
         return newMap;
       });
       
-      console.error('Error saving allocation:', error);
       const message = error instanceof Error ? error.message : 'Failed to save allocation';
       alert(message);
       throw error;
@@ -381,7 +360,6 @@ export function GanttTimeline({
 
   const handleClearAllocation = useCallback(async (allocationId: number) => {
     setIsSaving(true);
-    console.log('Clearing allocation:', { teamMemberId: allocationId });
     
     try {
       const response = await fetch(
@@ -397,12 +375,10 @@ export function GanttTimeline({
         throw new Error(errorMessage);
       }
 
-      console.log('Allocation cleared successfully');
       onAllocationUpdate();
       setIsModalOpen(false);
       setSelectedAllocation(null);
     } catch (error) {
-      console.error('Error clearing allocation:', error);
       const message = error instanceof Error ? error.message : 'Failed to clear allocation';
       alert(message);
       throw error;
@@ -412,10 +388,6 @@ export function GanttTimeline({
   }, [taskId, onAllocationUpdate]);
 
   const handleUpdateDates = useCallback(async (allocationId: number, startDate: Date, endDate: Date) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GanttTimeline.tsx:408',message:'handleUpdateDates called',data:{allocationId,startDate:startDate.toISOString(),endDate:endDate.toISOString(),timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-    // #endregion
-    
     // Apply optimistic update immediately for instant UI feedback
     setOptimisticUpdates(prev => {
       const newMap = new Map(prev);
@@ -423,9 +395,6 @@ export function GanttTimeline({
         startDate: startOfDay(startDate),
         endDate: startOfDay(endDate)
       });
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GanttTimeline.tsx:417',message:'Optimistic update applied',data:{allocationId,optimisticMapSize:newMap.size,optimisticData:{startDate:startOfDay(startDate).toISOString(),endDate:startOfDay(endDate).toISOString()}},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
-      // #endregion
       return newMap;
     });
 
@@ -449,11 +418,6 @@ export function GanttTimeline({
         throw new Error(errorMessage);
       }
 
-      // #region agent log
-      const apiCallEndTime = Date.now();
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GanttTimeline.tsx:439',message:'API call succeeded - keeping optimistic update',data:{allocationId,apiCallEndTime},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H6'})}).catch(()=>{});
-      // #endregion
-      
       // DON'T refetch - the optimistic update already shows correct data
       // The drag operation saved to DB, so we can trust the optimistic update
       // Next natural refetch (modal save, page refresh, etc) will sync with server
@@ -469,7 +433,6 @@ export function GanttTimeline({
         return newMap;
       });
       
-      console.error('Error updating dates:', error);
       const message = error instanceof Error ? error.message : 'Failed to update dates';
       alert(message);
     }
@@ -627,7 +590,6 @@ export function GanttTimeline({
         allocation={selectedAllocation}
         isOpen={isModalOpen}
         onClose={() => {
-          console.log('Closing allocation modal');
           setIsModalOpen(false);
           setSelectedAllocation(null);
           setCreatingForUserId(null);

@@ -29,7 +29,7 @@ export default function TaskTeamsPage() {
         setUsers(data.data);
       }
     } catch (error) {
-      console.error('Failed to fetch users:', error);
+      // Silently fail - error will be shown via UI state
     } finally {
       setLoading(false);
     }
@@ -50,7 +50,7 @@ export default function TaskTeamsPage() {
         }
       }
     } catch (error) {
-      console.error('Failed to fetch current user:', error);
+      // Silently fail - user info is not critical
     }
   };
 

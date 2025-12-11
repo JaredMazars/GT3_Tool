@@ -92,7 +92,6 @@ export function ResourceRow({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                console.log('Remove button clicked for user:', resource.userId);
                 setShowRemoveConfirm(true);
               }}
               className="flex-shrink-0 p-1.5 text-forvis-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-all opacity-0 group-hover:opacity-100 hover:scale-110"
@@ -164,19 +163,12 @@ export function ResourceRow({
                   userSelect: 'none'
                 }}
                 onMouseDown={(e) => {
-                  // #region agent log
-                  console.log('[DEBUG:H3] Cell onMouseDown fired:', {index, userId: resource.userId, canEdit, timestamp: Date.now()});
-                  // #endregion
                   if (canEdit) {
                     e.preventDefault();
-                    console.log('Mouse down on cell:', index, 'for user:', resource.userId);
                     onSelectionStart(resource.userId, index);
                   }
                 }}
                 onMouseEnter={() => {
-                  // #region agent log
-                  console.log('[DEBUG:H3] Cell onMouseEnter fired:', {index, userId: resource.userId, isSelecting, selectionUserId: dateSelection?.userId, timestamp: Date.now()});
-                  // #endregion
                   if (isSelecting && dateSelection?.userId === resource.userId) {
                     onSelectionMove(index);
                   }
@@ -192,10 +184,6 @@ export function ResourceRow({
           {resource.allocations.map((allocation) => {
             const position = calculateTilePosition(allocation, dateRange, scale, columnWidth);
             if (!position) return null;
-
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ResourceRow.tsx:197',message:'Rendering AllocationTile',data:{allocId:allocation.id,allocStartDate:allocation.startDate?.toISOString(),allocEndDate:allocation.endDate?.toISOString(),positionLeft:position.left,positionWidth:position.width},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H5'})}).catch(()=>{});
-            // #endregion
 
             return (
               <AllocationTile

@@ -84,7 +84,6 @@ export function AllocationModal({ allocation, isOpen, onClose, onSave, onClear }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to save allocation';
       setError(message);
-      console.error('Save allocation error:', err);
     } finally {
       setIsSaving(false);
     }
@@ -103,7 +102,6 @@ export function AllocationModal({ allocation, isOpen, onClose, onSave, onClear }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to clear allocation';
       setError(message);
-      console.error('Clear allocation error:', err);
     } finally {
       setIsSaving(false);
     }
