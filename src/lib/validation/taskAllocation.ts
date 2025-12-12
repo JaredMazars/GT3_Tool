@@ -205,10 +205,10 @@ export async function validateAllocation(
   // Validate date range
   validateAllocationDates(startDate, endDate);
 
-  // Check for overlaps (only if dates are provided)
-  if (startDate || endDate) {
-    await checkOverlappingAllocations(taskId, userId, startDate, endDate, excludeId);
-  }
+  // Check for overlaps - DISABLED: Allow overlapping allocations
+  // if (startDate || endDate) {
+  //   await checkOverlappingAllocations(taskId, userId, startDate, endDate, excludeId);
+  // }
 
   // Validate role consistency
   await validateRoleConsistency(taskId, userId, role, excludeId);

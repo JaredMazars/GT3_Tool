@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { TimeScale, ResourceData, AllocationData, DateSelection, RowMetadata } from './types';
+import { TimeScale, ResourceData, AllocationData, DateSelection, RowMetadata, getAllocationKeyById } from './types';
 import { TimelineHeader } from './TimelineHeader';
 import { ResourceRow } from './ResourceRow';
 import { AllocationModal } from './AllocationModal';
@@ -41,7 +41,7 @@ export function GanttTimeline({
   const [scrollToToday, setScrollToToday] = useState(false);
   const [dateSelection, setDateSelection] = useState<DateSelection | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
-  const [optimisticUpdates, setOptimisticUpdates] = useState<Map<number, Partial<AllocationData>>>(new Map());
+  const [optimisticUpdates, setOptimisticUpdates] = useState<Map<string, Partial<AllocationData>>>(new Map());
   const [errorModal, setErrorModal] = useState<{ isOpen: boolean; message: string; title?: string }>({ 
     isOpen: false, 
     message: '' 
@@ -169,7 +169,8 @@ export function GanttTimeline({
             
             // Apply optimistic update if exists (only for current task allocations)
             if (alloc.isCurrentTask !== false) {
-              const optimisticUpdate = optimisticUpdates.get(alloc.id);
+              const optimisticKey = getAllocationKeyById(alloc.id, alloc.isNonClientEvent || false);
+              const optimisticUpdate = optimisticUpdates.get(optimisticKey);
               if (optimisticUpdate) {
                 return { ...normalizedAlloc, ...optimisticUpdate };
               }
@@ -194,7 +195,8 @@ export function GanttTimeline({
             isCurrentTask: true // Flat member data is always current task
           }].map(alloc => {
             // Apply optimistic update if exists for flat member data
-            const optimisticUpdate = optimisticUpdates.get(alloc.id);
+            const optimisticKey = getAllocationKeyById(alloc.id, false);
+            const optimisticUpdate = optimisticUpdates.get(optimisticKey);
             if (optimisticUpdate) {
               return { ...alloc, ...optimisticUpdate };
             }
@@ -652,78 +654,36 @@ export function GanttTimeline({
     }
   }, [selectedUserId, onAllocationUpdate]);
 
-  const handleUpdateDates = useCallback(async (allocationId: number, startDate: Date, endDate: Date) => {
+  const handleUpdateDates = useCallback(async (allocationId: number, startDate: Date, endDate: Date, isNonClientEvent: boolean) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GanttTimeline.tsx:655',message:'HandleUpdateDates-Called',data:{allocId:allocationId,newStart:startDate.toISOString(),newEnd:endDate.toISOString(),isNonClient:isNonClientEvent},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    
     // Find the allocation being updated and its user
+    // NOW WITH CONTEXT: Use isNonClientEvent to search the correct allocation type
     let userId: string | null = null;
-    let isNonClientEvent = false;
     
     for (const member of teamMembers) {
       if ((member as any).allocations?.length > 0) {
-        const allocation = (member as any).allocations.find((a: any) => a.id === allocationId);
+        const allocation = (member as any).allocations.find((a: any) => 
+          a.id === allocationId && (a.isNonClientEvent || false) === isNonClientEvent
+        );
         if (allocation) {
           userId = member.userId;
-          isNonClientEvent = allocation.isNonClientEvent || false;
+          
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GanttTimeline.tsx:666',message:'HandleUpdateDates-FoundAlloc',data:{allocId:allocationId,userId:userId,isNonClient:isNonClientEvent,taskId:allocation.taskId},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A'})}).catch(()=>{});
+          // #endregion
           break;
         }
-      } else if (member.id === allocationId) {
+      } else if (member.id === allocationId && !isNonClientEvent) {
+        // Flat member data is always client allocation
         userId = member.userId;
-        break;
-      }
-    }
-    
-    // Check for overlaps based on what type of allocation is being moved
-    if (userId) {
-      const member = teamMembers.find(m => m.userId === userId);
-      if (member && (member as any).allocations) {
-        const newStart = startOfDay(startDate);
-        const newEnd = startOfDay(endDate);
         
-        if (!isNonClientEvent) {
-          // Moving CLIENT allocation - check for non-client event overlaps
-          const nonClientOverlaps = (member as any).allocations.filter((alloc: any) => {
-            if (!alloc.isNonClientEvent || alloc.id === allocationId) return false;
-            
-            const allocStart = startOfDay(new Date(alloc.startDate));
-            const allocEnd = startOfDay(new Date(alloc.endDate));
-            
-            // Check for overlap
-            return newStart <= allocEnd && newEnd >= allocStart;
-          });
-          
-          if (nonClientOverlaps.length > 0) {
-            const eventType = nonClientOverlaps[0].nonClientEventType;
-            const eventLabel = NON_CLIENT_EVENT_LABELS[eventType] || 'Non-Client Event';
-            setErrorModal({
-              isOpen: true,
-              title: 'Cannot Update Allocation',
-              message: `Cannot allocate to client task during this period. User has ${eventLabel} scheduled from ${format(new Date(nonClientOverlaps[0].startDate), 'MMM d')} to ${format(new Date(nonClientOverlaps[0].endDate), 'MMM d, yyyy')}.`
-            });
-            return; // Prevent update
-          }
-        } else {
-          // Moving NON-CLIENT event - check for client allocation overlaps
-          const clientOverlaps = (member as any).allocations.filter((alloc: any) => {
-            if (alloc.isNonClientEvent || alloc.id === allocationId) return false;
-            
-            const allocStart = startOfDay(new Date(alloc.startDate));
-            const allocEnd = startOfDay(new Date(alloc.endDate));
-            
-            // Check for overlap
-            return newStart <= allocEnd && newEnd >= allocStart;
-          });
-          
-          if (clientOverlaps.length > 0) {
-            const taskName = clientOverlaps[0].taskName || 'Client Task';
-            const clientName = clientOverlaps[0].clientName || '';
-            const taskInfo = clientName ? `${clientName} - ${taskName}` : taskName;
-            setErrorModal({
-              isOpen: true,
-              title: 'Cannot Move Non-Client Event',
-              message: `Cannot schedule event during this period. User has client work (${taskInfo}) scheduled from ${format(new Date(clientOverlaps[0].startDate), 'MMM d')} to ${format(new Date(clientOverlaps[0].endDate), 'MMM d, yyyy')}.`
-            });
-            return; // Prevent update
-          }
-        }
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GanttTimeline.tsx:670',message:'HandleUpdateDates-FoundFlatAlloc',data:{allocId:allocationId,userId:userId},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
+        break;
       }
     }
     
@@ -754,10 +714,17 @@ export function GanttTimeline({
         : 0;
     }
     
+    // CRITICAL FIX: Use composite key to prevent ID collision
+    const optimisticKey = getAllocationKeyById(allocationId, isNonClientEvent);
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GanttTimeline.tsx:715',message:'Optimistic-Update-Set',data:{allocId:allocationId,optimisticKey:optimisticKey,isNonClient:isNonClientEvent,newStart:startDate.toISOString(),newEnd:endDate.toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'G'})}).catch(()=>{});
+    // #endregion
+    
     // Apply optimistic update immediately for instant UI feedback
     setOptimisticUpdates(prev => {
       const newMap = new Map(prev);
-      newMap.set(allocationId, {
+      newMap.set(optimisticKey, {
         startDate: startOfDay(startDate),
         endDate: startOfDay(endDate),
         ...(allocatedPercentage !== null && { allocatedPercentage })
@@ -815,10 +782,11 @@ export function GanttTimeline({
       // on next refetch or when component unmounts
       // No need to clear since drag already saved the correct dates to DB
     } catch (error) {
-      // Revert optimistic update on error
+      // Revert optimistic update on error - FIXED: Use composite key
+      const optimisticKey = getAllocationKeyById(allocationId, isNonClientEvent);
       setOptimisticUpdates(prev => {
         const newMap = new Map(prev);
-        newMap.delete(allocationId);
+        newMap.delete(optimisticKey);
         return newMap;
       });
       

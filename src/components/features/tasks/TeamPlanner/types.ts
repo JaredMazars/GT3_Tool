@@ -79,4 +79,18 @@ export interface RowMetadata {
   cumulativeHeights: number[]; // Cumulative heights of all rows up to and including this index
 }
 
+/**
+ * Generate composite key for optimistic updates
+ * Prevents ID collision between client and non-client allocations
+ */
+export function getAllocationKey(allocation: AllocationData): string {
+  const type = allocation.isNonClientEvent ? 'nonclient' : 'client';
+  return `${type}-${allocation.id}`;
+}
+
+export function getAllocationKeyById(id: number, isNonClient: boolean): string {
+  const type = isNonClient ? 'nonclient' : 'client';
+  return `${type}-${id}`;
+}
+
 
