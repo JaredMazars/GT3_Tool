@@ -26,7 +26,7 @@ export async function PUT(
     }
 
     // 2. Check feature permission
-    const hasPermission = await checkFeature(user.id, Feature.manage_tasks);
+    const hasPermission = await checkFeature(user.id, Feature.MANAGE_TASKS);
     if (!hasPermission) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -178,7 +178,7 @@ export async function DELETE(
     }
 
     // 2. Check feature permission
-    const hasPermission = await checkFeature(user.id, Feature.manage_tasks);
+    const hasPermission = await checkFeature(user.id, Feature.MANAGE_TASKS);
     if (!hasPermission) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }

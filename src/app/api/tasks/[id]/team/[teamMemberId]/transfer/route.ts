@@ -94,12 +94,10 @@ export async function POST(
       }
 
       // Find target team member record
-      const targetTeamMember = await tx.taskTeam.findUnique({
+      const targetTeamMember = await tx.taskTeam.findFirst({
         where: {
-          taskId_userId: {
-            taskId: taskId,
-            userId: validatedData.targetUserId
-          }
+          taskId: taskId,
+          userId: validatedData.targetUserId
         },
         select: {
           id: true,

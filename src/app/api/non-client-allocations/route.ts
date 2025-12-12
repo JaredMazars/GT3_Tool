@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 2. Check feature permission
-    const hasPermission = await checkFeature(user.id, Feature.manage_tasks);
+    const hasPermission = await checkFeature(user.id, Feature.MANAGE_TASKS);
     if (!hasPermission) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
       employee: allocation.Employee,
     }));
 
-    return successResponse(formattedAllocations);
+    return NextResponse.json(successResponse(formattedAllocations));
   } catch (error) {
     return handleApiError(error, 'Failed to fetch non-client allocations');
   }
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Check feature permission
-    const hasPermission = await checkFeature(user.id, Feature.manage_tasks);
+    const hasPermission = await checkFeature(user.id, Feature.MANAGE_TASKS);
     if (!hasPermission) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }

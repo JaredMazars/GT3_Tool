@@ -509,12 +509,10 @@ export async function checkProjectAccess(
     }
 
     // Get user's project membership
-    const projectUser = await prisma.taskTeam.findUnique({
+    const projectUser = await prisma.taskTeam.findFirst({
       where: {
-        taskId_userId: {
-          taskId,
-          userId,
-        },
+        taskId,
+        userId,
       },
     });
 
@@ -617,12 +615,10 @@ export async function getUserTaskRole(
   taskId: number
 ): Promise<string | null> {
   try {
-    const projectUser = await prisma.taskTeam.findUnique({
+    const projectUser = await prisma.taskTeam.findFirst({
       where: {
-        taskId_userId: {
-          taskId,
-          userId,
-        },
+        taskId,
+        userId,
       },
     });
 

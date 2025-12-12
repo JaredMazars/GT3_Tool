@@ -5,7 +5,7 @@ import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError, AppError } from '@/lib/utils/errorHandler';
 import { toTaskId } from '@/types/branded';
-import { NON_CLIENT_EVENT_LABELS } from '@/types';
+import { NON_CLIENT_EVENT_LABELS, NonClientEventType } from '@/types';
 
 /**
  * GET /api/tasks/[id]/team/allocations
@@ -111,14 +111,54 @@ export async function GET(
       }
     });
 
-    // 5b. Fetch non-client allocations for these team members
-    const nonClientAllocations = await prisma.nonClientAllocation.findMany({
+    // 5b. Map users to employees to fetch non-client allocations
+    // Get user emails for the team
+    const userEmails = task.TaskTeam.map(member => member.User.email?.toLowerCase()).filter(Boolean);
+    
+    // Find employees matching these users (by email/WinLogon)
+    const employees = await prisma.employee.findMany({
       where: {
-        userId: { in: userIds }
+        OR: [
+          { WinLogon: { in: userEmails } },
+          // Also try matching email prefix before @
+          ...userEmails.map(email => {
+            const prefix = email?.split('@')[0];
+            return prefix ? { WinLogon: { contains: prefix } } : { id: -1 }; // Use impossible id if no prefix
+          })
+        ]
       },
       select: {
         id: true,
-        userId: true,
+        WinLogon: true
+      }
+    });
+
+    // Create mapping: userId -> employeeId
+    const userToEmployeeMap = new Map<string, number>();
+    task.TaskTeam.forEach(member => {
+      const userEmail = member.User.email?.toLowerCase();
+      if (userEmail) {
+        const matchedEmployee = employees.find(emp => {
+          const empLogin = emp.WinLogon?.toLowerCase();
+          if (!empLogin) return false;
+          // Direct match or prefix match
+          return empLogin === userEmail || userEmail.startsWith(empLogin.split('@')[0] || '');
+        });
+        if (matchedEmployee) {
+          userToEmployeeMap.set(member.userId, matchedEmployee.id);
+        }
+      }
+    });
+
+    // Get non-client allocations for matched employees
+    const employeeIds = Array.from(userToEmployeeMap.values());
+    const nonClientAllocations = await prisma.nonClientAllocation.findMany({
+      where: {
+        employeeId: { in: employeeIds }
+      },
+      select: {
+        id: true,
+        employeeId: true,
         eventType: true,
         startDate: true,
         endDate: true,
@@ -173,12 +213,13 @@ export async function GET(
         }));
 
       // Non-client event allocations for this user
+      const userEmployeeId = userToEmployeeMap.get(member.userId);
       const userNonClientAllocations = nonClientAllocations
-        .filter(alloc => alloc.userId === member.userId)
+        .filter(alloc => userEmployeeId && alloc.employeeId === userEmployeeId)
         .map(alloc => ({
           id: alloc.id,
           taskId: null,
-          taskName: NON_CLIENT_EVENT_LABELS[alloc.eventType],
+          taskName: NON_CLIENT_EVENT_LABELS[alloc.eventType as NonClientEventType],
           taskCode: undefined,
           clientName: null,
           clientCode: null,

@@ -35,20 +35,16 @@ export async function POST(request: NextRequest) {
     // If taskId is provided, verify both users have access to the task
     if (validated.taskId) {
       const [senderAccess, recipientAccess] = await Promise.all([
-        prisma.taskTeam.findUnique({
+        prisma.taskTeam.findFirst({
           where: {
-            taskId_userId: {
-              taskId: validated.taskId,
-              userId: user.id,
-            },
+            taskId: validated.taskId,
+            userId: user.id,
           },
         }),
-        prisma.taskTeam.findUnique({
+        prisma.taskTeam.findFirst({
           where: {
-            taskId_userId: {
-              taskId: validated.taskId,
-              userId: validated.recipientUserId,
-            },
+            taskId: validated.taskId,
+            userId: validated.recipientUserId,
           },
         }),
       ]);

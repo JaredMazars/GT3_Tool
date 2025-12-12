@@ -159,9 +159,10 @@ export async function POST(
     }
 
     // Check authorization: user must be a project member OR service line admin
-    const currentUserOnProject = await prisma.taskTeam.findUnique({
+    const currentUserOnProject = await prisma.taskTeam.findFirst({
       where: {
-        taskId_userId: { taskId, userId: user.id },
+        taskId,
+        userId: user.id,
       },
     });
     // Check if user is service line admin
@@ -320,7 +321,7 @@ export async function POST(
         return NextResponse.json(
           { 
             error: error.message,
-            metadata: error.metadata,
+            metadata: error.details,
           },
           { status: 400 }
         );

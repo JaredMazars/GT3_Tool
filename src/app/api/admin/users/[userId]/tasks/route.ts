@@ -3,6 +3,7 @@ import { getCurrentUser, isSystemAdmin } from '@/lib/services/auth/auth';
 import { prisma } from '@/lib/db/prisma';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { validateRoleConsistency, AllocationValidationError } from '@/lib/validation/taskAllocation';
+import { toTaskId } from '@/types/branded';
 
 /**
  * POST /api/admin/users/[userId]/tasks
@@ -61,7 +62,7 @@ export async function POST(
         if (existingAllocations.length > 0) {
           // User already on task - validate role consistency
           try {
-            await validateRoleConsistency(taskId, params.userId, role);
+            await validateRoleConsistency(toTaskId(taskId), params.userId, role);
           } catch (error) {
             if (error instanceof AllocationValidationError) {
               // Role mismatch - update all allocations to new role

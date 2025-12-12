@@ -327,6 +327,7 @@ export function AdminPlanningModal({
     );
   }
 
+  // Client mode
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-corporate-lg max-w-3xl w-full border-2 border-forvis-gray-200 max-h-[90vh] overflow-y-auto">
@@ -353,7 +354,7 @@ export function AdminPlanningModal({
         <div className="px-6 py-4 border-b border-forvis-gray-200 bg-white">
           <div className="flex gap-3">
             <Button 
-              variant={mode === 'client' ? 'gradient' : 'secondary'}
+              variant="gradient"
               size="md"
               onClick={() => setMode('client')}
             >
@@ -361,7 +362,7 @@ export function AdminPlanningModal({
               Assign to Client Task
             </Button>
             <Button 
-              variant={mode === 'non-client' ? 'gradient' : 'secondary'}
+              variant="secondary"
               size="md"
               onClick={() => setMode('non-client')}
             >

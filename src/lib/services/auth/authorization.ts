@@ -167,12 +167,10 @@ export async function canApproveAcceptance(
     
     // Also verify they have task access
     if (isServiceLinePartner) {
-      const hasTaskAccess = await prisma.taskTeam.findUnique({
+      const hasTaskAccess = await prisma.taskTeam.findFirst({
         where: {
-          taskId_userId: {
-            taskId,
-            userId,
-          },
+          taskId,
+          userId,
         },
       });
       

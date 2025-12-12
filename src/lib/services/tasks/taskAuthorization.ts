@@ -123,12 +123,10 @@ export async function checkTaskAccess(
     }
 
     // Check task membership
-    const taskTeamMember = await prisma.taskTeam.findUnique({
+    const taskTeamMember = await prisma.taskTeam.findFirst({
       where: {
-        taskId_userId: {
-          taskId,
-          userId,
-        },
+        taskId,
+        userId,
       },
       select: { role: true },
     });
@@ -200,12 +198,10 @@ export async function getTaskRole(
     if (isAdmin) return 'ADMIN';
 
     // Get user's role from task team
-    const taskTeamMember = await prisma.taskTeam.findUnique({
+    const taskTeamMember = await prisma.taskTeam.findFirst({
       where: {
-        taskId_userId: {
-          taskId,
-          userId,
-        },
+        taskId,
+        userId,
       },
       select: { role: true },
     });

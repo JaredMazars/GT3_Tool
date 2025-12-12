@@ -35,12 +35,10 @@ export async function GET(
     }
 
     // Get current user's task team membership
-    const taskTeam = await prisma.taskTeam.findUnique({
+    const taskTeam = await prisma.taskTeam.findFirst({
       where: {
-        taskId_userId: {
-          taskId,
-          userId: user.id,
-        },
+        taskId,
+        userId: user.id,
       },
       select: {
         role: true,

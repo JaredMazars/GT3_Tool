@@ -148,7 +148,7 @@ export async function POST(
         return NextResponse.json(
           {
             error: error.message,
-            metadata: error.metadata,
+            metadata: error.details,
           },
           { status: 400 }
         );

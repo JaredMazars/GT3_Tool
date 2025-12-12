@@ -109,7 +109,7 @@ export async function PUT(
     } catch (error) {
       if (error instanceof AllocationValidationError) {
         return handleApiError(
-          new AppError(400, error.message, undefined, error.metadata),
+          new AppError(400, error.message, undefined, error.details),
           'Update allocation'
         );
       }
