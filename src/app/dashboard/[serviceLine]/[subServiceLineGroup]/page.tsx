@@ -41,7 +41,6 @@ import { TaskRole, ServiceLineRole, NonClientEventType, NON_CLIENT_EVENT_CONFIG 
 import { KanbanBoard } from '@/components/features/tasks/Kanban';
 import { KanbanFilters } from '@/components/features/tasks/Kanban/KanbanFilters';
 import { useClientPlannerFilters } from '@/hooks/planning/useClientPlannerFilters';
-import { useClientPlanner } from '@/hooks/planning/useClientPlanner';
 
 export default function SubServiceLineWorkspacePage() {
   const router = useRouter();
@@ -224,20 +223,6 @@ export default function SubServiceLineWorkspacePage() {
     enabled: activeTab === 'planner' && plannerView === 'clients' && !!subServiceLineGroup && !!serviceLine
   });
 
-  // Fetch client planner data for list view
-  const { 
-    data: clientPlannerData,
-    isLoading: isLoadingClientPlanner
-  } = useClientPlanner({
-    serviceLine,
-    subServiceLineGroup,
-    clientCodes: clientPlannerFilters.clients,
-    groupDescs: clientPlannerFilters.groups,
-    partnerCodes: clientPlannerFilters.partners,
-    taskCodes: clientPlannerFilters.tasks,
-    managerCodes: clientPlannerFilters.managers,
-    enabled: activeTab === 'planner' && plannerView === 'clients' && clientPlannerViewMode === 'list' && !!subServiceLineGroup && !!serviceLine
-  });
  
   // Fetch groups for the Groups tab
   const {
@@ -262,16 +247,6 @@ export default function SubServiceLineWorkspacePage() {
     const shouldShowOverlay = isFetching && !isLoading && taskViewMode !== 'kanban';
   }, [isFetching, isLoading, taskViewMode, activeTab]);
   // #endregion
-
-  // #region agent log
-  // Log clientPlannerData when it changes
-  useEffect(() => {
-    if (activeTab === 'planner' && plannerView === 'clients' && clientPlannerViewMode === 'list') {
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:269',message:'Dashboard - clientPlannerData received',data:{hasData:!!clientPlannerData,tasksCount:clientPlannerData?.tasks?.length || 0,isLoading:isLoadingClientPlanner,firstTask:clientPlannerData?.tasks?.[0] ? {taskId:clientPlannerData.tasks[0].taskId,clientId:clientPlannerData.tasks[0].clientId,clientName:clientPlannerData.tasks[0].clientName,allocationsCount:clientPlannerData.tasks[0].allocations?.length || 0} : null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    }
-  }, [activeTab, plannerView, clientPlannerViewMode, clientPlannerData, isLoadingClientPlanner]);
-  // #endregion
-
   // Map ServiceLineRole to TaskRole for GanttTimeline display
   const mapServiceLineRoleToTaskRole = (serviceLineRole: string): TaskRole => {
     switch (serviceLineRole) {
@@ -1357,18 +1332,12 @@ export default function SubServiceLineWorkspacePage() {
                     currentUserRole={mapServiceLineRoleToTaskRole(currentUserServiceLineRole)}
                     filters={clientPlannerFilters}
                   />
-                ) : isLoadingClientPlanner ? (
-                  /* Loading State */
-                  <div className="bg-white rounded-lg shadow-corporate border-2 border-forvis-gray-200 p-12 text-center">
-                    <LoadingSpinner size="lg" />
-                    <p className="mt-4 text-forvis-gray-600">Loading client planner data...</p>
-                  </div>
                 ) : (
                   /* Client List View */
                   <ClientPlannerList
-                    tasks={clientPlannerData?.tasks || []}
                     serviceLine={serviceLine}
                     subServiceLineGroup={subServiceLineGroup}
+                    filters={clientPlannerFilters}
                   />
                 )
               )}

@@ -14,6 +14,7 @@ import {
   User
 } from 'lucide-react';
 import { format, differenceInDays, isBefore, startOfDay } from 'date-fns';
+import { useClientPlanner } from '@/hooks/planning/useClientPlanner';
 import type { TaskPlannerRow } from '@/hooks/planning/useClientPlanner';
 
 // Flattened allocation item for client/task-centric view
@@ -48,15 +49,21 @@ interface ClientTaskAllocationItem {
 }
 
 interface ClientPlannerListProps {
-  tasks: TaskPlannerRow[];
-  serviceLine?: string;
-  subServiceLineGroup?: string;
+  serviceLine: string;
+  subServiceLineGroup: string;
+  filters: {
+    clients: string[];
+    groups: string[];
+    partners: string[];
+    tasks: string[];
+    managers: string[];
+  };
 }
 
 type SortField = 'client' | 'task' | 'employee' | 'startDate' | 'endDate' | 'duration' | 'role' | 'allocatedHours' | 'allocatedPercentage' | 'actualHours';
 type SortDirection = 'asc' | 'desc';
 
-export function ClientPlannerList({ tasks, serviceLine, subServiceLineGroup }: ClientPlannerListProps) {
+export function ClientPlannerList({ serviceLine, subServiceLineGroup, filters }: ClientPlannerListProps) {
   const router = useRouter();
   const [sortField, setSortField] = useState<SortField>('client');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -65,23 +72,61 @@ export function ClientPlannerList({ tasks, serviceLine, subServiceLineGroup }: C
   const [navigatingToTaskId, setNavigatingToTaskId] = useState<number | null>(null);
   const itemsPerPage = 25;
 
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientPlannerList.tsx:73',message:'Component render - tasks prop',data:{tasksCount:tasks?.length || 0,tasksIsArray:Array.isArray(tasks),firstTaskSample:tasks?.[0] ? {taskId:tasks[0].taskId,clientId:tasks[0].clientId,clientName:tasks[0].clientName,allocationsCount:tasks[0].allocations?.length || 0} : null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
+  // Fetch client planner data with filters
+  const { 
+    data: clientPlannerData,
+    isLoading: isLoadingClientPlanner,
+    error: fetchError
+  } = useClientPlanner({
+    serviceLine,
+    subServiceLineGroup,
+    clientCodes: filters.clients,
+    groupDescs: filters.groups,
+    partnerCodes: filters.partners,
+    taskCodes: filters.tasks,
+    managerCodes: filters.managers,
+    page: 1,
+    limit: 1000, // Fetch all for list view (no pagination in UI)
+    enabled: true
+  });
+
+  const tasks = clientPlannerData?.tasks || [];
+
+  // Debug logging
+  console.log('[ClientPlannerList] Data received:', {
+    tasksCount: tasks.length,
+    filters,
+    serviceLine,
+    subServiceLineGroup,
+    isLoading: isLoadingClientPlanner,
+    hasError: !!fetchError,
+    firstTaskSample: tasks[0] ? {
+      taskId: tasks[0].taskId,
+      clientName: tasks[0].clientName,
+      allocationsCount: tasks[0].allocations?.length || 0,
+      allocations: tasks[0].allocations
+    } : null
+  });
 
   // Flatten tasks into allocation items
   const allAllocations = useMemo(() => {
     const items: ClientTaskAllocationItem[] = [];
     
     if (!tasks || tasks.length === 0) {
+      console.log('[ClientPlannerList] No tasks to process');
       return items;
     }
+    
+    console.log('[ClientPlannerList] Processing tasks:', tasks.length);
     
     tasks.forEach(task => {
       // Skip tasks without allocations (API returns all tasks for planning purposes)
       if (!task.allocations || task.allocations.length === 0) {
+        console.log('[ClientPlannerList] Skipping task without allocations:', task.taskCode);
         return;
       }
+      
+      console.log('[ClientPlannerList] Processing task with allocations:', task.taskCode, task.allocations.length);
       task.allocations.forEach((allocation) => {
         items.push({
           allocationId: allocation.id,
@@ -263,6 +308,27 @@ export function ClientPlannerList({ tasks, serviceLine, subServiceLineGroup }: C
       router.prefetch(url);
     }
   };
+
+  // Loading state
+  if (isLoadingClientPlanner) {
+    return (
+      <div className="bg-white rounded-lg shadow-corporate border-2 border-forvis-gray-200 p-12 text-center">
+        <LoadingSpinner size="lg" />
+        <p className="mt-4 text-forvis-gray-600">Loading client planner data...</p>
+      </div>
+    );
+  }
+
+  // Error state
+  if (fetchError) {
+    return (
+      <div className="bg-white rounded-lg shadow-corporate border-2 border-forvis-gray-200 p-12 text-center">
+        <Building2 className="w-12 h-12 mx-auto mb-3 text-red-400" />
+        <p className="font-semibold text-forvis-gray-900">Failed to Load Data</p>
+        <p className="text-sm mt-1 text-forvis-gray-600">{fetchError.message}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-lg shadow-corporate border-2 border-forvis-gray-200 overflow-hidden relative flex flex-col max-h-[calc(100vh-280px)]">
