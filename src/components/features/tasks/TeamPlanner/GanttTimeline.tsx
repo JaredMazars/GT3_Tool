@@ -362,10 +362,7 @@ export function GanttTimeline({
   // Scroll to today when requested
   useEffect(() => {
     if (scrollToToday && timelineContainerRef.current && columns.length > 0) {
-      const today = startOfDay(new Date());
-      const todayColumnIndex = columns.findIndex(col => 
-        isSameDay(startOfDay(col.date), today)
-      );
+      const todayColumnIndex = columns.findIndex(col => col.isToday);
       
       if (todayColumnIndex !== -1) {
         // Get column width based on scale

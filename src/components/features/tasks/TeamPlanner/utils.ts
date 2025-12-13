@@ -118,9 +118,9 @@ export function generateTimelineColumns(range: DateRange, scale: TimeScale): Tim
 export function getColumnWidth(scale: TimeScale): number {
   switch (scale) {
     case 'day':
-      return 70; // Compact format: "6 Dec 25"
+      return 60; // Compact format with smaller font: "6 Dec 25"
     case 'week':
-      return 120; // Compact format with year below
+      return 90; // Compact format with smaller font and year below
     case 'month':
       return 120;
   }

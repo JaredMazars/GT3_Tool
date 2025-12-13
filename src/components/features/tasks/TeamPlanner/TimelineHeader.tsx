@@ -23,7 +23,7 @@ export function TimelineHeader({ columns, scale, resources = [] }: TimelineHeade
         return (
           <div
             key={index}
-            className={`relative flex-shrink-0 px-1 flex flex-col items-center justify-center text-center border-r border-forvis-gray-200 ${
+            className={`relative flex-shrink-0 px-0.5 flex flex-col items-center justify-center text-center border-r border-forvis-gray-200 ${
               column.isToday
                 ? 'bg-forvis-blue-50 border-forvis-blue-400 border-r-2'
                 : column.isWeekend
@@ -52,7 +52,7 @@ export function TimelineHeader({ columns, scale, resources = [] }: TimelineHeade
             
             {/* Content layer */}
             <div className="relative z-10">
-              <div className={`text-xs font-semibold leading-tight ${
+              <div className={`text-[10px] font-semibold leading-tight ${
                 column.isToday
                   ? 'text-forvis-blue-700'
                   : 'text-forvis-gray-700'
@@ -60,7 +60,7 @@ export function TimelineHeader({ columns, scale, resources = [] }: TimelineHeade
                 {column.label}
               </div>
               {scale === 'day' && (
-                <div className={`text-xs mt-0.5 ${
+                <div className={`text-[10px] mt-0.5 ${
                   column.isToday
                     ? 'text-forvis-blue-600'
                     : 'text-forvis-gray-500'
@@ -69,7 +69,7 @@ export function TimelineHeader({ columns, scale, resources = [] }: TimelineHeade
                 </div>
               )}
               {scale === 'week' && column.yearLabel && (
-                <div className={`text-xs mt-0.5 ${
+                <div className={`text-[10px] mt-0.5 ${
                   column.isToday
                     ? 'text-forvis-blue-600'
                     : 'text-forvis-gray-500'
