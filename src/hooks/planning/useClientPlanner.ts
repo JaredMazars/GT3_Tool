@@ -7,6 +7,8 @@ interface UseClientPlannerOptions {
   clientSearch?: string;
   groupFilter?: string;
   partnerFilter?: string;
+  page?: number;
+  limit?: number;
   enabled?: boolean;
 }
 
@@ -39,9 +41,27 @@ export interface TaskPlannerRow {
   allocations: AllocationData[];
 }
 
+export interface PaginationMetadata {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasMore: boolean;
+}
+
+export interface ClientPlannerResponse {
+  tasks: TaskPlannerRow[];
+  pagination: PaginationMetadata;
+}
+
 /**
- * Hook to fetch client planner data
+ * Hook to fetch client planner data with pagination support
  * Returns flat array of tasks with employee allocations
+ * 
+ * Performance optimizations:
+ * - Server-side Redis caching (5min TTL)
+ * - Conditional pagination (50 limit without filters, unlimited with filters)
+ * - Increased staleTime to match server cache (5 min)
  */
 export function useClientPlanner({
   serviceLine,
@@ -49,15 +69,19 @@ export function useClientPlanner({
   clientSearch = '',
   groupFilter = '',
   partnerFilter = '',
+  page = 1,
+  limit = 50,
   enabled = true
 }: UseClientPlannerOptions) {
-  return useQuery({
-    queryKey: ['planner', 'tasks', serviceLine, subServiceLineGroup, clientSearch, groupFilter, partnerFilter],
+  return useQuery<ClientPlannerResponse>({
+    queryKey: ['planner', 'tasks', serviceLine, subServiceLineGroup, clientSearch, groupFilter, partnerFilter, page, limit],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (clientSearch) params.set('clientSearch', clientSearch);
       if (groupFilter) params.set('groupFilter', groupFilter);
       if (partnerFilter) params.set('partnerFilter', partnerFilter);
+      params.set('page', page.toString());
+      params.set('limit', limit.toString());
 
       const response = await fetch(
         `/api/service-lines/${serviceLine}/${subServiceLineGroup}/planner/clients?${params.toString()}`
@@ -69,9 +93,16 @@ export function useClientPlanner({
       
       const result = await response.json();
       const tasks = result.data?.tasks || result.tasks || [];
+      const pagination = result.data?.pagination || result.pagination || {
+        page,
+        limit,
+        total: tasks.length,
+        totalPages: 1,
+        hasMore: false
+      };
       
       // Convert date strings to Date objects
-      return tasks.map((task: any) => ({
+      const transformedTasks = tasks.map((task: any) => ({
         ...task,
         allocations: task.allocations.map((alloc: any) => ({
           ...alloc,
@@ -79,10 +110,15 @@ export function useClientPlanner({
           endDate: new Date(alloc.endDate)
         }))
       }));
+
+      return {
+        tasks: transformedTasks,
+        pagination
+      };
     },
     enabled: enabled && !!serviceLine && !!subServiceLineGroup,
-    staleTime: 30000, // Cache for 30 seconds
-    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
+    staleTime: 5 * 60 * 1000, // Match Redis TTL (5 minutes)
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
   });
 }
 

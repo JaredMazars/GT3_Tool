@@ -55,6 +55,10 @@ export function ClientPlannerTimeline({
   });
   const [overlayScrollTop, setOverlayScrollTop] = useState(0);
   
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [limit] = useState(50);
+  
   // Add Employee Modal state
   const [isAddEmployeeModalOpen, setIsAddEmployeeModalOpen] = useState(false);
   const [selectedTaskForAdd, setSelectedTaskForAdd] = useState<{
@@ -74,9 +78,9 @@ export function ClientPlannerTimeline({
   // Determine if user can edit
   const canEdit = currentUserRole === TaskRole.ADMIN || currentUserRole === TaskRole.REVIEWER || currentUserRole === TaskRole.EDITOR;
 
-  // Fetch client planner data
+  // Fetch client planner data with pagination
   const { 
-    data: rawTasks, 
+    data, 
     isLoading, 
     error: fetchError,
     refetch
@@ -86,8 +90,18 @@ export function ClientPlannerTimeline({
     clientSearch: filters.search,
     groupFilter: filters.group,
     partnerFilter: filters.partner,
+    page,
+    limit,
     enabled: true
   });
+
+  const rawTasks = data?.tasks || [];
+  const pagination = data?.pagination;
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [filters.search, filters.group, filters.partner]);
 
   // Process task data with optimistic updates and recalculate lanes
   // This matches TeamPlanner's approach of recalculating lanes when data changes
@@ -271,7 +285,9 @@ export function ClientPlannerTimeline({
   // Sync overlay scroll position with timeline container
   useEffect(() => {
     const container = timelineContainerRef.current;
-    if (!container) return;
+    if (!container) {
+      return;
+    }
 
     const handleScroll = () => {
       setOverlayScrollTop(container.scrollTop);
@@ -279,7 +295,7 @@ export function ClientPlannerTimeline({
 
     container.addEventListener('scroll', handleScroll);
     return () => container.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [isLoading, rows.length]); // Re-run when data loads
 
   const handleSaveAllocation = useCallback(async (updates: Partial<AllocationData>) => {
     if (!selectedAllocation) return;
@@ -587,7 +603,14 @@ export function ClientPlannerTimeline({
         </div>
 
         <div className="text-sm text-forvis-gray-600">
-          {rows.length} task{rows.length !== 1 ? 's' : ''}
+          {pagination ? (
+            <>
+              Showing {rows.length} of {pagination.total} task{pagination.total !== 1 ? 's' : ''} 
+              {pagination.totalPages > 1 && ` (page ${page} of ${pagination.totalPages})`}
+            </>
+          ) : (
+            `${rows.length} task${rows.length !== 1 ? 's' : ''}`
+          )}
         </div>
       </div>
 
@@ -695,32 +718,75 @@ export function ClientPlannerTimeline({
         </div>
       </div>
 
-      {/* Legend */}
+      {/* Legend and Pagination */}
       <div 
-        className="px-6 py-3 border-t-2 border-forvis-gray-200 flex items-center justify-between text-xs"
+        className="px-6 py-3 border-t-2 border-forvis-gray-200 flex flex-col gap-3"
         style={{ background: 'linear-gradient(to right, #F8F9FA, #F0F7FD)' }}
       >
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(135deg, #C084FC 0%, #9333EA 100%)' }} />
-            <span className="text-forvis-gray-700">Admin</span>
+        {/* Legend */}
+        <div className="flex items-center justify-between text-xs">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(135deg, #C084FC 0%, #9333EA 100%)' }} />
+              <span className="text-forvis-gray-700">Admin</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }} />
+              <span className="text-forvis-gray-700">Reviewer</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(135deg, #4ADE80 0%, #16A34A 100%)' }} />
+              <span className="text-forvis-gray-700">Editor</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(135deg, #94A3B8 0%, #64748B 100%)' }} />
+              <span className="text-forvis-gray-700">Viewer</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }} />
-            <span className="text-forvis-gray-700">Reviewer</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(135deg, #4ADE80 0%, #16A34A 100%)' }} />
-            <span className="text-forvis-gray-700">Editor</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(135deg, #94A3B8 0%, #64748B 100%)' }} />
-            <span className="text-forvis-gray-700">Viewer</span>
+          <div className="text-forvis-gray-600">
+            {canEdit ? 'Click tiles to edit • Drag to adjust dates' : 'Click tiles to view details'}
           </div>
         </div>
-        <div className="text-forvis-gray-600">
-          {canEdit ? 'Click tiles to edit • Drag to adjust dates' : 'Click tiles to view details'}
-        </div>
+
+        {/* Pagination */}
+        {pagination && pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between pt-2 border-t border-forvis-gray-200">
+            <div className="text-sm text-forvis-gray-600">
+              Showing {(page - 1) * limit + 1} to {Math.min(page * limit, pagination.total)} of {pagination.total} tasks
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setPage(p => Math.max(1, p - 1));
+                  if (timelineContainerRef.current) {
+                    timelineContainerRef.current.scrollTop = 0;
+                  }
+                }}
+                disabled={page === 1}
+              >
+                Previous
+              </Button>
+              <div className="flex items-center gap-2 px-3 text-sm text-forvis-gray-700">
+                Page {page} of {pagination.totalPages}
+              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setPage(p => Math.min(pagination.totalPages, p + 1));
+                  if (timelineContainerRef.current) {
+                    timelineContainerRef.current.scrollTop = 0;
+                  }
+                }}
+                disabled={!pagination.hasMore}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Employee Allocation Modal */}

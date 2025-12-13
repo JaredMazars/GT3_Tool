@@ -9,6 +9,7 @@ import { toTaskId } from '@/types/branded';
 import { calculateBusinessDays } from '@/lib/utils/dateUtils';
 import { z } from 'zod';
 import { validateAllocation, AllocationValidationError } from '@/lib/validation/taskAllocation';
+import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 
 const allocationUpdateSchema = z.object({
   startDate: z.string().datetime().optional(),
@@ -180,6 +181,10 @@ export async function PUT(
       }
     });
 
+    // 9. Invalidate planner cache (client and employee planners)
+    await cache.invalidate(`${CACHE_PREFIXES.TASK}planner:clients`);
+    await cache.invalidate(`${CACHE_PREFIXES.TASK}planner:employees`);
+
     return NextResponse.json(
       successResponse({ 
         allocation: {
@@ -276,6 +281,10 @@ export async function DELETE(
         }
       }
     });
+
+    // 6. Invalidate planner cache (client and employee planners)
+    await cache.invalidate(`${CACHE_PREFIXES.TASK}planner:clients`);
+    await cache.invalidate(`${CACHE_PREFIXES.TASK}planner:employees`);
 
     return NextResponse.json(
       successResponse({ 

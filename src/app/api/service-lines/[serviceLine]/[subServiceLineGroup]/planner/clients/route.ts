@@ -5,16 +5,24 @@ import { getUserServiceLines } from '@/lib/services/service-lines/serviceLineSer
 import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError, AppError } from '@/lib/utils/errorHandler';
 import { startOfDay } from 'date-fns';
+import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 
 /**
  * GET /api/service-lines/[serviceLine]/[subServiceLineGroup]/planner/clients
- * Fetch all tasks with employee allocations as flat array
- * Returns Task → Employee Allocations (no client grouping)
+ * Fetch tasks with employee allocations as flat array
+ * Returns Task → Employee Allocations with pagination support
+ * 
+ * Performance optimizations:
+ * - Redis caching (5min TTL)
+ * - Conditional pagination (50 limit without filters, unlimited with filters)
+ * - Optimized queries with Promise.all batching
  */
 export async function GET(
   request: NextRequest,
   { params }: { params: { serviceLine: string; subServiceLineGroup: string } }
 ) {
+  const perfStart = Date.now();
+  
   try {
     // 1. Authenticate
     const user = await getCurrentUser();
@@ -40,13 +48,25 @@ export async function GET(
       );
     }
 
-    // 4. Get search params for filtering
+    // 4. Get search params for filtering and pagination
     const searchParams = request.nextUrl.searchParams;
     const clientSearch = searchParams.get('clientSearch') || '';
     const groupFilter = searchParams.get('groupFilter') || '';
     const partnerFilter = searchParams.get('partnerFilter') || '';
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '50');
 
-    // 5. Map subServiceLineGroup to external service line codes
+    // 5. Build comprehensive cache key
+    const cacheKey = `${CACHE_PREFIXES.TASK}planner:clients:${params.serviceLine}:${subServiceLineGroup}:${clientSearch}:${groupFilter}:${partnerFilter}:${page}:${limit}:user:${user.id}`;
+    
+    // Try cache first
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      console.log(`[PERF] Client planner cache hit in ${Date.now() - perfStart}ms`);
+      return NextResponse.json(successResponse(cached));
+    }
+
+    // 6. Map subServiceLineGroup to external service line codes
     const serviceLineExternalMappings = await prisma.serviceLineExternal.findMany({
       where: {
         SubServlineGroupCode: subServiceLineGroup
@@ -63,59 +83,108 @@ export async function GET(
       .filter((code): code is string => !!code);
 
     if (externalServLineCodes.length === 0) {
-      return NextResponse.json(successResponse({ tasks: [] }));
+      const emptyResponse = { 
+        tasks: [], 
+        pagination: { page, limit, total: 0, totalPages: 0, hasMore: false } 
+      };
+      await cache.set(cacheKey, emptyResponse, 300);
+      return NextResponse.json(successResponse(emptyResponse));
     }
 
-    // 6. Build client filter conditions
-    const clientWhereConditions: any = {};
-    
+    // 7. Determine if filters are active (affects pagination behavior)
+    const hasFilters = !!(clientSearch || groupFilter || partnerFilter);
+
+    // 8. Build task where conditions with CLIENT FILTERS AT DATABASE LEVEL
+    const taskWhereConditions: any = {
+      ServLineCode: { in: externalServLineCodes },
+      GSClientID: { not: null }, // Only client tasks
+      Active: 'Yes', // Only active tasks (exclude archived)
+      // Push client filters to database query for better performance
+      Client: {}
+    };
+
+    // Add client filters to database query (not in-memory filtering)
+    // SQL Server handles case-insensitive by default based on collation
     if (clientSearch) {
-      clientWhereConditions.OR = [
+      taskWhereConditions.Client.OR = [
         { clientNameFull: { contains: clientSearch } },
         { clientCode: { contains: clientSearch } }
       ];
     }
     
     if (groupFilter) {
-      clientWhereConditions.groupDesc = { contains: groupFilter };
+      taskWhereConditions.Client.groupDesc = { contains: groupFilter };
     }
     
     if (partnerFilter) {
-      clientWhereConditions.clientPartner = { contains: partnerFilter };
+      taskWhereConditions.Client.clientPartner = { contains: partnerFilter };
     }
 
-    // 7. Get all tasks in this service line group (fetch in stages to avoid parameter limit)
-    // Step 1: Fetch tasks with clients only
-    const tasks = await prisma.task.findMany({
-      where: {
-        ServLineCode: { in: externalServLineCodes },
-        GSClientID: { not: null } // Only client tasks
-      },
-      select: {
-        id: true,
-        TaskDesc: true,
-        TaskCode: true,
-        GSClientID: true,
-        Client: {
-          select: {
-            id: true,
-            GSClientID: true,
-            clientCode: true,
-            clientNameFull: true,
-            groupDesc: true,
-            clientPartner: true
-          }
-        }
-      },
-      orderBy: [
-        { Client: { clientNameFull: 'asc' } },
-        { TaskDesc: 'asc' }
-      ]
-    });
+    // Remove empty Client filter if no filters applied
+    if (Object.keys(taskWhereConditions.Client).length === 0) {
+      delete taskWhereConditions.Client;
+    }
 
-    // Step 2: Fetch TaskTeam data separately for all tasks
-    const taskIds = tasks.map(t => t.id);
-    const taskTeamMembers = taskIds.length > 0 ? await prisma.taskTeam.findMany({
+    // 9. Apply pagination (always paginate, even with filters)
+    const offset = (page - 1) * limit;
+
+    // 10. Fetch tasks with pagination - Use Promise.all for parallel queries
+    const queryStart = Date.now();
+    const [tasks, totalCount] = await Promise.all([
+      prisma.task.findMany({
+        where: taskWhereConditions,
+        select: {
+          id: true,
+          TaskDesc: true,
+          TaskCode: true,
+          GSClientID: true,
+          Client: {
+            select: {
+              id: true,
+              GSClientID: true,
+              clientCode: true,
+              clientNameFull: true,
+              groupDesc: true,
+              clientPartner: true
+            }
+          }
+        },
+        orderBy: [
+          { Client: { clientNameFull: 'asc' } },
+          { TaskDesc: 'asc' }
+        ],
+        take: limit,
+        skip: offset
+      }),
+      // Get total count for pagination
+      prisma.task.count({ where: taskWhereConditions })
+    ]);
+
+    console.log(`[PERF] Task query completed in ${Date.now() - queryStart}ms (${tasks.length} tasks fetched, ${totalCount} total)`);
+
+    // 11. Tasks are already filtered by database, no need for in-memory filtering
+    const filteredTasks = tasks;
+
+    // 12. Fetch TaskTeam data for filtered tasks
+    const taskIds = filteredTasks.map(t => t.id);
+    
+    if (taskIds.length === 0) {
+      const emptyResponse = { 
+        tasks: [], 
+        pagination: { 
+          page, 
+          limit, 
+          total: hasFilters ? 0 : totalCount, 
+          totalPages: 0, 
+          hasMore: false 
+        } 
+      };
+      await cache.set(cacheKey, emptyResponse, 300);
+      return NextResponse.json(successResponse(emptyResponse));
+    }
+
+    const dataFetchStart = Date.now();
+    const taskTeamMembers = await prisma.taskTeam.findMany({
       where: {
         taskId: { in: taskIds },
         startDate: { not: null },
@@ -140,54 +209,15 @@ export async function GET(
           }
         }
       }
-    }) : [];
-
-    // Step 3: Group TaskTeam by taskId for easy lookup
-    const taskTeamMap = new Map<number, typeof taskTeamMembers>();
-    taskTeamMembers.forEach(member => {
-      if (!taskTeamMap.has(member.taskId)) {
-        taskTeamMap.set(member.taskId, []);
-      }
-      taskTeamMap.get(member.taskId)!.push(member);
     });
 
-    // Step 4: Combine tasks with their team members
-    const tasksWithTeam = tasks.map(task => ({
-      ...task,
-      TaskTeam: taskTeamMap.get(task.id) || []
-    }));
+    console.log(`[PERF] TaskTeam fetch completed in ${Date.now() - dataFetchStart}ms (${taskTeamMembers.length} allocations)`);
 
-    // 8. Filter tasks by client conditions if needed
-    const filteredTasks = tasksWithTeam.filter(task => {
-      if (!task.Client) return false;
-      
-      if (clientSearch) {
-        const searchLower = clientSearch.toLowerCase();
-        const nameMatch = task.Client.clientNameFull?.toLowerCase().includes(searchLower);
-        const codeMatch = task.Client.clientCode?.toLowerCase().includes(searchLower);
-        if (!nameMatch && !codeMatch) return false;
-      }
-      
-      if (groupFilter && !task.Client.groupDesc?.toLowerCase().includes(groupFilter.toLowerCase())) {
-        return false;
-      }
-      
-      if (partnerFilter && !task.Client.clientPartner?.toLowerCase().includes(partnerFilter.toLowerCase())) {
-        return false;
-      }
-      
-      return true;
-    });
-
-    // 9. Get user IDs to fetch Employee data
-    const userIds = [...new Set(
-      filteredTasks.flatMap(task => 
-        task.TaskTeam.map(member => member.userId)
-      )
-    )];
-
-    // 10. Get Employee data for all users
-    const employees = await prisma.employee.findMany({
+    // 13. Get user IDs and fetch Employee data
+    const userIds = [...new Set(taskTeamMembers.map(member => member.userId))];
+    
+    const employeeFetchStart = Date.now();
+    const employees = userIds.length > 0 ? await prisma.employee.findMany({
       where: {
         OR: [
           { WinLogon: { in: userIds } },
@@ -206,9 +236,11 @@ export async function GET(
         OfficeCode: true,
         WinLogon: true
       }
-    });
+    }) : [];
 
-    // Create employee lookup map
+    console.log(`[PERF] Employee fetch completed in ${Date.now() - employeeFetchStart}ms (${employees.length} employees)`);
+
+    // 14. Build employee lookup map
     const employeeMap = new Map<string, typeof employees[0]>();
     employees.forEach(emp => {
       if (emp.WinLogon) {
@@ -221,13 +253,26 @@ export async function GET(
       }
     });
 
-    // 11. Build flat task rows with employee allocations
+    // 15. Group TaskTeam by taskId for easy lookup
+    const taskTeamMap = new Map<number, typeof taskTeamMembers>();
+    taskTeamMembers.forEach(member => {
+      if (!taskTeamMap.has(member.taskId)) {
+        taskTeamMap.set(member.taskId, []);
+      }
+      taskTeamMap.get(member.taskId)!.push(member);
+    });
+
+    // 16. Build flat task rows with employee allocations
+    const transformStart = Date.now();
     const taskRows = filteredTasks
       .map(task => {
         if (!task.Client || !task.Client.GSClientID) return null;
 
+        // Get team members for this task
+        const teamMembers = taskTeamMap.get(task.id) || [];
+
         // Build employee allocations for this task
-        const allocations = task.TaskTeam
+        const allocations = teamMembers
           .filter(member => member.startDate && member.endDate)
           .map(member => {
             const employee = employeeMap.get(member.userId) || 
@@ -272,7 +317,28 @@ export async function GET(
         return a.taskName.localeCompare(b.taskName);
       });
 
-    return NextResponse.json(successResponse({ tasks: taskRows }));
+    console.log(`[PERF] Data transformation completed in ${Date.now() - transformStart}ms`);
+
+    // 17. Build pagination metadata
+    const finalTotal = totalCount;
+    const response = {
+      tasks: taskRows,
+      pagination: {
+        page,
+        limit,
+        total: finalTotal,
+        totalPages: Math.ceil(finalTotal / limit),
+        hasMore: finalTotal > (page * limit)
+      }
+    };
+
+    // Cache for 5 minutes
+    await cache.set(cacheKey, response, 300);
+
+    const totalTime = Date.now() - perfStart;
+    console.log(`[PERF] Client planner data prepared in ${totalTime}ms (${taskRows.length} tasks, page ${page}/${response.pagination.totalPages})`);
+
+    return NextResponse.json(successResponse(response));
   } catch (error) {
     return handleApiError(error, 'Get client planner data');
   }

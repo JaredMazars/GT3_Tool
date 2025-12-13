@@ -13,6 +13,7 @@ import { logger } from '@/lib/utils/logger';
 import { z } from 'zod';
 import { toTaskId } from '@/types/branded';
 import { validateAllocation, AllocationValidationError } from '@/lib/validation/taskAllocation';
+import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 
 export async function GET(
   request: NextRequest,
@@ -433,6 +434,10 @@ export async function POST(
       // Log notification error but don't fail the request
       logger.error('Failed to create in-app notification:', notificationError);
     }
+
+    // Invalidate planner cache (client and employee planners)
+    await cache.invalidate(`${CACHE_PREFIXES.TASK}planner:clients`);
+    await cache.invalidate(`${CACHE_PREFIXES.TASK}planner:employees`);
 
     return NextResponse.json(successResponse(taskTeam), { status: 201 });
   } catch (error) {
