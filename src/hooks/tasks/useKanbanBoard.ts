@@ -106,12 +106,19 @@ function updateTaskStageInCache(
       
       if (taskToMove) {
         const newTasks = [...filteredTasks, { ...taskToMove, stage: newStage }];
+        const newTaskCount = newTasks.length;
+        const newLoaded = column.metrics.loaded !== undefined 
+          ? Math.min(newTaskCount, column.totalCount)
+          : newTaskCount;
+        
         return {
           ...column,
           tasks: newTasks,
-          taskCount: newTasks.length,
+          taskCount: newTaskCount,
+          totalCount: column.totalCount,
           metrics: {
-            count: newTasks.length,
+            count: column.metrics.count,
+            loaded: newLoaded,
           },
         };
       }
@@ -119,12 +126,19 @@ function updateTaskStageInCache(
     
     // Update metrics for columns that lost a task
     if (filteredTasks.length !== column.tasks.length) {
+      const newTaskCount = filteredTasks.length;
+      const newLoaded = column.metrics.loaded !== undefined
+        ? Math.min(newTaskCount, column.totalCount)
+        : newTaskCount;
+        
       return {
         ...column,
         tasks: filteredTasks,
-        taskCount: filteredTasks.length,
+        taskCount: newTaskCount,
+        totalCount: column.totalCount,
         metrics: {
-          count: filteredTasks.length,
+          count: column.metrics.count,
+          loaded: newLoaded,
         },
       };
     }
@@ -135,6 +149,8 @@ function updateTaskStageInCache(
   return {
     ...data,
     columns: updatedColumns,
+    totalTasks: data.totalTasks,
+    loadedTasks: data.loadedTasks,
   };
 }
 

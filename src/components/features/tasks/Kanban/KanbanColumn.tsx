@@ -42,7 +42,7 @@ export function KanbanColumn({
   const isArchiveColumn = column.stage === 'ARCHIVED';
 
   return (
-    <div className="flex-1 min-w-0 flex flex-col" style={{ minWidth: '280px', maxWidth: isArchiveColumn ? '320px' : '100%' }}>
+    <div className="flex-1 min-w-0 flex flex-col">
       {/* Column Header */}
       <div
         className="rounded-t-lg p-4 shadow-corporate-md mb-2 cursor-pointer transition-all duration-200 hover:shadow-lg"

@@ -1363,6 +1363,10 @@ model TaskStage {
   notes     String?  @db.NVarChar(500)
   createdAt DateTime @default(now(), map: "DF_TaskStage_createdAt")
   Task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_TaskStage_Task")
+
+  @@index([taskId, createdAt(sort: Desc)])
+  @@index([taskId, stage])
+  @@index([stage])
 }
 
 model StandardTask {

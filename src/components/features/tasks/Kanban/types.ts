@@ -30,15 +30,20 @@ export interface KanbanTask {
 
 export interface KanbanColumn {
   stage: TaskStage;
+  name: string;
+  taskCount: number;        // Loaded tasks count
+  totalCount: number;       // Database total count (accurate)
   tasks: KanbanTask[];
   metrics: {
-    count: number;
+    count: number;          // Display this (accurate database total)
+    loaded?: number;        // Optional: how many tasks actually loaded
   };
 }
 
 export interface KanbanBoardData {
   columns: KanbanColumn[];
-  totalTasks: number;
+  totalTasks: number;       // Accurate database total
+  loadedTasks?: number;     // Optional: how many tasks actually loaded
 }
 
 export interface KanbanFilters {

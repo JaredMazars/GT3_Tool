@@ -262,28 +262,51 @@ export function KanbanBoard({
             
             if (taskToMove) {
               const newTasks = [...filteredTasks, { ...taskToMove, stage: newStage }];
+              const newTaskCount = newTasks.length;
+              const newLoaded = column.metrics.loaded !== undefined
+                ? Math.min(newTaskCount, column.totalCount)
+                : newTaskCount;
+              
               return {
                 ...column,
                 tasks: newTasks,
-                taskCount: newTasks.length,
-                metrics: { count: newTasks.length },
+                taskCount: newTaskCount,
+                totalCount: column.totalCount,
+                metrics: { 
+                  count: column.metrics.count,
+                  loaded: newLoaded,
+                },
               };
             }
           }
           
           if (filteredTasks.length !== column.tasks.length) {
+            const newTaskCount = filteredTasks.length;
+            const newLoaded = column.metrics.loaded !== undefined
+              ? Math.min(newTaskCount, column.totalCount)
+              : newTaskCount;
+              
             return {
               ...column,
               tasks: filteredTasks,
-              taskCount: filteredTasks.length,
-              metrics: { count: filteredTasks.length },
+              taskCount: newTaskCount,
+              totalCount: column.totalCount,
+              metrics: { 
+                count: column.metrics.count,
+                loaded: newLoaded,
+              },
             };
           }
           
           return column;
         });
         
-        return { ...old, columns: updatedColumns };
+        return { 
+          ...old, 
+          columns: updatedColumns,
+          totalTasks: old.totalTasks,
+          loadedTasks: old.loadedTasks,
+        };
       }
     );
 

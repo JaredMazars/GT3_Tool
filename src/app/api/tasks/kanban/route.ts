@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
@@ -138,151 +139,240 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    // OPTIMIZATION: Get tasks with limit and optimized query
-    const tasks = await prisma.task.findMany({
-      where,
-      select: {
-        id: true,
-        TaskDesc: true,
-        TaskCode: true,
-        ServLineCode: true,
-        ServLineDesc: true,
-        TaskPartnerName: true,
-        TaskManagerName: true,
-        TaskDateOpen: true,
-        TaskDateTerminate: true,
-        Active: true,
-        createdAt: true,
-        updatedAt: true,
-        Client: {
-          select: {
-            id: true,
-            GSClientID: true,
-            clientCode: true,
-            clientNameFull: true,
-          },
-        },
-        TaskTeam: {
-          select: {
-            userId: true,
-            role: true,
-            User: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-              },
-            },
-          },
-        },
-        TaskStage: {
-          orderBy: {
-            createdAt: 'desc',
-          },
-          take: 1,
-          select: {
-            stage: true,
-            createdAt: true,
-          },
-        },
-      },
-      orderBy: {
-        updatedAt: 'desc',
-      },
-      take: 500, // OPTIMIZATION: Limit results to prevent memory issues
-    });
+    // Determine if any filters are active
+    const hasFilters = !!(
+      search ||
+      teamMembers.length > 0 ||
+      partners.length > 0 ||
+      managers.length > 0 ||
+      clientIds.length > 0 ||
+      myTasksOnly
+    );
 
-    // Transform tasks and group by stage
+    // PERFORMANCE OPTIMIZATION: Use single SQL query with window function to get latest stage per task
+    const perfStart = Date.now();
+    
+    // Handle client filter (need to get GSClientIDs first)
+    let clientGSClientIDs: string[] = [];
+    if (clientIds.length > 0) {
+      clientGSClientIDs = await prisma.client.findMany({
+        where: { id: { in: clientIds } },
+        select: { GSClientID: true },
+      }).then(clients => clients.map(c => c.GSClientID));
+    }
+    
+    // Build WHERE clause parts for SQL
+    const servLineFilter = servLineCodes.length > 0 
+      ? Prisma.sql`t.ServLineCode IN (${Prisma.join(servLineCodes.map(code => Prisma.sql`${code}`))})` 
+      : Prisma.sql`1=1`;
+    
+    const activeFilter = !includeArchived 
+      ? Prisma.sql`AND t.Active = 'Yes'` 
+      : Prisma.empty;
+    
+    const partnerFilter = partners.length > 0
+      ? Prisma.sql`AND t.TaskPartnerName IN (${Prisma.join(partners.map(p => Prisma.sql`${p}`))})`
+      : Prisma.empty;
+    
+    const managerFilter = managers.length > 0
+      ? Prisma.sql`AND t.TaskManagerName IN (${Prisma.join(managers.map(m => Prisma.sql`${m}`))})`
+      : Prisma.empty;
+    
+    const clientFilter = clientGSClientIDs.length > 0
+      ? Prisma.sql`AND t.GSClientID IN (${Prisma.join(clientGSClientIDs.map(id => Prisma.sql`${id}`))})`
+      : Prisma.empty;
+    
+    const searchFilter = search
+      ? Prisma.sql`AND (t.TaskDesc LIKE ${`%${search}%`} OR t.TaskCode LIKE ${`%${search}%`})`
+      : Prisma.empty;
+    
+    const teamMemberFilter = (teamMembers.length > 0 || myTasksOnly)
+      ? Prisma.sql`AND EXISTS (
+          SELECT 1 FROM TaskTeam tt 
+          WHERE tt.taskId = t.id 
+          AND tt.userId ${myTasksOnly ? Prisma.sql`= ${user.id}` : Prisma.sql`IN (${Prisma.join(teamMembers.map(tm => Prisma.sql`${tm}`))})`}
+        )`
+      : Prisma.empty;
+
+    // Single optimized query using SQL window function
+    const tasksWithLatestStage = await prisma.$queryRaw<Array<{
+      id: number;
+      latestStage: string | null;
+    }>>`
+      WITH LatestStages AS (
+        SELECT 
+          taskId,
+          stage as latestStage,
+          ROW_NUMBER() OVER (PARTITION BY taskId ORDER BY createdAt DESC) as rn
+        FROM TaskStage
+      )
+      SELECT 
+        t.id,
+        COALESCE(ls.latestStage, 'DRAFT') as latestStage
+      FROM Task t
+      LEFT JOIN LatestStages ls ON t.id = ls.taskId AND ls.rn = 1
+      WHERE 
+        ${servLineFilter}
+        ${activeFilter}
+        ${partnerFilter}
+        ${managerFilter}
+        ${clientFilter}
+        ${searchFilter}
+        ${teamMemberFilter}
+    `;
+
+    console.log(`[PERF] Stage detection query completed in ${Date.now() - perfStart}ms for ${tasksWithLatestStage.length} tasks`);
+
+    // Group task IDs by stage
+    const taskIdsByStage = new Map<TaskStage, number[]>();
+    for (const task of tasksWithLatestStage) {
+      const stage = (task.latestStage || 'DRAFT') as TaskStage;
+      if (!taskIdsByStage.has(stage)) {
+        taskIdsByStage.set(stage, []);
+      }
+      taskIdsByStage.get(stage)!.push(task.id);
+    }
+    
+    // Handle archived tasks separately if includeArchived is true
+    if (includeArchived) {
+      const archivedTasks = await prisma.task.findMany({
+        where: { ...where, Active: { not: 'Yes' } },
+        select: { id: true },
+      });
+      taskIdsByStage.set(TaskStage.ARCHIVED, archivedTasks.map(t => t.id));
+    }
+
+    // Define stages to query
     const stages = [
       TaskStage.DRAFT,
       TaskStage.IN_PROGRESS,
       TaskStage.UNDER_REVIEW,
       TaskStage.COMPLETED,
     ];
-    
-    // Only add ARCHIVED stage if includeArchived is true
     if (includeArchived) {
       stages.push(TaskStage.ARCHIVED);
     }
 
-    const columns = stages.map(stage => {
-      const stageTasks = tasks
-        .filter(task => {
-          // Check if task is archived
-          const isArchived = task.Active !== 'Yes';
-          
-          // If this is the ARCHIVED stage, only include archived tasks
-          if (stage === TaskStage.ARCHIVED) {
-            return isArchived;
-          }
-          
-          // For other stages, exclude archived tasks
-          if (isArchived) {
-            return false;
-          }
-          
-          const currentStage = task.TaskStage.length > 0 
-            ? task.TaskStage[0]?.stage ?? TaskStage.DRAFT
-            : TaskStage.DRAFT;
-          return currentStage === stage;
-        })
-        .map(task => {
-          const currentStage = task.TaskStage.length > 0 
-            ? task.TaskStage[0]?.stage ?? TaskStage.DRAFT
-            : TaskStage.DRAFT;
-          
-          const userRole = task.TaskTeam.find(member => member.userId === user.id)?.role || null;
+    // Fetch task data per stage in parallel
+    const stageResultsPromises = stages.map(async (stage) => {
+      const allTaskIds = taskIdsByStage.get(stage) || [];
+      const totalCount = allTaskIds.length;
 
-          return {
-            id: task.id,
-            name: task.TaskDesc,
-            code: task.TaskCode,
-            serviceLine: task.ServLineCode,
-            serviceLineDesc: task.ServLineDesc,
-            stage: currentStage,
-            partner: task.TaskPartnerName,
-            manager: task.TaskManagerName,
-            dateOpen: task.TaskDateOpen,
-            dateTerminate: task.TaskDateTerminate,
-            client: task.Client ? {
-              id: task.Client.id,
-              GSClientID: task.Client.GSClientID,
-              code: task.Client.clientCode,
-              name: task.Client.clientNameFull,
-            } : null,
-            team: task.TaskTeam.map(member => ({
-              userId: member.userId,
-              role: member.role,
-              name: member.User.name,
-              email: member.User.email,
-            })),
-            userRole,
-            createdAt: task.createdAt,
-            updatedAt: task.updatedAt,
-          };
-        });
+      // Conditional limiting: 50 per column when no filters, unlimited with filters
+      const taskLimit = hasFilters ? undefined : 50;
+      const tasksToFetch = taskLimit ? allTaskIds.slice(0, taskLimit) : allTaskIds;
 
-      // Calculate metrics for this column
-      const count = stageTasks.length;
+      const tasks = await prisma.task.findMany({
+        where: { id: { in: tasksToFetch } },
+        select: {
+          id: true,
+          TaskDesc: true,
+          TaskCode: true,
+          ServLineCode: true,
+          ServLineDesc: true,
+          TaskPartnerName: true,
+          TaskManagerName: true,
+          TaskDateOpen: true,
+          TaskDateTerminate: true,
+          Active: true,
+          createdAt: true,
+          updatedAt: true,
+          Client: {
+            select: {
+              id: true,
+              GSClientID: true,
+              clientCode: true,
+              clientNameFull: true,
+            },
+          },
+          TaskTeam: {
+            select: {
+              userId: true,
+              role: true,
+              User: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+          TaskStage: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: {
+              stage: true,
+              createdAt: true,
+            },
+          },
+        },
+        orderBy: { updatedAt: 'desc' },
+      });
+
+      const transformedTasks = tasks.map(task => {
+        const currentStage = task.TaskStage.length > 0 
+          ? task.TaskStage[0]?.stage ?? TaskStage.DRAFT
+          : TaskStage.DRAFT;
+        const userRole = task.TaskTeam.find(member => member.userId === user.id)?.role || null;
+
+        return {
+          id: task.id,
+          name: task.TaskDesc,
+          code: task.TaskCode,
+          serviceLine: task.ServLineCode,
+          serviceLineDesc: task.ServLineDesc,
+          stage: currentStage,
+          partner: task.TaskPartnerName,
+          manager: task.TaskManagerName,
+          dateOpen: task.TaskDateOpen,
+          dateTerminate: task.TaskDateTerminate,
+          client: task.Client ? {
+            id: task.Client.id,
+            GSClientID: task.Client.GSClientID,
+            code: task.Client.clientCode,
+            name: task.Client.clientNameFull,
+          } : null,
+          team: task.TaskTeam.map(member => ({
+            userId: member.userId,
+            role: member.role,
+            name: member.User.name,
+            email: member.User.email,
+          })),
+          userRole,
+          createdAt: task.createdAt,
+          updatedAt: task.updatedAt,
+        };
+      });
 
       return {
         stage,
         name: stage === TaskStage.ARCHIVED ? 'ARCHIVED' : stage.replace(/_/g, ' '),
-        taskCount: count,
-        tasks: stageTasks,
+        taskCount: transformedTasks.length,
+        totalCount: totalCount,
+        tasks: transformedTasks,
         metrics: {
-          count,
+          count: totalCount,
+          loaded: transformedTasks.length,
         },
       };
     });
 
+    const columns = await Promise.all(stageResultsPromises);
+    const totalTasksCount = columns.reduce((sum, col) => sum + col.totalCount, 0);
+    const loadedTasksCount = columns.reduce((sum, col) => sum + col.taskCount, 0);
+
     const response = {
       columns,
-      totalTasks: tasks.length,
+      totalTasks: totalTasksCount,
+      loadedTasks: loadedTasksCount,
     };
 
-    // Cache for 30 seconds (reduced from 10 minutes for fresher data)
-    await cache.set(cacheKey, response, 30);
+    const totalTime = Date.now() - perfStart;
+    console.log(`[PERF] Kanban board data prepared in ${totalTime}ms (${columns.length} stages, ${totalTasksCount} total tasks, ${loadedTasksCount} loaded)`);
+
+    // Cache for 5 minutes for better performance
+    await cache.set(cacheKey, response, 300);
 
     return NextResponse.json(successResponse(response));
   } catch (error) {
