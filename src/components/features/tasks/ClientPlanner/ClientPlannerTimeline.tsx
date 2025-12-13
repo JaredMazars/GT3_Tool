@@ -645,8 +645,8 @@ export function ClientPlannerTimeline({
             {rows.length === 0 ? (
               <div className="text-center py-12 text-forvis-gray-600 ml-80">
                 <Building2 className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p className="font-semibold">No tasks with allocations</p>
-                <p className="text-sm mt-1">Try adjusting your filters or add allocations to tasks.</p>
+                <p className="font-semibold">No tasks found</p>
+                <p className="text-sm mt-1">Try adjusting your filters.</p>
               </div>
             ) : (
               rows.map((row, index) => (

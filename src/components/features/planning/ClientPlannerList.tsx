@@ -58,11 +58,6 @@ type SortDirection = 'asc' | 'desc';
 
 export function ClientPlannerList({ tasks, serviceLine, subServiceLineGroup }: ClientPlannerListProps) {
   const router = useRouter();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState<string>('');
-  const [clientFilter, setClientFilter] = useState<string>('');
-  const [taskFilter, setTaskFilter] = useState<string>('');
-  const [employeeFilter, setEmployeeFilter] = useState<string>('');
   const [sortField, setSortField] = useState<SortField>('client');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [currentPage, setCurrentPage] = useState(1);
@@ -139,86 +134,9 @@ export function ClientPlannerList({ tasks, serviceLine, subServiceLineGroup }: C
     return filtered;
   }, [allAllocations]);
 
-  // Get unique clients for filter
-  const uniqueClients = useMemo(() => {
-    const clients = new Set(clientAllocations.map(a => `${a.clientName}|${a.clientCode}`));
-    return Array.from(clients)
-      .map(c => {
-        const [name, code] = c.split('|');
-        return { name: name || '', code: code || '' };
-      })
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [clientAllocations]);
-
-  // Get unique tasks for filter
-  const uniqueTasks = useMemo(() => {
-    const tasks = new Set(clientAllocations.map(a => `${a.taskName}|${a.taskCode}`));
-    return Array.from(tasks)
-      .map(t => {
-        const [name, code] = t.split('|');
-        return { name: name || '', code: code || '' };
-      })
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [clientAllocations]);
-
-  // Get unique employees for filter
-  const uniqueEmployees = useMemo(() => {
-    const employees = new Set(clientAllocations.map(a => `${a.employeeName}|${a.employeeCode || ''}`));
-    return Array.from(employees)
-      .map(e => {
-        const [name, code] = e.split('|');
-        return { name: name || '', code: code || '' };
-      })
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [clientAllocations]);
-
-  // Filter allocations
-  const filteredAllocations = useMemo(() => {
-    let filtered = clientAllocations;
-
-    // Search filter (client, task, employee)
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(a =>
-        a.clientName.toLowerCase().includes(searchLower) ||
-        a.clientCode.toLowerCase().includes(searchLower) ||
-        a.taskName.toLowerCase().includes(searchLower) ||
-        a.taskCode.toLowerCase().includes(searchLower) ||
-        a.employeeName.toLowerCase().includes(searchLower) ||
-        a.employeeCode?.toLowerCase().includes(searchLower)
-      );
-    }
-
-    // Role filter
-    if (roleFilter) {
-      filtered = filtered.filter(a => a.role === roleFilter);
-    }
-
-    // Client filter
-    if (clientFilter) {
-      filtered = filtered.filter(a => a.clientCode === clientFilter);
-    }
-
-    // Task filter
-    if (taskFilter) {
-      filtered = filtered.filter(a => a.taskCode === taskFilter);
-    }
-
-    // Employee filter
-    if (employeeFilter) {
-      filtered = filtered.filter(a => (a.employeeCode || '') === employeeFilter);
-    }
-
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientPlannerList.tsx:211',message:'After filteredAllocations',data:{beforeCount:clientAllocations.length,afterCount:filtered.length,activeFilters:{searchTerm,roleFilter,clientFilter,taskFilter,employeeFilter}},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
-
-    return filtered;
-  }, [clientAllocations, searchTerm, roleFilter, clientFilter, taskFilter, employeeFilter]);
-
   // Sort allocations
   const sortedAllocations = useMemo(() => {
-    const sorted = [...filteredAllocations];
+    const sorted = [...clientAllocations];
 
     sorted.sort((a, b) => {
       let comparison = 0;
@@ -262,7 +180,7 @@ export function ClientPlannerList({ tasks, serviceLine, subServiceLineGroup }: C
     });
 
     return sorted;
-  }, [filteredAllocations, sortField, sortDirection]);
+  }, [clientAllocations, sortField, sortDirection]);
 
   // Paginate
   const totalPages = Math.ceil(sortedAllocations.length / itemsPerPage);
@@ -346,14 +264,6 @@ export function ClientPlannerList({ tasks, serviceLine, subServiceLineGroup }: C
     }
   };
 
-  const clearFilters = () => {
-    setSearchTerm('');
-    setRoleFilter('');
-    setClientFilter('');
-    setTaskFilter('');
-    setEmployeeFilter('');
-  };
-
   return (
     <div className="bg-white rounded-lg shadow-corporate border-2 border-forvis-gray-200 overflow-hidden relative flex flex-col max-h-[calc(100vh-280px)]">
       {/* Loading Overlay */}
@@ -365,88 +275,6 @@ export function ClientPlannerList({ tasks, serviceLine, subServiceLineGroup }: C
           </div>
         </div>
       )}
-
-      {/* Filters */}
-      <div className="px-6 py-4 border-b border-forvis-gray-200 space-y-4 flex-shrink-0">
-        <div className="flex gap-4 items-center flex-wrap">
-          <div className="relative flex-1 min-w-[300px]">
-            <input
-              type="text"
-              placeholder="Search by client, task, employee, or code..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-4 pr-4 py-2 w-full border border-forvis-gray-300 rounded-lg bg-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent text-sm"
-            />
-          </div>
-
-          <select
-            value={clientFilter}
-            onChange={(e) => setClientFilter(e.target.value)}
-            className="border border-forvis-gray-300 rounded-md px-3 py-2 text-sm bg-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent"
-          >
-            <option value="">All Clients</option>
-            {uniqueClients.map(client => (
-              <option key={client.code} value={client.code}>
-                {client.name} ({client.code})
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={taskFilter}
-            onChange={(e) => setTaskFilter(e.target.value)}
-            className="border border-forvis-gray-300 rounded-md px-3 py-2 text-sm bg-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent"
-          >
-            <option value="">All Tasks</option>
-            {uniqueTasks.map(task => (
-              <option key={task.code} value={task.code}>
-                {task.name} ({task.code})
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={employeeFilter}
-            onChange={(e) => setEmployeeFilter(e.target.value)}
-            className="border border-forvis-gray-300 rounded-md px-3 py-2 text-sm bg-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent"
-          >
-            <option value="">All Employees</option>
-            {uniqueEmployees.map(employee => (
-              <option key={employee.code || employee.name} value={employee.code}>
-                {employee.name}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            className="border border-forvis-gray-300 rounded-md px-3 py-2 text-sm bg-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent"
-          >
-            <option value="">All Roles</option>
-            <option value="ADMIN">Admin</option>
-            <option value="REVIEWER">Reviewer</option>
-            <option value="EDITOR">Editor</option>
-            <option value="VIEWER">Viewer</option>
-          </select>
-
-          {(searchTerm || roleFilter || clientFilter || taskFilter || employeeFilter) && (
-            <button
-              onClick={clearFilters}
-              className="px-3 py-2 text-sm font-medium text-forvis-blue-600 hover:text-forvis-blue-700 transition-colors"
-            >
-              Clear Filters
-            </button>
-          )}
-        </div>
-
-        <div className="flex justify-between items-center text-sm text-forvis-gray-600">
-          <div>
-            Showing <span className="font-medium">{paginatedAllocations.length}</span> of{' '}
-            <span className="font-medium">{sortedAllocations.length}</span> allocations
-          </div>
-        </div>
-      </div>
 
       {/* Table */}
       <div className="overflow-x-auto overflow-y-auto flex-1">
@@ -549,11 +377,9 @@ export function ClientPlannerList({ tasks, serviceLine, subServiceLineGroup }: C
                   <Calendar className="w-12 h-12 mx-auto mb-3 text-forvis-gray-400" />
                   <p className="font-semibold text-forvis-gray-900">No Allocations Found</p>
                   <p className="text-sm mt-1 text-forvis-gray-600">
-                    {searchTerm || roleFilter || clientFilter || taskFilter || employeeFilter
-                      ? 'Try adjusting your filters'
-                      : tasks.length === 0 
-                        ? 'No tasks with allocations available. Tasks need employee allocations to appear in the client planner list.'
-                        : 'No client-based allocations found'}
+                    {tasks.length === 0 
+                      ? 'No tasks with allocations available. Tasks need employee allocations to appear in the client planner list.'
+                      : 'No client-based allocations found'}
                   </p>
                 </td>
               </tr>

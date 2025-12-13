@@ -10,12 +10,12 @@ import { mapUsersToEmployees } from '@/lib/services/employees/employeeService';
 
 /**
  * GET /api/service-lines/[serviceLine]/[subServiceLineGroup]/planner/clients
- * Fetch tasks with employee allocations as flat array
+ * Fetch all tasks for service line (including those without allocations)
  * Returns Task → Employee Allocations with pagination support
  * 
  * Performance optimizations:
  * - Redis caching (5min TTL)
- * - Conditional pagination (50 limit without filters, unlimited with filters)
+ * - Pagination (50 limit default)
  * - Optimized queries with Promise.all batching
  */
 export async function GET(
@@ -148,43 +148,11 @@ export async function GET(
     // 9. Apply pagination (always paginate, even with filters)
     const offset = (page - 1) * limit;
 
-    // 10. First, find which tasks have allocations (TaskTeam members)
-    // This ensures we only return tasks that have something to show in the list view
-    const tasksWithAllocationsQuery = await prisma.taskTeam.findMany({
-      where: {
-        startDate: { not: null },
-        endDate: { not: null },
-        Task: taskWhereConditions
-      },
-      select: {
-        taskId: true
-      },
-      distinct: ['taskId']
-    });
-    
-    const taskIdsWithAllocations = tasksWithAllocationsQuery.map(t => t.taskId);
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'planner/clients/route.ts:162',message:'Tasks with allocations found',data:{taskIdsWithAllocationsCount:taskIdsWithAllocations.length,firstThree:taskIdsWithAllocations.slice(0,3)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch(()=>{});
-    // #endregion
-    
-    if (taskIdsWithAllocations.length === 0) {
-      const emptyResponse = { 
-        tasks: [], 
-        pagination: { page, limit, total: 0, totalPages: 0, hasMore: false } 
-      };
-      await cache.set(cacheKey, emptyResponse, 300);
-      return NextResponse.json(successResponse(emptyResponse));
-    }
-    
-    // 11. Now fetch only those tasks that have allocations
+    // 10. Fetch ALL tasks matching service line and filters (including those without allocations)
     const queryStart = Date.now();
     const [tasks, totalCount] = await Promise.all([
       prisma.task.findMany({
-        where: {
-          ...taskWhereConditions,
-          id: { in: taskIdsWithAllocations }
-        },
+        where: taskWhereConditions,
         select: {
           id: true,
           TaskDesc: true,
@@ -212,16 +180,13 @@ export async function GET(
         take: limit,
         skip: offset
       }),
-      // Get total count for pagination (only tasks with allocations)
+      // Get total count for pagination (all tasks matching filters)
       prisma.task.count({ 
-        where: {
-          ...taskWhereConditions,
-          id: { in: taskIdsWithAllocations }
-        }
+        where: taskWhereConditions
       })
     ]);
 
-    console.log(`[PERF] Task query completed in ${Date.now() - queryStart}ms (${tasks.length} tasks fetched, ${totalCount} total with allocations)`);
+    console.log(`[PERF] Task query completed in ${Date.now() - queryStart}ms (${tasks.length} tasks fetched, ${totalCount} total)`);
 
     // 12. Tasks are already filtered by database, no need for in-memory filtering
     const filteredTasks = tasks;
