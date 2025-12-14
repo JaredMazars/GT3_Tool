@@ -302,6 +302,23 @@ export async function POST(
       );
     }
 
+    // Check if user is already on this task (prevent duplicates)
+    const existingTeamMember = await prisma.taskTeam.findUnique({
+      where: {
+        taskId_userId: {
+          taskId,
+          userId: targetUserId,
+        },
+      },
+    });
+
+    if (existingTeamMember) {
+      return NextResponse.json(
+        { error: 'User is already a member of this project team' },
+        { status: 409 }
+      );
+    }
+
     // Validate allocation (check for overlaps and role consistency)
     const role = validatedData.role || 'VIEWER';
     const startDate = validatedData.startDate ? new Date(validatedData.startDate) : null;

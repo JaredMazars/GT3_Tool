@@ -1110,6 +1110,7 @@ model TaskTeam {
   Task                Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
   User                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([taskId, userId])
   @@index([endDate])
   @@index([role])
   @@index([startDate])
