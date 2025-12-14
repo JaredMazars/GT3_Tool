@@ -131,7 +131,7 @@ export function MultiSelect({
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-forvis-gray-300 rounded-lg shadow-corporate-lg max-h-64 overflow-hidden">
+        <div className="absolute z-50 w-full min-w-[320px] mt-1 bg-white border border-forvis-gray-300 rounded-lg shadow-corporate-lg max-h-64 overflow-hidden">
           {/* Search Input - Always show for better UX */}
           {options.length > 0 && (
             <div className="p-2 border-b border-forvis-gray-200">
@@ -170,7 +170,7 @@ export function MultiSelect({
                       onChange={() => handleToggle(option.id)}
                       className="w-4 h-4 text-forvis-blue-600 border-forvis-gray-300 rounded focus:ring-forvis-blue-500 cursor-pointer"
                     />
-                    <span className="text-sm text-forvis-gray-900 flex-1 truncate">
+                    <span className="text-sm text-forvis-gray-900 flex-1">
                       {option.label}
                     </span>
                     {isSelected && (

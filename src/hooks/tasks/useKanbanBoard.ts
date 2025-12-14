@@ -17,10 +17,10 @@ export interface UseKanbanBoardParams {
   subServiceLineGroup: string;
   myTasksOnly?: boolean;
   search?: string;
-  teamMembers?: string[];
+  clients?: number[];
+  tasks?: string[];
   partners?: string[];
   managers?: string[];
-  clients?: number[];
   includeArchived?: boolean;
 }
 
@@ -33,10 +33,10 @@ export function useKanbanBoard(params: UseKanbanBoardParams) {
     subServiceLineGroup,
     myTasksOnly = false,
     search = '',
-    teamMembers = [],
+    clients = [],
+    tasks = [],
     partners = [],
     managers = [],
-    clients = [],
     includeArchived = false,
   } = params;
 
@@ -46,10 +46,10 @@ export function useKanbanBoard(params: UseKanbanBoardParams) {
       subServiceLineGroup,
       myTasksOnly,
       search,
-      teamMembers,
+      clients,
+      tasks,
       partners,
       managers,
-      clients,
       includeArchived,
     }),
     queryFn: async () => {
@@ -58,10 +58,10 @@ export function useKanbanBoard(params: UseKanbanBoardParams) {
       searchParams.set('subServiceLineGroup', subServiceLineGroup);
       if (myTasksOnly) searchParams.set('myTasksOnly', 'true');
       if (search) searchParams.set('search', search);
-      if (teamMembers.length > 0) searchParams.set('teamMembers', teamMembers.join(','));
+      if (clients.length > 0) searchParams.set('clients', clients.join(','));
+      if (tasks.length > 0) searchParams.set('tasks', tasks.join(','));
       if (partners.length > 0) searchParams.set('partners', partners.join(','));
       if (managers.length > 0) searchParams.set('managers', managers.join(','));
-      if (clients.length > 0) searchParams.set('clients', clients.join(','));
       // Always include the includeArchived parameter to ensure proper cache invalidation
       searchParams.set('includeArchived', includeArchived ? 'true' : 'false');
       

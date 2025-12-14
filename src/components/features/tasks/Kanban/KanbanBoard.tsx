@@ -33,23 +33,30 @@ export function KanbanBoard({
   onTaskClick,
   displayMode: externalDisplayMode,
   onDisplayModeChange,
+  filters: externalFilters,
+  onFiltersChange: externalOnFiltersChange,
+  showFilters = true,
 }: KanbanBoardProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   
-  const [filters, setFilters] = useState<KanbanFilters>({
+  const [internalFilters, setInternalFilters] = useState<KanbanFilters>({
     search: '',
-    teamMembers: [],
+    clients: [],
+    tasks: [] as string[],
     partners: [],
     managers: [],
-    clients: [],
     includeArchived: false,
   });
   const [internalDisplayMode, setInternalDisplayMode] = useState<CardDisplayMode>('detailed');
   const [collapsedColumns, setCollapsedColumns] = useState<Set<string>>(new Set());
   const [activeTask, setActiveTask] = useState<KanbanTask | null>(null);
+  
+  // Use external filters if provided, otherwise use internal state
+  const filters = externalFilters ?? internalFilters;
+  const setFilters = externalOnFiltersChange ?? setInternalFilters;
   
   // Use external display mode if provided, otherwise use internal state
   const displayMode = externalDisplayMode ?? internalDisplayMode;
@@ -65,10 +72,10 @@ export function KanbanBoard({
     subServiceLineGroup,
     myTasksOnly,
     search: filters.search,
-    teamMembers: filters.teamMembers,
+    clients: filters.clients,
+    tasks: filters.tasks,
     partners: filters.partners,
     managers: filters.managers,
-    clients: filters.clients,
     includeArchived: filters.includeArchived, // Query will refetch when this changes
   });
 
@@ -96,27 +103,21 @@ export function KanbanBoard({
   }, [data]);
 
   // Get unique team members for filter
-  const teamMembers = useMemo(() => {
+  // Get unique task names for filter
+  const tasks = useMemo(() => {
     if (!data?.columns) return [];
     
-    const membersMap = new Map<string, { id: string; name: string }>();
+    const taskNames = new Set<string>();
     
     data.columns.forEach(column => {
       column.tasks.forEach(task => {
-        task.team.forEach(member => {
-          if (!membersMap.has(member.userId)) {
-            membersMap.set(member.userId, {
-              id: member.userId,
-              name: member.name || member.email,
-            });
-          }
-        });
+        if (task.name) {
+          taskNames.add(task.name);
+        }
       });
     });
     
-    return Array.from(membersMap.values()).sort((a, b) => 
-      a.name.localeCompare(b.name)
-    );
+    return Array.from(taskNames).sort((a, b) => a.localeCompare(b));
   }, [data]);
 
   // Get unique partners for filter
@@ -303,7 +304,7 @@ export function KanbanBoard({
                 taskCount: newTaskCount,
                 totalCount: column.totalCount,
                 metrics: { 
-                  count: column.metrics.count,
+                  count: newTaskCount, // Update count to reflect new task count
                   loaded: newLoaded,
                 },
               };
@@ -322,7 +323,7 @@ export function KanbanBoard({
               taskCount: newTaskCount,
               totalCount: column.totalCount,
               metrics: { 
-                count: column.metrics.count,
+                count: newTaskCount, // Update count to reflect new task count
                 loaded: newLoaded,
               },
             };
@@ -416,15 +417,17 @@ export function KanbanBoard({
   return (
     <>
       <div className="space-y-4">
-        {/* Filters */}
-        <KanbanFiltersComponent
-          filters={filters}
-          onFiltersChange={setFilters}
-          teamMembers={teamMembers}
-          partners={partners}
-          managers={managers}
-          clients={clients}
-        />
+        {/* Filters - Only show if showFilters is true */}
+        {showFilters && (
+          <KanbanFiltersComponent
+            filters={filters}
+            onFiltersChange={setFilters}
+            clients={clients}
+            tasks={tasks}
+            partners={partners}
+            managers={managers}
+          />
+        )}
 
         {/* Kanban Board */}
         <DndContext

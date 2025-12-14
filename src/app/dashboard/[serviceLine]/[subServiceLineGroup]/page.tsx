@@ -31,9 +31,10 @@ import { ServiceLineSelector } from '@/components/features/service-lines/Service
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/utils/taskUtils';
 import { Button, LoadingSpinner, Card, MultiSelect } from '@/components/ui';
-import { MyPlanningView } from '@/components/features/planning';
+import { MyPlanningView, PlannerFilters } from '@/components/features/planning';
 import { EmployeePlannerList } from '@/components/features/planning/EmployeePlannerList';
 import { ClientPlannerList } from '@/components/features/planning/ClientPlannerList';
+import type { EmployeePlannerFilters as EmployeePlannerFiltersType, ClientPlannerFilters as ClientPlannerFiltersType } from '@/components/features/planning';
 import { useSubServiceLineUsers } from '@/hooks/service-lines/useSubServiceLineUsers';
 import { GanttTimeline } from '@/components/features/tasks/TeamPlanner';
 import { ClientPlannerTimeline } from '@/components/features/tasks/ClientPlanner';
@@ -68,10 +69,10 @@ export default function SubServiceLineWorkspacePage() {
   // Task list view filters (matching Kanban filters structure)
   const [taskFilters, setTaskFilters] = useState({
     search: '',
-    teamMembers: [] as string[],
+    clients: [] as number[],
+    tasks: [] as string[],
     partners: [] as string[],
     managers: [] as string[],
-    clients: [] as number[],
     includeArchived: false,
   });
   
@@ -83,21 +84,21 @@ export default function SubServiceLineWorkspacePage() {
   const [clientPlannerViewMode, setClientPlannerViewMode] = useState<'timeline' | 'list'>('timeline');
   
   // Employee planner filters (array-based for multiselect)
-  const [employeePlannerFilters, setEmployeePlannerFilters] = useState({
-    employees: [] as string[], // User IDs
-    jobGrades: [] as string[], // Job titles
-    offices: [] as string[], // Office locations
-    clients: [] as string[], // Client codes from allocations
-    taskCategories: [] as string[] // Empty = unfiltered (show all)
+  const [employeePlannerFilters, setEmployeePlannerFilters] = useState<EmployeePlannerFiltersType>({
+    employees: [],
+    jobGrades: [],
+    offices: [],
+    clients: [],
+    taskCategories: []
   });
   
   // Client planner filters (array-based for multiselect)
-  const [clientPlannerFilters, setClientPlannerFilters] = useState({
-    clients: [] as string[],
-    groups: [] as string[],
-    partners: [] as string[],
-    tasks: [] as string[],
-    managers: [] as string[]
+  const [clientPlannerFilters, setClientPlannerFilters] = useState<ClientPlannerFiltersType>({
+    clients: [],
+    groups: [],
+    partners: [],
+    tasks: [],
+    managers: []
   });
 
   // Fetch sub-service line groups to get the description
@@ -454,18 +455,15 @@ export default function SubServiceLineWorkspacePage() {
   }, [filteredPlannerUsers]);
 
   // Extract unique filter options from tasks for list view (similar to KanbanBoard)
-  const taskTeamMembers = useMemo(() => {
+  const taskOptions = useMemo(() => {
     const allTasks = activeTab === 'my-tasks' ? myTasks : tasks;
-    const members = new Map<string, string>();
+    const taskNames = new Set<string>();
     allTasks.forEach(task => {
-      if (task.taskPartner && task.taskPartnerName) {
-        members.set(task.taskPartner, task.taskPartnerName);
-      }
-      if (task.taskManager && task.taskManagerName) {
-        members.set(task.taskManager, task.taskManagerName);
+      if (task.name) {
+        taskNames.add(task.name);
       }
     });
-    return Array.from(members.entries()).map(([id, name]) => ({ id, name }));
+    return Array.from(taskNames).sort((a, b) => a.localeCompare(b));
   }, [tasks, myTasks, activeTab]);
 
   const taskPartners = useMemo(() => {
@@ -521,11 +519,17 @@ export default function SubServiceLineWorkspacePage() {
       );
     }
 
-    // Team members filter (partners + managers)
-    if (taskFilters.teamMembers.length > 0) {
+    // Clients filter
+    if (taskFilters.clients.length > 0) {
       filtered = filtered.filter(task =>
-        (task.taskPartner && taskFilters.teamMembers.includes(task.taskPartner)) ||
-        (task.taskManager && taskFilters.teamMembers.includes(task.taskManager))
+        task.client && taskFilters.clients.includes(task.client.id)
+      );
+    }
+
+    // Tasks filter (by task name/description)
+    if (taskFilters.tasks.length > 0) {
+      filtered = filtered.filter(task =>
+        task.name && taskFilters.tasks.includes(task.name)
       );
     }
 
@@ -540,13 +544,6 @@ export default function SubServiceLineWorkspacePage() {
     if (taskFilters.managers.length > 0) {
       filtered = filtered.filter(task =>
         task.taskManagerName && taskFilters.managers.includes(task.taskManagerName)
-      );
-    }
-
-    // Clients filter
-    if (taskFilters.clients.length > 0) {
-      filtered = filtered.filter(task =>
-        task.client && taskFilters.clients.includes(task.client.id)
       );
     }
 
@@ -577,11 +574,17 @@ export default function SubServiceLineWorkspacePage() {
       );
     }
 
-    // Team members filter (partners + managers)
-    if (taskFilters.teamMembers.length > 0) {
+    // Clients filter
+    if (taskFilters.clients.length > 0) {
       filtered = filtered.filter(task =>
-        (task.taskPartner && taskFilters.teamMembers.includes(task.taskPartner)) ||
-        (task.taskManager && taskFilters.teamMembers.includes(task.taskManager))
+        task.client && taskFilters.clients.includes(task.client.id)
+      );
+    }
+
+    // Tasks filter (by task name/description)
+    if (taskFilters.tasks.length > 0) {
+      filtered = filtered.filter(task =>
+        task.name && taskFilters.tasks.includes(task.name)
       );
     }
 
@@ -596,13 +599,6 @@ export default function SubServiceLineWorkspacePage() {
     if (taskFilters.managers.length > 0) {
       filtered = filtered.filter(task =>
         task.taskManagerName && taskFilters.managers.includes(task.taskManagerName)
-      );
-    }
-
-    // Clients filter
-    if (taskFilters.clients.length > 0) {
-      filtered = filtered.filter(task =>
-        task.client && taskFilters.clients.includes(task.client.id)
       );
     }
 
@@ -775,154 +771,188 @@ export default function SubServiceLineWorkspacePage() {
         </nav>
 
         {/* Main Container with Header and Content */}
-        <div className="bg-white rounded-lg shadow-corporate p-6">
-          {/* Header */}
-          <div className="mb-4">
-            <h2 className="text-2xl font-semibold text-forvis-gray-900 mb-1">
-              {subServiceLineGroupDescription}
-            </h2>
-            <p className="text-sm font-normal text-forvis-gray-600 mb-3">
-              {activeTab === 'groups'
-                ? 'Client groups across the organization'
-                : activeTab === 'clients' 
-                ? 'All clients across the organization'
-                : activeTab === 'tasks'
-                ? `Tasks in ${subServiceLineGroupDescription}`
-                : activeTab === 'planner'
-                ? 'Team resource planning and allocation'
-                : activeTab === 'my-tasks'
-                ? `Your tasks in ${subServiceLineGroupDescription}`
-                : 'Your personal planning and schedule'}
-            </p>
-            <div className="flex gap-6">
-              <div>
-                <div className="text-2xl font-bold text-forvis-gray-900">{totalCount}</div>
-                <div className="text-sm font-normal text-forvis-gray-600">
-                  Total {activeTab === 'groups' ? 'Groups' : activeTab === 'clients' ? 'Clients' : activeTab === 'tasks' ? 'Tasks' : activeTab === 'my-tasks' ? 'My Tasks' : '-'}
-                </div>
+        <div className="bg-white rounded-lg shadow-corporate overflow-hidden">
+          {/* Header with Inline Tab Sections */}
+          <div 
+            className="px-6 py-4 border-b border-forvis-gray-200 flex flex-col lg:flex-row lg:items-center gap-4"
+            style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
+          >
+            {/* Left: Page Title */}
+            <div className="lg:flex-shrink-0">
+              <h2 className="text-2xl font-semibold text-white mb-1">
+                {subServiceLineGroupDescription}
+              </h2>
+              <p className="text-sm font-normal text-white/90">
+                {activeTab === 'groups'
+                  ? 'Client groups across the organization'
+                  : activeTab === 'clients' 
+                  ? 'All clients across the organization'
+                  : activeTab === 'tasks'
+                  ? `Tasks in ${subServiceLineGroupDescription}`
+                  : activeTab === 'planner'
+                  ? 'Team resource planning and allocation'
+                  : activeTab === 'my-tasks'
+                  ? `Your tasks in ${subServiceLineGroupDescription}`
+                  : 'Your personal planning and schedule'}
+              </p>
+            </div>
+
+            {/* Right: Tab Sections */}
+            <div className="flex-1 flex flex-col sm:flex-row gap-3 lg:justify-end">
+              {/* Firm Wide Section - Blue */}
+              <div 
+                className="rounded-lg border-2 border-white/30 p-3 shadow-sm"
+                style={{ background: 'rgba(240, 247, 253, 0.15)' }}
+              >
+                <h3 className="text-xs font-semibold text-white uppercase tracking-wider mb-2">
+                  Firm Wide
+                </h3>
+                <nav className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setActiveTab('groups')}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 ${
+                      activeTab === 'groups'
+                        ? 'bg-white text-forvis-blue-600 shadow-sm'
+                        : 'text-white hover:bg-white/20'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <Users className="h-4 w-4" />
+                      <span>Groups</span>
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          activeTab === 'groups'
+                            ? 'bg-forvis-blue-100 text-forvis-blue-700'
+                            : 'bg-white/20 text-white'
+                        }`}
+                      >
+                        {isLoadingGroups && !groupsPagination ? '...' : (groupsPagination?.total ?? 0)}
+                      </span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('clients')}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 ${
+                      activeTab === 'clients'
+                        ? 'bg-white text-forvis-blue-600 shadow-sm'
+                        : 'text-white hover:bg-white/20'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <Building2 className="h-4 w-4" />
+                      <span>Clients</span>
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          activeTab === 'clients'
+                            ? 'bg-forvis-blue-100 text-forvis-blue-700'
+                            : 'bg-white/20 text-white'
+                        }`}
+                      >
+                        {isLoadingClients && !clientsPagination ? '...' : (clientsPagination?.total ?? 0)}
+                      </span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('tasks')}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 ${
+                      activeTab === 'tasks'
+                        ? 'bg-white text-forvis-blue-600 shadow-sm'
+                        : 'text-white hover:bg-white/20'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <Folder className="h-4 w-4" />
+                      <span>Tasks</span>
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          activeTab === 'tasks'
+                            ? 'bg-forvis-blue-100 text-forvis-blue-700'
+                            : 'bg-white/20 text-white'
+                        }`}
+                      >
+                        {isLoadingTasks && !tasksPagination ? '...' : (tasksPagination?.total ?? 0)}
+                      </span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('planner')}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 ${
+                      activeTab === 'planner'
+                        ? 'bg-white text-forvis-blue-600 shadow-sm'
+                        : 'text-white hover:bg-white/20'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <LayoutGrid className="h-4 w-4" />
+                      <span>Planner</span>
+                    </div>
+                  </button>
+                </nav>
+              </div>
+
+              {/* My Workspace Section - Gold */}
+              <div 
+                className="rounded-lg border-2 p-3 shadow-sm"
+                style={{ 
+                  background: 'rgba(240, 234, 224, 0.2)',
+                  borderColor: 'rgba(201, 188, 170, 0.5)'
+                }}
+              >
+                <h3 
+                  className="text-xs font-semibold uppercase tracking-wider mb-2 text-white"
+                >
+                  My Workspace
+                </h3>
+                <nav className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setActiveTab('my-tasks')}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 ${
+                      activeTab === 'my-tasks'
+                        ? 'shadow-sm'
+                        : 'text-white hover:bg-white/20'
+                    }`}
+                    style={activeTab === 'my-tasks' ? { 
+                      background: 'linear-gradient(135deg, #D9CBA8 0%, #B0A488 100%)',
+                      color: 'white'
+                    } : {}}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <Users className="h-4 w-4" />
+                      <span>My Tasks</span>
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          activeTab === 'my-tasks'
+                            ? 'bg-white/30 text-white'
+                            : 'bg-white/20 text-white'
+                        }`}
+                      >
+                        {isLoadingMyTasks && !myTasksPagination ? '...' : (myTasksPagination?.total ?? 0)}
+                      </span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('my-planning')}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 ${
+                      activeTab === 'my-planning'
+                        ? 'shadow-sm'
+                        : 'text-white hover:bg-white/20'
+                    }`}
+                    style={activeTab === 'my-planning' ? { 
+                      background: 'linear-gradient(135deg, #D9CBA8 0%, #B0A488 100%)',
+                      color: 'white'
+                    } : {}}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <Calendar className="h-4 w-4" />
+                      <span>My Planning</span>
+                    </div>
+                  </button>
+                </nav>
               </div>
             </div>
           </div>
-
-          {/* Tabs */}
-          <div className="mb-4 border-b border-forvis-gray-300">
-            <nav className="flex -mb-px space-x-8">
-              <button
-                onClick={() => setActiveTab('groups')}
-                className={`pb-4 px-1 border-b-2 font-medium text-sm transition-all duration-200 ease-in-out focus:outline-none ${
-                  activeTab === 'groups'
-                    ? 'border-forvis-blue-600 text-forvis-blue-600'
-                    : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
-                }`}
-              >
-                <div className="flex items-center space-x-2">
-                  <Users className="h-5 w-5" />
-                  <span>Groups</span>
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium transition-all duration-200 ease-in-out ${
-                      activeTab === 'groups'
-                        ? 'bg-forvis-blue-100 text-forvis-blue-700'
-                        : 'bg-forvis-gray-100 text-forvis-gray-600'
-                    }`}
-                  >
-                    {isLoadingGroups && !groupsPagination ? '...' : (groupsPagination?.total ?? 0)}
-                  </span>
-                </div>
-              </button>
-              <button
-                onClick={() => setActiveTab('clients')}
-                className={`pb-4 px-1 border-b-2 font-medium text-sm transition-all duration-200 ease-in-out focus:outline-none ${
-                  activeTab === 'clients'
-                    ? 'border-forvis-blue-600 text-forvis-blue-600'
-                    : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
-                }`}
-              >
-                <div className="flex items-center space-x-2">
-                  <Building2 className="h-5 w-5" />
-                  <span>Clients</span>
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium transition-all duration-200 ease-in-out ${
-                      activeTab === 'clients'
-                        ? 'bg-forvis-blue-100 text-forvis-blue-700'
-                        : 'bg-forvis-gray-100 text-forvis-gray-600'
-                    }`}
-                  >
-                    {isLoadingClients && !clientsPagination ? '...' : (clientsPagination?.total ?? 0)}
-                  </span>
-                </div>
-              </button>
-              <button
-                onClick={() => setActiveTab('tasks')}
-                className={`pb-4 px-1 border-b-2 font-medium text-sm transition-all duration-200 ease-in-out focus:outline-none ${
-                  activeTab === 'tasks'
-                    ? 'border-forvis-blue-600 text-forvis-blue-600'
-                    : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
-                }`}
-              >
-                <div className="flex items-center space-x-2">
-                  <Folder className="h-5 w-5" />
-                  <span>Tasks</span>
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium transition-all duration-200 ease-in-out ${
-                      activeTab === 'tasks'
-                        ? 'bg-forvis-blue-100 text-forvis-blue-700'
-                        : 'bg-forvis-gray-100 text-forvis-gray-600'
-                    }`}
-                  >
-                    {isLoadingTasks && !tasksPagination ? '...' : (tasksPagination?.total ?? 0)}
-                  </span>
-                </div>
-              </button>
-              <button
-                onClick={() => setActiveTab('planner')}
-                className={`pb-4 px-1 border-b-2 font-medium text-sm transition-all duration-200 ease-in-out focus:outline-none ${
-                  activeTab === 'planner'
-                    ? 'border-forvis-blue-600 text-forvis-blue-600'
-                    : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
-                }`}
-              >
-                <div className="flex items-center space-x-2">
-                  <LayoutGrid className="h-5 w-5" />
-                  <span>Planner</span>
-                </div>
-              </button>
-              <button
-                onClick={() => setActiveTab('my-tasks')}
-                className={`pb-4 px-1 border-b-2 font-medium text-sm transition-all duration-200 ease-in-out focus:outline-none ${
-                  activeTab === 'my-tasks'
-                    ? 'border-forvis-blue-600 text-forvis-blue-600'
-                    : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
-                }`}
-              >
-                <div className="flex items-center space-x-2">
-                  <Users className="h-5 w-5" />
-                  <span>My Tasks</span>
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium transition-all duration-200 ease-in-out ${
-                      activeTab === 'my-tasks'
-                        ? 'bg-forvis-blue-100 text-forvis-blue-700'
-                        : 'bg-forvis-gray-100 text-forvis-gray-600'
-                    }`}
-                  >
-                    {isLoadingMyTasks && !myTasksPagination ? '...' : (myTasksPagination?.total ?? 0)}
-                  </span>
-                </div>
-              </button>
-              <button
-                onClick={() => setActiveTab('my-planning')}
-                className={`pb-4 px-1 border-b-2 font-medium text-sm transition-all duration-200 ease-in-out focus:outline-none ${
-                  activeTab === 'my-planning'
-                    ? 'border-forvis-blue-600 text-forvis-blue-600'
-                    : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
-                }`}
-              >
-                <div className="flex items-center space-x-2">
-                  <Calendar className="h-5 w-5" />
-                  <span>My Planning</span>
-                </div>
-              </button>
-            </nav>
-          </div>
+          
+          <div className="p-6">
 
           {/* Search and Filter Bar - Only show for groups and clients tabs */}
           {(activeTab === 'groups' || activeTab === 'clients') && (
@@ -976,304 +1006,27 @@ export default function SubServiceLineWorkspacePage() {
           {activeTab === 'planner' ? (
             /* Team Planner */
             <div className="space-y-4">
-              {/* View Toggle */}
-              <div className="flex justify-center">
-                <div className="inline-flex gap-2 p-1 bg-forvis-gray-200 rounded-lg">
-                  <button
-                    onClick={() => setPlannerView('employees')}
-                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all ${
-                      plannerView === 'employees'
-                        ? 'text-white shadow-corporate'
-                        : 'text-forvis-gray-700 hover:bg-forvis-gray-300'
-                    }`}
-                    style={plannerView === 'employees' ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' } : {}}
-                  >
-                    <Users className="w-4 h-4" />
-                    <span>By Employees</span>
-                  </button>
-                  <button
-                    onClick={() => setPlannerView('clients')}
-                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all ${
-                      plannerView === 'clients'
-                        ? 'text-white shadow-corporate'
-                        : 'text-forvis-gray-700 hover:bg-forvis-gray-300'
-                    }`}
-                    style={plannerView === 'clients' ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' } : {}}
-                  >
-                    <Building2 className="w-4 h-4" />
-                    <span>By Clients</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Timeline/List View Toggle */}
-              <div className="flex justify-center">
-                <div className="inline-flex gap-2 p-1 bg-forvis-gray-200 rounded-lg">
-                  <button
-                    onClick={() => {
-                      if (plannerView === 'employees') {
-                        setEmployeePlannerViewMode('timeline');
-                      } else {
-                        setClientPlannerViewMode('timeline');
-                      }
-                    }}
-                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all ${
-                      (plannerView === 'employees' ? employeePlannerViewMode === 'timeline' : clientPlannerViewMode === 'timeline')
-                        ? 'text-white shadow-corporate'
-                        : 'text-forvis-gray-700 hover:bg-forvis-gray-300'
-                    }`}
-                    style={(plannerView === 'employees' ? employeePlannerViewMode === 'timeline' : clientPlannerViewMode === 'timeline') ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' } : {}}
-                  >
-                    <Calendar className="w-4 h-4" />
-                    <span>Timeline View</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (plannerView === 'employees') {
-                        setEmployeePlannerViewMode('list');
-                      } else {
-                        setClientPlannerViewMode('list');
-                      }
-                    }}
-                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all ${
-                      (plannerView === 'employees' ? employeePlannerViewMode === 'list' : clientPlannerViewMode === 'list')
-                        ? 'text-white shadow-corporate'
-                        : 'text-forvis-gray-700 hover:bg-forvis-gray-300'
-                    }`}
-                    style={(plannerView === 'employees' ? employeePlannerViewMode === 'list' : clientPlannerViewMode === 'list') ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' } : {}}
-                  >
-                    <List className="w-4 h-4" />
-                    <span>List View</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Filters Bar */}
-              {plannerView === 'employees' ? (
-                /* Employee Planner Filters - Single Row */
-                <div className="space-y-3">
-                  {/* Filters - All on one line */}
-                  <div className="flex gap-3 items-end flex-wrap">
-                    <div className="flex-1 min-w-[180px]">
-                      <MultiSelect
-                        options={employeeFilterOptions.employees}
-                        value={employeePlannerFilters.employees}
-                        onChange={(values) => setEmployeePlannerFilters(prev => ({ ...prev, employees: values as string[] }))}
-                        placeholder="All Employees"
-                        searchPlaceholder="Search employees..."
-                        label="Employee"
-                      />
-                    </div>
-                    
-                    <div className="flex-1 min-w-[180px]">
-                      <MultiSelect
-                        options={employeeFilterOptions.jobGrades}
-                        value={employeePlannerFilters.jobGrades}
-                        onChange={(values) => setEmployeePlannerFilters(prev => ({ ...prev, jobGrades: values as string[] }))}
-                        placeholder="All Job Grades"
-                        searchPlaceholder="Search job grades..."
-                        label="Job Grade"
-                      />
-                    </div>
-                    
-                    <div className="flex-1 min-w-[180px]">
-                      <MultiSelect
-                        options={employeeFilterOptions.offices}
-                        value={employeePlannerFilters.offices}
-                        onChange={(values) => setEmployeePlannerFilters(prev => ({ ...prev, offices: values as string[] }))}
-                        placeholder="All Offices"
-                        searchPlaceholder="Search offices..."
-                        label="Office"
-                      />
-                    </div>
-                    
-                    <div className="flex-1 min-w-[180px]">
-                      <MultiSelect
-                        options={employeeFilterOptions.clients}
-                        value={employeePlannerFilters.clients}
-                        onChange={(values) => setEmployeePlannerFilters(prev => ({ ...prev, clients: values as string[] }))}
-                        placeholder="All Clients"
-                        searchPlaceholder="Search clients..."
-                        label="Client"
-                      />
-                    </div>
-
-                    <div className="flex-1 min-w-[180px]">
-                      <MultiSelect
-                        options={[
-                          { id: 'client', label: 'Client Tasks' },
-                          { id: NonClientEventType.TRAINING, label: NON_CLIENT_EVENT_CONFIG[NonClientEventType.TRAINING].label },
-                          { id: NonClientEventType.ANNUAL_LEAVE, label: NON_CLIENT_EVENT_CONFIG[NonClientEventType.ANNUAL_LEAVE].label },
-                          { id: NonClientEventType.SICK_LEAVE, label: NON_CLIENT_EVENT_CONFIG[NonClientEventType.SICK_LEAVE].label },
-                          { id: NonClientEventType.PUBLIC_HOLIDAY, label: NON_CLIENT_EVENT_CONFIG[NonClientEventType.PUBLIC_HOLIDAY].label },
-                          { id: NonClientEventType.PERSONAL, label: NON_CLIENT_EVENT_CONFIG[NonClientEventType.PERSONAL].label },
-                          { id: NonClientEventType.ADMINISTRATIVE, label: NON_CLIENT_EVENT_CONFIG[NonClientEventType.ADMINISTRATIVE].label },
-                          { id: 'no_planning', label: 'No Planning' }
-                        ]}
-                        value={employeePlannerFilters.taskCategories}
-                        onChange={(values) => setEmployeePlannerFilters(prev => ({ ...prev, taskCategories: values as string[] }))}
-                        placeholder="All Task Types"
-                        searchPlaceholder="Search task types..."
-                        label="Task Type"
-                      />
-                    </div>
-                  </div>
-                  
-                  {/* Active Filters Summary + Clear All + Team Count */}
-                  <div className="flex items-center justify-between">
-                    {(employeePlannerFilters.employees.length > 0 || 
-                      employeePlannerFilters.jobGrades.length > 0 || 
-                      employeePlannerFilters.offices.length > 0 || 
-                      employeePlannerFilters.clients.length > 0 ||
-                      employeePlannerFilters.taskCategories.length > 0) ? (
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2 text-sm text-forvis-gray-700">
-                          <Filter className="h-4 w-4 text-forvis-blue-600" />
-                          <span className="font-medium">
-                            {employeePlannerFilters.employees.length + 
-                             employeePlannerFilters.jobGrades.length + 
-                             employeePlannerFilters.offices.length + 
-                             employeePlannerFilters.clients.length +
-                             (employeePlannerFilters.taskCategories.length > 0 ? 1 : 0)} filter{(employeePlannerFilters.employees.length + 
-                               employeePlannerFilters.jobGrades.length + 
-                               employeePlannerFilters.offices.length + 
-                               employeePlannerFilters.clients.length +
-                               (employeePlannerFilters.taskCategories.length > 0 ? 1 : 0)) !== 1 ? 's' : ''} active
-                          </span>
-                        </div>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => setEmployeePlannerFilters({ 
-                            employees: [], 
-                            jobGrades: [], 
-                            offices: [], 
-                            clients: [],
-                            taskCategories: []
-                          })}
-                        >
-                          Clear All Filters
-                        </Button>
-                      </div>
-                    ) : (
-                      <div></div>
-                    )}
-
-                    {/* Team Count */}
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-forvis-blue-600">
-                        {filteredPlannerUsers.length}
-                      </div>
-                      <div className="text-sm text-forvis-gray-600">
-                        Team {filteredPlannerUsers.length === 1 ? 'Member' : 'Members'}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                /* Client Planner Filters - Single Row */
-                <div className="space-y-3">
-                  {/* Filters - All on one line */}
-                  <div className="flex gap-3 items-end flex-wrap">
-                    <div className="flex-1 min-w-[180px]">
-                      <MultiSelect
-                        options={clientPlannerFilterOptions?.tasks || []}
-                        value={clientPlannerFilters.tasks}
-                        onChange={(values) => setClientPlannerFilters(prev => ({ ...prev, tasks: values as string[] }))}
-                        placeholder="All Projects"
-                        searchPlaceholder="Search projects..."
-                        label="Project / Task"
-                        disabled={isLoadingFilterOptions}
-                      />
-                    </div>
-                    
-                    <div className="flex-1 min-w-[180px]">
-                      <MultiSelect
-                        options={clientPlannerFilterOptions?.clients || []}
-                        value={clientPlannerFilters.clients}
-                        onChange={(values) => setClientPlannerFilters(prev => ({ ...prev, clients: values as string[] }))}
-                        placeholder="All Clients"
-                        searchPlaceholder="Search clients..."
-                        label="Client"
-                        disabled={isLoadingFilterOptions}
-                      />
-                    </div>
-                    
-                    <div className="flex-1 min-w-[180px]">
-                      <MultiSelect
-                        options={clientPlannerFilterOptions?.groups || []}
-                        value={clientPlannerFilters.groups}
-                        onChange={(values) => setClientPlannerFilters(prev => ({ ...prev, groups: values as string[] }))}
-                        placeholder="All Groups"
-                        searchPlaceholder="Search groups..."
-                        label="Client Group"
-                        disabled={isLoadingFilterOptions}
-                      />
-                    </div>
-                    
-                    <div className="flex-1 min-w-[180px]">
-                      <MultiSelect
-                        options={clientPlannerFilterOptions?.partners || []}
-                        value={clientPlannerFilters.partners}
-                        onChange={(values) => setClientPlannerFilters(prev => ({ ...prev, partners: values as string[] }))}
-                        placeholder="All Partners"
-                        searchPlaceholder="Search partners..."
-                        label="Task Partner"
-                        disabled={isLoadingFilterOptions}
-                      />
-                    </div>
-                    
-                    <div className="flex-1 min-w-[180px]">
-                      <MultiSelect
-                        options={clientPlannerFilterOptions?.managers || []}
-                        value={clientPlannerFilters.managers}
-                        onChange={(values) => setClientPlannerFilters(prev => ({ ...prev, managers: values as string[] }))}
-                        placeholder="All Managers"
-                        searchPlaceholder="Search managers..."
-                        label="Task Manager"
-                        disabled={isLoadingFilterOptions}
-                      />
-                    </div>
-                  </div>
-                  
-                  {/* Active Filters Summary + Clear All */}
-                  {(clientPlannerFilters.clients.length > 0 || 
-                    clientPlannerFilters.groups.length > 0 || 
-                    clientPlannerFilters.partners.length > 0 || 
-                    clientPlannerFilters.tasks.length > 0 || 
-                    clientPlannerFilters.managers.length > 0) && (
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-2 text-sm text-forvis-gray-700">
-                        <Filter className="h-4 w-4 text-forvis-blue-600" />
-                        <span className="font-medium">
-                          {clientPlannerFilters.clients.length + 
-                           clientPlannerFilters.groups.length + 
-                           clientPlannerFilters.partners.length + 
-                           clientPlannerFilters.tasks.length + 
-                           clientPlannerFilters.managers.length} filter{(clientPlannerFilters.clients.length + 
-                             clientPlannerFilters.groups.length + 
-                             clientPlannerFilters.partners.length + 
-                             clientPlannerFilters.tasks.length + 
-                             clientPlannerFilters.managers.length) !== 1 ? 's' : ''} active
-                        </span>
-                      </div>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => setClientPlannerFilters({ 
-                          clients: [], 
-                          groups: [], 
-                          partners: [], 
-                          tasks: [], 
-                          managers: [] 
-                        })}
-                      >
-                        Clear All Filters
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              )}
+              {/* Unified Planner Filters */}
+              <PlannerFilters
+                plannerView={plannerView}
+                onPlannerViewChange={setPlannerView}
+                viewMode={plannerView === 'employees' ? employeePlannerViewMode : clientPlannerViewMode}
+                onViewModeChange={(mode) => {
+                  if (plannerView === 'employees') {
+                    setEmployeePlannerViewMode(mode);
+                  } else {
+                    setClientPlannerViewMode(mode);
+                  }
+                }}
+                employeeFilters={employeePlannerFilters}
+                onEmployeeFiltersChange={setEmployeePlannerFilters}
+                employeeFilterOptions={employeeFilterOptions}
+                clientFilters={clientPlannerFilters}
+                onClientFiltersChange={setClientPlannerFilters}
+                clientFilterOptions={clientPlannerFilterOptions}
+                isLoadingClientOptions={isLoadingFilterOptions}
+                teamCount={filteredPlannerUsers.length}
+              />
 
               {/* Timeline or List View */}
               {plannerView === 'employees' ? (
@@ -1658,78 +1411,19 @@ export default function SubServiceLineWorkspacePage() {
           ) : (activeTab === 'tasks' || activeTab === 'my-tasks') ? (
             /* Tasks List or Kanban View */
             <div className="space-y-4">
-              {/* View Mode Toggle with Display Mode */}
-              <div className="flex items-center justify-between gap-4 bg-white rounded-lg border border-forvis-gray-200 shadow-sm p-3">
-                {/* Display Mode (Compact/Detailed) - Left Side - Only for Kanban */}
-                {taskViewMode === 'kanban' && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-forvis-gray-700">Display:</span>
-                    <div className="inline-flex rounded-lg border border-forvis-gray-300 bg-white">
-                      <button
-                        onClick={() => setDisplayMode('compact')}
-                        className={`px-3 py-1.5 text-sm font-medium rounded-l-lg transition-colors ${
-                          displayMode === 'compact'
-                            ? 'bg-forvis-blue-600 text-white'
-                            : 'text-forvis-gray-700 hover:bg-forvis-gray-50'
-                        }`}
-                      >
-                        <Minimize2 className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => setDisplayMode('detailed')}
-                        className={`px-3 py-1.5 text-sm font-medium rounded-r-lg border-l border-forvis-gray-300 transition-colors ${
-                          displayMode === 'detailed'
-                            ? 'bg-forvis-blue-600 text-white'
-                            : 'text-forvis-gray-700 hover:bg-forvis-gray-50'
-                        }`}
-                      >
-                        <Maximize2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-                
-                {/* View Toggle (List/Kanban) - Right Side */}
-                <div className="flex items-center gap-2 ml-auto">
-                  <span className="text-sm font-medium text-forvis-gray-700">View:</span>
-                  <div className="inline-flex rounded-lg border border-forvis-gray-300 bg-white">
-                    <button
-                      onClick={() => handleViewModeChange('list')}
-                      className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-l-lg transition-colors ${
-                        taskViewMode === 'list'
-                          ? 'bg-forvis-blue-600 text-white'
-                          : 'text-forvis-gray-700 hover:bg-forvis-gray-50'
-                      }`}
-                    >
-                      <List className="h-4 w-4" />
-                      <span>List</span>
-                    </button>
-                    <button
-                      onClick={() => handleViewModeChange('kanban')}
-                      className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-r-lg border-l border-forvis-gray-300 transition-colors ${
-                        taskViewMode === 'kanban'
-                          ? 'bg-forvis-blue-600 text-white'
-                          : 'text-forvis-gray-700 hover:bg-forvis-gray-50'
-                      }`}
-                    >
-                      <LayoutGrid className="h-4 w-4" />
-                      <span>Kanban</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Filters - Show for list view */}
-              {taskViewMode === 'list' && (
-                <KanbanFilters
-                  filters={taskFilters}
-                  onFiltersChange={setTaskFilters}
-                  teamMembers={taskTeamMembers}
-                  partners={taskPartners}
-                  managers={taskManagers}
-                  clients={taskClients}
-                />
-              )}
+              {/* Unified Filters Bar - Always show */}
+              <KanbanFilters
+                filters={taskFilters}
+                onFiltersChange={setTaskFilters}
+                clients={taskClients}
+                tasks={taskOptions}
+                partners={taskPartners}
+                managers={taskManagers}
+                viewMode={taskViewMode}
+                onViewModeChange={handleViewModeChange}
+                displayMode={displayMode}
+                onDisplayModeChange={setDisplayMode}
+              />
 
               {taskViewMode === 'kanban' ? (
                 /* Kanban View */
@@ -1739,6 +1433,9 @@ export default function SubServiceLineWorkspacePage() {
                   myTasksOnly={activeTab === 'my-tasks'}
                   displayMode={displayMode}
                   onDisplayModeChange={setDisplayMode}
+                  filters={taskFilters}
+                  onFiltersChange={setTaskFilters}
+                  showFilters={false}
                 />
               ) : (
                 /* List View */
@@ -1748,8 +1445,8 @@ export default function SubServiceLineWorkspacePage() {
                   <Folder className="mx-auto h-12 w-12 text-forvis-gray-400" />
                   <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No tasks</h3>
                   <p className="mt-1 text-sm text-forvis-gray-600">
-                    {taskFilters.search || taskFilters.teamMembers.length > 0 || taskFilters.partners.length > 0 || taskFilters.managers.length > 0 || taskFilters.clients.length > 0
-                      ? 'No tasks match your filters.' 
+                    {taskFilters.search || taskFilters.clients.length > 0 || taskFilters.tasks.length > 0 || taskFilters.partners.length > 0 || taskFilters.managers.length > 0
+                      ? 'No tasks match your filters.'
                       : activeTab === 'my-tasks'
                       ? `You are not a team member on any tasks in ${subServiceLineGroupDescription}.`
                       : `No tasks available in ${subServiceLineGroupDescription}.`}
@@ -1925,6 +1622,7 @@ export default function SubServiceLineWorkspacePage() {
               )}
             </div>
           ) : null}
+          </div>
         </div>
       </div>
     </div>

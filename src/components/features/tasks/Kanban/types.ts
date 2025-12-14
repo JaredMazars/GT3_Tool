@@ -48,10 +48,10 @@ export interface KanbanBoardData {
 
 export interface KanbanFilters {
   search: string;
-  teamMembers: string[];
+  clients: number[];
+  tasks: string[];
   partners: string[];
   managers: string[];
-  clients: number[];
   includeArchived: boolean;
 }
 
@@ -64,6 +64,9 @@ export interface KanbanBoardProps {
   onTaskClick?: (taskId: number) => void;
   displayMode?: CardDisplayMode;
   onDisplayModeChange?: (mode: CardDisplayMode) => void;
+  filters?: KanbanFilters;
+  onFiltersChange?: (filters: KanbanFilters) => void;
+  showFilters?: boolean;
 }
 
 export interface KanbanColumnProps {
@@ -85,10 +88,14 @@ export interface KanbanCardProps {
 export interface KanbanFiltersProps {
   filters: KanbanFilters;
   onFiltersChange: (filters: KanbanFilters) => void;
-  teamMembers: { id: string; name: string }[];
+  clients: { id: number; code: string; name: string }[];
+  tasks: string[];
   partners: string[];
   managers: string[];
-  clients: { id: number; code: string; name: string }[];
+  viewMode?: 'list' | 'kanban';
+  onViewModeChange?: (mode: 'list' | 'kanban') => void;
+  displayMode?: CardDisplayMode;
+  onDisplayModeChange?: (mode: CardDisplayMode) => void;
 }
 
 export interface KanbanMetricsProps {

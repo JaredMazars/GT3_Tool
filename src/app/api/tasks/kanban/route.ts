@@ -24,20 +24,20 @@ export async function GET(request: NextRequest) {
     const includeArchived = searchParams.get('includeArchived') === 'true';
     
     // Parse multi-value query params
-    const teamMembersParam = searchParams.get('teamMembers');
-    const teamMembers = teamMembersParam ? teamMembersParam.split(',') : [];
+    const clientsParam = searchParams.get('clients');
+    const clientIds = clientsParam ? clientsParam.split(',').map(Number) : [];
+    const tasksParam = searchParams.get('tasks');
+    const taskNames = tasksParam ? tasksParam.split(',') : [];
     const partnersParam = searchParams.get('partners');
     const partners = partnersParam ? partnersParam.split(',') : [];
     const managersParam = searchParams.get('managers');
     const managers = managersParam ? managersParam.split(',') : [];
-    const clientsParam = searchParams.get('clients');
-    const clientIds = clientsParam ? clientsParam.split(',').map(Number) : [];
 
     // Check service line access
     const userServiceLines = await getUserServiceLines(user.id);
     
     // Build cache key
-    const cacheKey = `${CACHE_PREFIXES.TASK}kanban:${serviceLine}:${subServiceLineGroup}:${myTasksOnly}:${teamMembers.join(',')}:${partners.join(',')}:${managers.join(',')}:${clientIds.join(',')}:${search}:${includeArchived}:user:${user.id}`;
+    const cacheKey = `${CACHE_PREFIXES.TASK}kanban:${serviceLine}:${subServiceLineGroup}:${myTasksOnly}:${clientIds.join(',')}:${taskNames.join(',')}:${partners.join(',')}:${managers.join(',')}:${search}:${includeArchived}:user:${user.id}`;
     
     // Try cache first
     const cached = await cache.get(cacheKey);
@@ -130,11 +130,16 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Team member filtering
-    if (teamMembers.length > 0 || myTasksOnly) {
+    // Task filter (by task name/description)
+    if (taskNames.length > 0) {
+      where.TaskDesc = { in: taskNames };
+    }
+
+    // My tasks filtering
+    if (myTasksOnly) {
       where.TaskTeam = {
         some: {
-          userId: myTasksOnly ? user.id : { in: teamMembers },
+          userId: user.id,
         },
       };
     }
@@ -142,10 +147,10 @@ export async function GET(request: NextRequest) {
     // Determine if any filters are active
     const hasFilters = !!(
       search ||
-      teamMembers.length > 0 ||
+      clientIds.length > 0 ||
+      taskNames.length > 0 ||
       partners.length > 0 ||
       managers.length > 0 ||
-      clientIds.length > 0 ||
       myTasksOnly
     );
 
@@ -182,15 +187,19 @@ export async function GET(request: NextRequest) {
       ? Prisma.sql`AND t.GSClientID IN (${Prisma.join(clientGSClientIDs.map(id => Prisma.sql`${id}`))})`
       : Prisma.empty;
     
+    const taskFilter = taskNames.length > 0
+      ? Prisma.sql`AND t.TaskDesc IN (${Prisma.join(taskNames.map(name => Prisma.sql`${name}`))})`
+      : Prisma.empty;
+    
     const searchFilter = search
       ? Prisma.sql`AND (t.TaskDesc LIKE ${`%${search}%`} OR t.TaskCode LIKE ${`%${search}%`})`
       : Prisma.empty;
     
-    const teamMemberFilter = (teamMembers.length > 0 || myTasksOnly)
+    const myTasksFilter = myTasksOnly
       ? Prisma.sql`AND EXISTS (
           SELECT 1 FROM TaskTeam tt 
           WHERE tt.taskId = t.id 
-          AND tt.userId ${myTasksOnly ? Prisma.sql`= ${user.id}` : Prisma.sql`IN (${Prisma.join(teamMembers.map(tm => Prisma.sql`${tm}`))})`}
+          AND tt.userId = ${user.id}
         )`
       : Prisma.empty;
 
@@ -217,8 +226,9 @@ export async function GET(request: NextRequest) {
         ${partnerFilter}
         ${managerFilter}
         ${clientFilter}
+        ${taskFilter}
         ${searchFilter}
-        ${teamMemberFilter}
+        ${myTasksFilter}
     `;
 
     console.log(`[PERF] Stage detection query completed in ${Date.now() - perfStart}ms for ${tasksWithLatestStage.length} tasks`);

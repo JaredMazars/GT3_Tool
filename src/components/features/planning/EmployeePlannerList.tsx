@@ -54,7 +54,6 @@ type SortDirection = 'asc' | 'desc';
 
 export function EmployeePlannerList({ teamMembers, serviceLine, subServiceLineGroup }: EmployeePlannerListProps) {
   const router = useRouter();
-  const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('employee');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [currentPage, setCurrentPage] = useState(1);
@@ -100,31 +99,11 @@ export function EmployeePlannerList({ teamMembers, serviceLine, subServiceLineGr
     return items;
   }, [teamMembers, serviceLine, subServiceLineGroup]);
 
-  // Filter to show only current and future allocations
-  const currentAndFutureAllocations = useMemo(() => {
+  // Filter to show only current and future allocations (not past ones)
+  const filteredAllocations = useMemo(() => {
     const today = startOfDay(new Date());
     return allAllocations.filter(a => !isBefore(startOfDay(a.endDate), today));
   }, [allAllocations]);
-
-  // Filter allocations
-  const filteredAllocations = useMemo(() => {
-    let filtered = currentAndFutureAllocations;
-
-    // Search filter (employee name, email, client, task)
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(a =>
-        a.userName.toLowerCase().includes(searchLower) ||
-        a.userEmail.toLowerCase().includes(searchLower) ||
-        a.clientName.toLowerCase().includes(searchLower) ||
-        a.clientCode.toLowerCase().includes(searchLower) ||
-        a.taskName.toLowerCase().includes(searchLower) ||
-        a.taskCode?.toLowerCase().includes(searchLower)
-      );
-    }
-
-    return filtered;
-  }, [currentAndFutureAllocations, searchTerm]);
 
   // Sort allocations
   const sortedAllocations = useMemo(() => {
@@ -268,29 +247,8 @@ export function EmployeePlannerList({ teamMembers, serviceLine, subServiceLineGr
         </div>
       )}
 
-      {/* Search Filter */}
-      <div className="px-6 py-4 border-b border-forvis-gray-200 space-y-4 flex-shrink-0">
-        <div className="flex gap-4 items-center flex-wrap">
-          <div className="relative flex-1 min-w-[300px]">
-            <input
-              type="text"
-              placeholder="Search by employee, client, task, or code..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-4 pr-4 py-2 w-full border border-forvis-gray-300 rounded-lg bg-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent text-sm"
-            />
-          </div>
-
-          {searchTerm && (
-            <button
-              onClick={clearSearch}
-              className="px-3 py-2 text-sm font-medium text-forvis-blue-600 hover:text-forvis-blue-700 transition-colors"
-            >
-              Clear Search
-            </button>
-          )}
-        </div>
-
+      {/* Results Summary */}
+      <div className="px-6 py-3 border-b border-forvis-gray-200 flex-shrink-0">
         <div className="flex justify-between items-center text-sm text-forvis-gray-600">
           <div>
             Showing <span className="font-medium">{paginatedAllocations.length}</span> of{' '}
@@ -409,9 +367,7 @@ export function EmployeePlannerList({ teamMembers, serviceLine, subServiceLineGr
                   <Calendar className="w-12 h-12 mx-auto mb-3 text-forvis-gray-400" />
                   <p className="font-semibold text-forvis-gray-900">No Allocations Found</p>
                   <p className="text-sm mt-1 text-forvis-gray-600">
-                    {searchTerm
-                      ? 'Try adjusting your search term'
-                      : 'No employee allocations available'}
+                    No employee allocations available
                   </p>
                 </td>
               </tr>
