@@ -1019,6 +1019,7 @@ model Task {
   TaskEngagementLetter     TaskEngagementLetter?
   TaskStage                TaskStage[]
   TaskTeam                 TaskTeam[]
+  TaskTool                 TaskTool[]
   TaxAdjustment            TaxAdjustment[]
   Wip                      Wip[]
   WIPTransactions          WIPTransactions[]
@@ -1221,6 +1222,7 @@ model User {
   Session                                              Session[]
   Task                                                 Task[]
   TaskTeam                                             TaskTeam[]
+  TaskTool                                             TaskTool[]
 
   @@index([role])
 }
@@ -1381,4 +1383,77 @@ model StandardTask {
   @@index([StdTaskCode])
   @@index([ServLineCode])
   @@index([GSStdTaskID])
+}
+
+model Tool {
+  id            Int               @id @default(autoincrement())
+  name          String            @db.NVarChar(200)
+  code          String            @unique @db.NVarChar(50)
+  description   String?           @db.NVarChar(Max)
+  icon          String?           @db.NVarChar(50)
+  componentPath String            @db.NVarChar(500)
+  active        Boolean           @default(true)
+  sortOrder     Int               @default(0)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  serviceLines  ServiceLineTool[]
+  tasks         TaskTool[]
+  subTabs       ToolSubTab[]
+
+  @@index([active])
+  @@index([code])
+  @@index([sortOrder])
+}
+
+model ToolSubTab {
+  id            Int      @id @default(autoincrement())
+  toolId        Int
+  name          String   @db.NVarChar(200)
+  code          String   @db.NVarChar(50)
+  componentPath String   @db.NVarChar(500)
+  icon          String?  @db.NVarChar(50)
+  sortOrder     Int      @default(0)
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  tool          Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+
+  @@unique([toolId, code])
+  @@index([toolId])
+  @@index([active])
+  @@index([toolId, sortOrder])
+}
+
+model ServiceLineTool {
+  id                  Int      @id @default(autoincrement())
+  subServiceLineGroup String   @db.NVarChar(50)
+  toolId              Int
+  active              Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  tool                Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+
+  @@unique([subServiceLineGroup, toolId])
+  @@index([subServiceLineGroup])
+  @@index([toolId])
+  @@index([active])
+}
+
+model TaskTool {
+  id        Int      @id @default(autoincrement())
+  taskId    Int
+  toolId    Int
+  addedBy   String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  tool      Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [addedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([taskId, toolId])
+  @@index([taskId])
+  @@index([toolId])
+  @@index([addedBy])
+  @@index([taskId, sortOrder])
 }

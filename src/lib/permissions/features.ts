@@ -42,6 +42,7 @@ export enum Feature {
   MANAGE_SERVICE_LINES = 'manage_service_lines',
   MANAGE_TEMPLATES = 'manage_templates',
   MANAGE_EXTERNAL_LINKS = 'manage_external_links',
+  MANAGE_TOOLS = 'manage_tools',
 
   // Advanced
   USE_AI_TOOLS = 'use_ai_tools',
@@ -93,6 +94,7 @@ export const FEATURE_CATEGORIES = {
     Feature.MANAGE_SERVICE_LINES,
     Feature.MANAGE_TEMPLATES,
     Feature.MANAGE_EXTERNAL_LINKS,
+    Feature.MANAGE_TOOLS,
   ],
   ADVANCED: [
     Feature.USE_AI_TOOLS,
@@ -134,6 +136,7 @@ export const FEATURE_DESCRIPTIONS: Record<Feature, string> = {
   [Feature.MANAGE_SERVICE_LINES]: 'Manage service line configurations',
   [Feature.MANAGE_TEMPLATES]: 'Create and edit templates',
   [Feature.MANAGE_EXTERNAL_LINKS]: 'Manage external software links',
+  [Feature.MANAGE_TOOLS]: 'Create and manage tools and their assignments',
 
   [Feature.USE_AI_TOOLS]: 'Use AI-powered tools and features',
   [Feature.EXPORT_REPORTS]: 'Export reports and data',

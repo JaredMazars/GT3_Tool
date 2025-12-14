@@ -6,8 +6,9 @@ import { TimelineHeader } from '../tasks/TeamPlanner/TimelineHeader';
 import { ResourceRow } from '../tasks/TeamPlanner/ResourceRow';
 import { getDateRange, generateTimelineColumns, getColumnWidth, assignLanes, calculateMaxLanes } from '../tasks/TeamPlanner/utils';
 import { memoizedCalculateTotalHours, memoizedCalculateTotalPercentage } from '../tasks/TeamPlanner/optimizations';
-import { Calendar, Building2, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, Building2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { startOfDay, format, isSameDay, addDays, addWeeks } from 'date-fns';
+import { MyPlanningFiltersType } from './MyPlanningFilters';
 
 interface ClientAllocationData {
   clientId: number | null;
@@ -18,13 +19,13 @@ interface ClientAllocationData {
 
 interface MyPlanningTimelineViewProps {
   clientsData: ClientAllocationData[];
+  filters: MyPlanningFiltersType;
 }
 
-export function MyPlanningTimelineView({ clientsData }: MyPlanningTimelineViewProps) {
+export function MyPlanningTimelineView({ clientsData, filters }: MyPlanningTimelineViewProps) {
   const [scale, setScale] = useState<TimeScale>('week');
   const [referenceDate, setReferenceDate] = useState(new Date());
   const [scrollToToday, setScrollToToday] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
   const [overlayScrollTop, setOverlayScrollTop] = useState(0);
   
   const timelineContainerRef = useRef<HTMLDivElement>(null);
@@ -74,18 +75,47 @@ export function MyPlanningTimelineView({ clientsData }: MyPlanningTimelineViewPr
   const dateRange = useMemo(() => getDateRange(scale, referenceDate), [scale, referenceDate]);
   const columns = useMemo(() => generateTimelineColumns(dateRange, scale), [dateRange, scale]);
 
-  // Filter clients based on search term
+  // Filter clients based on filters
   const filteredClients = useMemo(() => {
-    if (!searchTerm.trim()) {
-      return clientsData;
+    let result = clientsData;
+
+    // Search filter
+    if (filters.search.trim()) {
+      const searchLower = filters.search.toLowerCase();
+      result = result.filter(client =>
+        client.clientName.toLowerCase().includes(searchLower) ||
+        client.clientCode.toLowerCase().includes(searchLower)
+      );
     }
-    
-    const searchLower = searchTerm.toLowerCase();
-    return clientsData.filter(client => 
-      client.clientName.toLowerCase().includes(searchLower) ||
-      client.clientCode.toLowerCase().includes(searchLower)
-    );
-  }, [clientsData, searchTerm]);
+
+    // Client filter
+    if (filters.clients.length > 0) {
+      result = result.filter(client =>
+        filters.clients.includes(client.clientCode)
+      );
+    }
+
+    // Task filter - filter clients that have allocations for selected tasks
+    if (filters.tasks.length > 0) {
+      result = result.filter(client =>
+        client.allocations.some((alloc: any) => {
+          const taskKey = alloc.taskCode || alloc.taskName;
+          return taskKey && filters.tasks.includes(taskKey);
+        })
+      );
+    }
+
+    // Role filter - filter clients that have allocations with selected roles
+    if (filters.roles.length > 0) {
+      result = result.filter(client =>
+        client.allocations.some((alloc: any) =>
+          filters.roles.includes(alloc.role)
+        )
+      );
+    }
+
+    return result;
+  }, [clientsData, filters]);
 
   // Calculate cumulative row heights
   const cumulativeHeights = useMemo(() => {
@@ -165,25 +195,6 @@ export function MyPlanningTimelineView({ clientsData }: MyPlanningTimelineViewPr
 
   return (
     <div className="bg-white rounded-lg shadow-corporate border-2 border-forvis-gray-200 overflow-hidden">
-      {/* Search Bar */}
-      <div className="px-6 py-3 border-b border-forvis-gray-200 bg-white">
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
-          <input
-            type="text"
-            placeholder="Search by client name or code..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 pr-4 py-2 w-full border border-forvis-gray-300 rounded-lg bg-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent text-sm"
-          />
-        </div>
-        {searchTerm && (
-          <div className="mt-2 text-xs text-forvis-gray-600">
-            Found <span className="font-medium">{resources.length}</span> {resources.length === 1 ? 'client' : 'clients'} matching "{searchTerm}"
-          </div>
-        )}
-      </div>
-
       {/* Controls */}
       <div 
         className="px-6 py-4 border-b-2 border-forvis-gray-200 flex items-center justify-between"
@@ -289,9 +300,9 @@ export function MyPlanningTimelineView({ clientsData }: MyPlanningTimelineViewPr
           {resources.length === 0 ? (
             <div className="text-center py-12 text-forvis-gray-600">
               <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p className="font-semibold">{searchTerm ? 'No Matching Clients' : 'No Allocations'}</p>
+              <p className="font-semibold">{(filters.search || filters.clients.length > 0 || filters.tasks.length > 0 || filters.roles.length > 0) ? 'No Matching Allocations' : 'No Allocations'}</p>
               <p className="text-sm mt-1">
-                {searchTerm ? `No clients match "${searchTerm}"` : "You don't have any task allocations yet"}
+                {(filters.search || filters.clients.length > 0 || filters.tasks.length > 0 || filters.roles.length > 0) ? 'No allocations match your filters' : "You don't have any task allocations yet"}
               </p>
             </div>
           ) : (

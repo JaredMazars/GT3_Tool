@@ -43,6 +43,7 @@ export default function DashboardNav() {
   const { hasFeature: hasServiceLineMappingAccess } = useFeature(Feature.MANAGE_SERVICE_LINES);
   const { hasFeature: hasTemplatesAccess } = useFeature(Feature.MANAGE_TEMPLATES);
   const { hasFeature: hasExternalLinksAccess } = useFeature(Feature.MANAGE_EXTERNAL_LINKS);
+  const { hasFeature: hasToolsAccess } = useFeature(Feature.MANAGE_TOOLS);
 
   // Fetch external links on mount and when pathname changes
   useEffect(() => {
@@ -139,6 +140,13 @@ export default function DashboardNav() {
       label: 'Template Management',
       href: '/dashboard/admin/templates',
       description: 'Manage engagement letter templates',
+    });
+  }
+  if (hasToolsAccess) {
+    adminMenuItems.push({
+      label: 'Tool Management',
+      href: '/dashboard/admin/tools',
+      description: 'Manage tools and service line assignments',
     });
   }
   if (hasExternalLinksAccess) {

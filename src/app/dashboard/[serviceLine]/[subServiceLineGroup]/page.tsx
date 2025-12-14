@@ -42,6 +42,8 @@ import { TaskRole, ServiceLineRole, NonClientEventType, NON_CLIENT_EVENT_CONFIG 
 import { KanbanBoard } from '@/components/features/tasks/Kanban';
 import { KanbanFilters } from '@/components/features/tasks/Kanban/KanbanFilters';
 import { useClientPlannerFilters } from '@/hooks/planning/useClientPlannerFilters';
+import { GroupsFilters, GroupsFiltersType } from '@/components/features/groups/GroupsFilters';
+import { ClientsFilters, ClientsFiltersType } from '@/components/features/clients/ClientsFilters';
 
 export default function SubServiceLineWorkspacePage() {
   const router = useRouter();
@@ -65,7 +67,22 @@ export default function SubServiceLineWorkspacePage() {
   
   // Kanban display mode state (compact vs detailed)
   const [displayMode, setDisplayMode] = useState<'compact' | 'detailed'>('detailed');
-  
+
+  // Groups filters
+  const [groupsFilters, setGroupsFilters] = useState<GroupsFiltersType>({
+    search: '',
+    industries: [],
+    offices: [],
+  });
+
+  // Clients filters
+  const [clientsFilters, setClientsFilters] = useState<ClientsFiltersType>({
+    search: '',
+    industries: [],
+    groups: [],
+    offices: [],
+  });
+
   // Task list view filters (matching Kanban filters structure)
   const [taskFilters, setTaskFilters] = useState({
     search: '',
@@ -499,6 +516,114 @@ export default function SubServiceLineWorkspacePage() {
     return Array.from(clientsMap.values());
   }, [tasks, myTasks, activeTab]);
 
+  // Extract unique filter options for Groups
+  const groupIndustries = useMemo(() => {
+    const industries = new Set<string>();
+    groups.forEach(group => {
+      if (group.industryDescription) industries.add(group.industryDescription);
+    });
+    return Array.from(industries).sort();
+  }, [groups]);
+
+  const groupOffices = useMemo(() => {
+    const offices = new Set<string>();
+    groups.forEach(group => {
+      if (group.officeLocation) offices.add(group.officeLocation);
+    });
+    return Array.from(offices).sort();
+  }, [groups]);
+
+  // Extract unique filter options for Clients
+  const clientIndustries = useMemo(() => {
+    const industries = new Set<string>();
+    clients.forEach(client => {
+      if (client.industryDescription) industries.add(client.industryDescription);
+    });
+    return Array.from(industries).sort();
+  }, [clients]);
+
+  const clientGroups = useMemo(() => {
+    const groupsMap = new Map<string, { name: string; code: string }>();
+    clients.forEach(client => {
+      if (client.groupCode && client.groupDesc) {
+        groupsMap.set(client.groupCode, {
+          name: client.groupDesc,
+          code: client.groupCode,
+        });
+      }
+    });
+    return Array.from(groupsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [clients]);
+
+  const clientOffices = useMemo(() => {
+    const offices = new Set<string>();
+    clients.forEach(client => {
+      if (client.officeLocation) offices.add(client.officeLocation);
+    });
+    return Array.from(offices).sort();
+  }, [clients]);
+
+  // Apply filters to groups
+  const filteredGroups = useMemo(() => {
+    let result = groups;
+    
+    if (groupsFilters.search) {
+      const lower = groupsFilters.search.toLowerCase();
+      result = result.filter(g =>
+        g.groupDesc?.toLowerCase().includes(lower) ||
+        g.groupCode?.toLowerCase().includes(lower)
+      );
+    }
+    
+    if (groupsFilters.industries.length > 0) {
+      result = result.filter(g =>
+        g.industryDescription && groupsFilters.industries.includes(g.industryDescription)
+      );
+    }
+    
+    if (groupsFilters.offices.length > 0) {
+      result = result.filter(g =>
+        g.officeLocation && groupsFilters.offices.includes(g.officeLocation)
+      );
+    }
+    
+    return result;
+  }, [groups, groupsFilters]);
+
+  // Apply filters to clients
+  const filteredClients = useMemo(() => {
+    let result = clients;
+    
+    if (clientsFilters.search) {
+      const lower = clientsFilters.search.toLowerCase();
+      result = result.filter(c =>
+        c.clientNameFull?.toLowerCase().includes(lower) ||
+        c.clientCode?.toLowerCase().includes(lower) ||
+        c.groupDesc?.toLowerCase().includes(lower)
+      );
+    }
+    
+    if (clientsFilters.industries.length > 0) {
+      result = result.filter(c =>
+        c.industryDescription && clientsFilters.industries.includes(c.industryDescription)
+      );
+    }
+    
+    if (clientsFilters.groups.length > 0) {
+      result = result.filter(c =>
+        c.groupCode && clientsFilters.groups.includes(c.groupCode)
+      );
+    }
+    
+    if (clientsFilters.offices.length > 0) {
+      result = result.filter(c =>
+        c.officeLocation && clientsFilters.offices.includes(c.officeLocation)
+      );
+    }
+    
+    return result;
+  }, [clients, clientsFilters]);
+
   // Apply filters to tasks (for list view)
   const filteredTasks = useMemo(() => {
     if (taskViewMode === 'kanban') {
@@ -735,7 +860,7 @@ export default function SubServiceLineWorkspacePage() {
     );
   }
 
-  const currentData = activeTab === 'groups' ? groups : activeTab === 'clients' ? clients : activeTab === 'tasks' ? tasks : activeTab === 'my-tasks' ? myTasks : [];
+  const currentData = activeTab === 'groups' ? filteredGroups : activeTab === 'clients' ? filteredClients : activeTab === 'tasks' ? tasks : activeTab === 'my-tasks' ? myTasks : [];
   const pagination = activeTab === 'groups' ? groupsPagination : activeTab === 'clients' ? clientsPagination : activeTab === 'tasks' ? tasksPagination : activeTab === 'my-tasks' ? myTasksPagination : undefined;
   const totalCount = isFetching && !pagination ? '...' : (pagination?.total ?? 0);
 
@@ -954,53 +1079,26 @@ export default function SubServiceLineWorkspacePage() {
           
           <div className="p-6">
 
-          {/* Search and Filter Bar - Only show for groups and clients tabs */}
-          {(activeTab === 'groups' || activeTab === 'clients') && (
-            <div className="mb-4 flex gap-4 items-center">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
-                <input
-                  type="text"
-                  placeholder={
-                    activeTab === 'groups'
-                      ? 'Search by group name or code...'
-                      : activeTab === 'clients'
-                      ? 'Search by name, code, group, or industry...'
-                      : (activeTab === 'tasks' || activeTab === 'my-tasks')
-                      ? 'Search by task name, client, or service line...'
-                      : 'Search...'
-                  }
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 w-full border border-forvis-gray-300 rounded-lg bg-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-forvis-gray-700">Show:</label>
-                <select
-                  value={itemsPerPage}
-                  onChange={(e) => {
-                    setItemsPerPage(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="border border-forvis-gray-300 rounded-md px-3 py-2 text-sm bg-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent"
-                >
-                  <option value={10}>10</option>
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-              </div>
-            </div>
+          {/* Filter Bars for Groups and Clients */}
+          {activeTab === 'groups' && (
+            <GroupsFilters
+              filters={groupsFilters}
+              onFiltersChange={setGroupsFilters}
+              industries={groupIndustries}
+              offices={groupOffices}
+            />
           )}
 
-          {/* Results count */}
-          {debouncedSearch && pagination && (activeTab === 'groups' || activeTab === 'clients') && (
-            <div className="mb-4 text-sm font-normal text-forvis-gray-800">
-              Found <span className="font-medium">{pagination.total}</span>{' '}
-              {activeTab === 'groups' ? 'group' : activeTab === 'clients' ? 'client' : 'task'}{pagination.total !== 1 ? 's' : ''} matching "{debouncedSearch}"
-            </div>
+          {activeTab === 'clients' && (
+            <ClientsFilters
+              filters={clientsFilters}
+              onFiltersChange={setClientsFilters}
+              industries={clientIndustries}
+              groups={clientGroups}
+              offices={clientOffices}
+            />
           )}
+
 
           {/* Content - Groups, Clients, Tasks, Planner, My Tasks, or My Planning */}
           {activeTab === 'planner' ? (
@@ -1101,12 +1199,14 @@ export default function SubServiceLineWorkspacePage() {
           ) : activeTab === 'groups' ? (
             /* Groups List */
             <div className="bg-forvis-gray-50 rounded-lg border border-forvis-gray-200 shadow-sm p-4">
-              {groups.length === 0 ? (
+              {filteredGroups.length === 0 ? (
                 <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate text-center py-12">
                   <Users className="mx-auto h-12 w-12 text-forvis-gray-400" />
                   <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No groups</h3>
                   <p className="mt-1 text-sm text-forvis-gray-600">
-                    {searchTerm ? 'No groups match your search.' : 'No client groups available in the system.'}
+                    {(groupsFilters.search || groupsFilters.industries.length > 0 || groupsFilters.offices.length > 0) 
+                      ? 'No groups match your filters.' 
+                      : 'No client groups available in the system.'}
                   </p>
                 </div>
               ) : (
@@ -1245,12 +1345,14 @@ export default function SubServiceLineWorkspacePage() {
           ) : activeTab === 'clients' ? (
             /* Clients List */
             <div className="bg-forvis-gray-50 rounded-lg border border-forvis-gray-200 shadow-sm p-4">
-              {clients.length === 0 ? (
+              {filteredClients.length === 0 ? (
                 <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate text-center py-12">
                   <Building2 className="mx-auto h-12 w-12 text-forvis-gray-400" />
                   <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No clients</h3>
                   <p className="mt-1 text-sm text-forvis-gray-600">
-                    {searchTerm ? 'No clients match your search.' : 'No clients available in the system.'}
+                    {(clientsFilters.search || clientsFilters.industries.length > 0 || clientsFilters.groups.length > 0 || clientsFilters.offices.length > 0) 
+                      ? 'No clients match your filters.' 
+                      : 'No clients available in the system.'}
                   </p>
                 </div>
               ) : (
@@ -1423,6 +1525,7 @@ export default function SubServiceLineWorkspacePage() {
                 onViewModeChange={handleViewModeChange}
                 displayMode={displayMode}
                 onDisplayModeChange={setDisplayMode}
+                showSearch={taskViewMode === 'list'}
               />
 
               {taskViewMode === 'kanban' ? (

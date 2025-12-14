@@ -16,6 +16,7 @@ export function KanbanFilters({
   onViewModeChange,
   displayMode,
   onDisplayModeChange,
+  showSearch = true,
 }: KanbanFiltersProps) {
   // Local state for immediate UI feedback
   const [localSearch, setLocalSearch] = useState(filters.search);
@@ -193,18 +194,20 @@ export function KanbanFilters({
           )}
 
           {/* Search */}
-          <div className="flex-1 min-w-[200px]">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-forvis-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by project, client, or code..."
-                value={localSearch}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 border border-forvis-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent text-xs"
-              />
+          {showSearch && (
+            <div className="flex-1 min-w-[200px]">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-forvis-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search by project, client, or code..."
+                  value={localSearch}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 border border-forvis-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent text-xs"
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Include Archived Toggle */}
           <label className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-forvis-gray-300 rounded-lg bg-white cursor-pointer hover:bg-forvis-gray-50 transition-colors">

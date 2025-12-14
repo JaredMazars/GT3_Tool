@@ -40,7 +40,9 @@ import { UserSearchModal } from '@/components/features/tasks/UserManagement/User
 import { AcceptanceTab } from '@/components/features/tasks/AcceptanceTab';
 import { EngagementLetterTab } from '@/components/features/tasks/EngagementLetterTab';
 import { GanttTimeline } from '@/components/features/tasks/TeamPlanner';
+import { WorkSpaceTab } from '@/components/features/tasks/WorkSpaceTab';
 import { canAccessWorkTabs, isClientTask, getBlockedTabMessage } from '@/lib/utils/taskWorkflow';
+import { DollarSign, Briefcase } from 'lucide-react';
 
 interface TabProps {
   selected: boolean;
@@ -452,6 +454,17 @@ export function TaskDetailContent({
           />
         ) : null;
       
+      case 'finance':
+        return <div className="p-6">Finance Tab (Coming Soon)</div>;
+      
+      case 'workspace':
+        return task ? (
+          <WorkSpaceTab 
+            taskId={taskId} 
+            subServiceLineGroup={(task as any).subServiceLineGroupCode || task.SLGroup || 'TAX'} 
+          />
+        ) : null;
+      
       case 'mapping':
         return <MappingPage params={childParams} />;
       case 'balance-sheet':
@@ -701,6 +714,53 @@ export function TaskDetailContent({
                     >
                       Engagement Letter
                     </Tab>
+                    <Tab
+                      onClick={() => setActiveTab('team')}
+                      selected={activeTab === 'team'}
+                      icon={Users}
+                    >
+                      Team
+                    </Tab>
+                    <Tab
+                      onClick={() => setActiveTab('finance')}
+                      selected={activeTab === 'finance'}
+                      icon={DollarSign}
+                    >
+                      Finance
+                    </Tab>
+                    <Tab
+                      onClick={() => setActiveTab('workspace')}
+                      selected={activeTab === 'workspace'}
+                      icon={Briefcase}
+                    >
+                      Work Space
+                    </Tab>
+                  </>
+                )}
+                
+                {!task || !isClientTask(task) && (
+                  <>
+                    <Tab
+                      onClick={() => setActiveTab('team')}
+                      selected={activeTab === 'team'}
+                      icon={Users}
+                    >
+                      Team
+                    </Tab>
+                    <Tab
+                      onClick={() => setActiveTab('finance')}
+                      selected={activeTab === 'finance'}
+                      icon={DollarSign}
+                    >
+                      Finance
+                    </Tab>
+                    <Tab
+                      onClick={() => setActiveTab('workspace')}
+                      selected={activeTab === 'workspace'}
+                      icon={Briefcase}
+                    >
+                      Work Space
+                    </Tab>
                   </>
                 )}
                 
@@ -807,13 +867,6 @@ export function TaskDetailContent({
                   </>
                 )}
                 
-                <Tab
-                  onClick={() => setActiveTab('team')}
-                  selected={activeTab === 'team'}
-                  icon={Users}
-                >
-                  Team
-                </Tab>
                 <Tab
                   onClick={() => setActiveTab('settings')}
                   selected={activeTab === 'settings'}

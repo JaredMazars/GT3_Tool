@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { MyPlanningTimelineView } from './MyPlanningTimelineView';
 import { MyPlanningList } from './MyPlanningList';
 import { LoadingSpinner } from '@/components/ui';
+import { MyPlanningFilters, MyPlanningFiltersType } from './MyPlanningFilters';
 import { Calendar, List } from 'lucide-react';
 import { TaskRole } from '@/types';
 
@@ -38,6 +39,12 @@ export function MyPlanningView() {
   const [clientsData, setClientsData] = useState<ClientAllocationData[]>([]);
   const [flatList, setFlatList] = useState<PlanningListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [filters, setFilters] = useState<MyPlanningFiltersType>({
+    search: '',
+    clients: [],
+    tasks: [],
+    roles: [],
+  });
 
   // Fetch user's allocations
   useEffect(() => {
@@ -73,6 +80,34 @@ export function MyPlanningView() {
     fetchAllocations();
   }, []);
 
+  // Extract unique filter options from allocations
+  const uniqueClients = useMemo(() => {
+    const clientsMap = new Map<string, { name: string; code: string }>();
+    flatList.forEach(item => {
+      if (item.clientCode) {
+        clientsMap.set(item.clientCode, {
+          name: item.clientName,
+          code: item.clientCode,
+        });
+      }
+    });
+    return Array.from(clientsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [flatList]);
+
+  const uniqueTasks = useMemo(() => {
+    const tasksMap = new Map<string, { name: string; code: string }>();
+    flatList.forEach(item => {
+      const key = item.taskCode || item.taskName;
+      if (key && !tasksMap.has(key)) {
+        tasksMap.set(key, {
+          name: item.taskName,
+          code: item.taskCode || '',
+        });
+      }
+    });
+    return Array.from(tasksMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [flatList]);
+
   if (isLoading) {
     return (
       <div className="bg-white rounded-lg shadow-corporate border-2 border-forvis-gray-200 p-12">
@@ -95,41 +130,21 @@ export function MyPlanningView() {
 
   return (
     <div className="space-y-4">
-      {/* View Toggle */}
-      <div className="flex justify-center">
-        <div className="inline-flex gap-2 p-1 bg-forvis-gray-200 rounded-lg">
-          <button
-            onClick={() => setView('timeline')}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all ${
-              view === 'timeline'
-                ? 'text-white shadow-corporate'
-                : 'text-forvis-gray-700 hover:bg-forvis-gray-300'
-            }`}
-            style={view === 'timeline' ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' } : {}}
-          >
-            <Calendar className="w-4 h-4" />
-            <span>Timeline View</span>
-          </button>
-          <button
-            onClick={() => setView('list')}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all ${
-              view === 'list'
-                ? 'text-white shadow-corporate'
-                : 'text-forvis-gray-700 hover:bg-forvis-gray-300'
-            }`}
-            style={view === 'list' ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' } : {}}
-          >
-            <List className="w-4 h-4" />
-            <span>List View</span>
-          </button>
-        </div>
-      </div>
+      {/* Unified Filters */}
+      <MyPlanningFilters
+        filters={filters}
+        onFiltersChange={setFilters}
+        clients={uniqueClients}
+        tasks={uniqueTasks}
+        viewMode={view}
+        onViewModeChange={setView}
+      />
 
       {/* Content */}
       {view === 'timeline' ? (
-        <MyPlanningTimelineView clientsData={clientsData} />
+        <MyPlanningTimelineView clientsData={clientsData} filters={filters} />
       ) : (
-        <MyPlanningList allocations={flatList} />
+        <MyPlanningList allocations={flatList} filters={filters} />
       )}
     </div>
   );

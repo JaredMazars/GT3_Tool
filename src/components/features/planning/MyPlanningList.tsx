@@ -6,6 +6,7 @@ import { isBefore, startOfDay } from 'date-fns';
 import { TaskRole } from '@/types';
 import { PlannerTable } from './PlannerTable';
 import { usePlannerTable, PlannerItem, PlannerFilters } from '@/hooks/planning/usePlannerTable';
+import { MyPlanningFiltersType } from './MyPlanningFilters';
 
 interface PlanningListItem {
   id: number;
@@ -27,9 +28,10 @@ interface PlanningListItem {
 
 interface MyPlanningListProps {
   allocations: PlanningListItem[];
+  filters: MyPlanningFiltersType;
 }
 
-export function MyPlanningList({ allocations }: MyPlanningListProps) {
+export function MyPlanningList({ allocations, filters }: MyPlanningListProps) {
   const router = useRouter();
   const [isNavigating, setIsNavigating] = useState(false);
 
@@ -63,34 +65,62 @@ export function MyPlanningList({ allocations }: MyPlanningListProps) {
     return data.filter(a => !isBefore(startOfDay(new Date(a.endDate)), today));
   }, [data]);
 
+  // Apply filters from MyPlanningFilters component
+  const filteredData = useMemo(() => {
+    let result = currentAndFutureData;
+    
+    // Search filter
+    if (filters.search) {
+      const lower = filters.search.toLowerCase();
+      result = result.filter(item =>
+        item.clientName?.toLowerCase().includes(lower) ||
+        item.clientCode?.toLowerCase().includes(lower) ||
+        item.taskName?.toLowerCase().includes(lower) ||
+        item.taskCode?.toLowerCase().includes(lower)
+      );
+    }
+    
+    // Client filter
+    if (filters.clients.length > 0) {
+      result = result.filter(item =>
+        item.clientCode && filters.clients.includes(item.clientCode)
+      );
+    }
+    
+    // Task filter
+    if (filters.tasks.length > 0) {
+      result = result.filter(item => {
+        const taskKey = item.taskCode || item.taskName;
+        return taskKey && filters.tasks.includes(taskKey);
+      });
+    }
+    
+    // Role filter
+    if (filters.roles.length > 0) {
+      result = result.filter(item =>
+        filters.roles.includes(item.role)
+      );
+    }
+    
+    return result;
+  }, [currentAndFutureData, filters]);
+
   const uniqueClients = useMemo(() => {
-    const clients = new Set(currentAndFutureData.map(i => `${i.clientName}|${i.clientCode}`));
+    const clients = new Set(filteredData.map(i => `${i.clientName}|${i.clientCode}`));
     return Array.from(clients).map(c => {
       const [name = '', code = ''] = c.split('|');
       return { name, code };
     }).sort((a, b) => a.name.localeCompare(b.name));
-  }, [currentAndFutureData]);
+  }, [filteredData]);
 
-  // Use custom filter logic
-  const filterFn = (item: PlannerItem, filters: PlannerFilters) => {
-    if (filters.searchTerm) {
-      const lower = filters.searchTerm.toLowerCase();
-      const match = 
-        (item.clientName?.toLowerCase().includes(lower)) ||
-        (item.clientCode?.toLowerCase().includes(lower)) ||
-        (item.taskName?.toLowerCase().includes(lower)) ||
-        (item.taskCode?.toLowerCase().includes(lower));
-      if (!match) return false;
-    }
-
-    if (filters.role && item.role !== filters.role) return false;
-    if (filters.client && item.clientCode !== filters.client) return false;
-
+  // Use custom filter logic - now just for internal PlannerTable features (sorting, pagination)
+  const filterFn = (item: PlannerItem, _filters: PlannerFilters) => {
+    // All filtering is handled above, this is just for the table's internal logic
     return true;
   };
 
   const tableState = usePlannerTable({
-    data: currentAndFutureData,
+    data: filteredData,
     initialSortField: 'startDate',
     initialSortDirection: 'desc',
     filterFn

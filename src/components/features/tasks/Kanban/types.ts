@@ -96,6 +96,7 @@ export interface KanbanFiltersProps {
   onViewModeChange?: (mode: 'list' | 'kanban') => void;
   displayMode?: CardDisplayMode;
   onDisplayModeChange?: (mode: CardDisplayMode) => void;
+  showSearch?: boolean;
 }
 
 export interface KanbanMetricsProps {
