@@ -52,7 +52,7 @@ export async function GET(
       orderBy: { sortOrder: 'asc' },
     });
 
-    return successResponse(taskTools);
+    return NextResponse.json(successResponse(taskTools));
   } catch (error) {
     return handleApiError(error, 'Failed to fetch task tools');
   }
@@ -144,7 +144,7 @@ export async function POST(
       },
     });
 
-    return successResponse(taskTool, 201);
+    return NextResponse.json(successResponse(taskTool), { status: 201 });
   } catch (error) {
     return handleApiError(error, 'Failed to add tool to task');
   }
@@ -208,7 +208,7 @@ export async function DELETE(
       },
     });
 
-    return successResponse({ message: 'Tool removed from task successfully' });
+    return NextResponse.json(successResponse({ message: 'Tool removed from task successfully' }));
   } catch (error) {
     return handleApiError(error, 'Failed to remove tool from task');
   }

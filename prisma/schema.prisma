@@ -1023,6 +1023,7 @@ model Task {
   TaxAdjustment            TaxAdjustment[]
   Wip                      Wip[]
   WIPTransactions          WIPTransactions[]
+  WorkspaceFolder          WorkspaceFolder[]
 
   @@index([Active])
   @@index([GSClientID])
@@ -1457,4 +1458,88 @@ model TaskTool {
   @@index([toolId])
   @@index([addedBy])
   @@index([taskId, sortOrder])
+}
+
+model WorkspaceFolder {
+  id                  Int               @id @default(autoincrement())
+  name                String            @db.NVarChar(255)
+  description         String?           @db.NVarChar(Max)
+  taskId              Int?
+  serviceLine         String?           @db.NVarChar(50)
+  subServiceLineGroup String?           @db.NVarChar(100)
+  parentFolderId      Int?
+  driveId             String?           @db.NVarChar(255)
+  itemId              String?           @db.NVarChar(255)
+  sharepointUrl       String?           @db.NVarChar(500)
+  createdBy           String            @db.NVarChar(200)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  active              Boolean           @default(true)
+  Task                Task?             @relation(fields: [taskId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ParentFolder        WorkspaceFolder?  @relation("FolderHierarchy", fields: [parentFolderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ChildFolders        WorkspaceFolder[] @relation("FolderHierarchy")
+  Files               WorkspaceFile[]
+
+  @@index([taskId])
+  @@index([serviceLine])
+  @@index([parentFolderId])
+  @@index([createdBy])
+  @@index([active])
+}
+
+model WorkspaceFile {
+  id              Int                       @id @default(autoincrement())
+  folderId        Int
+  name            String                    @db.NVarChar(255)
+  description     String?                   @db.NVarChar(Max)
+  fileType        String                    @db.NVarChar(50)
+  fileSize        BigInt
+  driveId         String                    @db.NVarChar(255)
+  itemId          String                    @db.NVarChar(255)
+  webUrl          String                    @db.NVarChar(500)
+  embedUrl        String?                   @db.NVarChar(500)
+  thumbnailUrl    String?                   @db.NVarChar(500)
+  uploadedBy      String                    @db.NVarChar(200)
+  lastModifiedBy  String?                   @db.NVarChar(200)
+  lastModifiedAt  DateTime?
+  version         Int                       @default(1)
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+  Folder          WorkspaceFolder           @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  Activity        WorkspaceFileActivity[]
+  Permissions     WorkspaceFilePermission[]
+
+  @@index([folderId])
+  @@index([uploadedBy])
+  @@index([fileType])
+  @@index([createdAt])
+}
+
+model WorkspaceFileActivity {
+  id          Int           @id @default(autoincrement())
+  fileId      Int
+  userId      String        @db.NVarChar(200)
+  action      String        @db.NVarChar(50)
+  description String?       @db.NVarChar(500)
+  timestamp   DateTime      @default(now())
+  File        WorkspaceFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([fileId])
+  @@index([userId])
+  @@index([timestamp])
+}
+
+model WorkspaceFilePermission {
+  id          Int           @id @default(autoincrement())
+  fileId      Int
+  userId      String?       @db.NVarChar(200)
+  role        String        @db.NVarChar(50)
+  serviceLine String?       @db.NVarChar(50)
+  grantedBy   String        @db.NVarChar(200)
+  createdAt   DateTime      @default(now())
+  File        WorkspaceFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([fileId])
+  @@index([userId])
+  @@index([serviceLine])
 }

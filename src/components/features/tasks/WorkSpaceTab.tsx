@@ -194,12 +194,16 @@ export function WorkSpaceTab({ taskId, subServiceLineGroup }: WorkSpaceTabProps)
 
                 <div className="p-6">
                   {ToolComponent ? (
-                    <ToolComponent taskId={taskId} />
+                    <ToolComponent 
+                      taskId={taskId}
+                      toolId={taskTool.toolId}
+                      subTabs={taskTool.tool.subTabs}
+                    />
                   ) : (
                     <Banner
                       variant="warning"
                       title="Tool Not Available"
-                      message={`The tool "${taskTool.tool.code}" is not registered in the system.`}
+                      message={`The tool "${taskTool.tool.code}" is not registered in the system. Please ensure the tool component is properly registered.`}
                     />
                   )}
                 </div>

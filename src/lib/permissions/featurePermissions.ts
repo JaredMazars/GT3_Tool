@@ -52,6 +52,12 @@ export const SERVICE_LINE_ROLE_FEATURES: Record<ServiceLineRole, Feature[]> = {
     Feature.DOWNLOAD_DOCUMENTS,
     Feature.DELETE_DOCUMENTS,
 
+    // Workspace
+    Feature.ACCESS_WORKSPACE,
+    Feature.MANAGE_WORKSPACE_FILES,
+    Feature.DELETE_WORKSPACE_FILES,
+    Feature.MANAGE_WORKSPACE_FOLDERS,
+
     // Business Development
     Feature.MANAGE_OPPORTUNITIES,
     Feature.MANAGE_CONTACTS,
@@ -93,6 +99,12 @@ export const SERVICE_LINE_ROLE_FEATURES: Record<ServiceLineRole, Feature[]> = {
     Feature.UPLOAD_DOCUMENTS,
     Feature.DOWNLOAD_DOCUMENTS,
 
+    // Workspace
+    Feature.ACCESS_WORKSPACE,
+    Feature.MANAGE_WORKSPACE_FILES,
+    Feature.DELETE_WORKSPACE_FILES,
+    Feature.MANAGE_WORKSPACE_FOLDERS,
+
     // Business Development
     Feature.MANAGE_OPPORTUNITIES,
     Feature.VIEW_BD_ANALYTICS,
@@ -121,6 +133,11 @@ export const SERVICE_LINE_ROLE_FEATURES: Record<ServiceLineRole, Feature[]> = {
     Feature.UPLOAD_DOCUMENTS,
     Feature.DOWNLOAD_DOCUMENTS,
 
+    // Workspace
+    Feature.ACCESS_WORKSPACE,
+    Feature.MANAGE_WORKSPACE_FILES,
+    Feature.MANAGE_WORKSPACE_FOLDERS,
+
     // Advanced
     Feature.USE_AI_TOOLS,
     Feature.EXPORT_REPORTS,
@@ -137,6 +154,10 @@ export const SERVICE_LINE_ROLE_FEATURES: Record<ServiceLineRole, Feature[]> = {
     Feature.UPLOAD_DOCUMENTS,
     Feature.DOWNLOAD_DOCUMENTS,
 
+    // Workspace
+    Feature.ACCESS_WORKSPACE,
+    Feature.MANAGE_WORKSPACE_FILES,
+
     // Advanced
     Feature.USE_AI_TOOLS,
     Feature.VIEW_WIP_DATA,
@@ -151,6 +172,10 @@ export const SERVICE_LINE_ROLE_FEATURES: Record<ServiceLineRole, Feature[]> = {
     // Documents
     Feature.UPLOAD_DOCUMENTS,
     Feature.DOWNLOAD_DOCUMENTS,
+
+    // Workspace
+    Feature.ACCESS_WORKSPACE,
+    Feature.MANAGE_WORKSPACE_FILES,
   ],
 
   [ServiceLineRole.VIEWER]: [
@@ -161,6 +186,9 @@ export const SERVICE_LINE_ROLE_FEATURES: Record<ServiceLineRole, Feature[]> = {
 
     // Documents
     Feature.DOWNLOAD_DOCUMENTS,
+
+    // Workspace
+    Feature.ACCESS_WORKSPACE,
   ],
 };
 

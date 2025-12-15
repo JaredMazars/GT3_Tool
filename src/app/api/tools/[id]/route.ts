@@ -62,7 +62,7 @@ export async function GET(
       return NextResponse.json({ error: 'Tool not found' }, { status: 404 });
     }
 
-    return successResponse(tool);
+    return NextResponse.json(successResponse(tool));
   } catch (error) {
     return handleApiError(error, 'Failed to fetch tool');
   }
@@ -151,7 +151,7 @@ export async function PUT(
       },
     });
 
-    return successResponse(tool);
+    return NextResponse.json(successResponse(tool));
   } catch (error) {
     return handleApiError(error, 'Failed to update tool');
   }
@@ -213,7 +213,7 @@ export async function DELETE(
       where: { id: toolId },
     });
 
-    return successResponse({ message: 'Tool deleted successfully' });
+    return NextResponse.json(successResponse({ message: 'Tool deleted successfully' }));
   } catch (error) {
     return handleApiError(error, 'Failed to delete tool');
   }

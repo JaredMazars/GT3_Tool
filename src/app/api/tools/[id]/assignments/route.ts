@@ -9,7 +9,7 @@ import { sanitizeObject } from '@/lib/utils/sanitization';
 
 /**
  * GET /api/tools/[id]/assignments
- * Get all SubServiceLineGroup assignments for a tool
+ * Get all sub-service line group assignments for a tool
  */
 export async function GET(
   request: NextRequest,
@@ -34,37 +34,41 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // 4. Verify tool exists
+    // 4. Get tool with assignments
     const tool = await prisma.tool.findUnique({
       where: { id: toolId },
-      select: { id: true, name: true },
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        description: true,
+        serviceLines: {
+          where: { active: true },
+          select: {
+            subServiceLineGroup: true,
+          },
+        },
+      },
     });
 
     if (!tool) {
       return NextResponse.json({ error: 'Tool not found' }, { status: 404 });
     }
 
-    // 5. Get assignments
-    const assignments = await prisma.serviceLineTool.findMany({
-      where: {
-        toolId,
-        active: true,
-      },
-      select: {
-        id: true,
-        subServiceLineGroup: true,
-        active: true,
-        createdAt: true,
-      },
-      orderBy: {
-        subServiceLineGroup: 'asc',
-      },
-    });
+    // 5. Extract unique sub-service line groups
+    const assignments = [...new Set(tool.serviceLines.map((sl) => sl.subServiceLineGroup))];
 
-    return successResponse({
-      tool,
-      assignments: assignments.map((a) => a.subServiceLineGroup),
-    });
+    return NextResponse.json(
+      successResponse({
+        tool: {
+          id: tool.id,
+          name: tool.name,
+          code: tool.code,
+          description: tool.description,
+        },
+        assignments,
+      })
+    );
   } catch (error) {
     return handleApiError(error, 'Failed to fetch tool assignments');
   }
@@ -72,7 +76,7 @@ export async function GET(
 
 /**
  * PUT /api/tools/[id]/assignments
- * Update assignments (replace all with new list)
+ * Update sub-service line group assignments for a tool
  */
 export async function PUT(
   request: NextRequest,
@@ -109,46 +113,19 @@ export async function PUT(
       );
     }
 
-    // 5. Verify tool exists
+    // 5. Check if tool exists
     const tool = await prisma.tool.findUnique({
       where: { id: toolId },
-      select: { id: true, name: true },
+      select: { id: true },
     });
 
     if (!tool) {
       return NextResponse.json({ error: 'Tool not found' }, { status: 404 });
     }
 
-    // 6. Check if any tasks are using this tool with removed assignments
-    const existingAssignments = await prisma.serviceLineTool.findMany({
-      where: { toolId },
-      select: { subServiceLineGroup: true },
-    });
-
-    const existingGroups = existingAssignments.map((a) => a.subServiceLineGroup);
-    const removedGroups = existingGroups.filter((g) => !subServiceLineGroups.includes(g));
-
-    if (removedGroups.length > 0) {
-      // Check if any tasks from these groups are using this tool
-      const tasksUsingTool = await prisma.taskTool.count({
-        where: {
-          toolId,
-        },
-      });
-
-      if (tasksUsingTool > 0) {
-        return NextResponse.json(
-          {
-            error: `Cannot remove assignments. ${tasksUsingTool} task(s) are currently using this tool. Please remove the tool from those tasks first.`,
-          },
-          { status: 400 }
-        );
-      }
-    }
-
-    // 7. Update assignments in a transaction
+    // 6. Update assignments in a transaction
     await prisma.$transaction(async (tx) => {
-      // Delete all existing assignments
+      // Delete all existing assignments for this tool
       await tx.serviceLineTool.deleteMany({
         where: { toolId },
       });
@@ -165,21 +142,36 @@ export async function PUT(
       }
     });
 
-    // 8. Fetch updated assignments
-    const updatedAssignments = await prisma.serviceLineTool.findMany({
-      where: { toolId },
+    // 7. Fetch updated tool with assignments
+    const updatedTool = await prisma.tool.findUnique({
+      where: { id: toolId },
       select: {
-        subServiceLineGroup: true,
-      },
-      orderBy: {
-        subServiceLineGroup: 'asc',
+        id: true,
+        name: true,
+        code: true,
+        description: true,
+        serviceLines: {
+          where: { active: true },
+          select: {
+            subServiceLineGroup: true,
+          },
+        },
       },
     });
 
-    return successResponse({
-      tool,
-      assignments: updatedAssignments.map((a) => a.subServiceLineGroup),
-    });
+    const assignments = [...new Set(updatedTool!.serviceLines.map((sl) => sl.subServiceLineGroup))];
+
+    return NextResponse.json(
+      successResponse({
+        tool: {
+          id: updatedTool!.id,
+          name: updatedTool!.name,
+          code: updatedTool!.code,
+          description: updatedTool!.description,
+        },
+        assignments,
+      })
+    );
   } catch (error) {
     return handleApiError(error, 'Failed to update tool assignments');
   }

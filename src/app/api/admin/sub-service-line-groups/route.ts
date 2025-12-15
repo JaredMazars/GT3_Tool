@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
       groups: groups.sort((a, b) => a.code.localeCompare(b.code)),
     }));
 
-    return successResponse(response);
+    return NextResponse.json(successResponse(response));
   } catch (error) {
     return handleApiError(error, 'Failed to fetch sub-service line groups');
   }

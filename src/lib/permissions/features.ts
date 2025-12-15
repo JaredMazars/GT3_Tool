@@ -31,6 +31,12 @@ export enum Feature {
   DOWNLOAD_DOCUMENTS = 'download_documents',
   DELETE_DOCUMENTS = 'delete_documents',
 
+  // Workspace
+  ACCESS_WORKSPACE = 'access_workspace',
+  MANAGE_WORKSPACE_FILES = 'manage_workspace_files',
+  DELETE_WORKSPACE_FILES = 'delete_workspace_files',
+  MANAGE_WORKSPACE_FOLDERS = 'manage_workspace_folders',
+
   // Business Development
   MANAGE_OPPORTUNITIES = 'manage_opportunities',
   MANAGE_CONTACTS = 'manage_contacts',
@@ -83,6 +89,12 @@ export const FEATURE_CATEGORIES = {
     Feature.DOWNLOAD_DOCUMENTS,
     Feature.DELETE_DOCUMENTS,
   ],
+  WORKSPACE: [
+    Feature.ACCESS_WORKSPACE,
+    Feature.MANAGE_WORKSPACE_FILES,
+    Feature.DELETE_WORKSPACE_FILES,
+    Feature.MANAGE_WORKSPACE_FOLDERS,
+  ],
   BUSINESS_DEVELOPMENT: [
     Feature.MANAGE_OPPORTUNITIES,
     Feature.MANAGE_CONTACTS,
@@ -126,6 +138,11 @@ export const FEATURE_DESCRIPTIONS: Record<Feature, string> = {
   [Feature.UPLOAD_DOCUMENTS]: 'Upload documents to tasks and clients',
   [Feature.DOWNLOAD_DOCUMENTS]: 'Download documents',
   [Feature.DELETE_DOCUMENTS]: 'Delete documents',
+
+  [Feature.ACCESS_WORKSPACE]: 'Access the collaborative workspace',
+  [Feature.MANAGE_WORKSPACE_FILES]: 'Upload and edit workspace files',
+  [Feature.DELETE_WORKSPACE_FILES]: 'Delete workspace files',
+  [Feature.MANAGE_WORKSPACE_FOLDERS]: 'Create and manage workspace folders',
 
   [Feature.MANAGE_OPPORTUNITIES]: 'Create and manage BD opportunities',
   [Feature.MANAGE_CONTACTS]: 'Create and manage BD contacts',

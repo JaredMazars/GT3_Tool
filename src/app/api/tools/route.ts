@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
       ],
     });
 
-    return successResponse(tools);
+    return NextResponse.json(successResponse(tools));
   } catch (error) {
     return handleApiError(error, 'Failed to fetch tools');
   }

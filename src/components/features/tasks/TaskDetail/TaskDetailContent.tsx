@@ -41,8 +41,9 @@ import { AcceptanceTab } from '@/components/features/tasks/AcceptanceTab';
 import { EngagementLetterTab } from '@/components/features/tasks/EngagementLetterTab';
 import { GanttTimeline } from '@/components/features/tasks/TeamPlanner';
 import { WorkSpaceTab } from '@/components/features/tasks/WorkSpaceTab';
+import { TaskWorkspaceTab } from '@/components/features/tasks/TaskWorkspaceTab';
 import { canAccessWorkTabs, isClientTask, getBlockedTabMessage } from '@/lib/utils/taskWorkflow';
-import { DollarSign, Briefcase } from 'lucide-react';
+import { DollarSign, Briefcase, FolderOpen } from 'lucide-react';
 
 interface TabProps {
   selected: boolean;
@@ -465,6 +466,11 @@ export function TaskDetailContent({
           />
         ) : null;
       
+      case 'documents':
+        return task ? (
+          <TaskWorkspaceTab taskId={taskId} />
+        ) : null;
+      
       case 'mapping':
         return <MappingPage params={childParams} />;
       case 'balance-sheet':
@@ -733,7 +739,14 @@ export function TaskDetailContent({
                       selected={activeTab === 'workspace'}
                       icon={Briefcase}
                     >
-                      Work Space
+                      Tools
+                    </Tab>
+                    <Tab
+                      onClick={() => setActiveTab('documents')}
+                      selected={activeTab === 'documents'}
+                      icon={FolderOpen}
+                    >
+                      Documents
                     </Tab>
                   </>
                 )}
@@ -759,7 +772,14 @@ export function TaskDetailContent({
                       selected={activeTab === 'workspace'}
                       icon={Briefcase}
                     >
-                      Work Space
+                      Tools
+                    </Tab>
+                    <Tab
+                      onClick={() => setActiveTab('documents')}
+                      selected={activeTab === 'documents'}
+                      icon={FolderOpen}
+                    >
+                      Documents
                     </Tab>
                   </>
                 )}

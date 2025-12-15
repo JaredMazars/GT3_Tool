@@ -105,7 +105,7 @@ export function getLogoutUrl(postLogoutRedirectUri: string): string {
 export async function handleCallback(code: string, redirectUri: string) {
   const tokenRequest = {
     code,
-    scopes: ['user.read', 'openid', 'profile', 'email'],
+    scopes: ['user.read', 'openid', 'profile', 'email', 'Files.ReadWrite.All', 'Sites.ReadWrite.All'],
     redirectUri,
   };
 
