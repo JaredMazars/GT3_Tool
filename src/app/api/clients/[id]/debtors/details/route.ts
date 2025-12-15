@@ -76,6 +76,7 @@ export async function GET(
         InvNumber: true,
         Reference: true,
         ServLineCode: true,
+        Narration: true,
         updatedAt: true,
       },
     });

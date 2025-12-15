@@ -11,6 +11,7 @@ export interface DebtorTransactionRecord {
   EntryType: string | null;
   InvNumber: string | null;
   Reference: string | null;
+  Narration: string | null;
   ServLineCode: string;
   updatedAt: Date;
 }
@@ -37,6 +38,7 @@ export interface PaymentTransaction {
   amount: number;
   reference: string | null;
   entryType: string | null;
+  narration: string | null;
 }
 
 export interface InvoiceDetail {
@@ -464,6 +466,7 @@ export function getInvoiceDetailsByBucket(
       amount: txn.Total || 0,
       reference: txn.Reference,
       entryType: txn.EntryType,
+      narration: txn.Narration,
     }));
     
     // Create invoice detail

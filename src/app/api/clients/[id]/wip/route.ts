@@ -144,7 +144,19 @@ export async function GET(
       );
     }
 
-    // 4-5. Execute - Fetch WIP transactions for this client
+    // 4-5. Execute - First, get CARL partner employee codes
+    const carlPartners = await prisma.employee.findMany({
+      where: {
+        EmpCatCode: 'CARL',
+      },
+      select: {
+        EmpCode: true,
+      },
+    });
+
+    const carlPartnerCodes = new Set(carlPartners.map(emp => emp.EmpCode));
+
+    // Fetch ALL WIP transactions for this client (including Carl Partners)
     const wipTransactions = await prisma.wIPTransactions.findMany({
       where: {
         GSClientID: GSClientID,
@@ -156,9 +168,16 @@ export async function GET(
         Cost: true,
         Hour: true,
         TType: true,
+        EmpCode: true,
         updatedAt: true,
       },
     });
+
+    // Set cost to 0 for Carl Partner transactions
+    const processedTransactions = wipTransactions.map(txn => ({
+      ...txn,
+      Cost: txn.EmpCode && carlPartnerCodes.has(txn.EmpCode) ? 0 : txn.Cost,
+    }));
 
     // Get Service Line External mappings to Master Service Lines
     const serviceLineExternals = await prisma.serviceLineExternal.findMany({
@@ -176,17 +195,17 @@ export async function GET(
       }
     });
 
-    // Aggregate WIP transactions by Master Service Line
+    // Aggregate WIP transactions by Master Service Line using processed transactions
     const groupedData = aggregateWipTransactionsByServiceLine(
-      wipTransactions,
+      processedTransactions,
       servLineToMasterMap
     );
 
-    // Calculate overall totals
-    const overallTotals = aggregateOverallWipData(wipTransactions);
+    // Calculate overall totals using processed transactions
+    const overallTotals = aggregateOverallWipData(processedTransactions);
     
     // Count unique tasks
-    const taskCount = countUniqueTasks(wipTransactions);
+    const taskCount = countUniqueTasks(processedTransactions);
     overallTotals.taskCount = taskCount;
 
     // Fetch Master Service Line names

@@ -191,7 +191,19 @@ export async function GET(
     const accessibleServiceLines = await getUserServiceLines(user.id);
     const accessibleServLineCodes = accessibleServiceLines.map(sl => String(sl.serviceLine));
 
-    // Fetch WIP transactions for all clients in the group
+    // Get CARL partner employee codes
+    const carlPartners = await prisma.employee.findMany({
+      where: {
+        EmpCatCode: 'CARL',
+      },
+      select: {
+        EmpCode: true,
+      },
+    });
+
+    const carlPartnerCodes = new Set(carlPartners.map(emp => emp.EmpCode));
+
+    // Fetch ALL WIP transactions for all clients in the group (including Carl Partners)
     const wipTransactions = await prisma.wIPTransactions.findMany({
       where: {
         GSClientID: {
@@ -205,6 +217,7 @@ export async function GET(
         Cost: true,
         Hour: true,
         TType: true,
+        EmpCode: true,
         updatedAt: true,
       },
     });
@@ -213,6 +226,12 @@ export async function GET(
     const filteredWipTransactions = wipTransactions.filter(transaction => 
       transaction.TaskServLine && accessibleServLineCodes.includes(transaction.TaskServLine)
     );
+
+    // Set cost to 0 for Carl Partner transactions
+    const processedTransactions = filteredWipTransactions.map(txn => ({
+      ...txn,
+      Cost: txn.EmpCode && carlPartnerCodes.has(txn.EmpCode) ? 0 : txn.Cost,
+    }));
 
     // Get Service Line External mappings to Master Service Lines
     const serviceLineExternals = await prisma.serviceLineExternal.findMany({
@@ -235,17 +254,17 @@ export async function GET(
       }
     });
 
-    // Aggregate WIP transactions by Master Service Line
+    // Aggregate WIP transactions by Master Service Line using processed transactions
     const groupedData = aggregateWipTransactionsByServiceLine(
-      filteredWipTransactions,
+      processedTransactions,
       servLineToMasterMap
     );
 
-    // Calculate overall totals
-    const overallTotals = aggregateOverallWipData(filteredWipTransactions);
+    // Calculate overall totals using processed transactions
+    const overallTotals = aggregateOverallWipData(processedTransactions);
     
     // Count unique tasks
-    const taskCount = countUniqueTasks(filteredWipTransactions);
+    const taskCount = countUniqueTasks(processedTransactions);
     overallTotals.taskCount = taskCount;
 
     // Fetch Master Service Line names

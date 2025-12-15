@@ -156,26 +156,28 @@ export function InvoiceDetailsModal({
                 <div className="col-span-1 text-center">Days</div>
                 <div className="col-span-1">Service</div>
               </div>
+              
+              <p className="text-xs text-forvis-gray-500 px-4 mt-2 italic">
+                Click on any invoice row to view detailed payment history and narrations
+              </p>
 
               {currentInvoices.map((invoice, index) => (
                 <div key={invoice.invoiceNumber} className="border border-forvis-gray-200 rounded-lg overflow-hidden">
-                  {/* Invoice Summary Row */}
+                  {/* Invoice Summary Row - Clickable */}
                   <div
-                    className={`grid grid-cols-12 gap-4 p-4 ${
+                    onClick={() => toggleInvoice(invoice.invoiceNumber)}
+                    className={`grid grid-cols-12 gap-4 p-4 cursor-pointer transition-colors hover:bg-forvis-blue-50 ${
                       index % 2 === 0 ? 'bg-white' : 'bg-forvis-gray-50'
-                    }`}
+                    } ${expandedInvoices.has(invoice.invoiceNumber) ? 'bg-forvis-blue-50' : ''}`}
                   >
                     <div className="col-span-2 flex items-center gap-2">
-                      <button
-                        onClick={() => toggleInvoice(invoice.invoiceNumber)}
-                        className="flex-shrink-0 hover:bg-forvis-gray-200 rounded p-0.5 transition-colors"
-                      >
+                      <div className="flex-shrink-0">
                         {expandedInvoices.has(invoice.invoiceNumber) ? (
-                          <ChevronDown className="h-4 w-4 text-forvis-gray-600" />
+                          <ChevronDown className="h-4 w-4 text-forvis-blue-600" />
                         ) : (
                           <ChevronRight className="h-4 w-4 text-forvis-gray-600" />
                         )}
-                      </button>
+                      </div>
                       <span className="font-medium text-forvis-blue-600 text-sm truncate">
                         {invoice.invoiceNumber}
                       </span>
@@ -203,28 +205,41 @@ export function InvoiceDetailsModal({
                   {/* Expanded Payment History */}
                   {expandedInvoices.has(invoice.invoiceNumber) && (
                     <div className="border-t border-forvis-gray-200 bg-forvis-gray-50 p-4">
-                      <h4 className="text-sm font-semibold text-forvis-gray-900 mb-3">Payment History</h4>
+                      <h4 className="text-sm font-semibold text-forvis-gray-900 mb-3">Payment History & Transaction Details</h4>
                       {invoice.paymentHistory.length === 0 ? (
                         <p className="text-sm text-forvis-gray-600">No payment transactions</p>
                       ) : (
-                        <div className="space-y-1">
+                        <div className="space-y-2">
                           {invoice.paymentHistory.map((payment, pIdx) => (
                             <div
                               key={pIdx}
-                              className="grid grid-cols-12 gap-4 text-sm py-2 px-3 bg-white rounded border border-forvis-gray-100"
+                              className="bg-white rounded-lg border border-forvis-gray-200 p-3"
                             >
-                              <div className="col-span-3 text-forvis-gray-700">
-                                {formatDate(payment.date)}
+                              {/* Transaction Summary Row */}
+                              <div className="grid grid-cols-12 gap-4 text-sm">
+                                <div className="col-span-3 text-forvis-gray-700">
+                                  {formatDate(payment.date)}
+                                </div>
+                                <div className={`col-span-3 font-medium ${payment.amount >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                  {formatCurrency(payment.amount)}
+                                </div>
+                                <div className="col-span-3 text-forvis-gray-600 text-xs">
+                                  {payment.entryType || 'N/A'}
+                                </div>
+                                <div className="col-span-3 text-forvis-gray-600 text-xs truncate">
+                                  {payment.reference || '-'}
+                                </div>
                               </div>
-                              <div className={`col-span-3 font-medium ${payment.amount >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                {formatCurrency(payment.amount)}
-                              </div>
-                              <div className="col-span-3 text-forvis-gray-600 text-xs">
-                                {payment.entryType || 'N/A'}
-                              </div>
-                              <div className="col-span-3 text-forvis-gray-600 text-xs truncate">
-                                {payment.reference || '-'}
-                              </div>
+                              
+                              {/* Narration */}
+                              {payment.narration && (
+                                <div className="mt-2 pt-2 border-t border-forvis-gray-100">
+                                  <p className="text-xs font-medium text-forvis-gray-700 mb-1">Narration:</p>
+                                  <p className="text-xs text-forvis-gray-600 leading-relaxed">
+                                    {payment.narration}
+                                  </p>
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
