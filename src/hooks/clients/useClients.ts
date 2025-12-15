@@ -3,8 +3,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 // Query Keys
+// v2: Removed serviceLine/subServiceLineGroup from cache key (all clients shown)
 export const clientKeys = {
-  all: ['clients'] as const,
+  all: ['clients', 'v2'] as const,
   list: (params?: Record<string, string | number | null | undefined>) => [...clientKeys.all, 'list', params] as const,
   detail: (id: string | number, params?: Record<string, string | number | boolean | null | undefined>) => 
     params ? [...clientKeys.all, id, params] as const : [...clientKeys.all, id] as const,
@@ -108,6 +109,9 @@ export interface UseClientsParams {
   sortOrder?: 'asc' | 'desc';
   subServiceLineGroup?: string;
   serviceLine?: string;
+  clientCodes?: string[]; // Filter by specific client codes
+  industries?: string[]; // Filter by specific industries
+  groups?: string[]; // Filter by specific group codes
   enabled?: boolean;
 }
 
@@ -123,11 +127,17 @@ export function useClients(params: UseClientsParams = {}) {
     sortOrder = 'asc',
     subServiceLineGroup,
     serviceLine,
+    clientCodes = [],
+    industries = [],
+    groups = [],
     enabled = true,
   } = params;
 
   return useQuery<ClientsResponse>({
-    queryKey: clientKeys.list({ search, page, limit, sortBy, sortOrder, subServiceLineGroup, serviceLine }),
+    // NOTE: Cache key excludes subServiceLineGroup and serviceLine because
+    // the API now returns ALL clients regardless of service line
+    // Includes array filters for proper cache segmentation
+    queryKey: clientKeys.list({ search, page, limit, sortBy, sortOrder, clientCodes: clientCodes.join(','), industries: industries.join(','), groups: groups.join(',') }),
     queryFn: async () => {
       const searchParams = new URLSearchParams();
       if (search) searchParams.set('search', search);
@@ -137,6 +147,11 @@ export function useClients(params: UseClientsParams = {}) {
       searchParams.set('sortOrder', sortOrder);
       if (subServiceLineGroup) searchParams.set('subServiceLineGroup', subServiceLineGroup);
       if (serviceLine) searchParams.set('serviceLine', serviceLine);
+      
+      // Add array filters
+      clientCodes.forEach(code => searchParams.append('clientCodes[]', code));
+      industries.forEach(ind => searchParams.append('industries[]', ind));
+      groups.forEach(grp => searchParams.append('groups[]', grp));
       
       const url = `/api/clients?${searchParams.toString()}`;
       const response = await fetch(url);

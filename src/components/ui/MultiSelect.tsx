@@ -17,6 +17,7 @@ export interface MultiSelectProps {
   label?: string;
   className?: string;
   disabled?: boolean;
+  onSearchChange?: (search: string) => void; // For server-side search
 }
 
 export function MultiSelect({
@@ -28,11 +29,19 @@ export function MultiSelect({
   label,
   className = '',
   disabled = false,
+  onSearchChange,
 }: MultiSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [localValue, setLocalValue] = useState<(string | number)[]>(value);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Notify parent of search changes for server-side search
+  useEffect(() => {
+    if (onSearchChange) {
+      onSearchChange(searchTerm);
+    }
+  }, [searchTerm, onSearchChange]);
 
   // Update local value when prop changes
   useEffect(() => {

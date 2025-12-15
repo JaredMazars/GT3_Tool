@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { X, Filter } from 'lucide-react';
 import { MultiSelect, MultiSelectOption } from '@/components/ui';
 
@@ -15,6 +16,7 @@ export interface ClientsFiltersProps {
   clients: { code: string; name: string }[];
   industries: string[];
   groups: { name: string; code: string }[];
+  onClientSearchChange?: (search: string) => void;
 }
 
 export function ClientsFilters({
@@ -23,7 +25,20 @@ export function ClientsFilters({
   clients,
   industries,
   groups,
+  onClientSearchChange,
 }: ClientsFiltersProps) {
+  const [internalSearch, setInternalSearch] = React.useState('');
+  
+  // Debounce and notify parent of search changes
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      if (onClientSearchChange) {
+        onClientSearchChange(internalSearch);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [internalSearch, onClientSearchChange]);
+  
   const handleClientsChange = (values: (string | number)[]) => {
     onFiltersChange({ ...filters, clients: values as string[] });
   };
@@ -79,13 +94,16 @@ export function ClientsFilters({
       <div className="space-y-2">
         {/* Filter Row: Client, Industry, Group */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-          {/* Client Filter */}
+          {/* Client Filter with server-side search */}
           <MultiSelect
             options={clientOptions}
             value={filters.clients}
             onChange={handleClientsChange}
             placeholder="Filter by Client"
             searchPlaceholder="Search by code or name..."
+            onSearchChange={(search) => {
+              setInternalSearch(search);
+            }}
           />
 
           {/* Industry Filter */}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
@@ -57,8 +57,8 @@ export default function SubServiceLineWorkspacePage() {
   const [currentUserSubGroupRole, setCurrentUserSubGroupRole] = useState<string>('VIEWER');
   
   const [activeTab, setActiveTab] = useState<'groups' | 'clients' | 'tasks' | 'planner' | 'my-tasks' | 'my-planning'>('groups');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [searchTerm, setSearchTerm] = useState(''); // Only used for tasks tab
+  const [debouncedSearch, setDebouncedSearch] = useState(''); // Only used for tasks tab
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
   
@@ -133,6 +133,11 @@ export default function SubServiceLineWorkspacePage() {
     }, 300);
     return () => clearTimeout(timer);
   }, [searchTerm]);
+  
+  // Reset to page 1 when client filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [clientsFilters]);
 
   // Load view mode preference from localStorage
   useEffect(() => {
@@ -162,20 +167,73 @@ export default function SubServiceLineWorkspacePage() {
   }, [activeTab, taskViewMode, queryClient]);
 
   // Fetch ALL clients (not filtered by SubServiceLineGroup)
-  // Prefetch immediately for faster tab switching
+  // Backend now handles filtering by clientCodes, industries, and groups
   const shouldFetchClients = !isSharedService(serviceLine);
   const { 
     data: clientsData, 
     isLoading: isLoadingClients,
   } = useClients({
-    search: debouncedSearch,
+    search: '', // No text search - use array filters
     page: currentPage,
     limit: itemsPerPage,
+    clientCodes: clientsFilters.clients, // Backend filtering by client codes
+    industries: clientsFilters.industries, // Backend filtering by industries
+    groups: clientsFilters.groups, // Backend filtering by groups
     // Note: NOT passing subServiceLineGroup - we want ALL clients
     enabled: shouldFetchClients, // Prefetch regardless of active tab
   });
   const clients = clientsData?.clients || [];
   const clientsPagination = clientsData?.pagination;
+
+  // For 28,000+ clients, we CANNOT pre-fetch all clients
+  // Solution: Use server-side search - fetch clients dynamically based on filter search term
+  const [filterSearchTerm, setFilterSearchTerm] = useState('');
+  const [debouncedFilterSearch, setDebouncedFilterSearch] = useState('');
+  const [allClientsForFilters, setAllClientsForFilters] = useState<typeof clients>([]);
+  
+  // Debounce filter search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedFilterSearch(filterSearchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [filterSearchTerm]);
+  
+  // Fetch clients for filter dropdown based on search term
+  useEffect(() => {
+    if (!shouldFetchClients || (activeTab !== 'clients' && activeTab !== 'groups')) {
+      setAllClientsForFilters([]);
+      return;
+    }
+    
+    const fetchFilterClients = async () => {
+      try {
+        const params = new URLSearchParams({
+          page: '1',
+          limit: '100', // Show top 100 matches
+          sortBy: 'clientNameFull',
+          sortOrder: 'asc',
+        });
+        
+        // Add search term if user is searching
+        if (debouncedFilterSearch) {
+          params.set('search', debouncedFilterSearch);
+        }
+        
+        const response = await fetch(`/api/clients?${params}`);
+        const result = await response.json();
+        
+        if (result.success) {
+          setAllClientsForFilters(result.data.clients);
+        }
+      } catch (error) {
+        console.error('Error fetching filter clients:', error);
+        setAllClientsForFilters([]);
+      }
+    };
+    
+    fetchFilterClients();
+  }, [shouldFetchClients, activeTab, debouncedFilterSearch]);
 
   // Fetch all tasks for the Tasks tab
   const { 
@@ -245,7 +303,7 @@ export default function SubServiceLineWorkspacePage() {
     isLoading: isLoadingGroups,
     isFetching: isFetchingGroups
   } = useClientGroups({
-    search: debouncedSearch,
+    search: '', // No search for groups tab - use filters only
     page: currentPage,
     limit: itemsPerPage,
     enabled: true, // Always fetch for faster tab switching
@@ -256,12 +314,6 @@ export default function SubServiceLineWorkspacePage() {
   const isLoading = activeTab === 'clients' ? isLoadingClients : activeTab === 'tasks' ? isLoadingTasks : activeTab === 'my-tasks' ? isLoadingMyTasks : activeTab === 'groups' ? isLoadingGroups : activeTab === 'planner' ? isLoadingPlannerUsers : false;
   const isFetching = activeTab === 'clients' ? false : activeTab === 'tasks' ? isFetchingTasks : activeTab === 'my-tasks' ? isFetchingMyTasks : activeTab === 'groups' ? isFetchingGroups : false;
   
-  // #region agent log
-  // Log overlay display state for verification (after isFetching is declared)
-  useEffect(() => {
-    const shouldShowOverlay = isFetching && !isLoading && taskViewMode !== 'kanban';
-  }, [isFetching, isLoading, taskViewMode, activeTab]);
-  // #endregion
   // Map ServiceLineRole to TaskRole for GanttTimeline display
   const mapServiceLineRoleToTaskRole = (serviceLineRole: string): TaskRole => {
     switch (serviceLineRole) {
@@ -528,9 +580,10 @@ export default function SubServiceLineWorkspacePage() {
   }, [groups]);
 
   // Extract unique filter options for Clients
+  // Use allClientsForFilters to ensure filter dropdown shows ALL clients, not just current page
   const clientOptions = useMemo(() => {
     const clientsMap = new Map<string, { code: string; name: string }>();
-    clients.forEach(client => {
+    allClientsForFilters.forEach(client => {
       if (client.clientCode) {
         clientsMap.set(client.clientCode, {
           code: client.clientCode,
@@ -538,20 +591,22 @@ export default function SubServiceLineWorkspacePage() {
         });
       }
     });
-    return Array.from(clientsMap.values()).sort((a, b) => a.code.localeCompare(b.code));
-  }, [clients]);
+    const result = Array.from(clientsMap.values()).sort((a, b) => a.code.localeCompare(b.code));
+    
+    return result;
+  }, [allClientsForFilters]);
 
   const clientIndustries = useMemo(() => {
     const industries = new Set<string>();
-    clients.forEach(client => {
+    allClientsForFilters.forEach(client => {
       if (client.industry) industries.add(client.industry);
     });
     return Array.from(industries).sort();
-  }, [clients]);
+  }, [allClientsForFilters]);
 
   const clientGroups = useMemo(() => {
     const groupsMap = new Map<string, { name: string; code: string }>();
-    clients.forEach(client => {
+    allClientsForFilters.forEach(client => {
       if (client.groupCode && client.groupDesc) {
         groupsMap.set(client.groupCode, {
           name: client.groupDesc,
@@ -560,7 +615,7 @@ export default function SubServiceLineWorkspacePage() {
       }
     });
     return Array.from(groupsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [clients]);
+  }, [allClientsForFilters]);
 
   // Apply filters to groups
   const filteredGroups = useMemo(() => {
@@ -575,30 +630,8 @@ export default function SubServiceLineWorkspacePage() {
     return result;
   }, [groups, groupsFilters]);
 
-  // Apply filters to clients
-  const filteredClients = useMemo(() => {
-    let result = clients;
-    
-    if (clientsFilters.clients.length > 0) {
-      result = result.filter(c =>
-        c.clientCode && clientsFilters.clients.includes(c.clientCode)
-      );
-    }
-    
-    if (clientsFilters.industries.length > 0) {
-      result = result.filter(c =>
-        c.industry && clientsFilters.industries.includes(c.industry)
-      );
-    }
-    
-    if (clientsFilters.groups.length > 0) {
-      result = result.filter(c =>
-        c.groupCode && clientsFilters.groups.includes(c.groupCode)
-      );
-    }
-    
-    return result;
-  }, [clients, clientsFilters]);
+  // Filtering is now done on the backend, so filteredClients = clients
+  const filteredClients = clients;
 
   // Apply filters to tasks (for list view)
   const filteredTasks = useMemo(() => {
@@ -1071,6 +1104,7 @@ export default function SubServiceLineWorkspacePage() {
               clients={clientOptions}
               industries={clientIndustries}
               groups={clientGroups}
+              onClientSearchChange={setFilterSearchTerm}
             />
           )}
 
@@ -1259,7 +1293,7 @@ export default function SubServiceLineWorkspacePage() {
                     <span className="font-medium">
                       {Math.min(currentPage * itemsPerPage, pagination.total)}
                     </span>{' '}
-                    of <span className="font-medium">{pagination.total}</span> {debouncedSearch ? 'filtered ' : ''}group{pagination.total !== 1 ? 's' : ''}
+                    of <span className="font-medium">{pagination.total}</span> group{pagination.total !== 1 ? 's' : ''}
                   </div>
                   
                   {pagination.totalPages > 1 && (
@@ -1424,8 +1458,7 @@ export default function SubServiceLineWorkspacePage() {
                   <span className="font-medium">
                     {Math.min(currentPage * itemsPerPage, pagination.total)}
                   </span>{' '}
-                  of <span className="font-medium">{pagination.total}</span> {debouncedSearch ? 'filtered ' : ''}
-                  client{pagination.total !== 1 ? 's' : ''}
+                  of <span className="font-medium">{pagination.total}</span> client{pagination.total !== 1 ? 's' : ''}
                 </div>
               
               {pagination.totalPages > 1 && (

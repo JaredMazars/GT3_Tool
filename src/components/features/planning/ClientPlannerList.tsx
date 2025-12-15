@@ -160,10 +160,6 @@ export function ClientPlannerList({ serviceLine, subServiceLineGroup, filters }:
       });
     });
     
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientPlannerList.tsx:121',message:'After allAllocations transform',data:{allAllocationsCount:items.length,firstAllocation:items[0] ? {clientId:items[0].clientId,clientName:items[0].clientName,taskId:items[0].taskId,employeeName:items[0].employeeName} : null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
-    
     return items;
   }, [tasks, serviceLine, subServiceLineGroup]);
 
@@ -173,9 +169,6 @@ export function ClientPlannerList({ serviceLine, subServiceLineGroup, filters }:
       a.clientId !== null && 
       a.clientId !== 0
     );
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientPlannerList.tsx:131',message:'After clientAllocations filter',data:{beforeFilterCount:allAllocations.length,afterFilterCount:filtered.length,filteredOutCount:allAllocations.length - filtered.length,sampleFiltered:allAllocations.slice(0,3).map(a=>({clientId:a.clientId,clientName:a.clientName,passedFilter:a.clientId !== null && a.clientId !== 0}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
     return filtered;
   }, [allAllocations]);
 
@@ -232,9 +225,6 @@ export function ClientPlannerList({ serviceLine, subServiceLineGroup, filters }:
   const paginatedAllocations = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     const paginated = sortedAllocations.slice(start, start + itemsPerPage);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientPlannerList.tsx:271',message:'After pagination',data:{sortedAllocationsCount:sortedAllocations.length,paginatedCount:paginated.length,currentPage,itemsPerPage,totalPages:Math.ceil(sortedAllocations.length / itemsPerPage),start},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
     return paginated;
   }, [sortedAllocations, currentPage]);
 

@@ -655,10 +655,6 @@ export function GanttTimeline({
   }, [selectedUserId, onAllocationUpdate]);
 
   const handleUpdateDates = useCallback(async (allocationId: number, startDate: Date, endDate: Date, isNonClientEvent: boolean) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GanttTimeline.tsx:655',message:'HandleUpdateDates-Called',data:{allocId:allocationId,newStart:startDate.toISOString(),newEnd:endDate.toISOString(),isNonClient:isNonClientEvent},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-    
     // Find the allocation being updated and its user
     // NOW WITH CONTEXT: Use isNonClientEvent to search the correct allocation type
     let userId: string | null = null;
@@ -670,19 +666,11 @@ export function GanttTimeline({
         );
         if (allocation) {
           userId = member.userId;
-          
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GanttTimeline.tsx:666',message:'HandleUpdateDates-FoundAlloc',data:{allocId:allocationId,userId:userId,isNonClient:isNonClientEvent,taskId:allocation.taskId},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A'})}).catch(()=>{});
-          // #endregion
           break;
         }
       } else if (member.id === allocationId && !isNonClientEvent) {
         // Flat member data is always client allocation
         userId = member.userId;
-        
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GanttTimeline.tsx:670',message:'HandleUpdateDates-FoundFlatAlloc',data:{allocId:allocationId,userId:userId},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
         break;
       }
     }
@@ -716,10 +704,6 @@ export function GanttTimeline({
     
     // CRITICAL FIX: Use composite key to prevent ID collision
     const optimisticKey = getAllocationKeyById(allocationId, isNonClientEvent);
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GanttTimeline.tsx:715',message:'Optimistic-Update-Set',data:{allocId:allocationId,optimisticKey:optimisticKey,isNonClient:isNonClientEvent,newStart:startDate.toISOString(),newEnd:endDate.toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'G'})}).catch(()=>{});
-    // #endregion
     
     // Apply optimistic update immediately for instant UI feedback
     setOptimisticUpdates(prev => {

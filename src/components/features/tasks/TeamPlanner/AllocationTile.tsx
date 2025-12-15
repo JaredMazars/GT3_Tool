@@ -80,9 +80,6 @@ export function AllocationTile({
   // Update refs when position changes and not actively dragging or saving
   useEffect(() => {
     if (!isDragging && !isResizing && !isSaving) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AllocationTile.tsx:81',message:'Position-Update',data:{allocId:allocation.id,userId:currentUserId,oldLeft:originalLeft.current,newLeft:position.left,oldWidth:originalWidth.current,newWidth:position.width,isNonClient:allocation.isNonClientEvent||false},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,E'})}).catch(()=>{});
-      // #endregion
       originalLeft.current = position.left;
       originalWidth.current = position.width;
     }
@@ -128,10 +125,6 @@ export function AllocationTile({
     
     e.stopPropagation();
     e.preventDefault();
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AllocationTile.tsx:119',message:'MouseDown',data:{allocId:allocation.id,userId:currentUserId,action:action,isNonClient:allocation.isNonClientEvent||false,taskId:allocation.taskId,clientX:e.clientX},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,C,D'})}).catch(()=>{});
-    // #endregion
     
     dragStartX.current = e.clientX;
     // Capture current VISUAL position as snapshot (use livePosition, not position)
@@ -214,10 +207,6 @@ export function AllocationTile({
   const handleMouseUp = useCallback(() => {
     // Handle date update if there are preview dates
     if (previewDates && onUpdateDates) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AllocationTile.tsx:207',message:'MouseUp-CallingUpdate',data:{allocId:allocation.id,userId:currentUserId,newStart:previewDates.start.toISOString(),newEnd:previewDates.end.toISOString(),isNonClient:allocation.isNonClientEvent||false,taskId:allocation.taskId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,D'})}).catch(()=>{});
-      // #endregion
-      
       lastAppliedDelta.current = currentDelta; // Store for isSaving state
       // Store which action was performed BEFORE clearing the states
       if (isDragging) {

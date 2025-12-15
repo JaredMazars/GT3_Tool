@@ -70,14 +70,8 @@ export async function GET(
     
     // Try cache first
     const cached = await cache.get(cacheKey) as any;
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'planner/clients/route.ts:65',message:'Cache check',data:{cacheHit:!!cached,cacheKey:cacheKey.substring(0,100)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-    // #endregion
     if (cached) {
       console.log(`[PERF] Client planner cache hit in ${Date.now() - perfStart}ms`);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'planner/clients/route.ts:70',message:'Returning cached data',data:{cachedTasksCount:cached?.tasks?.length || 0,firstTaskHasAllocations:cached?.tasks?.[0]?.allocations?.length > 0,firstTaskAllocCount:cached?.tasks?.[0]?.allocations?.length || 0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-      // #endregion
       return NextResponse.json(successResponse(cached));
     }
 
@@ -210,9 +204,6 @@ export async function GET(
     }
 
     const dataFetchStart = Date.now();
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'planner/clients/route.ts:198',message:'Before TaskTeam query',data:{taskIdsCount:taskIds.length,firstThreeTaskIds:taskIds.slice(0,3),taskIdsType:typeof taskIds[0]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-    // #endregion
     
     const taskTeamMembers = await prisma.taskTeam.findMany({
       where: {
@@ -240,9 +231,6 @@ export async function GET(
         }
       }
     });
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'planner/clients/route.ts:224',message:'After TaskTeam query',data:{taskTeamMembersCount:taskTeamMembers.length,firstThreeMembersTaskIds:taskTeamMembers.slice(0,3).map(m => m.taskId)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-    // #endregion
 
     console.log(`[PERF] TaskTeam fetch completed in ${Date.now() - dataFetchStart}ms (${taskTeamMembers.length} allocations)`);
 

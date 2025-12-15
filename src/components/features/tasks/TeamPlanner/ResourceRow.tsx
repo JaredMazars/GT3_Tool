@@ -132,11 +132,6 @@ export function ResourceRow({
             const position = calculateTilePosition(allocation, dateRange, scale, columnWidth);
             if (!position) return null;
 
-            // #region agent log
-            const tileKey = `${resource.userId}-${allocation.id}`;
-            fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ResourceRow.tsx:137',message:'Tile-Render',data:{key:tileKey,allocId:allocation.id,userId:resource.userId,isNonClient:allocation.isNonClientEvent||false,lane:allocation.lane,posLeft:position.left,posWidth:position.width},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D,E'})}).catch(()=>{});
-            // #endregion
-
             return (
               <AllocationTile
                 key={allocation.id}

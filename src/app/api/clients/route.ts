@@ -3,7 +3,6 @@ import { prisma } from '@/lib/db/prisma';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
-import { getServLineCodesBySubGroup } from '@/lib/utils/serviceLineExternal';
 import { getCachedList, setCachedList } from '@/lib/services/cache/listCache';
 import { enrichRecordsWithEmployeeNames } from '@/lib/services/employees/employeeQueries';
 
@@ -38,69 +37,66 @@ export async function GET(request: NextRequest) {
     const sortOrder = (searchParams.get('sortOrder') || 'asc') as 'asc' | 'desc';
     const subServiceLineGroup = searchParams.get('subServiceLineGroup') || undefined;
     const serviceLine = searchParams.get('serviceLine') || undefined;
+    const clientCodes = searchParams.getAll('clientCodes[]'); // Array of client codes to filter by
+    const industries = searchParams.getAll('industries[]'); // Array of industries to filter by
+    const groups = searchParams.getAll('groups[]'); // Array of group codes to filter by
     
     const skip = (page - 1) * limit;
 
     // Try to get cached data
+    // NOTE: serviceLine and subServiceLineGroup are NOT included in cache key
+    // because we now show ALL clients regardless of service line
+    // Skip cache when filters are applied (too many filter combinations to cache)
+    const hasFilters = clientCodes.length > 0 || industries.length > 0 || groups.length > 0;
+    
     const cacheParams = {
       endpoint: 'clients' as const,
       page,
       limit,
-      serviceLine,
-      subServiceLineGroup,
       search,
       sortBy,
       sortOrder,
     };
     
-    const cached = await getCachedList(cacheParams);
-    if (cached) {
-      return NextResponse.json(successResponse(cached));
+    if (!hasFilters) {
+      const cached = await getCachedList(cacheParams);
+      if (cached) {
+        return NextResponse.json(successResponse(cached));
+      }
     }
 
     // Build where clause with improved search
+    // Note: subServiceLineGroup and serviceLine params kept for backward compatibility
+    // but are not used for filtering - all clients are shown organization-wide
     interface WhereClause {
       OR?: Array<Record<string, { contains: string }>>;
-      Task?: {
-        some: {
-          ServLineCode: {
-            in: string[];
-          };
-        };
-      };
+      clientCode?: { in: string[] };
+      industry?: { in: string[] };
+      groupCode?: { in: string[] };
+      AND?: Array<{ [key: string]: unknown }>;
     }
     const where: WhereClause = {};
     
-    // Filter by SubServiceLineGroup via Task relationships ONLY if explicitly requested
-    if (subServiceLineGroup) {
-      const servLineCodes = await getServLineCodesBySubGroup(
-        subServiceLineGroup,
-        serviceLine || undefined
-      );
-      
-      if (servLineCodes.length > 0) {
-        where.Task = {
-          some: {
-            ServLineCode: { in: servLineCodes },
-          },
-        };
-      } else {
-        // No ServLineCodes found, return empty result
-        return NextResponse.json(
-          successResponse({
-            clients: [],
-            pagination: {
-              page,
-              limit,
-              total: 0,
-              totalPages: 0,
-            },
-          })
-        );
-      }
-    }
-    // If no subServiceLineGroup filter, show ALL clients organization-wide
+    // Apply array filters (from filter dropdowns)
+    const andConditions: Array<{ [key: string]: unknown }> = [];
     
+    if (clientCodes.length > 0) {
+      andConditions.push({ clientCode: { in: clientCodes } });
+    }
+    
+    if (industries.length > 0) {
+      andConditions.push({ industry: { in: industries } });
+    }
+    
+    if (groups.length > 0) {
+      andConditions.push({ groupCode: { in: groups } });
+    }
+    
+    if (andConditions.length > 0) {
+      where.AND = andConditions;
+    }
+    
+    // Apply search filter (text search)
     if (search) {
       where.OR = [
         { clientNameFull: { contains: search } },
@@ -171,8 +167,10 @@ export async function GET(request: NextRequest) {
       },
     };
 
-    // Cache the response
-    await setCachedList(cacheParams, responseData);
+    // Cache the response (skip if filters are active)
+    if (!hasFilters) {
+      await setCachedList(cacheParams, responseData);
+    }
 
     return NextResponse.json(successResponse(responseData));
   } catch (error) {
