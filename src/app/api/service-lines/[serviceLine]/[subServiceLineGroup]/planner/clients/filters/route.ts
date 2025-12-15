@@ -53,7 +53,6 @@ export async function GET(
     // Try cache first (30min TTL since filter options are relatively static)
     const cached = await cache.get(cacheKey);
     if (cached) {
-      console.log(`[PERF] Client planner filters cache hit in ${Date.now() - perfStart}ms`);
       return NextResponse.json(successResponse(cached));
     }
 
@@ -110,8 +109,6 @@ export async function GET(
         }
       }
     });
-
-    console.log(`[PERF] Filter options query completed in ${Date.now() - queryStart}ms (${tasksWithClients.length} tasks)`);
 
     // 7. Extract unique values
     const clientsSet = new Map<string, string>();
@@ -184,10 +181,6 @@ export async function GET(
 
     // Cache for 30 minutes
     await cache.set(cacheKey, response, 1800);
-
-    const totalTime = Date.now() - perfStart;
-    console.log(`[PERF] Client planner filters prepared in ${totalTime}ms`);
-    console.log(`[PERF] Filter counts: ${response.clients.length} clients, ${response.groups.length} groups, ${response.partners.length} partners, ${response.tasks.length} tasks, ${response.managers.length} managers`);
 
     return NextResponse.json(successResponse(response));
   } catch (error) {

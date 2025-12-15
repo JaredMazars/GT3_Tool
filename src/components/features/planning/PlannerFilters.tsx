@@ -2,6 +2,7 @@
 
 import { Users, Building2, Calendar, List, Filter, X } from 'lucide-react';
 import { MultiSelect, Button } from '@/components/ui';
+import type { MultiSelectOption } from '@/components/ui/MultiSelect';
 import { NonClientEventType, NON_CLIENT_EVENT_CONFIG } from '@/types';
 
 export interface EmployeePlannerFilters {
@@ -31,21 +32,21 @@ interface PlannerFiltersProps {
   employeeFilters?: EmployeePlannerFilters;
   onEmployeeFiltersChange?: (filters: EmployeePlannerFilters) => void;
   employeeFilterOptions?: {
-    employees: { id: string; label: string }[];
-    jobGrades: { id: string; label: string }[];
-    offices: { id: string; label: string }[];
-    clients: { id: string; label: string }[];
+    employees: MultiSelectOption[];
+    jobGrades: MultiSelectOption[];
+    offices: MultiSelectOption[];
+    clients: MultiSelectOption[];
   };
   
   // Client planner
   clientFilters?: ClientPlannerFilters;
   onClientFiltersChange?: (filters: ClientPlannerFilters) => void;
   clientFilterOptions?: {
-    tasks: { id: string; label: string }[];
-    clients: { id: string; label: string }[];
-    groups: { id: string; label: string }[];
-    partners: { id: string; label: string }[];
-    managers: { id: string; label: string }[];
+    tasks: MultiSelectOption[];
+    clients: MultiSelectOption[];
+    groups: MultiSelectOption[];
+    partners: MultiSelectOption[];
+    managers: MultiSelectOption[];
   };
   isLoadingClientOptions?: boolean;
   

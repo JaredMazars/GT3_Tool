@@ -6,7 +6,7 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { getMappingStatistics } from '@/lib/utils/serviceLineExternal';
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     // 1. Authenticate
     const user = await getCurrentUser();

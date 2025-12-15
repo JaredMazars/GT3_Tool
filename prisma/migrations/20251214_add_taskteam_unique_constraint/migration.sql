@@ -14,3 +14,6 @@ DELETE FROM TaskTeam WHERE id IN (
 
 -- Add unique constraint to prevent future duplicates
 CREATE UNIQUE INDEX TaskTeam_taskId_userId_key ON TaskTeam(taskId, userId);
+
+
+

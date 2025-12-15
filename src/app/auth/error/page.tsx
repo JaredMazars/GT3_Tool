@@ -7,10 +7,19 @@ import { LoadingSpinner } from '@/components/ui';
 
 function ErrorContent() {
   const searchParams = useSearchParams();
-  const error = searchParams.get('error');
+  const reason = searchParams.get('reason') || searchParams.get('error');
+  const retry = searchParams.get('retry');
 
-  const getErrorMessage = (error: string | null) => {
-    switch (error) {
+  const getErrorMessage = (reason: string | null) => {
+    switch (reason) {
+      case 'missing_code':
+        return 'Authentication code was missing. Please try signing in again.';
+      case 'config_error':
+        return 'There is a problem with the server configuration. Please contact support.';
+      case 'database_timeout':
+        return 'The authentication process took too long. This may be due to server startup. Please try again.';
+      case 'callback_failed':
+        return 'Authentication callback failed. Please check your credentials and try again.';
       case 'Configuration':
         return 'There is a problem with the server configuration.';
       case 'AccessDenied':
@@ -44,7 +53,12 @@ function ErrorContent() {
           <h2 className="mt-6 text-2xl font-semibold text-forvis-gray-900">
             Authentication Error
           </h2>
-          <p className="mt-2 text-sm font-normal text-forvis-gray-600">{getErrorMessage(error)}</p>
+          <p className="mt-2 text-sm font-normal text-forvis-gray-600">{getErrorMessage(reason)}</p>
+          {retry === 'true' && (
+            <p className="mt-3 text-xs font-medium text-forvis-blue-600">
+              💡 Tip: Server may be starting up. Retry in a few seconds.
+            </p>
+          )}
         </div>
 
         <div className="mt-8">
@@ -57,9 +71,9 @@ function ErrorContent() {
           </Link>
         </div>
 
-        {process.env.NODE_ENV === 'development' && error && (
+        {process.env.NODE_ENV === 'development' && reason && (
           <div className="mt-4 p-4 bg-forvis-gray-100 rounded-lg text-xs text-forvis-gray-600 break-all">
-            <strong>Error Code:</strong> {error}
+            <strong>Error Reason:</strong> {reason}
           </div>
         )}
       </div>

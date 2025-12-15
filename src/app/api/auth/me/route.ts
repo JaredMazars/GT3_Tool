@@ -8,7 +8,7 @@ import { handleApiError } from '@/lib/utils/errorHandler';
  * GET /api/auth/me
  * Get current user information including system role
  */
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) {
@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
     return handleApiError(error, 'GET /api/auth/me');
   }
 }
+
 
 
 

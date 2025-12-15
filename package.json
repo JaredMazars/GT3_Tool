@@ -7,6 +7,7 @@
     "build": "prisma generate && next build",
     "start": "next start -p ${PORT:-3000}",
     "lint": "next lint",
+    "lint:types": "next lint --quiet 2>&1 | grep 'no-explicit-any' || echo 'No any type violations found!'",
     "postinstall": "prisma generate",
     "verify-search": "npx tsx scripts/verify-search-config.ts",
     "setup-search-index": "npx tsx scripts/setup-search-index.ts",

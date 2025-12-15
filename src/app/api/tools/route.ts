@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return successResponse(tool, 201);
+    return NextResponse.json(successResponse(tool), { status: 201 });
   } catch (error) {
     return handleApiError(error, 'Failed to create tool');
   }

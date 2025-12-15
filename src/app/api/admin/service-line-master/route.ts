@@ -15,7 +15,7 @@ import { CreateServiceLineMasterSchema } from '@/lib/validation/schemas';
 import { sanitizeObject } from '@/lib/utils/sanitization';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     // 1. Authenticate
     const user = await getCurrentUser();

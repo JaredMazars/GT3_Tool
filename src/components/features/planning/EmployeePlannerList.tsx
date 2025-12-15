@@ -231,10 +231,6 @@ export function EmployeePlannerList({ teamMembers, serviceLine, subServiceLineGr
     }
   };
 
-  const clearSearch = () => {
-    setSearchTerm('');
-  };
-
   return (
     <div className="bg-white rounded-lg shadow-corporate border-2 border-forvis-gray-200 overflow-hidden relative flex flex-col max-h-[calc(100vh-280px)]">
       {/* Loading Overlay */}

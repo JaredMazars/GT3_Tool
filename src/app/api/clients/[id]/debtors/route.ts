@@ -79,6 +79,7 @@ export async function GET(
         EntryType: true,
         InvNumber: true,
         Reference: true,
+        Narration: true,
         ServLineCode: true,
         updatedAt: true,
       },

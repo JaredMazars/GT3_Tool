@@ -30,6 +30,7 @@ See `.cursor/rules/ai-patterns.mdc`
 - Define enums ONCE in types/index.ts
 - `undefined` for optional, `null` for database nulls
 - Optional chaining (`?.`) and nullish coalescing (`??`)
+- **NO `any` types** - Use `unknown`, type guards, or proper types (ESLint error)
 
 **Validation:** All input via Zod schemas in `/src/lib/validation/schemas.ts`
 

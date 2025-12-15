@@ -57,7 +57,7 @@ export function WorkSpaceTab({ taskId, subServiceLineGroup }: WorkSpaceTabProps)
 
   // Initialize active tool to first tool when taskTools loads
   useEffect(() => {
-    if (taskTools.length > 0 && activeToolId === null) {
+    if (taskTools.length > 0 && activeToolId === null && taskTools[0]) {
       setActiveToolId(taskTools[0].toolId);
     }
   }, [taskTools, activeToolId]);
@@ -112,7 +112,7 @@ export function WorkSpaceTab({ taskId, subServiceLineGroup }: WorkSpaceTabProps)
       // If removed tool was active, switch to first remaining tool
       if (activeToolId === removedToolId) {
         const remainingTools = taskTools.filter(tt => tt.toolId !== removedToolId);
-        setActiveToolId(remainingTools.length > 0 ? remainingTools[0].toolId : null);
+        setActiveToolId(remainingTools.length > 0 && remainingTools[0] ? remainingTools[0].toolId : null);
       }
     },
   });

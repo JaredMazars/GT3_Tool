@@ -10,7 +10,7 @@ import { handleApiError } from '@/lib/utils/errorHandler';
  * GET /api/admin/sub-service-line-groups
  * List all SubServiceLineGroups grouped by Master Service Line
  */
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     // 1. Authenticate
     const user = await getCurrentUser();
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
         acc[item.masterCode] = [];
       }
 
-      acc[item.masterCode].push({
+      acc[item.masterCode]!.push({
         code: item.SubServlineGroupCode,
         description: item.SubServlineGroupDesc || item.SubServlineGroupCode,
       });

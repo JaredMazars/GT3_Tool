@@ -80,9 +80,14 @@ export function TaxCalculationTool({ taskId, subTabs }: ToolComponentProps) {
           ));
 
           // Get icon from subTab.icon or default based on code
-          const IconComponent = subTab.icon && iconMap[subTab.icon]
-            ? iconMap[subTab.icon]
-            : (componentMap[subTab.code] ? Table : FileText);
+          let IconComponent: React.ComponentType<{ className?: string }>;
+          if (subTab.icon && iconMap[subTab.icon]) {
+            IconComponent = iconMap[subTab.icon]!;
+          } else if (componentMap[subTab.code]) {
+            IconComponent = Table;
+          } else {
+            IconComponent = FileText;
+          }
 
           return {
             id: subTab.code,

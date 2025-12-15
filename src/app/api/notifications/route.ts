@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
  * DELETE /api/notifications
  * Delete all read notifications
  */
-export async function DELETE(request: NextRequest) {
+export async function DELETE(_request: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) {

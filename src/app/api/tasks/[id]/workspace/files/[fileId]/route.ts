@@ -91,7 +91,7 @@ export async function GET(
       });
 
       // Return file with proper headers
-      return new NextResponse(fileBuffer, {
+      return new NextResponse(new Uint8Array(fileBuffer), {
         headers: {
           'Content-Type': 'application/octet-stream',
           'Content-Disposition': `attachment; filename="${encodeURIComponent(file.name)}"`,
@@ -210,4 +210,5 @@ export async function DELETE(
     return handleApiError(error, 'Failed to delete file');
   }
 }
+
 

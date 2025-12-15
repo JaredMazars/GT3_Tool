@@ -21,44 +21,48 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 };
 
 // Placeholder components for each sub-tab
-const PlaceholderComponent = ({ taskId, label }: { taskId: string; label: string }) => (
-  <div className="p-6">{label} (Coming Soon)</div>
-);
+const SarsResponsesPlaceholder = () => <div className="p-6">SARS Responses (Coming Soon)</div>;
+const DocumentManagementPlaceholder = () => <div className="p-6">Document Management (Coming Soon)</div>;
+const ComplianceChecklistPlaceholder = () => <div className="p-6">Compliance Checklist (Coming Soon)</div>;
+const FilingStatusPlaceholder = () => <div className="p-6">Filing Status (Coming Soon)</div>;
 
 // Component mapping for sub-tabs
 const componentMap: Record<string, React.ComponentType<{ taskId: string }>> = {
-  'sars-responses': (props) => <PlaceholderComponent taskId={props.taskId} label="SARS Responses" />,
-  'document-management': (props) => <PlaceholderComponent taskId={props.taskId} label="Document Management" />,
-  'compliance-checklist': (props) => <PlaceholderComponent taskId={props.taskId} label="Compliance Checklist" />,
-  'filing-status': (props) => <PlaceholderComponent taskId={props.taskId} label="Filing Status" />,
+  'sars-responses': SarsResponsesPlaceholder,
+  'document-management': DocumentManagementPlaceholder,
+  'compliance-checklist': ComplianceChecklistPlaceholder,
+  'filing-status': FilingStatusPlaceholder,
 };
 
 export function TaxComplianceTool({ taskId, subTabs }: ToolComponentProps) {
+  // Fallback component for unknown tabs
+  const FallbackComponent = () => <div className="p-6">Coming Soon</div>;
+  
   // Use DB sub-tabs if provided, otherwise use default from config
   const defaultTabs: Tab[] = [
     {
       id: 'sars-responses',
       label: 'SARS Responses',
       icon: Mail,
-      component: componentMap['sars-responses'],
+      component: componentMap['sars-responses'] || FallbackComponent,
     },
     {
       id: 'document-management',
       label: 'Documents',
       icon: Folder,
-      component: componentMap['document-management'],
+      component: componentMap['document-management'] || FallbackComponent,
     },
     {
       id: 'compliance-checklist',
       label: 'Compliance Checklist',
       icon: ClipboardCheck,
-      component: componentMap['compliance-checklist'],
+      component: componentMap['compliance-checklist'] || FallbackComponent,
     },
     {
       id: 'filing-status',
       label: 'Filing Status',
       icon: FileCheck,
-      component: componentMap['filing-status'],
+      component: componentMap['filing-status'] || FallbackComponent,
     },
   ];
 
@@ -73,9 +77,14 @@ export function TaxComplianceTool({ taskId, subTabs }: ToolComponentProps) {
           ));
 
           // Get icon from subTab.icon or default based on code
-          const IconComponent = subTab.icon && iconMap[subTab.icon]
-            ? iconMap[subTab.icon]
-            : (componentMap[subTab.code] ? Mail : Folder);
+          let IconComponent: React.ComponentType<{ className?: string }>;
+          if (subTab.icon && iconMap[subTab.icon]) {
+            IconComponent = iconMap[subTab.icon]!;
+          } else if (componentMap[subTab.code]) {
+            IconComponent = Mail;
+          } else {
+            IconComponent = Folder;
+          }
 
           return {
             id: subTab.code,

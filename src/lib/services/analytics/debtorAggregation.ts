@@ -264,7 +264,7 @@ function calculatePaymentMetrics(
     const firstPositiveTxn = txns.find((t) => (t.Total || 0) > 0);
     const lastTxn = txns[txns.length - 1];
     
-    if (!firstPositiveTxn) {
+    if (!firstPositiveTxn || !lastTxn) {
       return;
     }
     
@@ -489,7 +489,7 @@ export function getInvoiceDetailsByBucket(
   
   // Sort each bucket by invoice date (newest first)
   Object.values(result).forEach((bucket) => {
-    bucket.sort((a, b) => b.invoiceDate.getTime() - a.invoiceDate.getTime());
+    bucket.sort((a: InvoiceDetail, b: InvoiceDetail) => b.invoiceDate.getTime() - a.invoiceDate.getTime());
   });
   
   return result;

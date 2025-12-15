@@ -12,11 +12,6 @@ export function initializeTools() {
 
   // Register Tax Opinion Tool
   toolRegistry.register(taxOpinionToolConfig);
-
-  console.log('Tools initialized:', {
-    taxCalculation: taxCalculationToolConfig.id,
-    taxOpinion: taxOpinionToolConfig.id,
-  });
 }
 
 /**

@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
  * GET /api/service-lines
  * Get all service lines accessible to the current user
  */
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) {

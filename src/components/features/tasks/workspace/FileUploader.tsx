@@ -35,7 +35,7 @@ export function FileUploader({ folderId, taskId, onUploadComplete, onClose }: Fi
 
     const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) {
-      setSelectedFile(files[0]);
+      setSelectedFile(files[0] ?? null);
       setError(null);
     }
   };
@@ -43,7 +43,7 @@ export function FileUploader({ folderId, taskId, onUploadComplete, onClose }: Fi
   const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      setSelectedFile(files[0]);
+      setSelectedFile(files[0] ?? null);
       setError(null);
     }
   };

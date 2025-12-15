@@ -16,7 +16,6 @@ import { notificationService } from '@/lib/services/notifications/notificationSe
 import { 
   createServiceLineAddedNotification, 
   createServiceLineRemovedNotification,
-  createServiceLineRoleChangedNotification 
 } from '@/lib/services/notifications/templates';
 import { NotificationType } from '@/types/notification';
 import { logger } from '@/lib/utils/logger';

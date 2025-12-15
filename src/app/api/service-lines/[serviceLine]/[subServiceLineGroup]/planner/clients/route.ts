@@ -71,7 +71,6 @@ export async function GET(
     // Try cache first
     const cached = await cache.get(cacheKey) as any;
     if (cached) {
-      console.log(`[PERF] Client planner cache hit in ${Date.now() - perfStart}ms`);
       return NextResponse.json(successResponse(cached));
     }
 
@@ -180,8 +179,6 @@ export async function GET(
       })
     ]);
 
-    console.log(`[PERF] Task query completed in ${Date.now() - queryStart}ms (${tasks.length} tasks fetched, ${totalCount} total)`);
-
     // 12. Tasks are already filtered by database, no need for in-memory filtering
     const filteredTasks = tasks;
 
@@ -232,15 +229,11 @@ export async function GET(
       }
     });
 
-    console.log(`[PERF] TaskTeam fetch completed in ${Date.now() - dataFetchStart}ms (${taskTeamMembers.length} allocations)`);
-
     // 14. Get user IDs and fetch Employee data using shared service
     const userIds = [...new Set(taskTeamMembers.map(member => member.userId))];
     const employeeFetchStart = Date.now();
     
     const employeeMap = await mapUsersToEmployees(userIds);
-
-    console.log(`[PERF] Employee fetch completed in ${Date.now() - employeeFetchStart}ms (${employeeMap.size} employees)`);
 
     // 16. Group TaskTeam by taskId for easy lookup
     const taskTeamMap = new Map<number, typeof taskTeamMembers>();
@@ -310,8 +303,6 @@ export async function GET(
         return a.taskName.localeCompare(b.taskName);
       });
 
-    console.log(`[PERF] Data transformation completed in ${Date.now() - transformStart}ms`);
-
     // 18. Build pagination metadata
     const finalTotal = totalCount;
     const response = {
@@ -327,9 +318,6 @@ export async function GET(
 
     // Cache for 5 minutes
     await cache.set(cacheKey, response, 300);
-
-    const totalTime = Date.now() - perfStart;
-    console.log(`[PERF] Client planner data prepared in ${totalTime}ms (${taskRows.length} tasks, page ${page}/${response.pagination.totalPages})`);
 
     return NextResponse.json(successResponse(response));
   } catch (error) {

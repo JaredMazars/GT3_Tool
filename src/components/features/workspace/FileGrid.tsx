@@ -71,6 +71,8 @@ function FileActions({ file, onView, onDownload, onDelete }: {
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
+    
+    return undefined;
   }, [isOpen]);
 
   return (
@@ -235,4 +237,5 @@ export function FileGrid({ files, onView, onDownload, onDelete, viewMode = 'grid
     </div>
   );
 }
+
 

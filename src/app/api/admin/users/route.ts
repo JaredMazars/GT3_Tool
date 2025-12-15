@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, isSystemAdmin } from '@/lib/services/auth/auth';
+import { getCurrentUser } from '@/lib/services/auth/auth';
 import { prisma } from '@/lib/db/prisma';
 import { handleApiError } from '@/lib/utils/errorHandler';
 
@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
  * Get all users with their task assignments
  * Admin only
  */
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const currentUser = await getCurrentUser();
     

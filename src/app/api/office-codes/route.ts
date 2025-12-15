@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
  * GET /api/office-codes
  * Fetch distinct office codes from employees and tasks
  */
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     // Require authentication
     const user = await getCurrentUser();

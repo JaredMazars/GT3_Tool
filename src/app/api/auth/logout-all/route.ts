@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     response.headers.set('Expires', '0');
     
     return response;
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json(
       { success: false, error: 'Logout failed' },
       { status: 500 }
@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
     response.headers.set('Expires', '0');
     
     return response;
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.redirect(new URL('/auth/error', request.url));
   }
 }

@@ -7,7 +7,7 @@ import { handleApiError } from '@/lib/utils/errorHandler';
 import { getAllExternalServiceLines } from '@/lib/utils/serviceLineExternal';
 import { getAllServiceLines } from '@/lib/utils/serviceLine';
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     // 1. Authenticate
     const user = await getCurrentUser();
