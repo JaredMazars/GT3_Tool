@@ -10,12 +10,14 @@ export interface DebtorTransactionRecord {
   Total: number | null;
   EntryType: string | null;
   InvNumber: string | null;
+  Reference: string | null;
   ServLineCode: string;
   updatedAt: Date;
 }
 
 export interface AgingBuckets {
-  current: number;       // 0-60 days
+  current: number;       // 0-30 days
+  days31_60: number;     // 31-60 days
   days61_90: number;     // 61-90 days
   days91_120: number;    // 91-120 days
   days120Plus: number;   // 120+ days
@@ -30,88 +32,190 @@ export interface DebtorMetrics {
   invoiceCount: number;
 }
 
+interface InvoiceBalance {
+  invoiceNumber: string;
+  invoiceDate: Date;
+  invoiceAmount: number;
+  paymentsTotal: number;
+  netBalance: number;
+  servLineCode: string;
+}
+
 /**
- * Calculate aging buckets for a transaction based on transaction date
- * Uses 60-day standard: 0-60 (current), 61-90, 91-120, 120+
+ * Match payments and receipts to invoices to calculate net balances
+ * Uses Reference and InvNumber fields for matching
+ * 
+ * Simplified logic: Sum all transactions by invoice number
+ * - Positive amounts = invoices/debits (increase balance)
+ * - Negative amounts = payments/credits (decrease balance)
  */
-function calculateAgingForTransaction(tranDate: Date, amount: number): AgingBuckets {
-  const today = new Date();
-  const daysDiff = Math.floor((today.getTime() - tranDate.getTime()) / (1000 * 60 * 60 * 24));
+function matchPaymentsToInvoices(transactions: DebtorTransactionRecord[]): Map<string, InvoiceBalance> {
+  const invoiceData = new Map<string, {
+    invoiceDate: Date | null;
+    totalAmount: number;
+    originalInvoiceAmount: number;
+    servLineCode: string;
+  }>();
   
+  // Process all transactions and sum by InvNumber only
+  // Note: Reference is NOT used because receipts have their own reference numbers
+  // that don't match invoice numbers. Only InvNumber links invoices and receipts.
+  transactions.forEach((transaction) => {
+    const amount = transaction.Total || 0;
+    const invNumber = transaction.InvNumber;
+    
+    // Skip transactions without InvNumber
+    if (!invNumber) {
+      return;
+    }
+    
+    if (!invoiceData.has(invNumber)) {
+      // For positive amounts (invoices), use the transaction date as invoice date
+      // For negative amounts (payments), we'll update the invoice date if we see the invoice later
+      invoiceData.set(invNumber, {
+        invoiceDate: amount > 0 ? transaction.TranDate : null,
+        totalAmount: amount,
+        originalInvoiceAmount: amount > 0 ? amount : 0,
+        servLineCode: transaction.ServLineCode,
+      });
+    } else {
+      const data = invoiceData.get(invNumber)!;
+      data.totalAmount += amount;
+      
+      // Track original invoice amount (sum of positive transactions only)
+      if (amount > 0) {
+        data.originalInvoiceAmount += amount;
+        
+        // Update invoice date if this is an earlier positive transaction
+        if (!data.invoiceDate || transaction.TranDate < data.invoiceDate) {
+          data.invoiceDate = transaction.TranDate;
+        }
+      }
+    }
+  });
+  
+  // Convert to InvoiceBalance format
+  const invoices = new Map<string, InvoiceBalance>();
+  const today = new Date();
+  
+  // Find invoices that have matching write-offs under different invoice numbers
+  // If we have an invoice with amount X and another with amount -X, both should be excluded
+  const amountMap = new Map<number, string[]>();
+  invoiceData.forEach((data, invNumber) => {
+    const amount = data.totalAmount;
+    if (!amountMap.has(amount)) {
+      amountMap.set(amount, []);
+    }
+    amountMap.get(amount)!.push(invNumber);
+  });
+  
+  const excludedInvoices = new Set<string>();
+  amountMap.forEach((invoiceNumbers, amount) => {
+    // Check if there's a matching negative amount
+    const negativeAmount = -amount;
+    if (amount !== 0 && amountMap.has(negativeAmount)) {
+      // Both the positive and negative amounts should be excluded
+      invoiceNumbers.forEach(inv => excludedInvoices.add(inv));
+      amountMap.get(negativeAmount)!.forEach(inv => excludedInvoices.add(inv));
+    }
+  });
+  
+  invoiceData.forEach((data, invNumber) => {
+    // Use invoice date if available, otherwise use today (for safety)
+    const invoiceDate = data.invoiceDate || today;
+    
+    // Skip if:
+    // 1. Excluded due to matching write-off with different invoice number
+    // 2. Negative balance (standalone write-offs/credits)
+    // Include zero-balance invoices (fully paid) for payment metrics calculation
+    if (data.totalAmount >= 0 && !excludedInvoices.has(invNumber)) {
+      invoices.set(invNumber, {
+        invoiceNumber: invNumber,
+        invoiceDate: invoiceDate,
+        invoiceAmount: data.originalInvoiceAmount, // Use original invoice amount (sum of positive transactions)
+        paymentsTotal: data.originalInvoiceAmount - data.totalAmount, // Calculate payments from difference
+        netBalance: data.totalAmount,
+        servLineCode: data.servLineCode,
+      });
+    }
+  });
+  
+  return invoices;
+}
+
+/**
+ * Calculate aging buckets from invoice balances
+ * Ages all invoices with positive net balance based on invoice date
+ * Uses 30-day intervals: 0-30 (current), 31-60, 61-90, 91-120, 120+
+ */
+function calculateAgingBucketsFromInvoices(invoices: Map<string, InvoiceBalance>): AgingBuckets {
   const aging: AgingBuckets = {
     current: 0,
+    days31_60: 0,
     days61_90: 0,
     days91_120: 0,
     days120Plus: 0,
   };
-
-  if (daysDiff <= 60) {
-    aging.current = amount;
-  } else if (daysDiff <= 90) {
-    aging.days61_90 = amount;
-  } else if (daysDiff <= 120) {
-    aging.days91_120 = amount;
-  } else {
-    aging.days120Plus = amount;
-  }
-
+  
+  const today = new Date();
+  
+  invoices.forEach((invoice) => {
+    const balance = invoice.netBalance;
+    
+    // Only age invoices with outstanding positive balance
+    if (balance > 0) {
+      const daysDiff = Math.floor((today.getTime() - invoice.invoiceDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // Handle negative days (future dates) by treating as current
+      // This handles data entry errors (e.g., 2025 instead of 2024)
+      if (daysDiff < 0 || daysDiff <= 30) {
+        aging.current += balance;
+      } else if (daysDiff <= 60) {
+        aging.days31_60 += balance;
+      } else if (daysDiff <= 90) {
+        aging.days61_90 += balance;
+      } else if (daysDiff <= 120) {
+        aging.days91_120 += balance;
+      } else {
+        aging.days120Plus += balance;
+      }
+    }
+  });
+  
   return aging;
 }
 
-/**
- * Add two aging bucket objects together
- */
-function addAgingBuckets(a: AgingBuckets, b: AgingBuckets): AgingBuckets {
-  return {
-    current: a.current + b.current,
-    days61_90: a.days61_90 + b.days61_90,
-    days91_120: a.days91_120 + b.days91_120,
-    days120Plus: a.days120Plus + b.days120Plus,
-  };
-}
 
 /**
- * Calculate payment metrics from transactions
+ * Calculate payment metrics from transactions using the matched invoices
  * Returns average weighted payment days for paid and outstanding invoices
+ * 
+ * @param transactions - All transactions for grouping by invoice
+ * @param invoices - Map of matched invoices with net balances (from matchPaymentsToInvoices)
  */
-function calculatePaymentMetrics(transactions: DebtorTransactionRecord[]): {
+function calculatePaymentMetrics(
+  transactions: DebtorTransactionRecord[],
+  invoices: Map<string, InvoiceBalance>
+): {
   avgPaymentDaysPaid: number | null;
   avgPaymentDaysOutstanding: number;
 } {
   const today = new Date();
   
-  // Group transactions by invoice number
-  const invoiceMap = new Map<string, {
-    invoiceDate: Date;
-    invoiceAmount: number;
-    paymentDate: Date | null;
-  }>();
-
-  // First pass: collect invoice and payment data
-  transactions.forEach((transaction) => {
-    const amount = transaction.Total || 0;
-    const invNumber = transaction.InvNumber;
-    
-    if (!invNumber) return;
-
-    const entryType = (transaction.EntryType || '').toLowerCase();
-    
-    if (entryType.includes('invoice') || entryType.includes('inv')) {
-      // This is an invoice transaction
-      if (!invoiceMap.has(invNumber)) {
-        invoiceMap.set(invNumber, {
-          invoiceDate: transaction.TranDate,
-          invoiceAmount: amount,
-          paymentDate: null,
-        });
+  // Group all transactions by InvNumber with chronological ordering
+  const transactionsByInvoice = new Map<string, DebtorTransactionRecord[]>();
+  transactions.forEach((txn) => {
+    if (txn.InvNumber) {
+      if (!transactionsByInvoice.has(txn.InvNumber)) {
+        transactionsByInvoice.set(txn.InvNumber, []);
       }
-    } else if (entryType.includes('payment') || entryType.includes('receipt')) {
-      // This is a payment transaction
-      const invoice = invoiceMap.get(invNumber);
-      if (invoice && !invoice.paymentDate) {
-        invoice.paymentDate = transaction.TranDate;
-      }
+      transactionsByInvoice.get(txn.InvNumber)!.push(txn);
     }
+  });
+
+  // Sort transactions by date for each invoice
+  transactionsByInvoice.forEach((txns) => {
+    txns.sort((a, b) => a.TranDate.getTime() - b.TranDate.getTime());
   });
 
   // Calculate weighted averages
@@ -120,23 +224,37 @@ function calculatePaymentMetrics(transactions: DebtorTransactionRecord[]): {
   let outstandingTotalWeightedDays = 0;
   let outstandingTotalAmount = 0;
 
-  invoiceMap.forEach((invoice) => {
-    const amount = Math.abs(invoice.invoiceAmount);
+  invoices.forEach((invoice) => {
+    const txns = transactionsByInvoice.get(invoice.invoiceNumber);
+    if (!txns || txns.length === 0) {
+      return;
+    }
+
+    // Find first positive transaction (invoice date) and last transaction (payment/final date)
+    const firstPositiveTxn = txns.find((t) => (t.Total || 0) > 0);
+    const lastTxn = txns[txns.length - 1];
     
-    if (invoice.paymentDate) {
-      // Paid invoice - calculate days from invoice to payment
+    if (!firstPositiveTxn) {
+      return;
+    }
+    
+    const invoiceDate = firstPositiveTxn.TranDate;
+    const amount = Math.abs(invoice.invoiceAmount);
+
+    if (invoice.netBalance === 0) {
+      // Paid invoice - calculate days from first positive transaction to last transaction
       const daysToPay = Math.floor(
-        (invoice.paymentDate.getTime() - invoice.invoiceDate.getTime()) / (1000 * 60 * 60 * 24)
+        (lastTxn.TranDate.getTime() - invoiceDate.getTime()) / (1000 * 60 * 60 * 24)
       );
       paidTotalWeightedDays += daysToPay * amount;
       paidTotalAmount += amount;
-    } else {
-      // Outstanding invoice - calculate days from invoice to today
+    } else if (invoice.netBalance > 0) {
+      // Outstanding invoice - calculate days from first positive transaction to today
       const daysOutstanding = Math.floor(
-        (today.getTime() - invoice.invoiceDate.getTime()) / (1000 * 60 * 60 * 24)
+        (today.getTime() - invoiceDate.getTime()) / (1000 * 60 * 60 * 24)
       );
-      outstandingTotalWeightedDays += daysOutstanding * amount;
-      outstandingTotalAmount += amount;
+      outstandingTotalWeightedDays += daysOutstanding * invoice.netBalance;
+      outstandingTotalAmount += invoice.netBalance;
     }
   });
 
@@ -157,56 +275,56 @@ export function aggregateDebtorsByServiceLine(
   transactions: DebtorTransactionRecord[],
   serviceLineMap: Map<string, string>
 ): Map<string, DebtorMetrics> {
-  const groupedData = new Map<string, {
-    transactions: DebtorTransactionRecord[];
-    totalBalance: number;
-    aging: AgingBuckets;
-    invoiceCount: number;
-  }>();
-
-  // Group transactions by master service line
+  // First, match all payments to invoices to get net balances
+  const allInvoices = matchPaymentsToInvoices(transactions);
+  
+  // Group invoices by master service line
+  const groupedInvoices = new Map<string, InvoiceBalance[]>();
+  const groupedTransactions = new Map<string, DebtorTransactionRecord[]>();
+  
+  allInvoices.forEach((invoice) => {
+    const masterCode = serviceLineMap.get(invoice.servLineCode) || 'UNKNOWN';
+    
+    if (!groupedInvoices.has(masterCode)) {
+      groupedInvoices.set(masterCode, []);
+    }
+    groupedInvoices.get(masterCode)!.push(invoice);
+  });
+  
+  // Also group transactions for payment metrics calculation
   transactions.forEach((transaction) => {
     const masterCode = serviceLineMap.get(transaction.ServLineCode) || 'UNKNOWN';
     
-    if (!groupedData.has(masterCode)) {
-      groupedData.set(masterCode, {
-        transactions: [],
-        totalBalance: 0,
-        aging: { current: 0, days61_90: 0, days91_120: 0, days120Plus: 0 },
-        invoiceCount: 0,
-      });
+    if (!groupedTransactions.has(masterCode)) {
+      groupedTransactions.set(masterCode, []);
     }
-
-    const group = groupedData.get(masterCode)!;
-    const amount = transaction.Total || 0;
-    
-    group.transactions.push(transaction);
-    group.totalBalance += amount;
-    
-    // Calculate and add aging for this transaction
-    const transactionAging = calculateAgingForTransaction(transaction.TranDate, amount);
-    group.aging = addAgingBuckets(group.aging, transactionAging);
-    
-    // Count invoices
-    const entryType = (transaction.EntryType || '').toLowerCase();
-    if (entryType.includes('invoice') || entryType.includes('inv')) {
-      group.invoiceCount++;
-    }
+    groupedTransactions.get(masterCode)!.push(transaction);
   });
 
-  // Calculate payment metrics for each service line
+  // Calculate metrics for each service line
   const result = new Map<string, DebtorMetrics>();
   
-  groupedData.forEach((data, masterCode) => {
-    const paymentMetrics = calculatePaymentMetrics(data.transactions);
+  groupedInvoices.forEach((invoices, masterCode) => {
+    const invoicesMap = new Map<string, InvoiceBalance>();
+    invoices.forEach(inv => invoicesMap.set(inv.invoiceNumber, inv));
+    
+    // Calculate aging from net invoice balances
+    const aging = calculateAgingBucketsFromInvoices(invoicesMap);
+    
+    // Calculate total balance from net invoice balances
+    const totalBalance = invoices.reduce((sum, inv) => sum + inv.netBalance, 0);
+    
+    // Get payment metrics
+    const serviceLineTransactions = groupedTransactions.get(masterCode) || [];
+    const paymentMetrics = calculatePaymentMetrics(serviceLineTransactions, invoicesMap);
     
     result.set(masterCode, {
-      totalBalance: data.totalBalance,
-      aging: data.aging,
+      totalBalance,
+      aging,
       avgPaymentDaysPaid: paymentMetrics.avgPaymentDaysPaid,
       avgPaymentDaysOutstanding: paymentMetrics.avgPaymentDaysOutstanding,
-      transactionCount: data.transactions.length,
-      invoiceCount: data.invoiceCount,
+      transactionCount: serviceLineTransactions.length,
+      invoiceCount: invoices.length,
     });
   });
 
@@ -222,33 +340,20 @@ export function aggregateDebtorsByServiceLine(
 export function aggregateOverallDebtorData(
   transactions: DebtorTransactionRecord[]
 ): DebtorMetrics {
+  // Match payments to invoices to get net balances
+  const invoices = matchPaymentsToInvoices(transactions);
+  
+  // Calculate aging from net invoice balances
+  const aging = calculateAgingBucketsFromInvoices(invoices);
+  
+  // Calculate total balance from net invoice balances (only unpaid/partially paid)
   let totalBalance = 0;
-  let aging: AgingBuckets = {
-    current: 0,
-    days61_90: 0,
-    days91_120: 0,
-    days120Plus: 0,
-  };
-  let invoiceCount = 0;
-
-  // Calculate totals and aging
-  transactions.forEach((transaction) => {
-    const amount = transaction.Total || 0;
-    totalBalance += amount;
-    
-    // Calculate and add aging
-    const transactionAging = calculateAgingForTransaction(transaction.TranDate, amount);
-    aging = addAgingBuckets(aging, transactionAging);
-    
-    // Count invoices
-    const entryType = (transaction.EntryType || '').toLowerCase();
-    if (entryType.includes('invoice') || entryType.includes('inv')) {
-      invoiceCount++;
-    }
+  invoices.forEach((invoice) => {
+    totalBalance += invoice.netBalance;
   });
-
+  
   // Calculate payment metrics
-  const paymentMetrics = calculatePaymentMetrics(transactions);
+  const paymentMetrics = calculatePaymentMetrics(transactions, invoices);
 
   return {
     totalBalance,
@@ -256,7 +361,7 @@ export function aggregateOverallDebtorData(
     avgPaymentDaysPaid: paymentMetrics.avgPaymentDaysPaid,
     avgPaymentDaysOutstanding: paymentMetrics.avgPaymentDaysOutstanding,
     transactionCount: transactions.length,
-    invoiceCount,
+    invoiceCount: invoices.size,
   };
 }
 

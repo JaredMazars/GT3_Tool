@@ -111,6 +111,7 @@ export function RecoverabilityTab({ clientId, groupCode }: RecoverabilityTabProp
   const totalBalance = currentMetrics.totalBalance || 1; // Avoid division by zero
   const agingPercentages = {
     current: (currentMetrics.aging.current / totalBalance) * 100,
+    days31_60: (currentMetrics.aging.days31_60 / totalBalance) * 100,
     days61_90: (currentMetrics.aging.days61_90 / totalBalance) * 100,
     days91_120: (currentMetrics.aging.days91_120 / totalBalance) * 100,
     days120Plus: (currentMetrics.aging.days120Plus / totalBalance) * 100,
@@ -150,14 +151,23 @@ export function RecoverabilityTab({ clientId, groupCode }: RecoverabilityTabProp
       </div>
 
       {/* Aging Buckets - Top Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <AgingCard
-          label="Current (0-60 days)"
+          label="Current (0-30 days)"
           value={currentMetrics.aging.current}
           percentage={agingPercentages.current}
+          bgGradient="linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)"
+          textColor="text-green-700"
+          icon={<CheckCircle className="h-5 w-5 text-green-600" />}
+        />
+        
+        <AgingCard
+          label="31-60 days"
+          value={currentMetrics.aging.days31_60}
+          percentage={agingPercentages.days31_60}
           bgGradient="linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)"
           textColor="text-forvis-blue-600"
-          icon={<CheckCircle className="h-5 w-5 text-green-600" />}
+          icon={<Clock className="h-5 w-5 text-forvis-blue-600" />}
         />
         
         <AgingCard
