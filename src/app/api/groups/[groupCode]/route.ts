@@ -4,6 +4,7 @@ import { handleApiError } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { getCachedList, setCachedList } from '@/lib/services/cache/listCache';
+import { enrichRecordsWithEmployeeNames } from '@/lib/services/employees/employeeQueries';
 
 export async function GET(
   request: NextRequest,
@@ -273,23 +274,55 @@ export async function GET(
           clientCode: true,
           clientNameFull: true,
           clientPartner: true,
+          clientManager: true,
+          clientIncharge: true,
           industry: true,
           active: true,
-          _count: {
-            select: {
-              Task: true,
-            },
-          },
         },
       }),
     ]);
 
+    // Get active task counts for these clients (single optimized query)
+    const clientGSIDs = clients.map(c => c.GSClientID);
+    const taskCounts = await prisma.task.groupBy({
+      by: ['GSClientID'],
+      where: {
+        GSClientID: { in: clientGSIDs },
+        Active: 'Yes',
+      },
+      _count: {
+        id: true,
+      },
+    });
+
+    // Create a map of GSClientID -> task count
+    const taskCountMap = new Map<string, number>();
+    for (const count of taskCounts) {
+      if (count.GSClientID) {
+        taskCountMap.set(count.GSClientID, count._count.id);
+      }
+    }
+
+    // Add task counts to clients
+    const clientsWithCounts = clients.map(client => ({
+      ...client,
+      _count: {
+        Task: taskCountMap.get(client.GSClientID) || 0,
+      },
+    }));
+
+    // Enrich clients with employee names
+    const enrichedClients = await enrichRecordsWithEmployeeNames(clientsWithCounts, [
+      { codeField: 'clientPartner', nameField: 'clientPartnerName' },
+      { codeField: 'clientManager', nameField: 'clientManagerName' },
+      { codeField: 'clientIncharge', nameField: 'clientInchargeName' },
+    ]);
+
     // Fetch WIP data for all clients in this page
-    const GSClientIDs = clients.map(c => c.GSClientID);
-    const wipData = GSClientIDs.length > 0 ? await prisma.wip.findMany({
+    const wipData = clientGSIDs.length > 0 ? await prisma.wip.findMany({
       where: {
         GSClientID: {
-          in: GSClientIDs,
+          in: clientGSIDs,
         },
       },
       select: {
@@ -315,8 +348,8 @@ export async function GET(
       clientWip.balDisb += wip.BalDisb || 0;
     });
 
-    // Add WIP data to clients
-    const clientsWithWip = clients.map(client => ({
+    // Add WIP data to enriched clients
+    const clientsWithWip = enrichedClients.map(client => ({
       ...client,
       wip: wipByClient.get(client.GSClientID) || { balWIP: 0, balTime: 0, balDisb: 0 },
     }));

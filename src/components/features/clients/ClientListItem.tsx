@@ -10,6 +10,9 @@ interface ClientListItemProps {
     clientCode: string;
     clientNameFull: string | null;
     clientPartner: string;
+    clientPartnerName?: string;
+    clientManager: string;
+    clientManagerName?: string;
     industry: string | null;
     active: string;
     _count?: { Task: number };
@@ -54,22 +57,18 @@ export function ClientListItem({ client, serviceLine, subServiceLineGroup }: Cli
         </div>
       </div>
       
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3 text-xs text-forvis-gray-500">
-          <span title="Partner">
-            Partner: {client.clientPartner}
+      <div className="flex items-center space-x-3 text-xs text-forvis-gray-500">
+        <span title="Partner">
+          Partner: {client.clientPartnerName || client.clientPartner}
+        </span>
+        <span title="Manager">
+          Manager: {client.clientManagerName || client.clientManager}
+        </span>
+        {client.industry && (
+          <span title="Industry">
+            Industry: {client.industry}
           </span>
-          {client.industry && (
-            <span title="Industry">
-              Industry: {client.industry}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center space-x-2">
-          <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-forvis-blue-100 text-forvis-blue-800">
-            {client._count?.Task || 0} tasks
-          </span>
-        </div>
+        )}
       </div>
       
       {/* WIP Balances - Detailed Breakdown */}

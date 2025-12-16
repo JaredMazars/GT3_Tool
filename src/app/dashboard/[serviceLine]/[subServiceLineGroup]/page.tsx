@@ -1259,12 +1259,13 @@ export default function SubServiceLineWorkspacePage() {
               <div className="overflow-x-auto">
                 <table className="w-full" style={{ tableLayout: 'fixed' }}>
                   <colgroup>
-                    <col style={{ width: '30%' }} />
-                    <col style={{ width: '20%' }} />
+                    <col style={{ width: '26%' }} />
                     <col style={{ width: '18%' }} />
-                    <col style={{ width: '14%' }} />
+                    <col style={{ width: '16%' }} />
+                    <col style={{ width: '12%' }} />
+                    <col style={{ width: '12%' }} />
                     <col style={{ width: '8%' }} />
-                    <col style={{ width: '10%' }} />
+                    <col style={{ width: '8%' }} />
                   </colgroup>
                   <thead>
                     <tr style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}>
@@ -1279,6 +1280,9 @@ export default function SubServiceLineWorkspacePage() {
                       </th>
                       <th scope="col" className="px-3 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">
                         Partner
+                      </th>
+                      <th scope="col" className="px-3 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">
+                        Manager
                       </th>
                       <th scope="col" className="px-3 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">
                         Tasks
@@ -1315,8 +1319,13 @@ export default function SubServiceLineWorkspacePage() {
                             </div>
                           </td>
                           <td className="px-3 py-3">
-                            <div className="text-sm font-normal text-forvis-gray-800 text-center truncate" title={client.clientPartner}>
-                              {client.clientPartner}
+                            <div className="text-sm font-normal text-forvis-gray-800 text-center truncate" title={client.clientPartnerName || client.clientPartner}>
+                              {client.clientPartnerName || client.clientPartner}
+                            </div>
+                          </td>
+                          <td className="px-3 py-3">
+                            <div className="text-sm font-normal text-forvis-gray-800 text-center truncate" title={client.clientManagerName || client.clientManager}>
+                              {client.clientManagerName || client.clientManager}
                             </div>
                           </td>
                           <td className="px-3 py-3 text-center">

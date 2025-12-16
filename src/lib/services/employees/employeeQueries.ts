@@ -32,12 +32,12 @@ export async function getEmployeeByCode(
   }
 
   // Cache miss - query database
+  // Note: No Active filter - we want to show names for historical employees too
   const employee = await withRetry(
     async () => {
       return await prisma.employee.findFirst({
         where: {
           EmpCode: empCode,
-          Active: 'Yes',
         },
         select: {
           EmpCode: true,
@@ -101,12 +101,12 @@ export async function getEmployeesByCodes(
   }
 
   // Fetch uncached employees from database
+  // Note: No Active filter - we want to show names for historical employees too
   const employees = await withRetry(
     async () => {
       return await prisma.employee.findMany({
         where: {
           EmpCode: { in: uncachedCodes },
-          Active: 'Yes',
         },
         select: {
           EmpCode: true,

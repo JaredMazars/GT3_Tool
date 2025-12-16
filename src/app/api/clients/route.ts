@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
     // Get total count
     const total = await prisma.client.count({ where });
 
-    // Get clients with task counts - optimized field selection for list view
+    // Get clients - optimized field selection for list view
     // Only select fields actually displayed in the UI to minimize data transfer
     const clients = await prisma.client.findMany({
       where,
@@ -142,16 +142,40 @@ export async function GET(request: NextRequest) {
         sector: true,
         createdAt: true,
         updatedAt: true,
-        _count: {
-          select: {
-            Task: true,
-          },
-        },
       },
     });
 
+    // Get active task counts for these clients (single optimized query)
+    const clientGSIDs = clients.map(c => c.GSClientID);
+    const taskCounts = await prisma.task.groupBy({
+      by: ['GSClientID'],
+      where: {
+        GSClientID: { in: clientGSIDs },
+        Active: 'Yes',
+      },
+      _count: {
+        id: true,
+      },
+    });
+
+    // Create a map of GSClientID -> task count
+    const taskCountMap = new Map<string, number>();
+    for (const count of taskCounts) {
+      if (count.GSClientID) {
+        taskCountMap.set(count.GSClientID, count._count.id);
+      }
+    }
+
+    // Add task counts to clients
+    const clientsWithCounts = clients.map(client => ({
+      ...client,
+      _count: {
+        Task: taskCountMap.get(client.GSClientID) || 0,
+      },
+    }));
+
     // Enrich clients with employee names
-    const enrichedClients = await enrichRecordsWithEmployeeNames(clients, [
+    const enrichedClients = await enrichRecordsWithEmployeeNames(clientsWithCounts, [
       { codeField: 'clientPartner', nameField: 'clientPartnerName' },
       { codeField: 'clientManager', nameField: 'clientManagerName' },
       { codeField: 'clientIncharge', nameField: 'clientInchargeName' },
