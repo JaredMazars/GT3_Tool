@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db/prisma';
 import { withRetry, RetryPresets } from '@/lib/utils/retryUtils';
+import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 
 export interface EmployeeInfo {
   EmpCode: string;
@@ -8,9 +9,13 @@ export interface EmployeeInfo {
   GSEmployeeID: string;
 }
 
+// Cache TTL for employee data: 1 hour (3600 seconds)
+const EMPLOYEE_CACHE_TTL = 3600;
+
 /**
  * Get employee by EmpCode
  * Returns null if not found
+ * Implements Redis caching for improved performance
  */
 export async function getEmployeeByCode(
   empCode: string
@@ -19,9 +24,17 @@ export async function getEmployeeByCode(
     return null;
   }
 
-  return withRetry(
+  // Try cache first
+  const cacheKey = `${CACHE_PREFIXES.USER}employee:${empCode}`;
+  const cached = await cache.get<EmployeeInfo>(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  // Cache miss - query database
+  const employee = await withRetry(
     async () => {
-      const employee = await prisma.employee.findFirst({
+      return await prisma.employee.findFirst({
         where: {
           EmpCode: empCode,
           Active: 'Yes',
@@ -33,18 +46,24 @@ export async function getEmployeeByCode(
           GSEmployeeID: true,
         },
       });
-
-      return employee;
     },
     RetryPresets.AZURE_SQL_COLD_START,
     'Get employee by code'
   );
+
+  // Cache the result (even if null to prevent repeated lookups)
+  if (employee) {
+    await cache.set(cacheKey, employee, EMPLOYEE_CACHE_TTL);
+  }
+
+  return employee;
 }
 
 /**
  * Get multiple employees by EmpCode in batch
  * Returns a map of EmpCode -> EmployeeInfo
  * Missing employees will not be in the map
+ * Implements Redis caching with batch optimization
  */
 export async function getEmployeesByCodes(
   empCodes: string[]
@@ -60,11 +79,33 @@ export async function getEmployeesByCodes(
     return new Map();
   }
 
-  return withRetry(
+  const employeeMap = new Map<string, EmployeeInfo>();
+  const uncachedCodes: string[] = [];
+
+  // Check cache for each employee
+  await Promise.all(
+    validCodes.map(async (code) => {
+      const cacheKey = `${CACHE_PREFIXES.USER}employee:${code}`;
+      const cached = await cache.get<EmployeeInfo>(cacheKey);
+      if (cached) {
+        employeeMap.set(code, cached);
+      } else {
+        uncachedCodes.push(code);
+      }
+    })
+  );
+
+  // If all employees were cached, return early
+  if (uncachedCodes.length === 0) {
+    return employeeMap;
+  }
+
+  // Fetch uncached employees from database
+  const employees = await withRetry(
     async () => {
-      const employees = await prisma.employee.findMany({
+      return await prisma.employee.findMany({
         where: {
-          EmpCode: { in: validCodes },
+          EmpCode: { in: uncachedCodes },
           Active: 'Yes',
         },
         select: {
@@ -74,18 +115,21 @@ export async function getEmployeesByCodes(
           GSEmployeeID: true,
         },
       });
-
-      // Create a map for fast lookup
-      const employeeMap = new Map<string, EmployeeInfo>();
-      employees.forEach((emp) => {
-        employeeMap.set(emp.EmpCode, emp);
-      });
-
-      return employeeMap;
     },
     RetryPresets.AZURE_SQL_COLD_START,
     'Get employees by codes batch'
   );
+
+  // Cache and add to result map
+  await Promise.all(
+    employees.map(async (emp) => {
+      const cacheKey = `${CACHE_PREFIXES.USER}employee:${emp.EmpCode}`;
+      await cache.set(cacheKey, emp, EMPLOYEE_CACHE_TTL);
+      employeeMap.set(emp.EmpCode, emp);
+    })
+  );
+
+  return employeeMap;
 }
 
 /**

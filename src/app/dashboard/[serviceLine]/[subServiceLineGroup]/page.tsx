@@ -187,7 +187,7 @@ export default function SubServiceLineWorkspacePage() {
     industries: clientsFilters.industries, // Backend filtering by industries
     groups: clientsFilters.groups, // Backend filtering by groups
     // Note: NOT passing subServiceLineGroup - we want ALL clients
-    enabled: shouldFetchClients, // Prefetch regardless of active tab
+    enabled: shouldFetchClients && activeTab === 'clients', // Only fetch when on clients tab
   });
   const clients = clientsData?.clients || [];
   const clientsPagination = clientsData?.pagination;
@@ -203,35 +203,35 @@ export default function SubServiceLineWorkspacePage() {
   const [debouncedGroupFilterSearchClients, setDebouncedGroupFilterSearchClients] = useState('');
   const [debouncedGroupFilterSearchGroups, setDebouncedGroupFilterSearchGroups] = useState('');
   
-  // Debounce client filter search
+  // Debounce client filter search (500ms for better performance)
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedClientFilterSearch(clientFilterSearch);
-    }, 300);
+    }, 500);
     return () => clearTimeout(timer);
   }, [clientFilterSearch]);
   
-  // Debounce industry filter search
+  // Debounce industry filter search (500ms for better performance)
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedIndustryFilterSearch(industryFilterSearch);
-    }, 300);
+    }, 500);
     return () => clearTimeout(timer);
   }, [industryFilterSearch]);
   
-  // Debounce group filter search (clients tab)
+  // Debounce group filter search (clients tab, 500ms for better performance)
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedGroupFilterSearchClients(groupFilterSearchClients);
-    }, 300);
+    }, 500);
     return () => clearTimeout(timer);
   }, [groupFilterSearchClients]);
   
-  // Debounce group filter search (groups tab)
+  // Debounce group filter search (groups tab, 500ms for better performance)
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedGroupFilterSearchGroups(groupFilterSearchGroups);
-    }, 300);
+    }, 500);
     return () => clearTimeout(timer);
   }, [groupFilterSearchGroups]);
   
@@ -253,10 +253,11 @@ export default function SubServiceLineWorkspacePage() {
 
   // Fetch filter options for industries on clients tab
   // Note: Groups now use useClientGroups (same pattern as client filter)
+  // Only fetch when on clients tab for better performance
   const { data: clientFilterOptions, isLoading: isLoadingFilters, isFetching: isFetchingFilters } = useClientFilters({
     industrySearch: debouncedIndustryFilterSearch,
     groupSearch: '', // Not used anymore - groups fetched via useClientGroups
-    enabled: shouldFetchClients, // Eager load - removed activeTab condition
+    enabled: shouldFetchClients && activeTab === 'clients', // Lazy load - only when on clients tab
   });
   
   // Fetch groups for Groups tab filter dropdown (with server-side search)
@@ -340,7 +341,7 @@ export default function SubServiceLineWorkspacePage() {
     page: currentPage,
     limit: itemsPerPage,
     groupCodes: groupsFilters.groups, // Server-side filtering
-    enabled: true, // Always fetch for faster tab switching
+    enabled: activeTab === 'groups', // Only fetch when on groups tab
   });
   const groups = groupsData?.groups || [];
   const groupsPagination = groupsData?.pagination;

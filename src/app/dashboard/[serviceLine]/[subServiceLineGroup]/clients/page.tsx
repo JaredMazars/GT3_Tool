@@ -84,12 +84,12 @@ export default function ServiceLineClientsPage() {
     });
   };
 
-  // Debounce search input
+  // Debounce search input (500ms for better performance)
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchTerm);
       setCurrentPage(1); // Reset to first page on search
-    }, 300);
+    }, 500);
     return () => clearTimeout(timer);
   }, [searchTerm]);
 

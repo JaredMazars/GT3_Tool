@@ -65,13 +65,17 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Get all distinct groups using groupBy
+    // Get distinct groups using groupBy with limit for performance
+    // Limit to top 200 matches to improve response time
+    const FILTER_LIMIT = 200;
+    
     const groupsData = await prisma.client.groupBy({
       by: ['groupCode', 'groupDesc'],
       where,
       orderBy: {
         groupDesc: 'asc',
       },
+      take: FILTER_LIMIT,
     });
 
     // Format the response

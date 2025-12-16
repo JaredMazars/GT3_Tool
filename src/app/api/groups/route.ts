@@ -74,30 +74,53 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Execute count and data queries in parallel for better performance
-    const [totalGroups, allGroupsData] = await Promise.all([
-      // Fast count of unique groups
-      prisma.client.groupBy({
-        by: ['groupCode'],
-        where,
-      }).then(r => r.length),
-      
-      // Get all groups with counts, then paginate in-memory
-      // (groupBy with aggregation doesn't support skip/take)
-      prisma.client.groupBy({
-        by: ['groupCode', 'groupDesc'],
-        where,
-        _count: {
-          id: true,
-        },
-        orderBy: {
-          groupDesc: 'asc',
-        },
-      }),
-    ]);
+    // Optimized pagination: First get paginated group codes, then get counts
+    // This avoids loading all groups into memory
     
-    // Apply pagination to the grouped results
-    const groupsData = allGroupsData.slice(skip, skip + limit);
+    // Step 1: Get total count of unique groups
+    const totalGroups = await prisma.client.groupBy({
+      by: ['groupCode'],
+      where,
+    }).then(r => r.length);
+    
+    // Step 2: Get paginated list of group codes with descriptions
+    const paginatedGroups = await prisma.client.findMany({
+      where,
+      select: {
+        groupCode: true,
+        groupDesc: true,
+      },
+      distinct: ['groupCode'],
+      orderBy: {
+        groupDesc: 'asc',
+      },
+      skip,
+      take: limit,
+    });
+    
+    // Step 3: Get counts for only the paginated groups (much more efficient)
+    const paginatedGroupCodes = paginatedGroups.map(g => g.groupCode);
+    const counts = await prisma.client.groupBy({
+      by: ['groupCode'],
+      where: {
+        groupCode: { in: paginatedGroupCodes },
+      },
+      _count: {
+        id: true,
+      },
+    });
+    
+    // Create a map of counts for quick lookup
+    const countMap = new Map(counts.map(c => [c.groupCode, c._count.id]));
+    
+    // Combine the data
+    const groupsData = paginatedGroups.map(group => ({
+      groupCode: group.groupCode,
+      groupDesc: group.groupDesc,
+      _count: {
+        id: countMap.get(group.groupCode) || 0,
+      },
+    }));
 
     // Format the response
     const groups = groupsData.map((group) => ({

@@ -368,6 +368,10 @@ model Client {
   @@index([industry])
   @@index([sector])
   @@index([updatedAt(sort: Desc)])
+  // Performance indexes for filter queries
+  @@index([active, groupCode])
+  @@index([active, industry])
+  @@index([industry, clientNameFull])
 }
 
 model ClientAcceptanceResponse {
@@ -622,6 +626,8 @@ model Employee {
   @@index([ServLineCode])
   @@index([SLGroup])
   @@index([WinLogon])
+  // Performance index for employee enrichment queries
+  @@index([EmpCode, Active])
 }
 
 model ExternalLink {

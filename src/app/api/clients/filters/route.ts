@@ -73,37 +73,37 @@ export async function GET(request: NextRequest) {
     }
 
     // Execute queries in parallel for better performance
+    // Limit results to top 200 matches for performance
+    const FILTER_LIMIT = 200;
+    
     const [industriesData, groupsData] = await Promise.all([
       // Get distinct industries with independent search
-      prisma.client.findMany({
-        where: industryWhere,
-        select: {
-          industry: true,
+      prisma.client.groupBy({
+        by: ['industry'],
+        where: {
+          ...industryWhere,
+          industry: { not: null }, // Exclude nulls for efficiency
         },
-        distinct: ['industry'],
         orderBy: {
           industry: 'asc',
         },
+        take: FILTER_LIMIT,
       }),
       
-      // Get distinct groups with independent search - using findMany instead of groupBy
-      prisma.client.findMany({
+      // Get distinct groups with independent search - using groupBy for efficiency
+      prisma.client.groupBy({
+        by: ['groupCode', 'groupDesc'],
         where: groupWhere,
-        select: {
-          groupCode: true,
-          groupDesc: true,
+        orderBy: {
+          groupDesc: 'asc',
         },
-        distinct: ['groupCode'],
-        orderBy: [
-          { groupCode: 'asc' },
-          { groupDesc: 'asc' },
-        ],
+        take: FILTER_LIMIT,
       }),
     ]);
 
     // Format the response
     const industries = industriesData
-      .map(client => client.industry)
+      .map(item => item.industry)
       .filter((industry): industry is string => !!industry);
 
     // Filter out null values in JavaScript and format groups
