@@ -17,16 +17,8 @@ import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
  */
 export async function GET(request: NextRequest) {
   try {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/fefc3511-fdd0-43c4-a837-f5a8973894e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:20',message:'API route handler started',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'F'})}).catch(()=>{});
-    // #endregion
-    
     // 1. Authenticate
     const user = await getCurrentUser();
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/fefc3511-fdd0-43c4-a837-f5a8973894e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:28',message:'After getCurrentUser',data:{hasUser:!!user,userId:user?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'F'})}).catch(()=>{});
-    // #endregion
     
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -40,10 +32,6 @@ export async function GET(request: NextRequest) {
     const hasPagePermission = await checkFeature(user.id, Feature.ACCESS_CLIENTS);
     const userSubGroups = await getUserSubServiceLineGroups(user.id);
     const hasServiceLineAccess = userSubGroups.length > 0;
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/fefc3511-fdd0-43c4-a837-f5a8973894e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:45',message:'After permission checks',data:{hasPagePermission,hasServiceLineAccess,userSubGroupsCount:userSubGroups.length},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'F'})}).catch(()=>{});
-    // #endregion
     
     // Grant access if user has either page permission OR service line assignment
     if (!hasPagePermission && !hasServiceLineAccess) {
@@ -69,28 +57,14 @@ export async function GET(request: NextRequest) {
       industry?: { contains: string; mode: 'insensitive' };
     }
     
-    interface GroupWhereClause {
-      AND?: Array<Record<string, unknown>>;
-      NOT?: { OR: Array<{ groupCode: null } | { groupDesc: null }> };
-      OR?: Array<Record<string, { contains: string; mode: 'insensitive' }>>;
-    }
-    
     const industryWhere: IndustryWhereClause = {};
-    const groupWhere: GroupWhereClause = {};
+    const groupWhere: any = {};
 
     if (industrySearch) {
       industryWhere.industry = { contains: industrySearch, mode: 'insensitive' };
     }
 
-    // Build group where clause - filter out null values
-    // NOT (groupCode = null OR groupDesc = null) => groupCode != null AND groupDesc != null
-    groupWhere.NOT = {
-      OR: [
-        { groupCode: null },
-        { groupDesc: null },
-      ],
-    };
-
+    // Build group where clause - filter nulls in JavaScript instead of Prisma
     if (groupSearch) {
       groupWhere.OR = [
         { groupDesc: { contains: groupSearch, mode: 'insensitive' } },
@@ -120,48 +94,36 @@ export async function GET(request: NextRequest) {
           groupDesc: true,
         },
         distinct: ['groupCode'],
-        orderBy: {
-          groupDesc: 'asc',
-        },
+        orderBy: [
+          { groupCode: 'asc' },
+          { groupDesc: 'asc' },
+        ],
       }),
     ]);
-
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/fefc3511-fdd0-43c4-a837-f5a8973894e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:115',message:'Raw groups from DB',data:{groupsCount:groupsData.length,firstThree:groupsData.slice(0,3),groupWhere},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A,B'})}).catch(()=>{});
-    // #endregion
 
     // Format the response
     const industries = industriesData
       .map(client => client.industry)
       .filter((industry): industry is string => !!industry);
 
-    // Groups are already filtered by non-null in the query
-    const groups = groupsData.map(group => ({
-      code: group.groupCode!,
-      name: group.groupDesc!,
-    }));
-
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/fefc3511-fdd0-43c4-a837-f5a8973894e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:127',message:'Formatted groups',data:{groupsCount:groups.length,firstThree:groups.slice(0,3)},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
+    // Filter out null values in JavaScript and format groups
+    const groups = groupsData
+      .filter(group => group.groupCode !== null && group.groupDesc !== null)
+      .map(group => ({
+        code: group.groupCode!,
+        name: group.groupDesc!,
+      }));
 
     const responseData = {
       industries,
       groups,
     };
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/fefc3511-fdd0-43c4-a837-f5a8973894e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:135',message:'Final API response',data:{industriesCount:industries.length,groupsCount:groups.length,cacheKey},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
-
     // Cache the response (30min TTL)
     await cache.set(cacheKey, responseData, 1800);
 
     return NextResponse.json(successResponse(responseData));
   } catch (error) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/fefc3511-fdd0-43c4-a837-f5a8973894e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:163',message:'ERROR caught',data:{errorMessage:error instanceof Error ? error.message : String(error),errorType:error?.constructor?.name},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'F'})}).catch(()=>{});
-    // #endregion
     return handleApiError(error, 'Get Client Filters');
   }
 }

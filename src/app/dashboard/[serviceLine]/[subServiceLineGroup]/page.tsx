@@ -258,12 +258,6 @@ export default function SubServiceLineWorkspacePage() {
     groupSearch: '', // Not used anymore - groups fetched via useClientGroups
     enabled: shouldFetchClients, // Eager load - removed activeTab condition
   });
-
-  // #region agent log
-  React.useEffect(() => {
-    fetch('http://127.0.0.1:7242/ingest/fefc3511-fdd0-43c4-a837-f5a8973894e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:254',message:'useClientFilters hook state',data:{enabled:shouldFetchClients,isLoading:isLoadingFilters,isFetching:isFetchingFilters,hasData:!!clientFilterOptions,industrySearch:debouncedIndustryFilterSearch,groupSearch:debouncedGroupFilterSearchClients},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'D'})}).catch(()=>{});
-  }, [shouldFetchClients, isLoadingFilters, isFetchingFilters, clientFilterOptions, debouncedIndustryFilterSearch, debouncedGroupFilterSearchClients]);
-  // #endregion
   
   // Fetch groups for Groups tab filter dropdown (with server-side search)
   // Use the same pattern as clients - fetch top 100 matches based on search
@@ -640,10 +634,6 @@ export default function SubServiceLineWorkspacePage() {
       code: group.groupCode,
       name: group.groupDesc || group.groupCode,
     }));
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/fefc3511-fdd0-43c4-a837-f5a8973894e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:622',message:'clientGroups computed from useClientGroups',data:{hasFilterData:!!clientFilterGroupsData,groupsCount:groupsData.length,firstThree:groupsData.slice(0,3)},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'C,D'})}).catch(()=>{});
-    // #endregion
     
     return groupsData;
   }, [clientFilterGroupsData]);
