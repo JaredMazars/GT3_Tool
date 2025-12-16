@@ -4,6 +4,7 @@ import { handleApiError } from '@/lib/utils/errorHandler';
 import { GSClientIDSchema } from '@/lib/validation/schemas';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
+import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 
 interface ClientBalances {
   GSClientID: string;
@@ -117,6 +118,15 @@ export async function GET(
         { error: 'Client not found' },
         { status: 404 }
       );
+    }
+
+    // Generate cache key
+    const cacheKey = `${CACHE_PREFIXES.CLIENT}balances:${GSClientID}`;
+    
+    // Try cache first
+    const cached = await cache.get<ClientBalances>(cacheKey);
+    if (cached) {
+      return NextResponse.json(successResponse(cached));
     }
 
     // 4-5. Execute - Calculate balances from transaction tables
@@ -259,6 +269,9 @@ export async function GET(
       debtorBalance: debtorAggregation._sum.Total || 0,
       lastUpdated: lastUpdated ? lastUpdated.toISOString() : null,
     };
+
+    // Cache for 10 minutes (600 seconds)
+    await cache.set(cacheKey, responseData, 600);
 
     return NextResponse.json(successResponse(responseData));
   } catch (error) {

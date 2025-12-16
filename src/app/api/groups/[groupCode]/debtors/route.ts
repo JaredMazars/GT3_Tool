@@ -8,6 +8,7 @@ import {
   aggregateOverallDebtorData,
   DebtorMetrics 
 } from '@/lib/services/analytics/debtorAggregation';
+import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 
 interface MasterServiceLineInfo {
   code: string;
@@ -68,6 +69,15 @@ export async function GET(
         { error: 'Group not found' },
         { status: 404 }
       );
+    }
+
+    // Generate cache key
+    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}group-debtors:${groupCode}`;
+    
+    // Try cache first
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      return NextResponse.json(successResponse(cached));
     }
 
     // Get all clients in this group (organization-wide)
@@ -192,6 +202,9 @@ export async function GET(
       transactionCount: debtorTransactions.length,
       lastUpdated: latestDebtorTransaction?.updatedAt || null,
     };
+
+    // Cache for 10 minutes (600 seconds)
+    await cache.set(cacheKey, responseData, 600);
 
     return NextResponse.json(successResponse(responseData));
   } catch (error) {

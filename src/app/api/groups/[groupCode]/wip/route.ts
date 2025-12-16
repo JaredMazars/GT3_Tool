@@ -8,6 +8,7 @@ import {
   aggregateOverallWipData,
   countUniqueTasks 
 } from '@/lib/services/analytics/wipAggregation';
+import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 
 interface ProfitabilityMetrics {
   grossProduction: number;
@@ -144,6 +145,15 @@ export async function GET(
         { error: 'Group not found' },
         { status: 404 }
       );
+    }
+
+    // Generate cache key
+    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}group-wip:${groupCode}`;
+    
+    // Try cache first
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      return NextResponse.json(successResponse(cached));
     }
 
     // Get all clients in this group (organization-wide)
@@ -294,6 +304,9 @@ export async function GET(
       taskCount: taskCount,
       lastUpdated: latestWipTransaction?.updatedAt || null,
     };
+
+    // Cache for 10 minutes (600 seconds)
+    await cache.set(cacheKey, responseData, 600);
 
     return NextResponse.json(successResponse(responseData));
   } catch (error) {
