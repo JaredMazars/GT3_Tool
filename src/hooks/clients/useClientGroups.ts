@@ -70,9 +70,7 @@ export function useClientGroups(params: UseClientGroupsParams = {}) {
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    // Don't use placeholderData for search queries - show fresh results or loading state
-    // placeholderData can cause stale empty results to persist when clearing search
-    placeholderData: search ? undefined : (previousData) => previousData,
+    placeholderData: (previousData) => previousData,
   });
 }
 

@@ -31,6 +31,12 @@ export type { ErrorModalProps } from './ErrorModal';
 export { MultiSelect } from './MultiSelect';
 export type { MultiSelectProps, MultiSelectOption } from './MultiSelect';
 
+export { SearchCombobox } from './SearchCombobox';
+export type { SearchComboboxProps, SearchComboboxOption } from './SearchCombobox';
+
+export { SearchMultiCombobox } from './SearchMultiCombobox';
+export type { SearchMultiComboboxProps, SearchMultiComboboxOption, SearchMultiComboboxMetadata } from './SearchMultiCombobox';
+
 
 
 

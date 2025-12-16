@@ -10,8 +10,15 @@ export const groupFilterKeys = {
 };
 
 // Types
+export interface GroupFilterMetadata {
+  hasMore: boolean;
+  total: number;
+  returned: number;
+}
+
 export interface GroupFilterOptions {
   groups: { code: string; name: string }[];
+  metadata?: GroupFilterMetadata;
 }
 
 export interface UseGroupFiltersParams {
@@ -22,12 +29,18 @@ export interface UseGroupFiltersParams {
 /**
  * Fetch group filter options
  * Used to populate group filter dropdowns independently from the main group list
+ * 
+ * Requires minimum 2 characters for search queries
  */
 export function useGroupFilters(params: UseGroupFiltersParams = {}) {
   const {
     search = '',
     enabled = true,
   } = params;
+
+  // Don't execute query if search is too short
+  const searchValid = !search || search.length >= 2;
+  const shouldExecute = enabled && searchValid;
 
   return useQuery<GroupFilterOptions>({
     queryKey: groupFilterKeys.list({ search }),
@@ -42,7 +55,7 @@ export function useGroupFilters(params: UseGroupFiltersParams = {}) {
       const result = await response.json();
       return result.success ? result.data : result;
     },
-    enabled,
+    enabled: shouldExecute,
     staleTime: 30 * 60 * 1000, // 30 minutes - filter options are relatively static
     gcTime: 45 * 60 * 1000, // 45 minutes cache retention
     refetchOnMount: false,
@@ -51,5 +64,6 @@ export function useGroupFilters(params: UseGroupFiltersParams = {}) {
     placeholderData: (previousData) => previousData,
   });
 }
+
 
 

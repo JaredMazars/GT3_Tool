@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
@@ -27,8 +27,6 @@ import { useClients, type Client } from '@/hooks/clients/useClients';
 import { useTasks, type TaskListItem } from '@/hooks/tasks/useTasks'; // Updated with GSClientID
 import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLineGroups';
 import { useClientGroups } from '@/hooks/clients/useClientGroups';
-import { useClientFilters } from '@/hooks/clients/useClientFilters';
-import { useGroupFilters } from '@/hooks/groups/useGroupFilters';
 import { ServiceLineSelector } from '@/components/features/service-lines/ServiceLineSelector';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/utils/taskUtils';
@@ -192,82 +190,6 @@ export default function SubServiceLineWorkspacePage() {
   const clients = clientsData?.clients || [];
   const clientsPagination = clientsData?.pagination;
 
-  // Separate search states for each filter dropdown
-  const [clientFilterSearch, setClientFilterSearch] = useState('');
-  const [industryFilterSearch, setIndustryFilterSearch] = useState('');
-  const [groupFilterSearchClients, setGroupFilterSearchClients] = useState(''); // For group filter on clients tab
-  const [groupFilterSearchGroups, setGroupFilterSearchGroups] = useState(''); // For group filter on groups tab
-  
-  const [debouncedClientFilterSearch, setDebouncedClientFilterSearch] = useState('');
-  const [debouncedIndustryFilterSearch, setDebouncedIndustryFilterSearch] = useState('');
-  const [debouncedGroupFilterSearchClients, setDebouncedGroupFilterSearchClients] = useState('');
-  const [debouncedGroupFilterSearchGroups, setDebouncedGroupFilterSearchGroups] = useState('');
-  
-  // Debounce client filter search (500ms for better performance)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedClientFilterSearch(clientFilterSearch);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [clientFilterSearch]);
-  
-  // Debounce industry filter search (500ms for better performance)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedIndustryFilterSearch(industryFilterSearch);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [industryFilterSearch]);
-  
-  // Debounce group filter search (clients tab, 500ms for better performance)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedGroupFilterSearchClients(groupFilterSearchClients);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [groupFilterSearchClients]);
-  
-  // Debounce group filter search (groups tab, 500ms for better performance)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedGroupFilterSearchGroups(groupFilterSearchGroups);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [groupFilterSearchGroups]);
-  
-  // Fetch clients for client filter dropdown (with server-side search)
-  const { data: clientFilterClients } = useClients({
-    search: debouncedClientFilterSearch,
-    page: 1,
-    limit: 100, // Show top 100 matches
-    enabled: shouldFetchClients && activeTab === 'clients',
-  });
-  
-  // Fetch groups for clients tab filter dropdown (same pattern as client filter)
-  const { data: clientFilterGroupsData } = useClientGroups({
-    search: debouncedGroupFilterSearchClients,
-    page: 1,
-    limit: 100, // Show top 100 matches
-    enabled: shouldFetchClients && activeTab === 'clients',
-  });
-
-  // Fetch filter options for industries on clients tab
-  // Note: Groups now use useClientGroups (same pattern as client filter)
-  // Only fetch when on clients tab for better performance
-  const { data: clientFilterOptions, isLoading: isLoadingFilters, isFetching: isFetchingFilters } = useClientFilters({
-    industrySearch: debouncedIndustryFilterSearch,
-    groupSearch: '', // Not used anymore - groups fetched via useClientGroups
-    enabled: shouldFetchClients && activeTab === 'clients', // Lazy load - only when on clients tab
-  });
-  
-  // Fetch groups for Groups tab filter dropdown (with server-side search)
-  // Use the same pattern as clients - fetch top 100 matches based on search
-  const { data: groupFilterData } = useClientGroups({
-    search: debouncedGroupFilterSearchGroups,
-    page: 1,
-    limit: 100, // Show top 100 matches
-    enabled: activeTab === 'groups',
-  });
 
   // Fetch all tasks for the Tasks tab
   const { 
@@ -343,7 +265,7 @@ export default function SubServiceLineWorkspacePage() {
     groupCodes: groupsFilters.groups, // Server-side filtering
     enabled: activeTab === 'groups', // Only fetch when on groups tab
   });
-  const groups = groupsData?.groups || [];
+  const groups: Array<{ groupCode: string; groupDesc: string; clientCount: number }> = groupsData?.groups || [];
   const groupsPagination = groupsData?.pagination;
   
   const isLoading = activeTab === 'clients' ? isLoadingClients : activeTab === 'tasks' ? isLoadingTasks : activeTab === 'my-tasks' ? isLoadingMyTasks : activeTab === 'groups' ? isLoadingGroups : activeTab === 'planner' ? isLoadingPlannerUsers : false;
@@ -600,46 +522,6 @@ export default function SubServiceLineWorkspacePage() {
     return Array.from(clientsMap.values());
   }, [tasks, myTasks, activeTab]);
 
-  // Extract group filter options from the paginated query (same pattern as clients)
-  const groupOptions = useMemo(() => {
-    const groupsFromFilter = groupFilterData?.groups || [];
-    return groupsFromFilter.map(group => ({
-      code: group.groupCode,
-      name: group.groupDesc || group.groupCode,
-      clientCount: group.clientCount ?? 0,
-    }));
-  }, [groupFilterData]);
-
-  // Extract client filter options from the separate filter queries
-  const clientOptions = useMemo(() => {
-    const clientsFromFilter = clientFilterClients?.clients || [];
-    const clientsMap = new Map<string, { code: string; name: string }>();
-    clientsFromFilter.forEach(client => {
-      if (client.clientCode) {
-        clientsMap.set(client.clientCode, {
-          code: client.clientCode,
-          name: client.clientNameFull || client.clientCode,
-        });
-      }
-    });
-    return Array.from(clientsMap.values()).sort((a, b) => a.code.localeCompare(b.code));
-  }, [clientFilterClients]);
-
-  const clientIndustries = useMemo(() => {
-    return clientFilterOptions?.industries || [];
-  }, [clientFilterOptions]);
-
-  // Groups for clients tab filter - use same pattern as client filter (paginated query)
-  const clientGroups = useMemo(() => {
-    const groupsFromFilter = clientFilterGroupsData?.groups || [];
-    const groupsData = groupsFromFilter.map(group => ({
-      code: group.groupCode,
-      name: group.groupDesc || group.groupCode,
-      clientCount: group.clientCount ?? 0,
-    }));
-    
-    return groupsData;
-  }, [clientFilterGroupsData]);
 
   // Filtering is now done on the backend for both clients and groups
   const filteredClients = clients;
@@ -1105,8 +987,6 @@ export default function SubServiceLineWorkspacePage() {
             <GroupsFilters
               filters={groupsFilters}
               onFiltersChange={setGroupsFilters}
-              groups={groupOptions}
-              onGroupSearchChange={setGroupFilterSearchGroups}
             />
           )}
 
@@ -1114,12 +994,6 @@ export default function SubServiceLineWorkspacePage() {
             <ClientsFilters
               filters={clientsFilters}
               onFiltersChange={setClientsFilters}
-              clients={clientOptions}
-              industries={clientIndustries}
-              groups={clientGroups}
-              onClientSearchChange={setClientFilterSearch}
-              onIndustrySearchChange={setIndustryFilterSearch}
-              onGroupSearchChange={setGroupFilterSearchClients}
             />
           )}
 

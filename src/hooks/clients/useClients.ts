@@ -166,8 +166,7 @@ export function useClients(params: UseClientsParams = {}) {
     refetchOnMount: false, // Don't refetch if data is fresh
     refetchOnWindowFocus: false, // Don't refetch on window focus
     refetchOnReconnect: false, // Don't refetch on reconnect
-    // Don't use placeholderData for search queries - prevents stale empty results
-    placeholderData: search ? undefined : (previousData) => previousData,
+    placeholderData: (previousData) => previousData,
   });
 }
 

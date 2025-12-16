@@ -42,8 +42,21 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
 
+    // Enforce minimum search length (client-side should prevent this, but validate server-side)
+    if (search && search.length < 2) {
+      return NextResponse.json(successResponse({
+        groups: [],
+        metadata: {
+          hasMore: false,
+          total: 0,
+          returned: 0,
+        },
+        message: 'Please enter at least 2 characters to search',
+      }));
+    }
+
     // Build cache key
-    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}group-filters:search:${search}:user:${user.id}`;
+    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}group-filters:search:${search}:limit:50:user:${user.id}`;
     
     // Try cache first (30min TTL since filter options are relatively static)
     const cached = await cache.get(cacheKey);
@@ -65,10 +78,17 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Get distinct groups using groupBy with limit for performance
-    // Limit to top 200 matches to improve response time
-    const FILTER_LIMIT = 200;
+    // Reduced limit for faster response times
+    const FILTER_LIMIT = 50;
     
+    // Get total count for metadata
+    const totalCountData = await prisma.client.groupBy({
+      by: ['groupCode', 'groupDesc'],
+      where,
+    });
+    const totalCount = totalCountData.filter(g => g.groupCode && g.groupDesc).length;
+
+    // Get limited results
     const groupsData = await prisma.client.groupBy({
       by: ['groupCode', 'groupDesc'],
       where,
@@ -88,6 +108,11 @@ export async function GET(request: NextRequest) {
 
     const responseData = {
       groups,
+      metadata: {
+        hasMore: totalCount > FILTER_LIMIT,
+        total: totalCount,
+        returned: groups.length,
+      },
     };
 
     // Cache the response (30min TTL)

@@ -18,6 +18,7 @@ export interface MultiSelectProps {
   className?: string;
   disabled?: boolean;
   onSearchChange?: (search: string) => void; // For server-side search
+  isLoading?: boolean; // Show loading spinner while fetching
 }
 
 export function MultiSelect({
@@ -30,6 +31,7 @@ export function MultiSelect({
   className = '',
   disabled = false,
   onSearchChange,
+  isLoading = false,
 }: MultiSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -161,7 +163,12 @@ export function MultiSelect({
 
           {/* Options List */}
           <div className="max-h-48 overflow-y-auto">
-            {filteredOptions.length === 0 ? (
+            {isLoading ? (
+              <div className="px-4 py-8 flex flex-col items-center justify-center gap-2">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-forvis-blue-600"></div>
+                <span className="text-sm text-forvis-gray-500">Loading...</span>
+              </div>
+            ) : filteredOptions.length === 0 ? (
               <div className="px-4 py-3 text-sm text-forvis-gray-500 text-center">
                 No options found
               </div>

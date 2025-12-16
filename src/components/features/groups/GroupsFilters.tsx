@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { X, Filter } from 'lucide-react';
-import { MultiSelect, MultiSelectOption } from '@/components/ui';
+import { SearchMultiCombobox, SearchMultiComboboxOption } from '@/components/ui/SearchMultiCombobox';
+import { useGroupFilters } from '@/hooks/groups/useGroupFilters';
 
 export interface GroupsFiltersType {
   groups: string[];  // Group codes
@@ -11,28 +12,19 @@ export interface GroupsFiltersType {
 export interface GroupsFiltersProps {
   filters: GroupsFiltersType;
   onFiltersChange: (filters: GroupsFiltersType) => void;
-  groups: { code: string; name: string; clientCount?: number }[];
-  onGroupSearchChange?: (search: string) => void;
 }
 
 export function GroupsFilters({
   filters,
   onFiltersChange,
-  groups,
-  onGroupSearchChange,
 }: GroupsFiltersProps) {
   const [groupSearch, setGroupSearch] = React.useState('');
-  
-  // Debounce and notify parent of search changes
-  React.useEffect(() => {
-    const timer = setTimeout(() => {
-      if (onGroupSearchChange) {
-        onGroupSearchChange(groupSearch);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [groupSearch, onGroupSearchChange]);
-  
+
+  // Fetch group filter options
+  const { data: groupFiltersData, isLoading } = useGroupFilters({
+    search: groupSearch,
+  });
+
   const handleGroupsChange = (values: (string | number)[]) => {
     onFiltersChange({ ...filters, groups: values as string[] });
   };
@@ -45,10 +37,10 @@ export function GroupsFilters({
 
   const hasActiveFilters = filters.groups.length > 0;
 
-  // Convert data to MultiSelect options - show "Code - Name (Count)" format
-  const groupOptions: MultiSelectOption[] = groups.map(group => ({
+  // Convert data to SearchMultiCombobox options
+  const groupOptions: SearchMultiComboboxOption[] = (groupFiltersData?.groups || []).map(group => ({
     id: group.code,
-    label: `${group.code} - ${group.name}${group.clientCount !== undefined ? ` (${group.clientCount})` : ''}`,
+    label: `${group.code} - ${group.name}`,
   }));
 
   // Generate active filters summary
@@ -65,13 +57,17 @@ export function GroupsFilters({
         {/* Filter Row: Group */}
         <div className="flex items-center gap-2">
           <div className="flex-1 max-w-md">
-            <MultiSelect
-              options={groupOptions}
+            <SearchMultiCombobox
               value={filters.groups}
               onChange={handleGroupsChange}
+              onSearchChange={setGroupSearch}
+              options={groupOptions}
               placeholder="Filter by Group"
               searchPlaceholder="Search by code or name..."
-              onSearchChange={setGroupSearch}
+              minimumSearchChars={2}
+              isLoading={isLoading}
+              emptyMessage={groupSearch.length < 2 ? "Type 2+ characters to search groups" : "No groups found"}
+              metadata={groupFiltersData?.metadata}
             />
           </div>
 

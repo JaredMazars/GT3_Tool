@@ -43,8 +43,24 @@ export async function GET(request: NextRequest) {
     const industrySearch = searchParams.get('industrySearch') || '';
     const groupSearch = searchParams.get('groupSearch') || '';
 
+    // Enforce minimum search length (client-side should prevent this, but validate server-side)
+    const industryTooShort = industrySearch.length > 0 && industrySearch.length < 2;
+    const groupTooShort = groupSearch.length > 0 && groupSearch.length < 2;
+
+    if (industryTooShort || groupTooShort) {
+      return NextResponse.json(successResponse({
+        industries: industryTooShort ? [] : undefined,
+        groups: groupTooShort ? [] : undefined,
+        metadata: {
+          industries: industryTooShort ? { hasMore: false, total: 0, returned: 0 } : undefined,
+          groups: groupTooShort ? { hasMore: false, total: 0, returned: 0 } : undefined,
+        },
+        message: 'Please enter at least 2 characters to search',
+      }));
+    }
+
     // Build cache key
-    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}client-filters:industry:${industrySearch}:group:${groupSearch}:user:${user.id}`;
+    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}client-filters:industry:${industrySearch}:group:${groupSearch}:limit:50:user:${user.id}`;
     
     // Try cache first (30min TTL since filter options are relatively static)
     const cached = await cache.get(cacheKey);
@@ -72,11 +88,16 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Execute queries in parallel for better performance
-    // Limit results to top 200 matches for performance
-    const FILTER_LIMIT = 200;
+    // Reduced limit for faster response times
+    const FILTER_LIMIT = 50;
     
-    const [industriesData, groupsData] = await Promise.all([
+    // Execute queries in parallel for better performance
+    const [
+      industriesData, 
+      groupsData,
+      industriesTotalData,
+      groupsTotalData
+    ] = await Promise.all([
       // Get distinct industries with independent search
       prisma.client.groupBy({
         by: ['industry'],
@@ -99,12 +120,31 @@ export async function GET(request: NextRequest) {
         },
         take: FILTER_LIMIT,
       }),
+
+      // Get total count for industries
+      prisma.client.groupBy({
+        by: ['industry'],
+        where: {
+          ...industryWhere,
+          industry: { not: null },
+        },
+      }),
+
+      // Get total count for groups
+      prisma.client.groupBy({
+        by: ['groupCode', 'groupDesc'],
+        where: groupWhere,
+      }),
     ]);
 
     // Format the response
     const industries = industriesData
       .map(item => item.industry)
       .filter((industry): industry is string => !!industry);
+
+    const industriesTotal = industriesTotalData
+      .map(item => item.industry)
+      .filter((industry): industry is string => !!industry).length;
 
     // Filter out null values in JavaScript and format groups
     const groups = groupsData
@@ -114,9 +154,24 @@ export async function GET(request: NextRequest) {
         name: group.groupDesc!,
       }));
 
+    const groupsTotal = groupsTotalData
+      .filter(group => group.groupCode !== null && group.groupDesc !== null).length;
+
     const responseData = {
       industries,
       groups,
+      metadata: {
+        industries: {
+          hasMore: industriesTotal > FILTER_LIMIT,
+          total: industriesTotal,
+          returned: industries.length,
+        },
+        groups: {
+          hasMore: groupsTotal > FILTER_LIMIT,
+          total: groupsTotal,
+          returned: groups.length,
+        },
+      },
     };
 
     // Cache the response (30min TTL)

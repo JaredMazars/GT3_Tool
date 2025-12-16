@@ -10,9 +10,19 @@ export const clientFilterKeys = {
 };
 
 // Types
+export interface FilterMetadata {
+  hasMore: boolean;
+  total: number;
+  returned: number;
+}
+
 export interface ClientFilterOptions {
   industries: string[];
   groups: { code: string; name: string }[];
+  metadata?: {
+    industries?: FilterMetadata;
+    groups?: FilterMetadata;
+  };
 }
 
 export interface UseClientFiltersParams {
@@ -25,6 +35,8 @@ export interface UseClientFiltersParams {
  * Fetch client filter options (industries and groups)
  * Used to populate filter dropdowns independently from the main client list
  * Supports separate searches for industries and groups
+ * 
+ * Requires minimum 2 characters for search queries
  */
 export function useClientFilters(params: UseClientFiltersParams = {}) {
   const {
@@ -32,6 +44,11 @@ export function useClientFilters(params: UseClientFiltersParams = {}) {
     groupSearch = '',
     enabled = true,
   } = params;
+
+  // Don't execute query if both searches are too short
+  const industryValid = !industrySearch || industrySearch.length >= 2;
+  const groupValid = !groupSearch || groupSearch.length >= 2;
+  const shouldExecute = enabled && (industryValid || groupValid);
 
   return useQuery<ClientFilterOptions>({
     queryKey: clientFilterKeys.list({ industrySearch, groupSearch }),
@@ -49,7 +66,7 @@ export function useClientFilters(params: UseClientFiltersParams = {}) {
       
       return result.success ? result.data : result;
     },
-    enabled,
+    enabled: shouldExecute,
     staleTime: 30 * 60 * 1000, // 30 minutes - filter options are relatively static
     gcTime: 45 * 60 * 1000, // 45 minutes cache retention
     refetchOnMount: false,

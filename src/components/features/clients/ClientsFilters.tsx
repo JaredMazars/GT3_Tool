@@ -2,7 +2,9 @@
 
 import React from 'react';
 import { X, Filter } from 'lucide-react';
-import { MultiSelect, MultiSelectOption } from '@/components/ui';
+import { SearchMultiCombobox, SearchMultiComboboxOption } from '@/components/ui/SearchMultiCombobox';
+import { useClientFilters } from '@/hooks/clients/useClientFilters';
+import { useClients } from '@/hooks/clients/useClients';
 
 export interface ClientsFiltersType {
   clients: string[];  // Client codes
@@ -13,58 +15,29 @@ export interface ClientsFiltersType {
 export interface ClientsFiltersProps {
   filters: ClientsFiltersType;
   onFiltersChange: (filters: ClientsFiltersType) => void;
-  clients: { code: string; name: string }[];
-  industries: string[];
-  groups: { name: string; code: string; clientCount?: number }[];
-  onClientSearchChange?: (search: string) => void;
-  onIndustrySearchChange?: (search: string) => void;
-  onGroupSearchChange?: (search: string) => void;
 }
 
 export function ClientsFilters({
   filters,
   onFiltersChange,
-  clients,
-  industries,
-  groups,
-  onClientSearchChange,
-  onIndustrySearchChange,
-  onGroupSearchChange,
 }: ClientsFiltersProps) {
   const [clientSearch, setClientSearch] = React.useState('');
   const [industrySearch, setIndustrySearch] = React.useState('');
   const [groupSearch, setGroupSearch] = React.useState('');
-  
-  // Debounce and notify parent of client search changes
-  React.useEffect(() => {
-    const timer = setTimeout(() => {
-      if (onClientSearchChange) {
-        onClientSearchChange(clientSearch);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [clientSearch, onClientSearchChange]);
-  
-  // Debounce and notify parent of industry search changes
-  React.useEffect(() => {
-    const timer = setTimeout(() => {
-      if (onIndustrySearchChange) {
-        onIndustrySearchChange(industrySearch);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [industrySearch, onIndustrySearchChange]);
-  
-  // Debounce and notify parent of group search changes
-  React.useEffect(() => {
-    const timer = setTimeout(() => {
-      if (onGroupSearchChange) {
-        onGroupSearchChange(groupSearch);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [groupSearch, onGroupSearchChange]);
-  
+
+  // Fetch filter options with independent searches
+  const { data: clientFiltersData, isLoading: isLoadingFilters } = useClientFilters({
+    industrySearch,
+    groupSearch,
+  });
+
+  // Fetch clients for client filter (separate search)
+  const { data: clientsData, isLoading: isLoadingClients } = useClients({
+    search: clientSearch,
+    limit: 50, // Limit to 50 results
+    enabled: clientSearch.length >= 2,
+  });
+
   const handleClientsChange = (values: (string | number)[]) => {
     onFiltersChange({ ...filters, clients: values as string[] });
   };
@@ -90,27 +63,21 @@ export function ClientsFilters({
     filters.industries.length > 0 ||
     filters.groups.length > 0;
 
-  // Convert data to MultiSelect options - show "Code - Name" format
-  const clientOptions: MultiSelectOption[] = clients.map(client => ({
-    id: client.code,
-    label: `${client.code} - ${client.name}`,
+  // Convert data to SearchMultiCombobox options
+  const clientOptions: SearchMultiComboboxOption[] = (clientsData?.clients || []).map(client => ({
+    id: client.clientCode,
+    label: `${client.clientCode} - ${client.clientNameFull || client.clientCode}`,
   }));
 
-  const industryOptions: MultiSelectOption[] = industries.map(industry => ({
+  const industryOptions: SearchMultiComboboxOption[] = (clientFiltersData?.industries || []).map(industry => ({
     id: industry,
     label: industry,
   }));
 
-  const groupOptions: MultiSelectOption[] = groups.map(group => ({
+  const groupOptions: SearchMultiComboboxOption[] = (clientFiltersData?.groups || []).map(group => ({
     id: group.code,
-    label: `${group.code} - ${group.name}${group.clientCount !== undefined ? ` (${group.clientCount})` : ''}`,
+    label: `${group.code} - ${group.name}`,
   }));
-
-  // #region agent log
-  React.useEffect(() => {
-    fetch('http://127.0.0.1:7242/ingest/fefc3511-fdd0-43c4-a837-f5a8973894e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientsFilters.tsx:109',message:'Groups prop received',data:{groupsCount:groups.length,groupOptionsCount:groupOptions.length,firstThree:groups.slice(0,3)},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'C'})}).catch(()=>{});
-  }, [groups, groupOptions]);
-  // #endregion
 
   // Generate active filters summary
   const getActiveFiltersSummary = () => {
@@ -127,33 +94,49 @@ export function ClientsFilters({
         {/* Filter Row: Client, Industry, Group */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
           {/* Client Filter with server-side search */}
-          <MultiSelect
-            options={clientOptions}
+          <SearchMultiCombobox
             value={filters.clients}
             onChange={handleClientsChange}
+            onSearchChange={setClientSearch}
+            options={clientOptions}
             placeholder="Filter by Client"
             searchPlaceholder="Search by code or name..."
-            onSearchChange={setClientSearch}
+            minimumSearchChars={2}
+            isLoading={isLoadingClients}
+            emptyMessage={clientSearch.length < 2 ? "Type 2+ characters to search clients" : "No clients found"}
+            metadata={clientsData?.pagination ? {
+              hasMore: clientsData.pagination.total > clientsData.clients.length,
+              total: clientsData.pagination.total,
+              returned: clientsData.clients.length,
+            } : undefined}
           />
 
           {/* Industry Filter with server-side search */}
-          <MultiSelect
-            options={industryOptions}
+          <SearchMultiCombobox
             value={filters.industries}
             onChange={handleIndustriesChange}
+            onSearchChange={setIndustrySearch}
+            options={industryOptions}
             placeholder="All Industries"
             searchPlaceholder="Search industries..."
-            onSearchChange={setIndustrySearch}
+            minimumSearchChars={2}
+            isLoading={isLoadingFilters}
+            emptyMessage={industrySearch.length < 2 ? "Type 2+ characters to search industries" : "No industries found"}
+            metadata={clientFiltersData?.metadata?.industries}
           />
 
           {/* Group Filter with server-side search */}
-          <MultiSelect
-            options={groupOptions}
+          <SearchMultiCombobox
             value={filters.groups}
             onChange={handleGroupsChange}
+            onSearchChange={setGroupSearch}
+            options={groupOptions}
             placeholder="All Groups"
             searchPlaceholder="Search groups..."
-            onSearchChange={setGroupSearch}
+            minimumSearchChars={2}
+            isLoading={isLoadingFilters}
+            emptyMessage={groupSearch.length < 2 ? "Type 2+ characters to search groups" : "No groups found"}
+            metadata={clientFiltersData?.metadata?.groups}
           />
         </div>
 
