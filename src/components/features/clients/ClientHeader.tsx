@@ -61,7 +61,7 @@ export function ClientHeader({ client, tasks }: ClientHeaderProps) {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">WIP Balance</p>
-                    <p className="text-2xl font-bold mt-2 text-forvis-blue-600">{formatCurrency(balancesData.wipBalance)}</p>
+                    <p className="text-2xl font-bold mt-2 text-forvis-blue-600">{formatCurrency(balancesData.netWip)}</p>
                   </div>
                   <div
                     className="rounded-full p-2.5 ml-3"
