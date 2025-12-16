@@ -174,23 +174,75 @@ export function TaskListItem({
         {additionalBadge}
       </div>
       
-      {/* WIP Balances */}
+      {/* WIP Balances - Detailed Breakdown */}
       {balancesData && (
-        <div className="mt-2 pt-2 border-t border-forvis-gray-200">
-          <div className="flex items-center space-x-4">
-            <div className="flex-1">
+        <div 
+          className="mt-2 pt-3 pb-2 px-3 rounded-lg border border-forvis-blue-100"
+          style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+        >
+          {/* Header */}
+          <p className={`text-xs font-semibold uppercase tracking-wider mb-2 ${isAccessible ? 'text-forvis-gray-700' : 'text-forvis-gray-500'}`}>
+            WIP Breakdown
+          </p>
+          
+          {/* Component Breakdown */}
+          <div className="space-y-1 mb-2">
+            <div className="flex items-center text-xs">
+              <span className={`${isAccessible ? 'text-forvis-gray-600' : 'text-forvis-gray-400'}`}>Time:</span>
+              <span className={`ml-1 font-medium ${isAccessible ? 'text-forvis-gray-900' : 'text-forvis-gray-500'}`}>
+                {formatCurrency(balancesData.time)}
+              </span>
+              {balancesData.timeAdjustments !== 0 && (
+                <>
+                  <span className={`mx-1 ${isAccessible ? 'text-forvis-gray-500' : 'text-forvis-gray-400'}`}>+</span>
+                  <span className={`${isAccessible ? 'text-forvis-gray-600' : 'text-forvis-gray-400'}`}>Adj:</span>
+                  <span className={`ml-1 font-medium ${isAccessible ? 'text-forvis-gray-900' : 'text-forvis-gray-500'}`}>
+                    {formatCurrency(balancesData.timeAdjustments)}
+                  </span>
+                </>
+              )}
+              <span className={`mx-2 ${isAccessible ? 'text-forvis-gray-500' : 'text-forvis-gray-400'}`}>+</span>
+              <span className={`${isAccessible ? 'text-forvis-gray-600' : 'text-forvis-gray-400'}`}>Disb:</span>
+              <span className={`ml-1 font-medium ${isAccessible ? 'text-forvis-gray-900' : 'text-forvis-gray-500'}`}>
+                {formatCurrency(balancesData.disbursements)}
+              </span>
+              {balancesData.disbursementAdjustments !== 0 && (
+                <>
+                  <span className={`mx-1 ${isAccessible ? 'text-forvis-gray-500' : 'text-forvis-gray-400'}`}>+</span>
+                  <span className={`${isAccessible ? 'text-forvis-gray-600' : 'text-forvis-gray-400'}`}>Adj:</span>
+                  <span className={`ml-1 font-medium ${isAccessible ? 'text-forvis-gray-900' : 'text-forvis-gray-500'}`}>
+                    {formatCurrency(balancesData.disbursementAdjustments)}
+                  </span>
+                </>
+              )}
+            </div>
+            
+            <div className="flex items-center text-xs">
+              <span className={`${isAccessible ? 'text-forvis-gray-600' : 'text-forvis-gray-400'}`}>Fees:</span>
+              <span className={`ml-1 font-medium ${isAccessible ? 'text-red-600' : 'text-forvis-gray-500'}`}>
+                ({formatCurrency(balancesData.fees)})
+              </span>
+              {balancesData.provision !== 0 && (
+                <>
+                  <span className={`mx-2 ${isAccessible ? 'text-forvis-gray-500' : 'text-forvis-gray-400'}`}>+</span>
+                  <span className={`${isAccessible ? 'text-forvis-gray-600' : 'text-forvis-gray-400'}`}>Provision:</span>
+                  <span className={`ml-1 font-medium ${isAccessible ? 'text-forvis-gray-900' : 'text-forvis-gray-500'}`}>
+                    {formatCurrency(balancesData.provision)}
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+          
+          {/* Calculated Totals */}
+          <div className="flex items-center justify-between pt-2 border-t border-forvis-blue-200">
+            <div>
               <p className={`text-xs font-medium ${isAccessible ? 'text-forvis-gray-600' : 'text-forvis-gray-400'}`}>Gross WIP</p>
               <p className={`text-sm font-semibold ${isAccessible ? 'text-forvis-gray-900' : 'text-forvis-gray-500'}`}>
                 {formatCurrency(balancesData.grossWip)}
               </p>
             </div>
-            <div className="flex-1">
-              <p className={`text-xs font-medium ${isAccessible ? 'text-forvis-gray-600' : 'text-forvis-gray-400'}`}>Provision</p>
-              <p className={`text-sm font-semibold ${isAccessible ? 'text-forvis-gray-900' : 'text-forvis-gray-500'}`}>
-                {formatCurrency(balancesData.provision)}
-              </p>
-            </div>
-            <div className="flex-1">
+            <div className="text-right">
               <p className={`text-xs font-medium ${isAccessible ? 'text-forvis-gray-600' : 'text-forvis-gray-400'}`}>Net WIP</p>
               <p className={`text-sm font-semibold ${isAccessible ? 'text-forvis-blue-600' : 'text-forvis-gray-500'}`}>
                 {formatCurrency(balancesData.netWip)}

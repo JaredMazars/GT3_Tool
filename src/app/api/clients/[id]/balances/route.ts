@@ -9,19 +9,72 @@ interface ClientBalances {
   GSClientID: string;
   clientCode: string;
   clientName: string | null;
-  wipBalance: number;
+  // Breakdown components
+  time: number;
+  timeAdjustments: number;
+  disbursements: number;
+  disbursementAdjustments: number;
+  fees: number;
+  provision: number;
+  // Calculated totals
+  grossWip: number;
+  netWip: number;
   debtorBalance: number;
   lastUpdated: string | null;
 }
 
 /**
+ * Transaction Type Classification
+ */
+const TTYPE_CATEGORIES = {
+  TIME: ['T', 'TI', 'TIM'], // Time transactions
+  DISBURSEMENT: ['D', 'DI', 'DIS'], // Disbursement transactions
+  FEE: ['F', 'FEE'], // Fee transactions (reversed)
+  ADJUSTMENT_TIME: ['AT', 'ADT'], // Time adjustments
+  ADJUSTMENT_DISB: ['AD', 'ADD'], // Disbursement adjustments
+  PROVISION: ['P', 'PRO'], // Provision transactions
+};
+
+/**
+ * Categorize a transaction type
+ */
+function categorizeTransaction(tType: string): {
+  isTime: boolean;
+  isDisbursement: boolean;
+  isFee: boolean;
+  isAdjustmentTime: boolean;
+  isAdjustmentDisb: boolean;
+  isProvision: boolean;
+} {
+  const tTypeUpper = tType.toUpperCase();
+  
+  return {
+    isTime: TTYPE_CATEGORIES.TIME.includes(tTypeUpper) || (tTypeUpper.startsWith('T') && !tTypeUpper.startsWith('AT')),
+    isDisbursement: TTYPE_CATEGORIES.DISBURSEMENT.includes(tTypeUpper) || (tTypeUpper.startsWith('D') && !tTypeUpper.startsWith('AD')),
+    isFee: TTYPE_CATEGORIES.FEE.includes(tTypeUpper) || tTypeUpper === 'F',
+    isAdjustmentTime: TTYPE_CATEGORIES.ADJUSTMENT_TIME.includes(tTypeUpper) || tTypeUpper === 'AT',
+    isAdjustmentDisb: TTYPE_CATEGORIES.ADJUSTMENT_DISB.includes(tTypeUpper) || tTypeUpper === 'AD',
+    isProvision: TTYPE_CATEGORIES.PROVISION.includes(tTypeUpper) || tTypeUpper === 'P',
+  };
+}
+
+/**
  * GET /api/clients/[id]/balances
- * Get WIP and Debtor balances for a client calculated from transaction tables
+ * Get WIP and Debtor balances for a client with detailed breakdown
  * 
  * Returns:
- * - WIP Balance: Sum of Amount from WIPTransactions
+ * Breakdown Components:
+ * - Time: Sum of time transactions (TTYPE 'T', 'TI', 'TIM')
+ * - Time Adjustments: Sum of time adjustments (TTYPE 'AT', 'ADT')
+ * - Disbursements: Sum of disbursements (TTYPE 'D', 'DI', 'DIS')
+ * - Disbursement Adjustments: Sum of disbursement adjustments (TTYPE 'AD', 'ADD')
+ * - Fees: Sum of fees (TTYPE 'F') - reversed/subtracted
+ * - Provision: Sum of provisions (TTYPE 'P')
+ * 
+ * Calculated Totals:
+ * - Gross WIP: Time + Time Adj + Disbursements + Disb Adj - Fees
+ * - Net WIP: Gross WIP + Provision
  * - Debtor Balance: Sum of Total from DrsTransactions
- * - Client information
  * - Latest update timestamp
  */
 export async function GET(
@@ -101,15 +154,47 @@ export async function GET(
       },
     });
 
-    // Calculate WIP balance with TTYPE logic
-    const wipBalance = wipTransactions.reduce((sum, transaction) => {
+    // Calculate balances with detailed breakdown
+    let time = 0;
+    let timeAdjustments = 0;
+    let disbursements = 0;
+    let disbursementAdjustments = 0;
+    let fees = 0;
+    let provision = 0;
+
+    wipTransactions.forEach((transaction) => {
       const amount = transaction.Amount || 0;
-      // Reverse amount only if TTYPE is 'F' (not 'P' for provision)
-      if (transaction.TType === 'F') {
-        return sum - amount;
+      const category = categorizeTransaction(transaction.TType);
+
+      if (category.isProvision) {
+        // Provision tracked separately
+        provision += amount;
+      } else if (category.isFee) {
+        // Fees are reversed (subtracted)
+        fees += amount;
+      } else if (category.isAdjustmentTime) {
+        // Time adjustments
+        timeAdjustments += amount;
+      } else if (category.isAdjustmentDisb) {
+        // Disbursement adjustments
+        disbursementAdjustments += amount;
+      } else if (category.isTime) {
+        // Time transactions
+        time += amount;
+      } else if (category.isDisbursement) {
+        // Disbursement transactions
+        disbursements += amount;
+      } else {
+        // Other transactions default to time-like behavior
+        time += amount;
       }
-      return sum + amount;
-    }, 0);
+    });
+
+    // Gross WIP = Time + Time Adjustments + Disbursements + Disbursement Adjustments - Fees
+    const grossWip = time + timeAdjustments + disbursements + disbursementAdjustments - fees;
+    
+    // Net WIP = Gross WIP + Provision
+    const netWip = grossWip + provision;
 
     // Calculate Debtor Balance: Sum of Total from DrsTransactions
     const debtorAggregation = await prisma.drsTransactions.aggregate({
@@ -161,7 +246,16 @@ export async function GET(
       GSClientID: client.GSClientID,
       clientCode: client.clientCode,
       clientName: client.clientNameFull,
-      wipBalance: wipBalance,
+      // Breakdown components
+      time,
+      timeAdjustments,
+      disbursements,
+      disbursementAdjustments,
+      fees,
+      provision,
+      // Calculated totals
+      grossWip,
+      netWip,
       debtorBalance: debtorAggregation._sum.Total || 0,
       lastUpdated: lastUpdated ? lastUpdated.toISOString() : null,
     };

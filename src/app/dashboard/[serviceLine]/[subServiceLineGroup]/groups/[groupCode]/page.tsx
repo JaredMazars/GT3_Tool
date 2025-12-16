@@ -18,6 +18,7 @@ import { formatDate } from '@/lib/utils/taskUtils';
 import { formatServiceLineName, isValidServiceLine, isSharedService } from '@/lib/utils/serviceLineUtils';
 import { ServiceLine } from '@/types';
 import { GroupHeader } from '@/components/features/clients/GroupHeader';
+import { ClientListItem } from '@/components/features/clients/ClientListItem';
 import { useClientGroup } from '@/hooks/clients/useClientGroup';
 import { useGroupServiceLines } from '@/hooks/clients/useGroupServiceLines';
 import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLineGroups';
@@ -430,80 +431,14 @@ export default function GroupDetailPage() {
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {clients.map((client: any) => {
-                        const formatCurrency = (amount: number) => {
-                          return new Intl.NumberFormat('en-ZA', {
-                            style: 'currency',
-                            currency: 'ZAR',
-                            minimumFractionDigits: 0,
-                            maximumFractionDigits: 0,
-                          }).format(amount);
-                        };
-                        
-                        return (
-                          <Link
-                            key={client.id}
-                            href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${client.GSClientID}`}
-                            className="block p-3 border border-forvis-gray-200 rounded-lg transition-all hover:border-forvis-blue-500 hover:shadow-sm cursor-pointer"
-                          >
-                            <div className="flex items-start justify-between mb-2">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center space-x-2 mb-1 flex-wrap">
-                                  <h3 className="text-sm font-semibold text-forvis-gray-900">
-                                    {client.clientNameFull || client.clientCode}
-                                  </h3>
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
-                                    {client.clientCode}
-                                  </span>
-                                  {client.active !== 'Yes' && (
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-forvis-gray-200 text-forvis-gray-700">
-                                      Inactive
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                            
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-3 text-xs text-forvis-gray-500">
-                                <span title="Partner">
-                                  Partner: {client.clientPartner}
-                                </span>
-                                {client.industry && (
-                                  <span title="Industry">
-                                    Industry: {client.industry}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-forvis-blue-100 text-forvis-blue-800">
-                                  {client._count?.Task || 0} tasks
-                                </span>
-                              </div>
-                            </div>
-                            
-                            {/* WIP Balances */}
-                            {client.wip && (
-                              <div className="mt-2 pt-2 border-t border-forvis-gray-200">
-                                <div className="flex items-center space-x-3">
-                                  <div className="flex-1">
-                                    <p className="text-xs font-medium text-forvis-gray-600">WIP Balance</p>
-                                    <p className="text-sm font-semibold text-forvis-gray-900">{formatCurrency(client.wip.balWIP)}</p>
-                                  </div>
-                                  <div className="flex-1">
-                                    <p className="text-xs font-medium text-forvis-gray-600">Time</p>
-                                    <p className="text-sm font-semibold text-forvis-gray-900">{formatCurrency(client.wip.balTime)}</p>
-                                  </div>
-                                  <div className="flex-1">
-                                    <p className="text-xs font-medium text-forvis-gray-600">Disb</p>
-                                    <p className="text-sm font-semibold text-forvis-gray-900">{formatCurrency(client.wip.balDisb)}</p>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </Link>
-                        );
-                      })}
+                      {clients.map((client: any) => (
+                        <ClientListItem
+                          key={client.id}
+                          client={client}
+                          serviceLine={serviceLine}
+                          subServiceLineGroup={subServiceLineGroup}
+                        />
+                      ))}
                     </div>
                   )
                 ) : (

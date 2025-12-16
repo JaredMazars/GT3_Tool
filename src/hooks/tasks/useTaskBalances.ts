@@ -14,8 +14,15 @@ export interface TaskBalances {
   GSTaskID: string;
   taskCode: string;
   taskDesc: string;
-  grossWip: number;
+  // Breakdown components
+  time: number;
+  timeAdjustments: number;
+  disbursements: number;
+  disbursementAdjustments: number;
+  fees: number;
   provision: number;
+  // Calculated totals
+  grossWip: number;
   netWip: number;
   lastUpdated: string | null;
 }
@@ -25,11 +32,20 @@ export interface UseTaskBalancesParams {
 }
 
 /**
- * Fetch WIP balances for a task
+ * Fetch WIP balances for a task with detailed breakdown
  * Returns balances calculated from WIPTransactions:
- * - grossWip: Sum of all amounts minus fees (excluding provision)
- * - provision: Sum of provision amounts
- * - netWip: Gross WIP plus provision
+ * 
+ * Breakdown Components:
+ * - time: Time transactions
+ * - timeAdjustments: Time adjustments
+ * - disbursements: Disbursement transactions
+ * - disbursementAdjustments: Disbursement adjustments
+ * - fees: Fee transactions (reversed/subtracted)
+ * - provision: Provision transactions
+ * 
+ * Calculated Totals:
+ * - grossWip: Time + Adjustments + Disbursements - Fees
+ * - netWip: Gross WIP + Provision
  */
 export function useTaskBalances(
   taskId: number | undefined,
