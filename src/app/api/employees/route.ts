@@ -22,6 +22,9 @@ export async function GET(request: NextRequest) {
     const roleFilter = searchParams.get('roleFilter'); // PARTNER, MANAGER, etc.
     const officeCode = searchParams.get('officeCode');
     const activeOnly = searchParams.get('activeOnly') !== 'false'; // Default true
+    const empCatCodes = searchParams.get('empCatCodes')?.split(',').filter(Boolean);
+    const search = searchParams.get('search');
+    const masterCode = searchParams.get('masterCode'); // TAX, AUDIT, ADVISORY, ACCOUNTING
 
     // Build where clause
     const where: any = {};
@@ -36,8 +39,28 @@ export async function GET(request: NextRequest) {
       where.OfficeCode = officeCode;
     }
 
-    // Filter by role/category
-    if (roleFilter) {
+    // Filter by main service line (masterCode) via ServiceLineExternal mapping
+    if (masterCode) {
+      // Query ServiceLineExternal to get SubServlineGroupCode values for this masterCode
+      // Employee.ServLineCode maps to ServiceLineExternal.SubServlineGroupCode
+      const serviceLineMapping = await prisma.serviceLineExternal.findMany({
+        where: { masterCode: masterCode },
+        select: { SubServlineGroupCode: true },
+      });
+      
+      const subServiceLineCodes = serviceLineMapping
+        .map(sl => sl.SubServlineGroupCode)
+        .filter((code): code is string => code !== null && code !== undefined);
+      
+      if (subServiceLineCodes.length > 0) {
+        where.ServLineCode = { in: subServiceLineCodes };
+      }
+    }
+
+    // Filter by employee category codes (takes precedence over roleFilter)
+    if (empCatCodes && empCatCodes.length > 0) {
+      where.EmpCatCode = { in: empCatCodes };
+    } else if (roleFilter) {
       // Map role filters to employee category descriptions
       // This is a simplified mapping - adjust based on actual data
       const categoryMap: Record<string, string[]> = {
@@ -52,6 +75,15 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Filter by search term
+    if (search) {
+      where.OR = [
+        { EmpNameFull: { contains: search } },
+        { EmpName: { contains: search } },
+        { EmpCode: { contains: search } },
+      ];
+    }
+
     // Fetch employees
     const employees = await prisma.employee.findMany({
       where,
@@ -61,6 +93,7 @@ export async function GET(request: NextRequest) {
         EmpName: true,
         EmpNameFull: true,
         OfficeCode: true,
+        EmpCatCode: true,
         EmpCatDesc: true,
         ServLineCode: true,
         ServLineDesc: true,

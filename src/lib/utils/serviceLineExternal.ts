@@ -58,9 +58,14 @@ export async function getExternalServiceLinesByMaster(
       return cached;
     }
 
-    // Fetch from database
+    // Fetch from database - only get records with complete data for task creation
     const result = await prisma.serviceLineExternal.findMany({
-      where: { masterCode },
+      where: { 
+        masterCode,
+        ServLineCode: { not: null },
+        ServLineDesc: { not: null },
+        SubServlineGroupCode: { not: null },
+      },
       orderBy: { SubServlineGroupCode: 'asc' },
     });
 
@@ -379,6 +384,8 @@ export async function getExternalServiceLinesBySubGroup(
     
     const where: any = {
       SubServlineGroupCode: normalizedSubGroupCode,
+      ServLineCode: { not: null },
+      ServLineDesc: { not: null },
     };
     
     if (normalizedMasterCode) {

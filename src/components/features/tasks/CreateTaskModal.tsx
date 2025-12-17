@@ -4,10 +4,14 @@ import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { ServiceLine } from '@/types';
 import { ClientSelector } from '../../features/clients/ClientSelector';
-import { UserSelector } from '../../features/users/UserSelector';
+import { EmployeeAutocomplete } from '../../features/users/EmployeeAutocomplete';
+import { EmployeeMultiSelect, TeamMember } from '../../features/users/EmployeeMultiSelect';
 import { OfficeCodeSelector } from './OfficeCodeSelector';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { useCreateTask } from '@/hooks/tasks/useCreateTask';
+import { useStandardTasks } from '@/hooks/tasks/useStandardTasks';
+import { useCheckDuplicateTaskCode, CheckDuplicateResult } from '@/hooks/tasks/useCheckDuplicateTaskCode';
+import { DuplicateTaskWarning } from './DuplicateTaskWarning';
 
 interface TaskCreatedResult {
   id: number;
@@ -47,6 +51,18 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
   const [externalServiceLines, setExternalServiceLines] = useState<ExternalServiceLine[]>([]);
   const [loadingExternalServiceLines, setLoadingExternalServiceLines] = useState(false);
 
+  // Standard tasks state
+  const [selectedStandardTask, setSelectedStandardTask] = useState<string>('');
+  
+  // Duplicate checking state
+  const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
+  const [duplicateCheckResult, setDuplicateCheckResult] = useState<CheckDuplicateResult | null>(null);
+  const checkDuplicateMutation = useCheckDuplicateTaskCode();
+
+  // Team member management state
+  const [officeAutoPopulated, setOfficeAutoPopulated] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+
   const [formData, setFormData] = useState({
     // Basic Info
     taskYear: new Date().getFullYear(),
@@ -54,12 +70,17 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
     TaskCode: '',
     clientId: initialClientId || null,
     
+    // Standard Task
+    stdTaskCode: '',
+    stdTaskDesc: '',
+    
     // Team & Organization
     TaskPartner: '',
     TaskPartnerName: '',
     TaskManager: '',
     TaskManagerName: '',
     OfficeCode: '',
+    TaskPartnerOfficeCode: '',
     
     // Service Line
     serviceLine: effectiveServiceLine,
@@ -69,13 +90,13 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
     
     // Timeline
     TaskDateOpen: new Date().toISOString().split('T')[0],
-    TaskDateTerminate: '',
     
-    // Estimations
-    estimatedHours: '',
-    estimatedTimeValue: '',
-    estimatedDisbursements: '',
-    estimatedAdjustments: '',
+    // TaskBudget fields
+    EstChgHours: '',      // Estimated hours
+    EstFeeTime: '',       // Estimated time fees
+    EstFeeDisb: '',       // Estimated disbursements
+    BudStartDate: '',     // Budget start date
+    BudDueDate: '',       // Budget due date
   });
 
   // Fetch external service lines when service line is available
@@ -108,6 +129,21 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
       }));
     }
   }, [isOpen, initialServiceLine, currentServiceLine]);
+
+  // Re-process ServLineCode when externalServiceLines loads (fixes race condition)
+  useEffect(() => {
+    if (externalServiceLines.length > 0 && formData.ServLineCode && !formData.ServLineDesc) {
+      // Service line code exists but description is missing - lookup and populate
+      const selectedLine = externalServiceLines.find(line => line.ServLineCode === formData.ServLineCode);
+      if (selectedLine) {
+        setFormData(prev => ({
+          ...prev,
+          ServLineDesc: selectedLine.ServLineDesc || '',
+          SLGroup: selectedLine.SubServlineGroupCode || '',
+        }));
+      }
+    }
+  }, [externalServiceLines, formData.ServLineCode, formData.ServLineDesc]);
 
   const fetchExternalServiceLines = async (masterCode: string, subGroupCode: string) => {
     setLoadingExternalServiceLines(true);
@@ -185,23 +221,220 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
       setFormData(prev => ({
         ...prev,
         ServLineCode: servLineCode,
+        ServLineDesc: '',
+        SLGroup: '',
       }));
     }
   };
 
-  const handlePartnerChange = (code: string, name: string) => {
+  const handlePartnerChange = (code: string, name: string, nameFull: string, officeCode: string) => {
+    // Get the previous partner code to remove from team
+    const previousPartnerCode = formData.TaskPartner;
+
+    // Update form data
     setFormData(prev => ({
       ...prev,
       TaskPartner: code,
       TaskPartnerName: name,
+      TaskPartnerOfficeCode: officeCode,
+      OfficeCode: code ? officeCode : prev.OfficeCode,  // Auto-populate office code only if partner selected
     }));
+    
+    // Only mark as auto-populated if a partner is selected
+    if (code) {
+      setOfficeAutoPopulated(true);
+    } else {
+      setOfficeAutoPopulated(false);
+    }
+    
+    // Update team members
+    setTeamMembers(prev => {
+      // Remove previous partner if exists
+      let filtered = prev;
+      if (previousPartnerCode) {
+        filtered = prev.filter(m => m.empCode !== previousPartnerCode);
+      }
+      
+      // If a new partner is selected
+      if (code) {
+        // Check if this person already exists in the team (not as previous partner)
+        const existingMember = filtered.find(m => m.empCode === code);
+        
+        if (existingMember) {
+          // Update existing member to ADMIN role and lock them
+          return filtered.map(m => 
+            m.empCode === code 
+              ? { ...m, role: 'ADMIN' as const, locked: true }
+              : m
+          );
+        } else {
+          // Add new member
+          return [...filtered, {
+            empCode: code,
+            empName: name,
+            empNameFull: nameFull,
+            role: 'ADMIN' as const,
+            locked: true,
+          }];
+        }
+      }
+      
+      // If cleared, just return filtered list (without previous partner)
+      return filtered;
+    });
   };
 
-  const handleManagerChange = (code: string, name: string) => {
+  const handleManagerChange = (code: string, name: string, nameFull: string, officeCode: string) => {
+    // Get the previous manager code to remove from team
+    const previousManagerCode = formData.TaskManager;
+
+    // Update form data
     setFormData(prev => ({
       ...prev,
       TaskManager: code,
       TaskManagerName: name,
+    }));
+    
+    // Update team members
+    setTeamMembers(prev => {
+      // Remove previous manager if exists
+      let filtered = prev;
+      if (previousManagerCode) {
+        filtered = prev.filter(m => m.empCode !== previousManagerCode);
+      }
+      
+      // If a new manager is selected
+      if (code) {
+        // Check if this person already exists in the team (not as previous manager)
+        const existingMember = filtered.find(m => m.empCode === code);
+        
+        if (existingMember) {
+          // Update existing member to ADMIN role and lock them
+          return filtered.map(m => 
+            m.empCode === code 
+              ? { ...m, role: 'ADMIN' as const, locked: true }
+              : m
+          );
+        } else {
+          // Add new member
+          return [...filtered, {
+            empCode: code,
+            empName: name,
+            empNameFull: nameFull,
+            role: 'ADMIN' as const,
+            locked: true,
+          }];
+        }
+      }
+      
+      // If cleared, just return filtered list (without previous manager)
+      return filtered;
+    });
+  };
+
+  const handleTeamMembersChange = (members: TeamMember[]) => {
+    setTeamMembers(members);
+  };
+
+  // Fetch standard tasks for the selected service line
+  const { data: standardTasks = [], isLoading: loadingStandardTasks } = useStandardTasks(
+    formData.ServLineCode,
+    !!formData.ServLineCode && isOpen
+  );
+
+  // Generate task code helper function
+  const generateTaskCode = (servLineCode: string, year: number, stdTaskCode: string, increment: string): string => {
+    const servPrefix = servLineCode.substring(0, 3).toUpperCase();
+    const yearSuffix = year.toString().slice(-2);
+    const stdCode = stdTaskCode.substring(0, 3).toUpperCase();
+    return `${servPrefix}${yearSuffix}${stdCode}${increment}`;
+  };
+
+  // Handle standard task selection
+  const handleStandardTaskChange = async (stdTaskCode: string) => {
+    if (!stdTaskCode) {
+      setSelectedStandardTask('');
+      setFormData(prev => ({
+        ...prev,
+        stdTaskCode: '',
+        stdTaskDesc: '',
+        TaskDesc: '',
+        TaskCode: '',
+      }));
+      return;
+    }
+
+    // Find the selected standard task
+    const selectedTask = standardTasks.find(task => task.StdTaskCode === stdTaskCode);
+    if (!selectedTask) return;
+
+    setSelectedStandardTask(stdTaskCode);
+
+    // Update form with standard task description
+    setFormData(prev => ({
+      ...prev,
+      stdTaskCode: stdTaskCode,
+      stdTaskDesc: selectedTask.StdTaskDesc,
+      TaskDesc: selectedTask.StdTaskDesc,
+    }));
+
+    // Check for duplicates
+    try {
+      const result = await checkDuplicateMutation.mutateAsync({
+        servLineCode: formData.ServLineCode,
+        year: formData.taskYear,
+        stdTaskCode: stdTaskCode,
+      });
+
+      setDuplicateCheckResult(result);
+
+      // If duplicates exist, show warning modal
+      if (result.exists) {
+        setShowDuplicateWarning(true);
+      } else {
+        // No duplicates, generate code with increment 01
+        const taskCode = generateTaskCode(
+          formData.ServLineCode,
+          formData.taskYear,
+          stdTaskCode,
+          result.nextIncrement
+        );
+        setFormData(prev => ({ ...prev, TaskCode: taskCode }));
+      }
+    } catch (error) {
+      console.error('Error checking for duplicates:', error);
+      // If error, still generate a code with increment 01
+      const taskCode = generateTaskCode(
+        formData.ServLineCode,
+        formData.taskYear,
+        stdTaskCode,
+        '01'
+      );
+      setFormData(prev => ({ ...prev, TaskCode: taskCode }));
+    }
+  };
+
+  // Handle duplicate warning confirmation
+  const handleDuplicateContinue = () => {
+    if (duplicateCheckResult) {
+      // Use the next increment from the duplicate check
+      const taskCode = duplicateCheckResult.nextTaskCode;
+      setFormData(prev => ({ ...prev, TaskCode: taskCode }));
+    }
+    setShowDuplicateWarning(false);
+  };
+
+  // Handle duplicate warning cancellation
+  const handleDuplicateCancel = () => {
+    setShowDuplicateWarning(false);
+    // Reset standard task selection
+    setSelectedStandardTask('');
+    setFormData(prev => ({
+      ...prev,
+      stdTaskCode: '',
+      stdTaskDesc: '',
+      TaskDesc: '',
+      TaskCode: '',
     }));
   };
 
@@ -228,11 +461,12 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
   const isStepValid = (currentStep: number): boolean => {
     switch (currentStep) {
       case 1:
-        return !!formData.taskYear && !!formData.TaskDesc.trim() && !!formData.ServLineCode;
+        // Only check ServLineCode - backend will derive SLGroup and ServLineDesc
+        return !!formData.taskYear && !!formData.TaskDesc.trim() && !!formData.ServLineCode?.trim() && !!formData.stdTaskCode && !!formData.TaskCode;
       case 2:
         return !!formData.TaskPartner && !!formData.TaskManager && !!formData.OfficeCode;
       case 3:
-        return !!formData.TaskDateOpen;
+        return true; // Budget step - all fields optional
       case 4:
         return true; // Review step
       default:
@@ -247,21 +481,31 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
       // Prepare submission data
       const submitData = {
         ...formData,
-        // Convert estimation strings to numbers
-        estimatedHours: formData.estimatedHours ? parseFloat(formData.estimatedHours as string) : undefined,
-        estimatedTimeValue: formData.estimatedTimeValue ? parseFloat(formData.estimatedTimeValue as string) : undefined,
-        estimatedDisbursements: formData.estimatedDisbursements ? parseFloat(formData.estimatedDisbursements as string) : undefined,
-        estimatedAdjustments: formData.estimatedAdjustments ? parseFloat(formData.estimatedAdjustments as string) : undefined,
-        // Convert dates
-        TaskDateOpen: formData.TaskDateOpen ? new Date(formData.TaskDateOpen) : new Date(),
-        TaskDateTerminate: formData.TaskDateTerminate ? new Date(formData.TaskDateTerminate) : undefined,
+        // Remove derived fields - backend will populate them from ServLineCode
+        SLGroup: undefined,
+        ServLineDesc: undefined,
+        // Convert TaskBudget fields to numbers
+        EstChgHours: formData.EstChgHours ? parseFloat(formData.EstChgHours as string) : undefined,
+        EstFeeTime: formData.EstFeeTime ? parseFloat(formData.EstFeeTime as string) : undefined,
+        EstFeeDisb: formData.EstFeeDisb ? parseFloat(formData.EstFeeDisb as string) : undefined,
+        // Convert budget dates
+        BudStartDate: formData.BudStartDate ? new Date(formData.BudStartDate) : undefined,
+        BudDueDate: formData.BudDueDate ? new Date(formData.BudDueDate) : undefined,
+        // Task dates - auto-populate TaskDateOpen with current date
+        TaskDateOpen: new Date(),
+        TaskDateTerminate: undefined,
+        // Add team members
+        teamMembers: teamMembers.map(tm => ({
+          empCode: tm.empCode,
+          role: tm.role,
+        })),
       };
 
       const createdTask = await createTaskMutation.mutateAsync(submitData);
-      
+
       // Reset form
       resetForm();
-      
+
       // Call parent's onSuccess
       onSuccess(createdTask);
     } catch (error) {
@@ -276,24 +520,32 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
       TaskDesc: '',
       TaskCode: '',
       clientId: initialClientId || null,
+      stdTaskCode: '',
+      stdTaskDesc: '',
       TaskPartner: '',
       TaskPartnerName: '',
       TaskManager: '',
       TaskManagerName: '',
       OfficeCode: '',
+      TaskPartnerOfficeCode: '',
       serviceLine: sl,
       SLGroup: '',
       ServLineCode: '',
       ServLineDesc: '',
       TaskDateOpen: new Date().toISOString().split('T')[0],
-      TaskDateTerminate: '',
-      estimatedHours: '',
-      estimatedTimeValue: '',
-      estimatedDisbursements: '',
-      estimatedAdjustments: '',
+      EstChgHours: '',
+      EstFeeTime: '',
+      EstFeeDisb: '',
+      BudStartDate: '',
+      BudDueDate: '',
     });
     setStep(1);
     setIsTransitioning(false);
+    setSelectedStandardTask('');
+    setShowDuplicateWarning(false);
+    setDuplicateCheckResult(null);
+    setOfficeAutoPopulated(false);
+    setTeamMembers([]);
   };
 
   const handleClose = () => {
@@ -305,9 +557,8 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
   if (!isOpen) return null;
 
   const totalEstimatedFees = 
-    (parseFloat(formData.estimatedTimeValue as string) || 0) +
-    (parseFloat(formData.estimatedDisbursements as string) || 0) -
-    (parseFloat(formData.estimatedAdjustments as string) || 0);
+    (parseFloat(formData.EstFeeTime as string) || 0) +
+    (parseFloat(formData.EstFeeDisb as string) || 0);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -338,7 +589,7 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
           <div className="flex justify-between text-xs text-white/90 mt-1">
             <span>Basic Info</span>
             <span>Team</span>
-            <span>Timeline & Fees</span>
+            <span>Budget</span>
             <span>Review</span>
           </div>
         </div>
@@ -397,6 +648,41 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Standard Task <span className="text-red-500">*</span>
+                </label>
+                {loadingStandardTasks ? (
+                  <div className="animate-pulse h-10 bg-gray-200 rounded-lg"></div>
+                ) : !formData.ServLineCode ? (
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-sm text-gray-500 italic">
+                    Please select a service line first
+                  </div>
+                ) : standardTasks.length === 0 ? (
+                  <div className="px-3 py-2 bg-yellow-50 border border-yellow-300 rounded-lg text-sm text-yellow-700">
+                    No standard tasks available for this service line
+                  </div>
+                ) : (
+                  <select
+                    value={selectedStandardTask}
+                    onChange={(e) => handleStandardTaskChange(e.target.value)}
+                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
+                    required
+                    disabled={!formData.ServLineCode}
+                  >
+                    <option value="">Select standard task...</option>
+                    {standardTasks.map((task) => (
+                      <option key={task.id} value={task.StdTaskCode}>
+                        {task.StdTaskCode} - {task.StdTaskDesc}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <p className="mt-1 text-xs text-gray-500">
+                  Selecting a standard task will auto-populate the task name and generate the task code
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Task Name <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -413,17 +699,20 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Task Code
+                  Task Code <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  value={formData.TaskCode}
-                  onChange={(e) => handleFieldChange('TaskCode', e.target.value.toUpperCase())}
-                  maxLength={10}
-                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500 uppercase"
-                  placeholder="Auto-generated if left blank"
-                />
-                <p className="mt-1 text-xs text-gray-500">Leave blank to auto-generate</p>
+                {!formData.stdTaskCode ? (
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-sm text-gray-500 italic">
+                    Select a standard task to generate task code
+                  </div>
+                ) : (
+                  <div className="px-3 py-2 bg-forvis-blue-50 border-2 border-forvis-blue-200 rounded-lg">
+                    <span className="font-mono text-lg font-bold text-forvis-blue-600">
+                      {formData.TaskCode || 'Generating...'}
+                    </span>
+                  </div>
+                )}
+                <p className="mt-1 text-xs text-gray-500">Auto-generated from service line, year, and standard task</p>
               </div>
 
               {!initialClientId ? (
@@ -454,68 +743,64 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
           {/* Step 2: Team & Organization */}
           {step === 2 && (
             <div className="space-y-4">
-              <UserSelector
+              <EmployeeAutocomplete
+                label="Task Partner"
                 value={formData.TaskPartner}
                 valueName={formData.TaskPartnerName}
                 onChange={handlePartnerChange}
-                label="Task Partner"
-                roleFilter="PARTNER"
+                empCatCodes={['CARL', 'DIR', 'Local']}
+                excludeCodes={formData.TaskManager ? [formData.TaskManager] : []}
                 required
+                placeholder="Search by name or code..."
               />
 
-              <UserSelector
+              <EmployeeAutocomplete
+                label="Task Manager"
                 value={formData.TaskManager}
                 valueName={formData.TaskManagerName}
                 onChange={handleManagerChange}
-                label="Task Manager"
-                roleFilter="MANAGER"
+                masterCode={effectiveServiceLine}
+                excludeCodes={formData.TaskPartner ? [formData.TaskPartner] : []}
                 required
+                placeholder="Search by name or code..."
               />
 
-              <OfficeCodeSelector
-                value={formData.OfficeCode}
-                onChange={(code) => handleFieldChange('OfficeCode', code)}
-                required
+              {officeAutoPopulated ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Office Code <span className="text-red-500">*</span>
+                  </label>
+                  <div className="px-3 py-2 bg-gray-50 border-2 border-gray-300 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-gray-900">{formData.OfficeCode}</span>
+                      <span className="text-xs text-gray-500 italic">From selected partner</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <OfficeCodeSelector
+                  value={formData.OfficeCode}
+                  onChange={(code) => handleFieldChange('OfficeCode', code)}
+                  required
+                />
+              )}
+
+              <EmployeeMultiSelect
+                label="Additional Team Members"
+                selectedMembers={teamMembers}
+                onChange={handleTeamMembersChange}
+                lockedMemberCodes={[formData.TaskPartner, formData.TaskManager].filter(Boolean)}
+                masterCode={effectiveServiceLine}
+                placeholder="Search to add team members..."
               />
             </div>
           )}
 
-          {/* Step 3: Timeline & Fees */}
+          {/* Step 3: Budget Information */}
           {step === 3 && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">Timeline</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Start Date <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.TaskDateOpen}
-                      onChange={(e) => handleFieldChange('TaskDateOpen', e.target.value)}
-                      className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      End Date (Optional)
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.TaskDateTerminate}
-                      onChange={(e) => handleFieldChange('TaskDateTerminate', e.target.value)}
-                      min={formData.TaskDateOpen}
-                      className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">Budget Estimates</h3>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">Budget Information</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -523,8 +808,8 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
                     </label>
                     <input
                       type="number"
-                      value={formData.estimatedHours}
-                      onChange={(e) => handleFieldChange('estimatedHours', e.target.value)}
+                      value={formData.EstChgHours}
+                      onChange={(e) => handleFieldChange('EstChgHours', e.target.value)}
                       min="0"
                       step="0.5"
                       className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
@@ -534,12 +819,12 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Estimated Time Value (Fees)
+                      Estimated Time Fees
                     </label>
                     <input
                       type="number"
-                      value={formData.estimatedTimeValue}
-                      onChange={(e) => handleFieldChange('estimatedTimeValue', e.target.value)}
+                      value={formData.EstFeeTime}
+                      onChange={(e) => handleFieldChange('EstFeeTime', e.target.value)}
                       min="0"
                       step="0.01"
                       className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
@@ -553,8 +838,8 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
                     </label>
                     <input
                       type="number"
-                      value={formData.estimatedDisbursements}
-                      onChange={(e) => handleFieldChange('estimatedDisbursements', e.target.value)}
+                      value={formData.EstFeeDisb}
+                      onChange={(e) => handleFieldChange('EstFeeDisb', e.target.value)}
                       min="0"
                       step="0.01"
                       className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
@@ -562,25 +847,37 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Estimated Adjustments
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.estimatedAdjustments}
-                      onChange={(e) => handleFieldChange('estimatedAdjustments', e.target.value)}
-                      min="0"
-                      step="0.01"
-                      className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
-                      placeholder="0.00"
-                    />
+                  <div className="col-span-2 grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Estimated Start Date
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.BudStartDate}
+                        onChange={(e) => handleFieldChange('BudStartDate', e.target.value)}
+                        className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Estimated End Date
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.BudDueDate}
+                        onChange={(e) => handleFieldChange('BudDueDate', e.target.value)}
+                        min={formData.BudStartDate}
+                        className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
+                      />
+                    </div>
                   </div>
                 </div>
 
                 <div className="mt-4 p-3 bg-forvis-blue-50 border border-forvis-blue-200 rounded-lg">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm font-semibold text-forvis-gray-700">Total Estimated Fees:</span>
+                    <span className="text-sm font-semibold text-forvis-gray-700">Total Estimated Budget:</span>
                     <span className="text-lg font-bold text-forvis-blue-600">
                       R {totalEstimatedFees.toFixed(2)}
                     </span>
@@ -708,6 +1005,18 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
           </div>
         </div>
       </div>
+
+      {/* Duplicate Task Warning Modal */}
+      {duplicateCheckResult && (
+        <DuplicateTaskWarning
+          isOpen={showDuplicateWarning}
+          onClose={handleDuplicateCancel}
+          onContinue={handleDuplicateContinue}
+          existingTasks={duplicateCheckResult.existingTasks}
+          nextTaskCode={duplicateCheckResult.nextTaskCode}
+          basePattern={duplicateCheckResult.basePattern}
+        />
+      )}
     </div>
   );
 }

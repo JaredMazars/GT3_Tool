@@ -33,6 +33,12 @@ export interface CreateTaskInput {
   estimatedTimeValue?: number;
   estimatedDisbursements?: number;
   estimatedAdjustments?: number;
+
+  // Team Members
+  teamMembers?: Array<{
+    empCode: string;
+    role: 'ADMIN' | 'REVIEWER' | 'EDITOR' | 'VIEWER';
+  }>;
 }
 
 export interface CreateTaskResult {

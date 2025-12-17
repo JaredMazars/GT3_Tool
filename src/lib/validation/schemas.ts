@@ -82,20 +82,27 @@ export const CreateTaskSchema = z.object({
   OfficeCode: z.string().min(1, 'Office code is required').max(10),
   
   // Service Line Information
-  SLGroup: z.string().min(1, 'Service line group is required').max(10),
+  SLGroup: z.string().min(1, 'Service line group is required').max(10).optional(),
   ServLineCode: z.string().min(1, 'Service line code is required').max(10),
-  ServLineDesc: z.string().min(1, 'Service line description is required').max(150),
+  ServLineDesc: z.string().min(1, 'Service line description is required').max(150).optional(),
   
   // Timeline
   TaskDateOpen: z.coerce.date(),
   TaskDateTerminate: z.coerce.date().optional().nullable(),
   
-  // Estimation Fields (stored in WIP record)
-  estimatedHours: z.number().min(0).optional(),
-  estimatedTimeValue: z.number().min(0).optional(), // Fee value for time
-  estimatedDisbursements: z.number().min(0).optional(),
-  estimatedAdjustments: z.number().min(0).optional(), // Write-offs/discounts
-  
+  // TaskBudget Fields
+  EstChgHours: z.number().min(0).optional(),
+  EstFeeTime: z.number().min(0).optional(),
+  EstFeeDisb: z.number().min(0).optional(),
+  BudStartDate: z.coerce.date().optional().nullable(),
+  BudDueDate: z.coerce.date().optional().nullable(),
+
+  // Team Members
+  teamMembers: z.array(z.object({
+    empCode: z.string(),
+    role: z.enum(['ADMIN', 'REVIEWER', 'EDITOR', 'VIEWER']),
+  })).optional(),
+
   // System Fields
   createdBy: z.string().optional(),
 });

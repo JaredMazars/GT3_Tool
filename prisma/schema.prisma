@@ -354,6 +354,7 @@ model Client {
   Debtors                  Debtors[]
   DrsTransactions          DrsTransactions[]
   Task                     Task[]
+  TaskBudget               TaskBudget[]
   Wip                      Wip[]
   WIPTransactions          WIPTransactions[]
 
@@ -1021,6 +1022,7 @@ model Task {
   User                     User?                      @relation(fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
   Client                   Client?                    @relation(fields: [GSClientID], references: [GSClientID], onDelete: NoAction, onUpdate: NoAction)
   TaskAcceptance           TaskAcceptance?
+  TaskBudget               TaskBudget[]
   TaskDocument             TaskDocument[]
   TaskEngagementLetter     TaskEngagementLetter?
   TaskStage                TaskStage[]
@@ -1363,6 +1365,37 @@ model WIPTransactions {
   @@index([OfficeCode])
   @@index([ServLineGroup])
   @@index([TranDate])
+}
+
+model TaskBudget {
+  id              Int       @id @default(autoincrement())
+  TaskBudgetID    String    @unique @db.UniqueIdentifier
+  GSClientID      String?   @db.UniqueIdentifier
+  GSTaskID        String?   @db.UniqueIdentifier
+  ClientCode      String?   @db.NVarChar(10)
+  TaskCode        String?   @db.NVarChar(10)
+  EstFeeTime      Float?    @db.Money
+  EstFeeDisb      Float?    @db.Money
+  EstChgTime      Float?    @db.Money
+  EstChgDisb      Float?    @db.Money
+  EstChgHours     Float?    @db.Money
+  EstAdjTime      Float?    @db.Money
+  EstAdjDisb      Float?    @db.Money
+  EstRecoveryPerc Int?
+  BudStartDate    DateTime?
+  BudDueDate      DateTime?
+  BudApproveDate  DateTime?
+  BudDetails      String?   @db.NVarChar(255)
+  LastUser        String?   @db.NVarChar(50)
+  LastUpdated     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  Client          Client?   @relation(fields: [GSClientID], references: [GSClientID], onDelete: NoAction, onUpdate: NoAction)
+  Task            Task?     @relation(fields: [GSTaskID], references: [GSTaskID], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([GSClientID])
+  @@index([GSTaskID])
+  @@index([TaskBudgetID])
 }
 
 model TaskStage {

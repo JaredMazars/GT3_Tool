@@ -325,21 +325,29 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Get service line external mapping to get ServLineCode and ServLineDesc
-    const { getExternalServiceLinesBySubGroup } = await import('@/lib/utils/serviceLineExternal');
-    const externalServiceLines = await getExternalServiceLinesBySubGroup(validatedData.SLGroup);
-    
-    if (!externalServiceLines || externalServiceLines.length === 0) {
-      throw new AppError(400, 'Invalid service line sub-group', ErrorCodes.VALIDATION_ERROR);
+    // Get service line data from ServLineCode by looking up ServiceLineExternal
+    const externalServiceLine = await prisma.serviceLineExternal.findFirst({
+      where: {
+        ServLineCode: validatedData.ServLineCode,
+        ServLineDesc: { not: null },
+        SubServlineGroupCode: { not: null },
+      },
+      select: {
+        ServLineDesc: true,
+        SubServlineGroupCode: true,
+      },
+    });
+
+    if (!externalServiceLine) {
+      throw new AppError(
+        400, 
+        `Invalid service line code: ${validatedData.ServLineCode}. Service line not found or has incomplete data.`,
+        ErrorCodes.VALIDATION_ERROR
+      );
     }
 
-    const externalSL = externalServiceLines[0];
-    if (!externalSL) {
-      throw new AppError(400, 'Invalid service line configuration', ErrorCodes.VALIDATION_ERROR);
-    }
-    
-    const ServLineCode = externalSL.ServLineCode || validatedData.SLGroup;
-    const ServLineDesc = externalSL.ServLineDesc || validatedData.SLGroup;
+    const ServLineDesc = externalServiceLine.ServLineDesc!;
+    const SLGroup = externalServiceLine.SubServlineGroupCode!;
 
     // Generate task code if not provided
     let TaskCode = validatedData.TaskCode || '';
@@ -365,8 +373,8 @@ export async function POST(request: NextRequest) {
           TaskManager: validatedData.TaskManager,
           TaskManagerName: validatedData.TaskManagerName,
           OfficeCode: validatedData.OfficeCode,
-          SLGroup: validatedData.SLGroup,
-          ServLineCode,
+          SLGroup,
+          ServLineCode: validatedData.ServLineCode,
           ServLineDesc,
           Active: 'Yes',
           TaskDateOpen: validatedData.TaskDateOpen,
@@ -393,70 +401,79 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Create TaskTeam entry for creator with ADMIN role
-      await tx.taskTeam.create({
-        data: {
-          taskId: task.id,
-          userId: user.id,
-          role: 'ADMIN',
-        },
-      });
+      // Create TaskTeam entries
+      if (validatedData.teamMembers && validatedData.teamMembers.length > 0) {
+        // Create team member entries
+        for (const member of validatedData.teamMembers) {
+          // Find the user by employee code
+          const employee = await tx.employee.findFirst({
+            where: {
+              EmpCode: member.empCode,
+              Active: 'Yes',
+            },
+            select: {
+              id: true,
+              EmpCode: true,
+              WinLogon: true,
+            },
+          });
 
-      // Create initial WIP record with estimates if provided
-      if (
-        validatedData.estimatedHours ||
-        validatedData.estimatedTimeValue ||
-        validatedData.estimatedDisbursements ||
-        validatedData.estimatedAdjustments
-      ) {
-        await tx.wip.create({
+          if (employee && employee.WinLogon) {
+            // Find user by WinLogon (SQL Server string comparisons are case-insensitive by default)
+            const teamUser = await tx.user.findFirst({
+              where: {
+                email: {
+                  endsWith: employee.WinLogon,
+                },
+              },
+              select: { id: true },
+            });
+
+            if (teamUser) {
+              // Create TaskTeam entry
+              await tx.taskTeam.create({
+                data: {
+                  taskId: task.id,
+                  userId: teamUser.id,
+                  role: member.role,
+                },
+              });
+            }
+          }
+        }
+      } else {
+        // Fallback: If no team members provided, create entry for task creator with ADMIN role
+        await tx.taskTeam.create({
           data: {
-            GSWipID: crypto.randomUUID(),
+            taskId: task.id,
+            userId: user.id,
+            role: 'ADMIN',
+          },
+        });
+      }
+
+      // Create TaskBudget record if budget data provided
+      if (
+        validatedData.EstChgHours ||
+        validatedData.EstFeeTime ||
+        validatedData.EstFeeDisb ||
+        validatedData.BudStartDate ||
+        validatedData.BudDueDate
+      ) {
+        await tx.taskBudget.create({
+          data: {
+            TaskBudgetID: crypto.randomUUID(),
             GSTaskID: task.GSTaskID,
-            GSClientID: GSClientID || '',
-            ClientCode: task.Client?.clientCode || '',
+            GSClientID: GSClientID,
+            ClientCode: task.Client?.clientCode || null,
             TaskCode: task.TaskCode,
-            OfficeCode: validatedData.OfficeCode,
-            ServLineCode,
-            TaskPartner: validatedData.TaskPartner,
-            // Set estimated values as LTD (Life-To-Date) fields
-            LTDHours: validatedData.estimatedHours || 0,
-            LTDFeeTime: validatedData.estimatedTimeValue || 0,
-            LTDFeeDisb: validatedData.estimatedDisbursements || 0,
-            LTDAdjTime: validatedData.estimatedAdjustments || 0,
-            // Initialize all other fields to 0
-            LTDTime: 0,
-            LTDDisb: 0,
-            LTDAdjDisb: 0,
-            LTDCost: 0,
-            YTDTime: 0,
-            YTDDisb: 0,
-            YTDFeeTime: 0,
-            YTDFeeDisb: 0,
-            YTDAdjTime: 0,
-            YTDAdjDisb: 0,
-            YTDCost: 0,
-            PTDTime: 0,
-            PTDDisb: 0,
-            PTDFeeTime: 0,
-            PTDFeeDisb: 0,
-            PTDAdjTime: 0,
-            PTDAdjDisb: 0,
-            PTDCost: 0,
-            BalTime: validatedData.estimatedTimeValue || 0,
-            BalDisb: validatedData.estimatedDisbursements || 0,
-            BalWIP: (validatedData.estimatedTimeValue || 0) + (validatedData.estimatedDisbursements || 0),
-            WipProvision: 0,
-            PTDProvision: 0,
-            YTDProvision: 0,
-            PTDPendingTime: 0,
-            YTDPendingTime: 0,
-            LTDPendingTime: 0,
-            PTDCostExcludeCP: 0,
-            YTDCostExcludeCP: 0,
-            LTDCostExcludeCP: 0,
-            YTDHours: 0,
-            PTDHours: 0,
+            EstChgHours: validatedData.EstChgHours || null,
+            EstFeeTime: validatedData.EstFeeTime || null,
+            EstFeeDisb: validatedData.EstFeeDisb || null,
+            BudStartDate: validatedData.BudStartDate || null,
+            BudDueDate: validatedData.BudDueDate || null,
+            LastUser: user.email || user.id,
+            LastUpdated: new Date(),
           },
         });
       }
