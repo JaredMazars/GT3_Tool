@@ -247,6 +247,8 @@ export function useUpdateClient(GSClientID: string | number) {
       // Invalidate both the client detail and the clients list
       queryClient.invalidateQueries({ queryKey: clientKeys.detail(GSClientID) });
       queryClient.invalidateQueries({ queryKey: clientKeys.all });
+      // Invalidate workspace counts
+      queryClient.invalidateQueries({ queryKey: ['workspace-counts'] });
     },
   });
 }
@@ -271,6 +273,8 @@ export function useDeleteClient() {
     onSuccess: () => {
       // Invalidate the clients list
       queryClient.invalidateQueries({ queryKey: clientKeys.all });
+      // Invalidate workspace counts
+      queryClient.invalidateQueries({ queryKey: ['workspace-counts'] });
     },
   });
 }

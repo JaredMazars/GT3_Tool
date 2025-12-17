@@ -126,12 +126,19 @@ export default function ServiceLineClientDetailPage() {
     return stage || TaskStage.DRAFT;
   };
 
-  const handleTaskCreated = (task: any) => {
-    setShowCreateModal(false);
-    // Invalidate client query to refetch and show the new task
-    queryClient.invalidateQueries({ queryKey: clientKeys.detail(GSClientID) });
+  const handleTaskCreated = async (task: any) => {
+    // Invalidate and refetch client query to show the new task
+    await queryClient.invalidateQueries({ 
+      queryKey: clientKeys.detail(GSClientID),
+      refetchType: 'active',
+    });
     // Also invalidate task list so it shows up there too
-    queryClient.invalidateQueries({ queryKey: taskListKeys.all });
+    await queryClient.invalidateQueries({ 
+      queryKey: taskListKeys.all,
+      refetchType: 'active',
+    });
+    // Close modal after cache is refreshed
+    setShowCreateModal(false);
   };
 
   // Get tasks filtered by sub-service line group

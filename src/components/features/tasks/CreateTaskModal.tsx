@@ -90,6 +90,7 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
     
     // Timeline
     TaskDateOpen: new Date().toISOString().split('T')[0],
+    TaskDateTerminate: '',
     
     // TaskBudget fields
     EstChgHours: '',      // Estimated hours
@@ -481,9 +482,9 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
       // Prepare submission data
       const submitData = {
         ...formData,
-        // Remove derived fields - backend will populate them from ServLineCode
-        SLGroup: undefined,
-        ServLineDesc: undefined,
+        // Backend will populate these from ServLineCode
+        SLGroup: null,
+        ServLineDesc: null,
         // Convert TaskBudget fields to numbers
         EstChgHours: formData.EstChgHours ? parseFloat(formData.EstChgHours as string) : undefined,
         EstFeeTime: formData.EstFeeTime ? parseFloat(formData.EstFeeTime as string) : undefined,
@@ -533,6 +534,7 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
       ServLineCode: '',
       ServLineDesc: '',
       TaskDateOpen: new Date().toISOString().split('T')[0],
+      TaskDateTerminate: '',
       EstChgHours: '',
       EstFeeTime: '',
       EstFeeDisb: '',
@@ -933,10 +935,10 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
                       <span className="font-medium text-gray-900">{formData.TaskDateTerminate}</span>
                     </div>
                   )}
-                  {formData.estimatedHours && (
+                  {formData.EstChgHours && (
                     <div className="flex justify-between">
                       <span className="text-gray-600">Estimated Hours:</span>
-                      <span className="font-medium text-gray-900">{formData.estimatedHours}</span>
+                      <span className="font-medium text-gray-900">{formData.EstChgHours}</span>
                     </div>
                   )}
                   {totalEstimatedFees > 0 && (

@@ -95,6 +95,8 @@ export function useAddTaskTeamMember(taskId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: taskTeamKeys.list(taskId) });
+      // Invalidate workspace counts (affects My Tasks count)
+      queryClient.invalidateQueries({ queryKey: ['workspace-counts'] });
     },
   });
 }
@@ -172,6 +174,8 @@ export function useRemoveTaskTeamMember(taskId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: taskTeamKeys.list(taskId) });
+      // Invalidate workspace counts (affects My Tasks count)
+      queryClient.invalidateQueries({ queryKey: ['workspace-counts'] });
     },
   });
 }

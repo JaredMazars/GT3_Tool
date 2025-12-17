@@ -27,6 +27,7 @@ import { useClients, type Client } from '@/hooks/clients/useClients';
 import { useTasks, type TaskListItem } from '@/hooks/tasks/useTasks'; // Updated with GSClientID
 import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLineGroups';
 import { useClientGroups } from '@/hooks/clients/useClientGroups';
+import { useWorkspaceCounts } from '@/hooks/workspace/useWorkspaceCounts';
 import { ServiceLineSelector } from '@/components/features/service-lines/ServiceLineSelector';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/utils/taskUtils';
@@ -267,6 +268,16 @@ export default function SubServiceLineWorkspacePage() {
   });
   const groups: Array<{ groupCode: string; groupDesc: string; clientCount: number }> = groupsData?.groups || [];
   const groupsPagination = groupsData?.pagination;
+
+  // Fetch workspace counts for tab badges (lightweight count-only queries)
+  const { 
+    data: counts, 
+    isLoading: isLoadingCounts 
+  } = useWorkspaceCounts({
+    serviceLine: serviceLine || '',
+    subServiceLineGroup: subServiceLineGroup || '',
+    enabled: !!serviceLine && !!subServiceLineGroup,
+  });
   
   const isLoading = activeTab === 'clients' ? isLoadingClients : activeTab === 'tasks' ? isLoadingTasks : activeTab === 'my-tasks' ? isLoadingMyTasks : activeTab === 'groups' ? isLoadingGroups : activeTab === 'planner' ? isLoadingPlannerUsers : false;
   const isFetching = activeTab === 'clients' ? false : activeTab === 'tasks' ? isFetchingTasks : activeTab === 'my-tasks' ? isFetchingMyTasks : activeTab === 'groups' ? isFetchingGroups : false;
@@ -854,7 +865,7 @@ export default function SubServiceLineWorkspacePage() {
                             : 'bg-white/20 text-white'
                         }`}
                       >
-                        {isLoadingGroups && !groupsPagination ? '...' : (groupsPagination?.total ?? 0)}
+                        {isLoadingCounts ? '...' : (counts?.groups ?? 0)}
                       </span>
                     </div>
                   </button>
@@ -876,7 +887,7 @@ export default function SubServiceLineWorkspacePage() {
                             : 'bg-white/20 text-white'
                         }`}
                       >
-                        {isLoadingClients && !clientsPagination ? '...' : (clientsPagination?.total ?? 0)}
+                        {isLoadingCounts ? '...' : (counts?.clients ?? 0)}
                       </span>
                     </div>
                   </button>
@@ -898,7 +909,7 @@ export default function SubServiceLineWorkspacePage() {
                             : 'bg-white/20 text-white'
                         }`}
                       >
-                        {isLoadingTasks && !tasksPagination ? '...' : (tasksPagination?.total ?? 0)}
+                        {isLoadingCounts ? '...' : (counts?.tasks ?? 0)}
                       </span>
                     </div>
                   </button>
@@ -954,7 +965,7 @@ export default function SubServiceLineWorkspacePage() {
                             : 'bg-white/20 text-white'
                         }`}
                       >
-                        {isLoadingMyTasks && !myTasksPagination ? '...' : (myTasksPagination?.total ?? 0)}
+                        {isLoadingCounts ? '...' : (counts?.myTasks ?? 0)}
                       </span>
                     </div>
                   </button>

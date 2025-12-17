@@ -20,9 +20,9 @@ export interface CreateTaskInput {
   
   // Service Line
   serviceLine?: string;
-  SLGroup: string;
+  SLGroup?: string | null;  // Backend derives from ServLineCode
   ServLineCode?: string;
-  ServLineDesc?: string;
+  ServLineDesc?: string | null;  // Backend derives from ServLineCode
   
   // Timeline
   TaskDateOpen: Date;
@@ -82,6 +82,12 @@ export function useCreateTask() {
       // Invalidate and refetch all client queries
       await queryClient.invalidateQueries({ 
         queryKey: clientKeys.all,
+        refetchType: 'all',
+      });
+      
+      // Invalidate workspace counts
+      await queryClient.invalidateQueries({ 
+        queryKey: ['workspace-counts'],
         refetchType: 'all',
       });
     },

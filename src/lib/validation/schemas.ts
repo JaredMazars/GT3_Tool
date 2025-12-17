@@ -82,9 +82,9 @@ export const CreateTaskSchema = z.object({
   OfficeCode: z.string().min(1, 'Office code is required').max(10),
   
   // Service Line Information
-  SLGroup: z.string().min(1, 'Service line group is required').max(10).optional(),
+  SLGroup: z.string().min(1).max(10).optional().nullable(),
   ServLineCode: z.string().min(1, 'Service line code is required').max(10),
-  ServLineDesc: z.string().min(1, 'Service line description is required').max(150).optional(),
+  ServLineDesc: z.string().min(1).max(150).optional().nullable(),
   
   // Timeline
   TaskDateOpen: z.coerce.date(),

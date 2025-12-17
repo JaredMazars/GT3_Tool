@@ -353,7 +353,7 @@ export async function POST(request: NextRequest) {
     let TaskCode = validatedData.TaskCode || '';
     if (!TaskCode) {
       // Generate code: Service line prefix + timestamp suffix
-      const prefix = ServLineCode.substring(0, 3).toUpperCase();
+      const prefix = validatedData.ServLineCode.substring(0, 3).toUpperCase();
       const suffix = Date.now().toString().slice(-5);
       TaskCode = `${prefix}${suffix}`;
     }
