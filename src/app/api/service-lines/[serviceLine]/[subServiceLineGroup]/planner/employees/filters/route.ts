@@ -131,7 +131,7 @@ export async function GET(
     const employeesSet = new Map<string, string>();
     employees.forEach(emp => {
       if (emp.WinLogon) {
-        const user = employeeUserMap.get(emp.WinLogon.toLowerCase());
+        const user = employeeUserMap.get(emp.id);
         const email = user?.email || `${emp.WinLogon}@forvismazars.us`;
         const label = emp.EmpNameFull 
           ? `${emp.EmpNameFull} (${email})`
