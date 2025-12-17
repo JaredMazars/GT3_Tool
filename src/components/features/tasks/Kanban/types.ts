@@ -57,6 +57,15 @@ export interface KanbanFilters {
 
 export type CardDisplayMode = 'compact' | 'detailed';
 
+export interface TasksFiltersType {
+  clients: number[];
+  taskNames: string[];
+  partners: string[];
+  managers: string[];
+  serviceLines: string[];
+  includeArchived: boolean;
+}
+
 export interface KanbanBoardProps {
   serviceLine: string;
   subServiceLineGroup: string;
@@ -64,9 +73,7 @@ export interface KanbanBoardProps {
   onTaskClick?: (taskId: number) => void;
   displayMode?: CardDisplayMode;
   onDisplayModeChange?: (mode: CardDisplayMode) => void;
-  filters?: KanbanFilters;
-  onFiltersChange?: (filters: KanbanFilters) => void;
-  showFilters?: boolean;
+  filters: TasksFiltersType; // Required - filters now managed by parent
 }
 
 export interface KanbanColumnProps {

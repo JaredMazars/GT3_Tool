@@ -9,7 +9,6 @@ import {
   Building2,
   ChevronRight,
   Folder,
-  Clock,
   Users,
   AlertTriangle,
   Calendar,
@@ -29,8 +28,6 @@ import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLine
 import { useClientGroups } from '@/hooks/clients/useClientGroups';
 import { useWorkspaceCounts } from '@/hooks/workspace/useWorkspaceCounts';
 import { ServiceLineSelector } from '@/components/features/service-lines/ServiceLineSelector';
-import { StatusBadge } from '@/components/shared/StatusBadge';
-import { formatDate } from '@/lib/utils/taskUtils';
 import { Button, LoadingSpinner, Card, MultiSelect } from '@/components/ui';
 import { MyPlanningView, PlannerFilters } from '@/components/features/planning';
 import { EmployeePlannerList } from '@/components/features/planning/EmployeePlannerList';
@@ -41,10 +38,10 @@ import { GanttTimeline } from '@/components/features/tasks/TeamPlanner';
 import { ClientPlannerTimeline } from '@/components/features/tasks/ClientPlanner';
 import { TaskRole, ServiceLineRole, NonClientEventType, NON_CLIENT_EVENT_CONFIG } from '@/types';
 import { KanbanBoard } from '@/components/features/tasks/Kanban';
-import { KanbanFilters } from '@/components/features/tasks/Kanban/KanbanFilters';
 import { useClientPlannerFilters } from '@/hooks/planning/useClientPlannerFilters';
 import { GroupsFilters, GroupsFiltersType } from '@/components/features/groups/GroupsFilters';
 import { ClientsFilters, ClientsFiltersType } from '@/components/features/clients/ClientsFilters';
+import { TasksFilters, TasksFiltersType } from '@/components/features/tasks/TasksFilters';
 
 export default function SubServiceLineWorkspacePage() {
   const router = useRouter();
@@ -81,13 +78,12 @@ export default function SubServiceLineWorkspacePage() {
     groups: [],
   });
 
-  // Task list view filters (matching Kanban filters structure)
-  const [taskFilters, setTaskFilters] = useState({
-    search: '',
-    clients: [] as number[],
-    tasks: [] as string[],
-    partners: [] as string[],
-    managers: [] as string[],
+  // Task filters (server-side filtering)
+  const [taskFilters, setTaskFilters] = useState<TasksFiltersType>({
+    clients: [],
+    taskNames: [],
+    partners: [],
+    managers: [],
     includeArchived: false,
   });
   
@@ -144,6 +140,11 @@ export default function SubServiceLineWorkspacePage() {
   useEffect(() => {
     setCurrentPage(1);
   }, [groupsFilters]);
+
+  // Reset to page 1 when task filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [taskFilters]);
 
   // Load view mode preference from localStorage
   useEffect(() => {
@@ -203,10 +204,16 @@ export default function SubServiceLineWorkspacePage() {
     limit: itemsPerPage,
     serviceLine,
     subServiceLineGroup,
-    includeArchived: false,
+    includeArchived: taskFilters.includeArchived,
     internalOnly: false,
     clientTasksOnly: false,
     myTasksOnly: false,
+    // Array filters
+    clientIds: taskFilters.clients,
+    taskNames: taskFilters.taskNames,
+    partnerCodes: taskFilters.partners,
+    managerCodes: taskFilters.managers,
+    serviceLineCodes: taskFilters.serviceLines,
     enabled: !!serviceLine && !!subServiceLineGroup,
   });
   const tasks = tasksData?.tasks || [];
@@ -223,10 +230,16 @@ export default function SubServiceLineWorkspacePage() {
     limit: itemsPerPage,
     serviceLine,
     subServiceLineGroup,
-    includeArchived: false,
+    includeArchived: taskFilters.includeArchived,
     internalOnly: false,
     clientTasksOnly: false,
     myTasksOnly: true,
+    // Array filters
+    clientIds: taskFilters.clients,
+    taskNames: taskFilters.taskNames,
+    partnerCodes: taskFilters.partners,
+    managerCodes: taskFilters.managers,
+    serviceLineCodes: taskFilters.serviceLines,
     enabled: !!serviceLine && !!subServiceLineGroup,
   });
   const myTasks = myTasksData?.tasks || [];
@@ -488,166 +501,12 @@ export default function SubServiceLineWorkspacePage() {
     return transformed;
   }, [filteredPlannerUsers]);
 
-  // Extract unique filter options from tasks for list view (similar to KanbanBoard)
-  const taskOptions = useMemo(() => {
-    const allTasks = activeTab === 'my-tasks' ? myTasks : tasks;
-    const taskNames = new Set<string>();
-    allTasks.forEach(task => {
-      if (task.name) {
-        taskNames.add(task.name);
-      }
-    });
-    return Array.from(taskNames).sort((a, b) => a.localeCompare(b));
-  }, [tasks, myTasks, activeTab]);
-
-  const taskPartners = useMemo(() => {
-    const allTasks = activeTab === 'my-tasks' ? myTasks : tasks;
-    const partners = new Set<string>();
-    allTasks.forEach(task => {
-      if (task.taskPartnerName) partners.add(task.taskPartnerName);
-    });
-    return Array.from(partners).sort();
-  }, [tasks, myTasks, activeTab]);
-
-  const taskManagers = useMemo(() => {
-    const allTasks = activeTab === 'my-tasks' ? myTasks : tasks;
-    const managers = new Set<string>();
-    allTasks.forEach(task => {
-      if (task.taskManagerName) managers.add(task.taskManagerName);
-    });
-    return Array.from(managers).sort();
-  }, [tasks, myTasks, activeTab]);
-
-  const taskClients = useMemo(() => {
-    const allTasks = activeTab === 'my-tasks' ? myTasks : tasks;
-    const clientsMap = new Map<number, { id: number; name: string; code: string }>();
-    allTasks.forEach(task => {
-      if (task.client) {
-        clientsMap.set(task.client.id, {
-          id: task.client.id,
-          name: task.client.clientNameFull || task.client.clientCode || 'Unknown',
-          code: task.client.clientCode || '',
-        });
-      }
-    });
-    return Array.from(clientsMap.values());
-  }, [tasks, myTasks, activeTab]);
-
-
-  // Filtering is now done on the backend for both clients and groups
+  // Filtering is now done on the backend for clients, groups, and tasks
   const filteredClients = clients;
   const filteredGroups = groups;
-
-  // Apply filters to tasks (for list view)
-  const filteredTasks = useMemo(() => {
-    if (taskViewMode === 'kanban') {
-      // In kanban mode, KanbanBoard handles its own filtering
-      return tasks;
-    }
-
-    let filtered = tasks;
-
-    // Search filter
-    if (taskFilters.search) {
-      const searchLower = taskFilters.search.toLowerCase();
-      filtered = filtered.filter(task => 
-        task.name?.toLowerCase().includes(searchLower) ||
-        task.taskCode?.toLowerCase().includes(searchLower) ||
-        task.client?.clientNameFull?.toLowerCase().includes(searchLower) ||
-        task.client?.clientCode?.toLowerCase().includes(searchLower)
-      );
-    }
-
-    // Clients filter
-    if (taskFilters.clients.length > 0) {
-      filtered = filtered.filter(task =>
-        task.client && taskFilters.clients.includes(task.client.id)
-      );
-    }
-
-    // Tasks filter (by task name/description)
-    if (taskFilters.tasks.length > 0) {
-      filtered = filtered.filter(task =>
-        task.name && taskFilters.tasks.includes(task.name)
-      );
-    }
-
-    // Partners filter
-    if (taskFilters.partners.length > 0) {
-      filtered = filtered.filter(task =>
-        task.taskPartnerName && taskFilters.partners.includes(task.taskPartnerName)
-      );
-    }
-
-    // Managers filter
-    if (taskFilters.managers.length > 0) {
-      filtered = filtered.filter(task =>
-        task.taskManagerName && taskFilters.managers.includes(task.taskManagerName)
-      );
-    }
-
-    // Archived filter
-    if (!taskFilters.includeArchived) {
-      filtered = filtered.filter(task => !task.archived);
-    }
-
-    return filtered;
-  }, [tasks, taskFilters, taskViewMode]);
-
-  const filteredMyTasks = useMemo(() => {
-    if (taskViewMode === 'kanban') {
-      // In kanban mode, KanbanBoard handles its own filtering
-      return myTasks;
-    }
-
-    let filtered = myTasks;
-
-    // Search filter
-    if (taskFilters.search) {
-      const searchLower = taskFilters.search.toLowerCase();
-      filtered = filtered.filter(task => 
-        task.name?.toLowerCase().includes(searchLower) ||
-        task.taskCode?.toLowerCase().includes(searchLower) ||
-        task.client?.clientNameFull?.toLowerCase().includes(searchLower) ||
-        task.client?.clientCode?.toLowerCase().includes(searchLower)
-      );
-    }
-
-    // Clients filter
-    if (taskFilters.clients.length > 0) {
-      filtered = filtered.filter(task =>
-        task.client && taskFilters.clients.includes(task.client.id)
-      );
-    }
-
-    // Tasks filter (by task name/description)
-    if (taskFilters.tasks.length > 0) {
-      filtered = filtered.filter(task =>
-        task.name && taskFilters.tasks.includes(task.name)
-      );
-    }
-
-    // Partners filter
-    if (taskFilters.partners.length > 0) {
-      filtered = filtered.filter(task =>
-        task.taskPartnerName && taskFilters.partners.includes(task.taskPartnerName)
-      );
-    }
-
-    // Managers filter
-    if (taskFilters.managers.length > 0) {
-      filtered = filtered.filter(task =>
-        task.taskManagerName && taskFilters.managers.includes(task.taskManagerName)
-      );
-    }
-
-    // Archived filter
-    if (!taskFilters.includeArchived) {
-      filtered = filtered.filter(task => !task.archived);
-    }
-
-    return filtered;
-  }, [myTasks, taskFilters, taskViewMode]);
+  // Tasks are filtered server-side, no client-side filtering needed
+  const filteredTasks = tasks;
+  const filteredMyTasks = myTasks;
 
   // Validate service line
   useEffect(() => {
@@ -1431,18 +1290,15 @@ export default function SubServiceLineWorkspacePage() {
             /* Tasks List or Kanban View */
             <div className="space-y-4">
               {/* Unified Filters Bar - Always show */}
-              <KanbanFilters
+              <TasksFilters
+                serviceLine={serviceLine}
+                subServiceLineGroup={subServiceLineGroup}
                 filters={taskFilters}
                 onFiltersChange={setTaskFilters}
-                clients={taskClients}
-                tasks={taskOptions}
-                partners={taskPartners}
-                managers={taskManagers}
                 viewMode={taskViewMode}
                 onViewModeChange={handleViewModeChange}
                 displayMode={displayMode}
                 onDisplayModeChange={setDisplayMode}
-                showSearch={taskViewMode === 'list'}
               />
 
               {taskViewMode === 'kanban' ? (
@@ -1454,8 +1310,6 @@ export default function SubServiceLineWorkspacePage() {
                   displayMode={displayMode}
                   onDisplayModeChange={setDisplayMode}
                   filters={taskFilters}
-                  onFiltersChange={setTaskFilters}
-                  showFilters={false}
                 />
               ) : (
                 /* List View */
@@ -1478,11 +1332,10 @@ export default function SubServiceLineWorkspacePage() {
                 <div className="overflow-x-auto">
                   <table className="w-full" style={{ tableLayout: 'fixed' }}>
                     <colgroup>
-                      <col style={{ width: '30%' }} />
-                      <col style={{ width: '20%' }} />
+                      <col style={{ width: '35%' }} />
+                      <col style={{ width: '25%' }} />
                       <col style={{ width: '15%' }} />
-                      <col style={{ width: '13%' }} />
-                      <col style={{ width: '12%' }} />
+                      <col style={{ width: '15%' }} />
                       <col style={{ width: '10%' }} />
                     </colgroup>
                     <thead>
@@ -1494,13 +1347,10 @@ export default function SubServiceLineWorkspacePage() {
                           Client
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                          Type
+                          Partner
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                          Status
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">
-                          Updated
+                          Manager
                         </th>
                         <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">
                           Actions
@@ -1520,9 +1370,9 @@ export default function SubServiceLineWorkspacePage() {
                                   <div className="text-sm font-medium text-forvis-gray-900">
                                     {task.name}
                                   </div>
-                                  {task.description && (
-                                    <div className="text-xs text-forvis-gray-500 line-clamp-1">
-                                      {task.description}
+                                  {task.taskCode && (
+                                    <div className="text-xs text-forvis-gray-500">
+                                      {task.taskCode}
                                     </div>
                                   )}
                                 </div>
@@ -1542,17 +1392,13 @@ export default function SubServiceLineWorkspacePage() {
                               )}
                             </td>
                             <td className="px-6 py-4">
-                              <span className="text-sm font-normal text-forvis-gray-800">
-                                {task.projectType || task.serviceLine}
-                              </span>
+                              <div className="text-sm font-normal text-forvis-gray-800 truncate" title={task.taskPartnerName || task.taskPartner || ''}>
+                                {task.taskPartnerName || task.taskPartner || '-'}
+                              </div>
                             </td>
                             <td className="px-6 py-4">
-                              <StatusBadge status={task.status} />
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                              <div className="flex items-center justify-center text-sm font-normal text-forvis-gray-800">
-                                <Clock className="h-4 w-4 mr-1 text-forvis-gray-500" />
-                                {formatDate(task.updatedAt)}
+                              <div className="text-sm font-normal text-forvis-gray-800 truncate" title={task.taskManagerName || task.taskManager || ''}>
+                                {task.taskManagerName || task.taskManager || '-'}
                               </div>
                             </td>
                             <td className="px-6 py-4 text-center">

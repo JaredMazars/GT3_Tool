@@ -16,11 +16,11 @@ export interface UseKanbanBoardParams {
   serviceLine: string;
   subServiceLineGroup: string;
   myTasksOnly?: boolean;
-  search?: string;
-  clients?: number[];
-  tasks?: string[];
-  partners?: string[];
-  managers?: string[];
+  clientIds?: number[];
+  taskNames?: string[];
+  partnerCodes?: string[];
+  managerCodes?: string[];
+  serviceLineCodes?: string[];
   includeArchived?: boolean;
 }
 
@@ -32,11 +32,11 @@ export function useKanbanBoard(params: UseKanbanBoardParams) {
     serviceLine,
     subServiceLineGroup,
     myTasksOnly = false,
-    search = '',
-    clients = [],
-    tasks = [],
-    partners = [],
-    managers = [],
+    clientIds = [],
+    taskNames = [],
+    partnerCodes = [],
+    managerCodes = [],
+    serviceLineCodes = [],
     includeArchived = false,
   } = params;
 
@@ -45,11 +45,11 @@ export function useKanbanBoard(params: UseKanbanBoardParams) {
       serviceLine,
       subServiceLineGroup,
       myTasksOnly,
-      search,
-      clients,
-      tasks,
-      partners,
-      managers,
+      clientIds,
+      taskNames,
+      partnerCodes,
+      managerCodes,
+      serviceLineCodes,
       includeArchived,
     }),
     queryFn: async () => {
@@ -57,11 +57,11 @@ export function useKanbanBoard(params: UseKanbanBoardParams) {
       searchParams.set('serviceLine', serviceLine);
       searchParams.set('subServiceLineGroup', subServiceLineGroup);
       if (myTasksOnly) searchParams.set('myTasksOnly', 'true');
-      if (search) searchParams.set('search', search);
-      if (clients.length > 0) searchParams.set('clients', clients.join(','));
-      if (tasks.length > 0) searchParams.set('tasks', tasks.join(','));
-      if (partners.length > 0) searchParams.set('partners', partners.join(','));
-      if (managers.length > 0) searchParams.set('managers', managers.join(','));
+      if (clientIds.length > 0) searchParams.set('clientIds', clientIds.join(','));
+      if (taskNames.length > 0) searchParams.set('taskNames', taskNames.join(','));
+      if (partnerCodes.length > 0) searchParams.set('partnerCodes', partnerCodes.join(','));
+      if (managerCodes.length > 0) searchParams.set('managerCodes', managerCodes.join(','));
+      if (serviceLineCodes.length > 0) searchParams.set('serviceLineCodes', serviceLineCodes.join(','));
       // Always include the includeArchived parameter to ensure proper cache invalidation
       searchParams.set('includeArchived', includeArchived ? 'true' : 'false');
       

@@ -61,6 +61,12 @@ export interface UseTasksParams {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   enabled?: boolean;
+  // Array-based filters for server-side filtering
+  clientIds?: number[];       // Filter by client IDs
+  taskNames?: string[];       // Filter by task names
+  partnerCodes?: string[];    // Filter by partner codes
+  managerCodes?: string[];    // Filter by manager codes
+  serviceLineCodes?: string[]; // Filter by service line codes
 }
 
 /**
@@ -80,6 +86,11 @@ export function useTasks(params: UseTasksParams = {}) {
     sortBy = 'updatedAt',
     sortOrder = 'desc',
     enabled = true,
+    clientIds,
+    taskNames,
+    partnerCodes,
+    managerCodes,
+    serviceLineCodes,
   } = params;
 
   return useQuery<TasksResponse>({
@@ -95,6 +106,11 @@ export function useTasks(params: UseTasksParams = {}) {
       myTasksOnly,
       sortBy,
       sortOrder,
+      clientIds,
+      taskNames,
+      partnerCodes,
+      managerCodes,
+      serviceLineCodes,
     }),
     queryFn: async () => {
       const searchParams = new URLSearchParams();
@@ -109,6 +125,13 @@ export function useTasks(params: UseTasksParams = {}) {
       if (myTasksOnly) searchParams.set('myTasksOnly', 'true');
       searchParams.set('sortBy', sortBy);
       searchParams.set('sortOrder', sortOrder);
+      
+      // Add array filter parameters
+      if (clientIds?.length) searchParams.set('clientIds', clientIds.join(','));
+      if (taskNames?.length) searchParams.set('taskNames', taskNames.join(','));
+      if (partnerCodes?.length) searchParams.set('partnerCodes', partnerCodes.join(','));
+      if (managerCodes?.length) searchParams.set('managerCodes', managerCodes.join(','));
+      if (serviceLineCodes?.length) searchParams.set('serviceLineCodes', serviceLineCodes.join(','));
       
       const url = `/api/tasks?${searchParams.toString()}`;
       const response = await fetch(url);

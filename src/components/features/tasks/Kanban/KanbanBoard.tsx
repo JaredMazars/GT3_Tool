@@ -33,30 +33,16 @@ export function KanbanBoard({
   onTaskClick,
   displayMode: externalDisplayMode,
   onDisplayModeChange,
-  filters: externalFilters,
-  onFiltersChange: externalOnFiltersChange,
-  showFilters = true,
+  filters,
 }: KanbanBoardProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   
-  const [internalFilters, setInternalFilters] = useState<KanbanFilters>({
-    search: '',
-    clients: [],
-    tasks: [] as string[],
-    partners: [],
-    managers: [],
-    includeArchived: false,
-  });
   const [internalDisplayMode, setInternalDisplayMode] = useState<CardDisplayMode>('detailed');
   const [collapsedColumns, setCollapsedColumns] = useState<Set<string>>(new Set());
   const [activeTask, setActiveTask] = useState<KanbanTask | null>(null);
-  
-  // Use external filters if provided, otherwise use internal state
-  const filters = externalFilters ?? internalFilters;
-  const setFilters = externalOnFiltersChange ?? setInternalFilters;
   
   // Use external display mode if provided, otherwise use internal state
   const displayMode = externalDisplayMode ?? internalDisplayMode;
@@ -66,16 +52,16 @@ export function KanbanBoard({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
-  // Fetch Kanban data
+  // Fetch Kanban data - pass new filter structure
   const { data, isLoading, isFetching, error, refetch } = useKanbanBoard({
     serviceLine,
     subServiceLineGroup,
     myTasksOnly,
-    search: filters.search,
-    clients: filters.clients,
-    tasks: filters.tasks,
-    partners: filters.partners,
-    managers: filters.managers,
+    clientIds: filters.clients,
+    taskNames: filters.taskNames,
+    partnerCodes: filters.partners,
+    managerCodes: filters.managers,
+    serviceLineCodes: filters.serviceLines,
     includeArchived: filters.includeArchived, // Query will refetch when this changes
   });
 
@@ -102,80 +88,8 @@ export function KanbanBoard({
     );
   }, [data]);
 
-  // Get unique team members for filter
-  // Get unique task names for filter
-  const tasks = useMemo(() => {
-    if (!data?.columns) return [];
-    
-    const taskNames = new Set<string>();
-    
-    data.columns.forEach(column => {
-      column.tasks.forEach(task => {
-        if (task.name) {
-          taskNames.add(task.name);
-        }
-      });
-    });
-    
-    return Array.from(taskNames).sort((a, b) => a.localeCompare(b));
-  }, [data]);
-
-  // Get unique partners for filter
-  const partners = useMemo(() => {
-    if (!data?.columns) return [];
-    
-    const partnersSet = new Set<string>();
-    
-    data.columns.forEach(column => {
-      column.tasks.forEach(task => {
-        if (task.partner) {
-          partnersSet.add(task.partner);
-        }
-      });
-    });
-    
-    return Array.from(partnersSet).sort();
-  }, [data]);
-
-  // Get unique managers for filter
-  const managers = useMemo(() => {
-    if (!data?.columns) return [];
-    
-    const managersSet = new Set<string>();
-    
-    data.columns.forEach(column => {
-      column.tasks.forEach(task => {
-        if (task.manager) {
-          managersSet.add(task.manager);
-        }
-      });
-    });
-    
-    return Array.from(managersSet).sort();
-  }, [data]);
-
-  // Get unique clients for filter
-  const clients = useMemo(() => {
-    if (!data?.columns) return [];
-    
-    const clientsMap = new Map<number, { id: number; code: string; name: string }>();
-    
-    data.columns.forEach(column => {
-      column.tasks.forEach(task => {
-        if (task.client && !clientsMap.has(task.client.id)) {
-          clientsMap.set(task.client.id, {
-            id: task.client.id,
-            code: task.client.code,
-            name: task.client.name || 'Unknown Client',
-          });
-        }
-      });
-    });
-    
-    return Array.from(clientsMap.values()).sort((a, b) => 
-      a.name.localeCompare(b.name)
-    );
-  }, [data]);
+  // Filter options are now provided by parent through TasksFilters component
+  // No need for client-side extraction
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -417,17 +331,7 @@ export function KanbanBoard({
   return (
     <>
       <div className="space-y-4">
-        {/* Filters - Only show if showFilters is true */}
-        {showFilters && (
-          <KanbanFiltersComponent
-            filters={filters}
-            onFiltersChange={setFilters}
-            clients={clients}
-            tasks={tasks}
-            partners={partners}
-            managers={managers}
-          />
-        )}
+        {/* Filters are now managed by parent TasksFilters component */}
 
         {/* Kanban Board */}
         <DndContext

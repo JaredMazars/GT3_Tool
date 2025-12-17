@@ -48,6 +48,13 @@ export async function GET(request: NextRequest) {
     const sortOrder = (searchParams.get('sortOrder') || 'desc') as 'asc' | 'desc';
     const clientCode = searchParams.get('clientCode') || undefined;
     const status = searchParams.get('status') || undefined;
+    
+    // Parse array filter parameters
+    const clientIds = searchParams.get('clientIds')?.split(',').map(Number).filter(Boolean) || [];
+    const taskNames = searchParams.get('taskNames')?.split(',') || [];
+    const partnerCodes = searchParams.get('partnerCodes')?.split(',') || [];
+    const managerCodes = searchParams.get('managerCodes')?.split(',') || [];
+    const serviceLineCodes = searchParams.get('serviceLineCodes')?.split(',') || [];
 
     const skip = (page - 1) * limit;
 
@@ -67,6 +74,11 @@ export async function GET(request: NextRequest) {
       myTasksOnly,
       clientCode,
       status,
+      clientIds: clientIds.length > 0 ? clientIds.join(',') : undefined,
+      taskNames: taskNames.length > 0 ? taskNames.join(',') : undefined,
+      partnerCodes: partnerCodes.length > 0 ? partnerCodes.join(',') : undefined,
+      managerCodes: managerCodes.length > 0 ? managerCodes.join(',') : undefined,
+      serviceLineCodes: serviceLineCodes.length > 0 ? serviceLineCodes.join(',') : undefined,
     };
     
     // Don't cache user-specific queries
@@ -170,6 +182,31 @@ export async function GET(request: NextRequest) {
       ];
     }
 
+    // Add array filter parameters
+    if (clientIds.length > 0) {
+      where.Client = {
+        ...where.Client,
+        id: { in: clientIds },
+      };
+    }
+
+    if (taskNames.length > 0) {
+      where.TaskDesc = { in: taskNames };
+    }
+
+    if (partnerCodes.length > 0) {
+      where.TaskPartner = { in: partnerCodes };
+    }
+
+    if (managerCodes.length > 0) {
+      where.TaskManager = { in: managerCodes };
+    }
+
+    if (serviceLineCodes.length > 0) {
+      // If serviceLineCodes filter is active, it takes precedence over serviceLine/subServiceLineGroup filters
+      where.ServLineCode = { in: serviceLineCodes };
+    }
+
     // Build orderBy
     const orderBy: Prisma.TaskOrderByWithRelationInput = {};
     const validSortFields = ['TaskDesc', 'updatedAt', 'createdAt'] as const;
@@ -226,6 +263,28 @@ export async function GET(request: NextRequest) {
       }),
     ]);
     
+    // FIX: Both TaskPartnerName and TaskManagerName in database have wrong values
+    // Lookup correct names from Employee table using TaskPartner and TaskManager codes
+    const uniquePartnerCodes = [...new Set(tasks.map(t => t.TaskPartner).filter(Boolean))];
+    const uniqueManagerCodes = [...new Set(tasks.map(t => t.TaskManager).filter(Boolean))];
+    const allEmployeeCodes = [...new Set([...uniquePartnerCodes, ...uniqueManagerCodes])];
+    
+    const employees = allEmployeeCodes.length > 0 ? await prisma.employee.findMany({
+      where: {
+        EmpCode: { in: allEmployeeCodes },
+        Active: 'Yes',
+      },
+      select: {
+        EmpCode: true,
+        EmpName: true,
+      },
+    }) : [];
+    
+    // Create lookup map for employee names (works for both partners and managers)
+    const employeeNameMap = new Map(
+      employees.map(emp => [emp.EmpCode, emp.EmpName])
+    );
+    
     // Transform tasks to match expected format
     const tasksWithCounts = tasks.map(task => {
       return {
@@ -241,9 +300,9 @@ export async function GET(request: NextRequest) {
         GSClientID: task.GSClientID,
         taxYear: null,
         taskPartner: task.TaskPartner,
-        taskPartnerName: task.TaskPartnerName,
+        taskPartnerName: employeeNameMap.get(task.TaskPartner) || task.TaskPartnerName,
         taskManager: task.TaskManager,
-        taskManagerName: task.TaskManagerName,
+        taskManagerName: employeeNameMap.get(task.TaskManager) || task.TaskManagerName,
         createdAt: task.createdAt.toISOString(),
         updatedAt: task.updatedAt.toISOString(),
         client: task.Client ? {
