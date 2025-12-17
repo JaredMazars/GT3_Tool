@@ -5,8 +5,12 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { getCachedList, setCachedList } from '@/lib/services/cache/listCache';
 import { enrichRecordsWithEmployeeNames } from '@/lib/services/employees/employeeQueries';
+import { performanceMonitor } from '@/lib/utils/performanceMonitor';
 
 export async function GET(request: NextRequest) {
+  const startTime = Date.now();
+  let cacheHit = false;
+  
   try {
     // Require authentication
     const user = await getCurrentUser();
@@ -61,6 +65,8 @@ export async function GET(request: NextRequest) {
     if (!hasFilters) {
       const cached = await getCachedList(cacheParams);
       if (cached) {
+        cacheHit = true;
+        performanceMonitor.trackApiCall('/api/clients', startTime, true);
         return NextResponse.json(successResponse(cached));
       }
     }
@@ -196,8 +202,12 @@ export async function GET(request: NextRequest) {
       await setCachedList(cacheParams, responseData);
     }
 
+    // Track performance
+    performanceMonitor.trackApiCall('/api/clients', startTime, cacheHit);
+
     return NextResponse.json(successResponse(responseData));
   } catch (error) {
+    performanceMonitor.trackApiCall('/api/clients [ERROR]', startTime, cacheHit);
     return handleApiError(error, 'Get Clients');
   }
 }

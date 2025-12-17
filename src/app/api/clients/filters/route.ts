@@ -4,6 +4,7 @@ import { handleApiError, AppError } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
+import { performanceMonitor } from '@/lib/utils/performanceMonitor';
 
 /**
  * GET /api/clients/filters
@@ -16,6 +17,9 @@ import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
  * - Optional search parameter for server-side filtering
  */
 export async function GET(request: NextRequest) {
+  const startTime = Date.now();
+  let cacheHit = false;
+  
   try {
     // 1. Authenticate
     const user = await getCurrentUser();
@@ -59,12 +63,14 @@ export async function GET(request: NextRequest) {
       }));
     }
 
-    // Build cache key
-    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}client-filters:industry:${industrySearch}:group:${groupSearch}:limit:50:user:${user.id}`;
+    // Build cache key (no user ID - filters are same for all users)
+    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}client-filters:industry:${industrySearch}:group:${groupSearch}:limit:30`;
     
-    // Try cache first (30min TTL since filter options are relatively static)
+    // Try cache first (60min TTL since filter options are relatively static)
     const cached = await cache.get(cacheKey);
     if (cached) {
+      cacheHit = true;
+      performanceMonitor.trackApiCall('/api/clients/filters', startTime, true);
       return NextResponse.json(successResponse(cached));
     }
 
@@ -88,15 +94,13 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Reduced limit for faster response times
-    const FILTER_LIMIT = 50;
+    // Reduced limit for faster response times (reduced from 50 to 30)
+    const FILTER_LIMIT = 30;
     
-    // Execute queries in parallel for better performance
+    // Execute queries in parallel (removed total count queries for performance)
     const [
       industriesData, 
       groupsData,
-      industriesTotalData,
-      groupsTotalData
     ] = await Promise.all([
       // Get distinct industries with independent search
       prisma.client.groupBy({
@@ -120,31 +124,12 @@ export async function GET(request: NextRequest) {
         },
         take: FILTER_LIMIT,
       }),
-
-      // Get total count for industries
-      prisma.client.groupBy({
-        by: ['industry'],
-        where: {
-          ...industryWhere,
-          industry: { not: null },
-        },
-      }),
-
-      // Get total count for groups
-      prisma.client.groupBy({
-        by: ['groupCode', 'groupDesc'],
-        where: groupWhere,
-      }),
     ]);
 
     // Format the response
     const industries = industriesData
       .map(item => item.industry)
       .filter((industry): industry is string => !!industry);
-
-    const industriesTotal = industriesTotalData
-      .map(item => item.industry)
-      .filter((industry): industry is string => !!industry).length;
 
     // Filter out null values in JavaScript and format groups
     const groups = groupsData
@@ -154,31 +139,32 @@ export async function GET(request: NextRequest) {
         name: group.groupDesc!,
       }));
 
-    const groupsTotal = groupsTotalData
-      .filter(group => group.groupCode !== null && group.groupDesc !== null).length;
-
     const responseData = {
       industries,
       groups,
       metadata: {
         industries: {
-          hasMore: industriesTotal > FILTER_LIMIT,
-          total: industriesTotal,
+          hasMore: industries.length >= FILTER_LIMIT,
+          total: industries.length, // Approximate - actual total may be higher if hasMore is true
           returned: industries.length,
         },
         groups: {
-          hasMore: groupsTotal > FILTER_LIMIT,
-          total: groupsTotal,
+          hasMore: groups.length >= FILTER_LIMIT,
+          total: groups.length, // Approximate - actual total may be higher if hasMore is true
           returned: groups.length,
         },
       },
     };
 
-    // Cache the response (30min TTL)
-    await cache.set(cacheKey, responseData, 1800);
+    // Cache the response (60min TTL - increased from 30min)
+    await cache.set(cacheKey, responseData, 3600);
+
+    // Track performance
+    performanceMonitor.trackApiCall('/api/clients/filters', startTime, cacheHit);
 
     return NextResponse.json(successResponse(responseData));
   } catch (error) {
+    performanceMonitor.trackApiCall('/api/clients/filters [ERROR]', startTime, cacheHit);
     return handleApiError(error, 'Get Client Filters');
   }
 }

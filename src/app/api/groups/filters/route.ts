@@ -4,6 +4,7 @@ import { handleApiError } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
+import { performanceMonitor } from '@/lib/utils/performanceMonitor';
 
 /**
  * GET /api/groups/filters
@@ -17,6 +18,9 @@ import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
  * - Uses groupBy for efficient distinct queries
  */
 export async function GET(request: NextRequest) {
+  const startTime = Date.now();
+  let cacheHit = false;
+  
   try {
     // 1. Authenticate
     const user = await getCurrentUser();
@@ -55,12 +59,14 @@ export async function GET(request: NextRequest) {
       }));
     }
 
-    // Build cache key
-    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}group-filters:search:${search}:limit:50:user:${user.id}`;
+    // Build cache key (no user ID - filters are same for all users)
+    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}group-filters:search:${search}:limit:30`;
     
-    // Try cache first (30min TTL since filter options are relatively static)
+    // Try cache first (60min TTL since filter options are relatively static)
     const cached = await cache.get(cacheKey);
     if (cached) {
+      cacheHit = true;
+      performanceMonitor.trackApiCall('/api/groups/filters', startTime, true);
       return NextResponse.json(successResponse(cached));
     }
 
@@ -78,17 +84,10 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Reduced limit for faster response times
-    const FILTER_LIMIT = 50;
+    // Reduced limit for faster response times (reduced from 50 to 30)
+    const FILTER_LIMIT = 30;
     
-    // Get total count for metadata
-    const totalCountData = await prisma.client.groupBy({
-      by: ['groupCode', 'groupDesc'],
-      where,
-    });
-    const totalCount = totalCountData.filter(g => g.groupCode && g.groupDesc).length;
-
-    // Get limited results
+    // Get limited results only (removed total count query for performance)
     const groupsData = await prisma.client.groupBy({
       by: ['groupCode', 'groupDesc'],
       where,
@@ -109,17 +108,21 @@ export async function GET(request: NextRequest) {
     const responseData = {
       groups,
       metadata: {
-        hasMore: totalCount > FILTER_LIMIT,
-        total: totalCount,
+        hasMore: groups.length >= FILTER_LIMIT,
+        total: groups.length, // Approximate - actual total may be higher if hasMore is true
         returned: groups.length,
       },
     };
 
-    // Cache the response (30min TTL)
-    await cache.set(cacheKey, responseData, 1800);
+    // Cache the response (60min TTL - increased from 30min)
+    await cache.set(cacheKey, responseData, 3600);
+
+    // Track performance
+    performanceMonitor.trackApiCall('/api/groups/filters', startTime, cacheHit);
 
     return NextResponse.json(successResponse(responseData));
   } catch (error) {
+    performanceMonitor.trackApiCall('/api/groups/filters [ERROR]', startTime, cacheHit);
     return handleApiError(error, 'Get Group Filters');
   }
 }

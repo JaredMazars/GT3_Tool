@@ -52,10 +52,10 @@ export function useWorkspaceCounts(params: UseWorkspaceCountsParams) {
       return result.success ? result.data : result;
     },
     enabled: enabled && !!serviceLine && !!subServiceLineGroup,
-    staleTime: 5 * 60 * 1000, // 5 minutes - counts change less frequently
-    gcTime: 10 * 60 * 1000, // 10 minutes cache retention
+    staleTime: 30 * 60 * 1000, // 30 minutes - counts change infrequently (increased from 5 min)
+    gcTime: 45 * 60 * 1000, // 45 minutes cache retention (increased from 10 min)
     refetchOnMount: false, // Don't refetch if data is fresh
-    refetchOnWindowFocus: true, // Update when user returns to window
+    refetchOnWindowFocus: false, // Don't refetch on window focus (changed from true for performance)
     refetchOnReconnect: false, // Don't refetch on reconnect
     placeholderData: (previousData) => previousData, // Keep previous data while fetching
   });

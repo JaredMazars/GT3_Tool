@@ -953,6 +953,11 @@ model Task {
   @@index([updatedAt(sort: Desc)])
   @@index([Active, TaskDesc])
   @@index([Active, TaskCode])
+  // Performance indexes for filter queries
+  @@index([ServLineCode, SLGroup])
+  @@index([TaskPartner, Active])
+  @@index([TaskManager, Active])
+  @@index([GSClientID, Active, updatedAt(sort: Desc)])
 }
 
 model TaskAcceptance {

@@ -315,42 +315,50 @@ export default function SubServiceLineWorkspacePage() {
   const currentUserServiceLineRole = currentUserSubGroupRole;
 
   // Filter planner users based on array-based filters with OR logic
+  // Optimized with Sets for O(1) lookup and early returns
   const filteredPlannerUsers = useMemo(() => {
+    // Early return if no users
+    if (!plannerUsers || plannerUsers.length === 0) return [];
+    
+    // Convert filter arrays to Sets for O(1) lookup performance
+    const employeeSet = new Set(employeePlannerFilters.employees);
+    const jobGradeSet = new Set(employeePlannerFilters.jobGrades);
+    const officeSet = new Set(employeePlannerFilters.offices);
+    const clientSet = new Set(employeePlannerFilters.clients);
+    const taskCategorySet = new Set(employeePlannerFilters.taskCategories);
+    
     let filtered = plannerUsers;
 
     // Employee filter (by user ID or email)
-    if (employeePlannerFilters.employees.length > 0) {
+    if (employeeSet.size > 0) {
       filtered = filtered.filter(u => 
-        employeePlannerFilters.employees.includes(u.user.id) ||
-        employeePlannerFilters.employees.includes(u.user.email)
+        employeeSet.has(u.user.id) || employeeSet.has(u.user.email)
       );
     }
 
     // Job Grade filter
-    if (employeePlannerFilters.jobGrades.length > 0) {
+    if (jobGradeSet.size > 0) {
       filtered = filtered.filter(u => 
-        u.user.jobTitle && employeePlannerFilters.jobGrades.includes(u.user.jobTitle)
+        u.user.jobTitle && jobGradeSet.has(u.user.jobTitle)
       );
     }
 
     // Office filter
-    if (employeePlannerFilters.offices.length > 0) {
+    if (officeSet.size > 0) {
       filtered = filtered.filter(u => 
-        u.user.officeLocation && 
-        employeePlannerFilters.offices.includes(u.user.officeLocation.trim())
+        u.user.officeLocation && officeSet.has(u.user.officeLocation.trim())
       );
     }
 
-    // Client filter - DON'T filter users, we'll filter allocations later
-    // This allows showing all employees even when filtering by client
-
     // Task category filter (client tasks vs specific internal event types)
-    // Empty array = unfiltered (show all)
-    if (employeePlannerFilters.taskCategories.length > 0) {
+    if (taskCategorySet.size > 0) {
+      const hasNoPlanningFilter = taskCategorySet.has('no_planning');
+      const hasClientFilter = taskCategorySet.has('client');
+      
       // Special case: if "no_planning" is selected, show users with no allocations
-      if (employeePlannerFilters.taskCategories.includes('no_planning')) {
+      if (hasNoPlanningFilter) {
         // If ONLY no_planning is selected, show only users with no allocations
-        if (employeePlannerFilters.taskCategories.length === 1) {
+        if (taskCategorySet.size === 1) {
           filtered = filtered.filter(u => u.allocations.length === 0);
         } else {
           // If no_planning is selected along with other filters, show users with no allocations OR matching allocations
@@ -358,12 +366,12 @@ export default function SubServiceLineWorkspacePage() {
             u.allocations.length === 0 ||
             u.allocations.some(alloc => {
               // Check if it's a client task
-              if (employeePlannerFilters.taskCategories.includes('client') && alloc.clientCode !== null) {
+              if (hasClientFilter && alloc.clientCode !== null) {
                 return true;
               }
               // Check if it's a specific internal event type
               if (alloc.isNonClientEvent && alloc.nonClientEventType && 
-                  employeePlannerFilters.taskCategories.includes(alloc.nonClientEventType)) {
+                  taskCategorySet.has(alloc.nonClientEventType)) {
                 return true;
               }
               return false;
@@ -375,12 +383,12 @@ export default function SubServiceLineWorkspacePage() {
         filtered = filtered.filter(u =>
           u.allocations.some(alloc => {
             // Check if it's a client task
-            if (employeePlannerFilters.taskCategories.includes('client') && alloc.clientCode !== null) {
+            if (hasClientFilter && alloc.clientCode !== null) {
               return true;
             }
             // Check if it's a specific internal event type
             if (alloc.isNonClientEvent && alloc.nonClientEventType && 
-                employeePlannerFilters.taskCategories.includes(alloc.nonClientEventType)) {
+                taskCategorySet.has(alloc.nonClientEventType)) {
               return true;
             }
             return false;
@@ -388,44 +396,49 @@ export default function SubServiceLineWorkspacePage() {
         );
       }
     }
-    // If empty, show all
 
     // NOW filter allocations within each user based on client filter AND task category filter
-    filtered = filtered.map(u => ({
-      ...u,
-      allocations: u.allocations.filter(alloc => {
-        // Client filter
-        if (employeePlannerFilters.clients.length > 0) {
-          if (alloc.clientCode && !employeePlannerFilters.clients.includes(alloc.clientCode)) {
+    // Only map if we have filters that affect allocations
+    if (clientSet.size > 0 || taskCategorySet.size > 0) {
+      const hasNoPlanningFilter = taskCategorySet.has('no_planning');
+      const hasClientFilter = taskCategorySet.has('client');
+      
+      filtered = filtered.map(u => ({
+        ...u,
+        allocations: u.allocations.filter(alloc => {
+          // Client filter
+          if (clientSet.size > 0) {
+            if (alloc.clientCode && !clientSet.has(alloc.clientCode)) {
+              return false;
+            }
+          }
+          
+          // Task category filter - empty array means show all
+          if (taskCategorySet.size > 0 && !hasNoPlanningFilter) {
+            // Check if it's a client task
+            if (hasClientFilter && alloc.clientCode !== null) {
+              return true;
+            }
+            // Check if it's a specific internal event type
+            if (alloc.isNonClientEvent && alloc.nonClientEventType && 
+                taskCategorySet.has(alloc.nonClientEventType)) {
+              return true;
+            }
+            // If task category filter is active and this doesn't match, exclude it
             return false;
           }
-        }
-        
-        // Task category filter - empty array means show all
-        if (employeePlannerFilters.taskCategories.length > 0 && !employeePlannerFilters.taskCategories.includes('no_planning')) {
-          // Check if it's a client task
-          if (employeePlannerFilters.taskCategories.includes('client') && alloc.clientCode !== null) {
-            return true;
-          }
-          // Check if it's a specific internal event type
-          if (alloc.isNonClientEvent && alloc.nonClientEventType && 
-              employeePlannerFilters.taskCategories.includes(alloc.nonClientEventType)) {
-            return true;
-          }
-          // If task category filter is active and this doesn't match, exclude it
-          return false;
-        }
-        
-        return true;
-      })
-    }))
-    // Remove users who have no allocations left after filtering
-    // UNLESS: taskCategories is empty (unfiltered) OR "no_planning" is selected
-    .filter(u => 
-      u.allocations.length > 0 || 
-      employeePlannerFilters.taskCategories.length === 0 || 
-      employeePlannerFilters.taskCategories.includes('no_planning')
-    );
+          
+          return true;
+        })
+      }))
+      // Remove users who have no allocations left after filtering
+      // UNLESS: taskCategories is empty (unfiltered) OR "no_planning" is selected
+      .filter(u => 
+        u.allocations.length > 0 || 
+        taskCategorySet.size === 0 || 
+        hasNoPlanningFilter
+      );
+    }
 
     return filtered;
   }, [plannerUsers, employeePlannerFilters]);

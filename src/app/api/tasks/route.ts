@@ -10,8 +10,12 @@ import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { sanitizeObject } from '@/lib/utils/sanitization';
 import { getCachedList, setCachedList, invalidateTaskListCache } from '@/lib/services/cache/listCache';
+import { performanceMonitor } from '@/lib/utils/performanceMonitor';
 
 export async function GET(request: NextRequest) {
+  const startTime = Date.now();
+  let cacheHit = false;
+  
   try {
     // Require authentication
     const user = await getCurrentUser();
@@ -85,6 +89,8 @@ export async function GET(request: NextRequest) {
     if (!myTasksOnly) {
       const cached = await getCachedList(cacheParams);
       if (cached) {
+        cacheHit = true;
+        performanceMonitor.trackApiCall('/api/tasks', startTime, true);
         return NextResponse.json(successResponse(cached));
       }
     }
@@ -328,8 +334,12 @@ export async function GET(request: NextRequest) {
       await setCachedList(cacheParams, responseData);
     }
 
+    // Track performance
+    performanceMonitor.trackApiCall('/api/tasks', startTime, cacheHit);
+
     return NextResponse.json(successResponse(responseData));
   } catch (error) {
+    performanceMonitor.trackApiCall('/api/tasks [ERROR]', startTime, cacheHit);
     return handleApiError(error, 'Get Tasks');
   }
 }

@@ -101,8 +101,8 @@ export function useTaskFilters(params: UseTaskFiltersParams = {}) {
       return result.success ? result.data : result;
     },
     enabled: shouldExecute,
-    staleTime: 30 * 60 * 1000, // 30 minutes - filter options are relatively static
-    gcTime: 45 * 60 * 1000, // 45 minutes cache retention
+    staleTime: 60 * 60 * 1000, // 60 minutes - filter options are relatively static (increased from 30)
+    gcTime: 90 * 60 * 1000, // 90 minutes cache retention (increased from 45)
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,

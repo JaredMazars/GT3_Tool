@@ -5,6 +5,7 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { getServLineCodesBySubGroup } from '@/lib/utils/serviceLineExternal';
+import { performanceMonitor } from '@/lib/utils/performanceMonitor';
 
 /**
  * GET /api/tasks/filters
@@ -17,6 +18,9 @@ import { getServLineCodesBySubGroup } from '@/lib/utils/serviceLineExternal';
  * - Optional search parameters for server-side filtering
  */
 export async function GET(request: NextRequest) {
+  const startTime = Date.now();
+  let cacheHit = false;
+  
   try {
     // 1. Authenticate
     const user = await getCurrentUser();
@@ -95,17 +99,19 @@ export async function GET(request: NextRequest) {
       }));
     }
 
-    // Build cache key with service line context
-    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}task-filters:sl:${serviceLine}:subGroup:${subServiceLineGroup}:client:${clientSearch}:taskName:${taskNameSearch}:partner:${partnerSearch}:manager:${managerSearch}:user:${user.id}`;
+    // Build cache key with service line context (no user ID - filters are same for all users)
+    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}task-filters:sl:${serviceLine}:subGroup:${subServiceLineGroup}:client:${clientSearch}:taskName:${taskNameSearch}:partner:${partnerSearch}:manager:${managerSearch}`;
     
-    // Try cache first (30min TTL since filter options are relatively static)
+    // Try cache first (60min TTL since filter options are relatively static)
     const cached = await cache.get(cacheKey);
     if (cached) {
+      cacheHit = true;
+      performanceMonitor.trackApiCall('/api/tasks/filters', startTime, true);
       return NextResponse.json(successResponse(cached));
     }
 
     // Reduced limit for faster response times
-    const FILTER_LIMIT = 50;
+    const FILTER_LIMIT = 30;
 
     // Base where clause for service line filtering (using ServLineCode field)
     const baseWhere = servLineCodes.length > 0 
@@ -203,15 +209,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Execute queries in parallel for better performance
+    // Note: Removed total count queries for performance - using hasMore based on returned count
     const [
       clientsData,
       taskNamesData,
       partnersData,
       managersData,
-      clientsTotal,
-      taskNamesTotal,
-      partnersTotal,
-      managersTotal
     ] = await Promise.all([
       // Get distinct clients - query Task table (only clients with tasks)
       prisma.task.findMany({
@@ -271,27 +274,6 @@ export async function GET(request: NextRequest) {
           TaskManagerName: 'asc',
         },
         take: FILTER_LIMIT,
-      }),
-
-      // Total counts for metadata - count distinct clients in tasks
-      prisma.task.groupBy({
-        by: ['GSClientID'],
-        where: clientWhere, // Use clientWhere to match the main query filtering
-      }),
-
-      prisma.task.groupBy({
-        by: ['TaskDesc'],
-        where: { ...baseWhere, TaskDesc: { not: '' } },
-      }),
-
-      prisma.task.groupBy({
-        by: ['TaskPartner'],
-        where: { ...baseWhere, TaskPartner: { not: '' } },
-      }),
-
-      prisma.task.groupBy({
-        by: ['TaskManager'],
-        where: { ...baseWhere, TaskManager: { not: '' } },
       }),
     ]);
 
@@ -368,23 +350,23 @@ export async function GET(request: NextRequest) {
       serviceLines: [],
       metadata: {
         clients: {
-          hasMore: clientsTotal.length > FILTER_LIMIT,
-          total: clientsTotal.length,
+          hasMore: clients.length >= FILTER_LIMIT,
+          total: clients.length, // Approximate - actual total may be higher if hasMore is true
           returned: clients.length,
         },
         taskNames: {
-          hasMore: taskNamesTotal.length > FILTER_LIMIT,
-          total: taskNamesTotal.length,
+          hasMore: taskNames.length >= FILTER_LIMIT,
+          total: taskNames.length, // Approximate - actual total may be higher if hasMore is true
           returned: taskNames.length,
         },
         partners: {
-          hasMore: partnersTotal.length > FILTER_LIMIT,
-          total: partnersTotal.length,
+          hasMore: partners.length >= FILTER_LIMIT,
+          total: partners.length, // Approximate - actual total may be higher if hasMore is true
           returned: partners.length,
         },
         managers: {
-          hasMore: managersTotal.length > FILTER_LIMIT,
-          total: managersTotal.length,
+          hasMore: managers.length >= FILTER_LIMIT,
+          total: managers.length, // Approximate - actual total may be higher if hasMore is true
           returned: managers.length,
         },
         serviceLines: {
@@ -395,11 +377,15 @@ export async function GET(request: NextRequest) {
       },
     };
 
-    // Cache the response (30min TTL)
-    await cache.set(cacheKey, responseData, 1800);
+    // Cache the response (60min TTL - increased from 30min since filter options are relatively static)
+    await cache.set(cacheKey, responseData, 3600);
+
+    // Track performance
+    performanceMonitor.trackApiCall('/api/tasks/filters', startTime, cacheHit);
 
     return NextResponse.json(successResponse(responseData));
   } catch (error) {
+    performanceMonitor.trackApiCall('/api/tasks/filters [ERROR]', startTime, cacheHit);
     return handleApiError(error, 'Get Task Filters');
   }
 }

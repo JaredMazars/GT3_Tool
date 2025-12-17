@@ -126,9 +126,6 @@ export function EmployeeAutocomplete({
 
   const handleInputClick = () => {
     setIsOpen(true);
-    if (!searchTerm && filteredEmployees.length === 0) {
-      setFilteredEmployees(employees.slice(0, 50));
-    }
   };
 
   return (
