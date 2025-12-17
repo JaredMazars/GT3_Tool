@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useMemo, useRef } from 'react';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import { useState, useMemo } from 'react';
 import { X, ArrowUpDown, ArrowUp, ArrowDown, Calendar, User, Filter } from 'lucide-react';
 import { useTaskTransactions, TaskTransaction } from '@/hooks/tasks/useTaskTransactions';
 import { MetricType } from '@/types';
@@ -24,19 +23,19 @@ const METRIC_TTYPE_FILTERS: Record<MetricType, string[] | null> = {
   ltdAdjustment: ['ADJ'],
   ltdAdjTime: ['ADJ'], // Will use TranType check
   ltdAdjDisb: ['ADJ'], // Will use TranType check
-  ltdCost: null, // All non-provision
+  ltdCost: null, // All non-provision (handled by special case)
   ltdFeeTime: ['F'], // Will use TranType check
   ltdFeeDisb: ['F'], // Will use TranType check
-  balWIP: null, // All
+  balWIP: null, // All transactions
   balTime: ['T', 'ADJ', 'F'],
   balDisb: ['D', 'ADJ', 'F'],
   wipProvision: ['P'],
-  ltdHours: null, // All
-  netRevenue: null, // All (gross production + adjustments)
-  grossProfit: null, // All (revenue - costs)
-  grossProfitPercentage: null, // All
-  averageChargeoutRate: null, // All
-  averageRecoveryRate: null, // All
+  ltdHours: ['T'], // Only Time transactions have hours
+  netRevenue: ['T', 'D', 'ADJ', 'P'], // Gross production + adjustments + provisions
+  grossProfit: null, // All transactions
+  grossProfitPercentage: null, // All transactions
+  averageChargeoutRate: ['T'], // Rate based on hours (T only)
+  averageRecoveryRate: ['T'], // Rate based on hours (T only)
 };
 
 export function TransactionDetailsModal({
@@ -219,16 +218,6 @@ export function TransactionDetailsModal({
       : <ArrowDown className="w-4 h-4" />;
   };
 
-  // Virtual scrolling setup for large datasets
-  const tableContainerRef = useRef<HTMLDivElement>(null);
-  
-  const rowVirtualizer = useVirtualizer({
-    count: sortedTransactions.length,
-    getScrollElement: () => tableContainerRef.current,
-    estimateSize: () => 48, // Estimated row height in pixels
-    overscan: 10, // Number of items to render outside of the visible area
-  });
-
   if (!isOpen) return null;
 
   return (
@@ -338,7 +327,6 @@ export function TransactionDetailsModal({
               </div>
             ) : (
               <div 
-                ref={tableContainerRef}
                 className="overflow-auto" 
                 style={{ maxHeight: '500px' }}
               >
@@ -401,57 +389,31 @@ export function TransactionDetailsModal({
                     </tr>
                   </thead>
                   <tbody>
-                    <tr style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
-                      <td colSpan={8} style={{ padding: 0 }}>
-                        <div style={{ position: 'relative' }}>
-                          {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                            const txn = sortedTransactions[virtualRow.index];
-                            const index = virtualRow.index;
-                            if (!txn) return null;
-                            return (
-                              <div
-                                key={txn.id}
-                                style={{
-                                  position: 'absolute',
-                                  top: 0,
-                                  left: 0,
-                                  width: '100%',
-                                  height: `${virtualRow.size}px`,
-                                  transform: `translateY(${virtualRow.start}px)`,
-                                }}
-                              >
-                                <table className="w-full">
-                                  <tbody>
-                                    <tr
-                                      className={`text-sm hover:bg-forvis-blue-50 transition-colors ${
-                                        index % 2 === 0 ? 'bg-white' : 'bg-forvis-gray-50'
-                                      }`}
-                                    >
-                                      <td className="px-4 py-3 whitespace-nowrap">{formatDate(txn.tranDate)}</td>
-                                      <td className="px-4 py-3">{txn.tranType}</td>
-                                      <td className="px-4 py-3">{txn.empName || 'N/A'}</td>
-                                      <td className="px-4 py-3 text-right tabular-nums">
-                                        {txn.hour.toFixed(2)}
-                                      </td>
-                                      <td className="px-4 py-3 text-right tabular-nums">
-                                        {txn.amount != null ? formatCurrency(txn.amount) : 'N/A'}
-                                      </td>
-                                      <td className="px-4 py-3 text-right tabular-nums">
-                                        {formatCurrency(txn.cost)}
-                                      </td>
-                                      <td className="px-4 py-3">{txn.ref || '-'}</td>
-                                      <td className="px-4 py-3 max-w-xs truncate" title={txn.narr || ''}>
-                                        {txn.narr || '-'}
-                                      </td>
-                                    </tr>
-                                  </tbody>
-                                </table>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </td>
-                    </tr>
+                    {sortedTransactions.map((txn, index) => (
+                      <tr
+                        key={txn.id}
+                        className={`text-sm hover:bg-forvis-blue-50 transition-colors ${
+                          index % 2 === 0 ? 'bg-white' : 'bg-forvis-gray-50'
+                        }`}
+                      >
+                        <td className="px-4 py-3 whitespace-nowrap">{formatDate(txn.tranDate)}</td>
+                        <td className="px-4 py-3">{txn.tranType}</td>
+                        <td className="px-4 py-3">{txn.empName || 'N/A'}</td>
+                        <td className="px-4 py-3 text-right tabular-nums">
+                          {txn.hour.toFixed(2)}
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums">
+                          {txn.amount != null ? formatCurrency(txn.amount) : 'N/A'}
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums">
+                          {formatCurrency(txn.cost)}
+                        </td>
+                        <td className="px-4 py-3">{txn.ref || '-'}</td>
+                        <td className="px-4 py-3 max-w-xs truncate" title={txn.narr || ''}>
+                          {txn.narr || '-'}
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -482,4 +444,5 @@ export function TransactionDetailsModal({
     </div>
   );
 }
+
 

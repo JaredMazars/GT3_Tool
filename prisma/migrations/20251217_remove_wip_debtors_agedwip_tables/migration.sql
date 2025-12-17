@@ -21,3 +21,4 @@ DROP TABLE IF EXISTS [dbo].[Debtors];
 
 -- DropTable
 DROP TABLE IF EXISTS [dbo].[Wip];
+
