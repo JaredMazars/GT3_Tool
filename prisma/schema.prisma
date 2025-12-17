@@ -327,10 +327,13 @@ model Client {
   @@index([industry])
   @@index([sector])
   @@index([updatedAt(sort: Desc)])
-  // Performance indexes for filter queries
   @@index([active, groupCode])
   @@index([active, industry])
   @@index([industry, clientNameFull])
+  @@index([clientCode], map: "idx_client_code")
+  @@index([groupDesc], map: "idx_client_group_desc")
+  @@index([groupCode], map: "idx_client_groupcode")
+  @@index([clientNameFull], map: "idx_client_name_full")
 }
 
 model ClientAcceptanceResponse {
@@ -472,7 +475,7 @@ model DrsTransactions {
   ClientManagerName String   @db.NVarChar(50)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
-  Client            Client?  @relation(fields: [GSClientID], references: [GSClientID], onUpdate: NoAction)
+  Client            Client   @relation(fields: [GSClientID], references: [GSClientID], onUpdate: NoAction)
 
   @@index([Biller])
   @@index([GSClientID])
@@ -481,6 +484,9 @@ model DrsTransactions {
   @@index([PeriodKey])
   @@index([ServLineCode])
   @@index([TranDate])
+  @@index([GSClientID], map: "idx_drs_gsclientid")
+  @@index([ServLineCode], map: "idx_drs_servlinecode")
+  @@index([TranDate], map: "idx_drs_trandate")
 }
 
 model EmailLog {
@@ -534,7 +540,6 @@ model Employee {
   @@index([ServLineCode])
   @@index([SLGroup])
   @@index([WinLogon])
-  // Performance index for employee enrichment queries
   @@index([EmpCode, Active])
 }
 
@@ -953,6 +958,7 @@ model Task {
   @@index([updatedAt(sort: Desc)])
   @@index([Active, TaskDesc])
   @@index([Active, TaskCode])
+  @@index([GSClientID], map: "idx_task_gsclientid")
   // Performance indexes for filter queries
   @@index([ServLineCode, SLGroup])
   @@index([TaskPartner, Active])
@@ -1108,7 +1114,6 @@ model TemplateSection {
 
 model NonClientAllocation {
   id                  Int      @id @default(autoincrement())
-  employeeId          Int
   eventType           String   @db.NVarChar(50)
   startDate           DateTime
   endDate             DateTime
@@ -1118,6 +1123,7 @@ model NonClientAllocation {
   createdBy           String
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+  employeeId          Int
   Employee            Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@index([employeeId])
@@ -1214,6 +1220,8 @@ model WIPTransactions {
   @@index([OfficeCode])
   @@index([ServLineGroup])
   @@index([TranDate])
+  @@index([GSClientID], map: "idx_wip_gsclientid")
+  @@index([GSTaskID], map: "idx_wip_gstaskid")
 }
 
 model TaskBudget {
@@ -1231,14 +1239,14 @@ model TaskBudget {
   EstAdjTime      Float?    @db.Money
   EstAdjDisb      Float?    @db.Money
   EstRecoveryPerc Int?
-  BudStartDate    DateTime?
-  BudDueDate      DateTime?
-  BudApproveDate  DateTime?
   BudDetails      String?   @db.NVarChar(255)
   LastUser        String?   @db.NVarChar(50)
   LastUpdated     DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+  BudApproveDate  DateTime?
+  BudDueDate      DateTime?
+  BudStartDate    DateTime?
   Client          Client?   @relation(fields: [GSClientID], references: [GSClientID], onDelete: NoAction, onUpdate: NoAction)
   Task            Task?     @relation(fields: [GSTaskID], references: [GSTaskID], onDelete: NoAction, onUpdate: NoAction)
 
@@ -1267,7 +1275,7 @@ model StandardTask {
   StdTaskCode  String   @db.NVarChar(10)
   StdTaskDesc  String   @db.NVarChar(150)
   ServLineCode String   @db.NVarChar(10)
-  createdAt    DateTime @default(now())
+  createdAt    DateTime @default(now(), map: "DF_StandardTask_createdAt")
   updatedAt    DateTime @updatedAt
 
   @@index([StdTaskCode])
@@ -1284,7 +1292,7 @@ model Tool {
   componentPath String            @db.NVarChar(500)
   active        Boolean           @default(true)
   sortOrder     Int               @default(0)
-  createdAt     DateTime          @default(now())
+  createdAt     DateTime          @default(now(), map: "DF__Tool__createdAt__7ADC2F5E")
   updatedAt     DateTime          @updatedAt
   serviceLines  ServiceLineTool[]
   tasks         TaskTool[]
@@ -1304,7 +1312,7 @@ model ToolSubTab {
   icon          String?  @db.NVarChar(50)
   sortOrder     Int      @default(0)
   active        Boolean  @default(true)
-  createdAt     DateTime @default(now())
+  createdAt     DateTime @default(now(), map: "DF__ToolSubTa__creat__01892CED")
   updatedAt     DateTime @updatedAt
   tool          Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
 
@@ -1319,7 +1327,7 @@ model ServiceLineTool {
   subServiceLineGroup String   @db.NVarChar(50)
   toolId              Int
   active              Boolean  @default(true)
-  createdAt           DateTime @default(now())
+  createdAt           DateTime @default(now(), map: "DF__ServiceLi__creat__08362A7C")
   updatedAt           DateTime @updatedAt
   tool                Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
 
@@ -1335,11 +1343,11 @@ model TaskTool {
   toolId    Int
   addedBy   String
   sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now(), map: "DF__TaskTool__create__0EE3280B")
   updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [addedBy], references: [id], onUpdate: NoAction)
   task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   tool      Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [addedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([taskId, toolId])
   @@index([taskId])
@@ -1352,7 +1360,6 @@ model WorkspaceFolder {
   id                  Int               @id @default(autoincrement())
   name                String            @db.NVarChar(255)
   description         String?           @db.NVarChar(Max)
-  taskId              Int?
   serviceLine         String?           @db.NVarChar(50)
   subServiceLineGroup String?           @db.NVarChar(100)
   parentFolderId      Int?
@@ -1360,13 +1367,14 @@ model WorkspaceFolder {
   itemId              String?           @db.NVarChar(255)
   sharepointUrl       String?           @db.NVarChar(500)
   createdBy           String            @db.NVarChar(200)
-  createdAt           DateTime          @default(now())
+  createdAt           DateTime          @default(now(), map: "DF_WorkspaceFolder_createdAt")
   updatedAt           DateTime          @updatedAt
   active              Boolean           @default(true)
-  Task                Task?             @relation(fields: [taskId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  taskId              Int?
+  Files               WorkspaceFile[]
   ParentFolder        WorkspaceFolder?  @relation("FolderHierarchy", fields: [parentFolderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   ChildFolders        WorkspaceFolder[] @relation("FolderHierarchy")
-  Files               WorkspaceFile[]
+  Task                Task?             @relation(fields: [taskId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([taskId])
   @@index([serviceLine])
@@ -1376,26 +1384,26 @@ model WorkspaceFolder {
 }
 
 model WorkspaceFile {
-  id              Int                       @id @default(autoincrement())
-  folderId        Int
-  name            String                    @db.NVarChar(255)
-  description     String?                   @db.NVarChar(Max)
-  fileType        String                    @db.NVarChar(50)
-  fileSize        BigInt
-  driveId         String                    @db.NVarChar(255)
-  itemId          String                    @db.NVarChar(255)
-  webUrl          String                    @db.NVarChar(500)
-  embedUrl        String?                   @db.NVarChar(500)
-  thumbnailUrl    String?                   @db.NVarChar(500)
-  uploadedBy      String                    @db.NVarChar(200)
-  lastModifiedBy  String?                   @db.NVarChar(200)
-  lastModifiedAt  DateTime?
-  version         Int                       @default(1)
-  createdAt       DateTime                  @default(now())
-  updatedAt       DateTime                  @updatedAt
-  Folder          WorkspaceFolder           @relation(fields: [folderId], references: [id], onDelete: Cascade)
-  Activity        WorkspaceFileActivity[]
-  Permissions     WorkspaceFilePermission[]
+  id             Int                       @id @default(autoincrement())
+  folderId       Int
+  name           String                    @db.NVarChar(255)
+  description    String?                   @db.NVarChar(Max)
+  fileType       String                    @db.NVarChar(50)
+  fileSize       BigInt
+  driveId        String                    @db.NVarChar(255)
+  itemId         String                    @db.NVarChar(255)
+  webUrl         String                    @db.NVarChar(500)
+  embedUrl       String?                   @db.NVarChar(500)
+  thumbnailUrl   String?                   @db.NVarChar(500)
+  uploadedBy     String                    @db.NVarChar(200)
+  lastModifiedBy String?                   @db.NVarChar(200)
+  lastModifiedAt DateTime?
+  version        Int                       @default(1)
+  createdAt      DateTime                  @default(now(), map: "DF_WorkspaceFile_createdAt")
+  updatedAt      DateTime                  @updatedAt
+  Folder         WorkspaceFolder           @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  Activity       WorkspaceFileActivity[]
+  Permissions    WorkspaceFilePermission[]
 
   @@index([folderId])
   @@index([uploadedBy])
@@ -1409,7 +1417,7 @@ model WorkspaceFileActivity {
   userId      String        @db.NVarChar(200)
   action      String        @db.NVarChar(50)
   description String?       @db.NVarChar(500)
-  timestamp   DateTime      @default(now())
+  timestamp   DateTime      @default(now(), map: "DF_WorkspaceFileActivity_timestamp")
   File        WorkspaceFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
 
   @@index([fileId])
@@ -1424,7 +1432,7 @@ model WorkspaceFilePermission {
   role        String        @db.NVarChar(50)
   serviceLine String?       @db.NVarChar(50)
   grantedBy   String        @db.NVarChar(200)
-  createdAt   DateTime      @default(now())
+  createdAt   DateTime      @default(now(), map: "DF_WorkspaceFilePermission_createdAt")
   File        WorkspaceFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
 
   @@index([fileId])
