@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui';
 import { X, Calendar, Clock, Percent, User, Briefcase } from 'lucide-react';
 import { format, startOfDay } from 'date-fns';
-import { TaskRole } from '@/types';
+import { TaskRole, ServiceLineRole } from '@/types';
 import { EmployeeAllocationData } from './types';
 import { calculateBusinessDays, calculateAvailableHours, calculateAllocationPercentage } from './utils';
 
@@ -16,7 +16,7 @@ interface EmployeeAllocationModalProps {
     endDate: Date;
     allocatedHours: number | null;
     allocatedPercentage: number | null;
-    role: TaskRole;
+    role: ServiceLineRole | TaskRole;
     actualHours: number | null;
   }) => Promise<void>;
   onClear: (allocationId: number) => Promise<void>;
@@ -42,7 +42,7 @@ export function EmployeeAllocationModal({
   const [endDate, setEndDate] = useState('');
   const [allocatedHours, setAllocatedHours] = useState('');
   const [actualHours, setActualHours] = useState('');
-  const [role, setRole] = useState<TaskRole>(TaskRole.VIEWER);
+  const [role, setRole] = useState<ServiceLineRole | TaskRole>('VIEWER');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -275,19 +275,16 @@ export function EmployeeAllocationModal({
             </div>
             <div>
               <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
-                Task Role
+                Assigned Role
               </label>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value as TaskRole)}
-                className="w-full px-3 py-2 border border-forvis-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent"
-                disabled={isSaving}
-              >
-                <option value={TaskRole.ADMIN}>Admin</option>
-                <option value={TaskRole.REVIEWER}>Reviewer</option>
-                <option value={TaskRole.EDITOR}>Editor</option>
-                <option value={TaskRole.VIEWER}>Viewer</option>
-              </select>
+              <div className="w-full px-4 py-3 border-2 border-blue-200 rounded-lg bg-blue-50">
+                <div className="text-lg font-bold text-blue-700">
+                  {role}
+                </div>
+                <div className="text-xs text-blue-600 mt-1">
+                  Based on service line access rights
+                </div>
+              </div>
             </div>
           </div>
 

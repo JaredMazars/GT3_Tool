@@ -263,6 +263,11 @@ export async function PUT(request: NextRequest) {
     }
 
     const { userId, serviceLineOrSubGroup, role, isSubGroup } = validation.data;
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/fefc3511-fdd0-43c4-a837-f5a8973894e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:265',message:'PUT endpoint - calling updateServiceLineRole',data:{userId,serviceLineOrSubGroup,role,isSubGroup},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
+    // #endregion
+    
     await updateServiceLineRole(userId, serviceLineOrSubGroup, role, isSubGroup);
 
     // Create in-app notification

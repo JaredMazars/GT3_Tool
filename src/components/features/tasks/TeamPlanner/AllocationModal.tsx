@@ -5,7 +5,7 @@ import { AllocationData } from './types';
 import { Button, Input } from '@/components/ui';
 import { X, Calendar, Clock, Percent, AlertCircle } from 'lucide-react';
 import { format, startOfDay } from 'date-fns';
-import { TaskRole, NON_CLIENT_EVENT_LABELS } from '@/types';
+import { TaskRole, ServiceLineRole, NON_CLIENT_EVENT_LABELS } from '@/types';
 import { calculateBusinessDays, calculateAvailableHours, calculateAllocationPercentage } from './utils';
 
 interface AllocationModalProps {
@@ -24,7 +24,7 @@ export function AllocationModal({ allocation, isOpen, onClose, onSave, onClear, 
     allocatedHours: '',
     allocatedPercentage: '',
     actualHours: '',
-    role: TaskRole.VIEWER
+    role: 'VIEWER' as ServiceLineRole | TaskRole
   });
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
@@ -435,21 +435,19 @@ export function AllocationModal({ allocation, isOpen, onClose, onSave, onClear, 
             />
           </div>
 
-          {/* Role */}
+          {/* Role (Read-Only) */}
           <div>
             <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
-              Role
+              Assigned Role
             </label>
-            <select
-              value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value as TaskRole })}
-              className="w-full px-3 py-2 border-2 border-forvis-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
-            >
-              <option value="VIEWER">👁️ Viewer - Read-only access</option>
-              <option value="EDITOR">✏️ Editor - Can edit data</option>
-              <option value="REVIEWER">✅ Reviewer - Can approve/reject adjustments</option>
-              <option value="ADMIN">⚙️ Admin - Full task control</option>
-            </select>
+            <div className="w-full px-4 py-3 border-2 border-blue-200 rounded-lg bg-blue-50">
+              <div className="text-lg font-bold text-blue-700">
+                {formData.role}
+              </div>
+              <div className="text-xs text-blue-600 mt-1">
+                Based on service line access rights
+              </div>
+            </div>
           </div>
         </div>
 

@@ -70,6 +70,10 @@ export default function UserManagementPage() {
   const [loadingServiceLines, setLoadingServiceLines] = useState(false);
   const [showAddServiceLineModal, setShowAddServiceLineModal] = useState(false);
   const updateUserServiceLinesState = (userId: string, serviceLines: ServiceLineUser[]) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/fefc3511-fdd0-43c4-a837-f5a8973894e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:72',message:'updateUserServiceLinesState called',data:{userId,serviceLines:serviceLines.map(sl=>({serviceLine:sl.serviceLine,role:sl.role}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H5'})}).catch(()=>{});
+    // #endregion
+    
     setSelectedUser((current) =>
       current && current.id === userId ? { ...current, serviceLines } : current
     );
@@ -292,6 +296,10 @@ export default function UserManagementPage() {
   const handleUpdateServiceLineRole = async (subServiceLineGroup: string, newRole: ServiceLineRole) => {
     if (!selectedUser) return;
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/fefc3511-fdd0-43c4-a837-f5a8973894e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:292',message:'handleUpdateServiceLineRole called',data:{userId:selectedUser.id,subServiceLineGroup,newRole,userEmail:selectedUser.email},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
+
     try {
       const response = await fetch('/api/admin/service-line-access', {
         method: 'PUT',
@@ -301,19 +309,36 @@ export default function UserManagementPage() {
           userId: selectedUser.id,
           serviceLineOrSubGroup: subServiceLineGroup,
           role: newRole,
-          isSubGroup: true,
+          isSubGroup: false, // Update ALL sub-groups for this master code
         }),
       });
 
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/fefc3511-fdd0-43c4-a837-f5a8973894e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:311',message:'API response received',data:{ok:response.ok,status:response.status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+      // #endregion
+
       if (response.ok) {
         const updatedServiceLines = await fetchUserServiceLines(selectedUser.id);
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/fefc3511-fdd0-43c4-a837-f5a8973894e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:320',message:'Service lines fetched after update',data:{count:updatedServiceLines.length,serviceLines:updatedServiceLines.map(sl=>({serviceLine:sl.serviceLine,role:sl.role}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
+        // #endregion
+        
         updateUserServiceLinesState(selectedUser.id, updatedServiceLines);
       } else {
         const errorData = await response.json();
         console.error('Failed to update role:', errorData);
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/fefc3511-fdd0-43c4-a837-f5a8973894e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:331',message:'API call failed',data:{errorData},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+        // #endregion
       }
     } catch (error) {
       console.error('Error updating role:', error);
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/fefc3511-fdd0-43c4-a837-f5a8973894e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:339',message:'Exception caught',data:{error:String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+      // #endregion
     }
   };
 

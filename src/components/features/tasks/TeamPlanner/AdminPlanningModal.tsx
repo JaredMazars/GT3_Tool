@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui';
 import { X, Calendar, Clock, Percent, Search, Building2, Briefcase, ChevronRight } from 'lucide-react';
 import { format, startOfDay } from 'date-fns';
-import { TaskRole, NonClientEventType } from '@/types';
+import { TaskRole, NonClientEventType, ServiceLineRole } from '@/types';
 import { calculateBusinessDays, calculateAvailableHours, calculateAllocationPercentage } from './utils';
 import { NonClientEventModal } from './NonClientEventModal';
 import { useCreateNonClientAllocation } from '@/hooks/planning/useNonClientAllocations';
@@ -39,7 +39,7 @@ interface AdminPlanningModalProps {
     endDate: Date;
     allocatedHours: number;
     allocatedPercentage: number;
-    role: TaskRole;
+    role: ServiceLineRole | TaskRole;
   }) => Promise<void>;
   serviceLine: string;
   subServiceLineGroup: string;
@@ -105,8 +105,11 @@ export function AdminPlanningModal({
     endDate: '',
     allocatedHours: '',
     allocatedPercentage: '',
-    role: TaskRole.VIEWER
+    role: 'VIEWER' as ServiceLineRole | TaskRole
   });
+  
+  const [autoRole, setAutoRole] = useState<ServiceLineRole | null>(null);
+  const [isLoadingRole, setIsLoadingRole] = useState(false);
   
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
@@ -135,11 +138,39 @@ export function AdminPlanningModal({
         endDate: endDateStr,
         allocatedHours: '',
         allocatedPercentage: '',
-        role: TaskRole.VIEWER
+        role: 'VIEWER'
       });
+      setAutoRole(null);
       setError('');
     }
   }, [isOpen, initialStartDate, initialEndDate]);
+
+  // Fetch user's service line role when modal opens
+  useEffect(() => {
+    if (!isOpen || !userId || !subServiceLineGroup) {
+      return;
+    }
+
+    setIsLoadingRole(true);
+    
+    // API endpoint now handles both User IDs and employee-{id} format
+    fetch(`/api/service-lines/user-role?userId=${encodeURIComponent(userId)}&subServiceLineGroup=${encodeURIComponent(subServiceLineGroup)}`)
+      .then(res => res.json())
+      .then(data => {
+        const role = data.data?.role || ServiceLineRole.USER;
+        setAutoRole(role);
+        setFormData(prev => ({ ...prev, role }));
+      })
+      .catch(err => {
+        console.error('Error fetching service line role:', err);
+        // Default to USER if fetch fails
+        setAutoRole(ServiceLineRole.USER);
+        setFormData(prev => ({ ...prev, role: ServiceLineRole.USER }));
+      })
+      .finally(() => {
+        setIsLoadingRole(false);
+      });
+  }, [isOpen, userId, subServiceLineGroup]);
 
   // Fetch active tasks when client is selected - simple reload, no caching
   useEffect(() => {
@@ -677,21 +708,25 @@ export function AdminPlanningModal({
                 </div>
               </div>
 
-              {/* Role */}
+              {/* Auto-Assigned Role */}
               <div>
                 <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
-                  Role on Task
+                  Auto-Assigned Role
                 </label>
-                <select
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value as TaskRole })}
-                  className="w-full px-3 py-2 border-2 border-forvis-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
-                >
-                  <option value="VIEWER">👁️ Viewer - Read-only access</option>
-                  <option value="EDITOR">✏️ Editor - Can edit data</option>
-                  <option value="REVIEWER">✅ Reviewer - Can approve/reject</option>
-                  <option value="ADMIN">⚙️ Admin - Full task control</option>
-                </select>
+                <div className="w-full px-4 py-3 border-2 border-blue-200 rounded-lg bg-blue-50">
+                  {isLoadingRole ? (
+                    <div className="text-sm text-forvis-gray-600">Loading role...</div>
+                  ) : (
+                    <>
+                      <div className="text-lg font-bold text-blue-700">
+                        {autoRole || 'USER'}
+                      </div>
+                      <div className="text-xs text-blue-600 mt-1">
+                        Based on service line access rights
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           )}

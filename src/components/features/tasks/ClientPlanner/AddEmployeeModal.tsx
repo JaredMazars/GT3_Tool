@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui';
 import { X, Calendar, Clock, Percent, Search, Building2, Briefcase, User, UserPlus } from 'lucide-react';
 import { format, startOfDay } from 'date-fns';
-import { TaskRole } from '@/types';
+import { TaskRole, ServiceLineRole } from '@/types';
 import { calculateBusinessDays, calculateAvailableHours, calculateAllocationPercentage } from './utils';
 
 interface Employee {
@@ -56,8 +56,11 @@ export function AddEmployeeModal({
     allocatedHours: '',
     allocatedPercentage: '',
     actualHours: '',
-    role: TaskRole.VIEWER
+    role: 'VIEWER' as ServiceLineRole | TaskRole
   });
+  
+  const [autoRole, setAutoRole] = useState<ServiceLineRole | null>(null);
+  const [isLoadingRole, setIsLoadingRole] = useState(false);
   
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
@@ -73,6 +76,7 @@ export function AddEmployeeModal({
       setDebouncedSearch('');
       setSelectedEmployee(null);
       setShowClearConfirm(false);
+      setAutoRole(null);
       
       setFormData({
         startDate: format(initialStartDate, 'yyyy-MM-dd'),
@@ -80,11 +84,38 @@ export function AddEmployeeModal({
         allocatedHours: '',
         allocatedPercentage: '',
         actualHours: '',
-        role: TaskRole.VIEWER
+        role: 'VIEWER'
       });
       setError('');
     }
   }, [isOpen, initialStartDate, initialEndDate]);
+
+  // Fetch user's service line role when employee is selected
+  useEffect(() => {
+    if (!selectedEmployee?.id || !subServiceLineGroup) {
+      setAutoRole(null);
+      return;
+    }
+
+    setIsLoadingRole(true);
+    
+    fetch(`/api/service-lines/user-role?userId=${encodeURIComponent(selectedEmployee.id)}&subServiceLineGroup=${encodeURIComponent(subServiceLineGroup)}`)
+      .then(res => res.json())
+      .then(data => {
+        const role = data.data?.role || ServiceLineRole.USER;
+        setAutoRole(role);
+        setFormData(prev => ({ ...prev, role }));
+      })
+      .catch(err => {
+        console.error('Error fetching service line role:', err);
+        // Default to USER if fetch fails
+        setAutoRole(ServiceLineRole.USER);
+        setFormData(prev => ({ ...prev, role: ServiceLineRole.USER }));
+      })
+      .finally(() => {
+        setIsLoadingRole(false);
+      });
+  }, [selectedEmployee, subServiceLineGroup]);
 
   // Debounce search input
   useEffect(() => {
@@ -592,22 +623,25 @@ export function AddEmployeeModal({
                 />
               </div>
 
-              {/* Role */}
+              {/* Auto-Assigned Role */}
               <div>
                 <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
-                  Role
+                  Auto-Assigned Role
                 </label>
-                <select
-                  value={formData.role}
-                  onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value as TaskRole }))}
-                  className="w-full px-3 py-2 border-2 border-forvis-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
-                  disabled={isSaving}
-                >
-                  <option value={TaskRole.VIEWER}>👁️ Viewer - Read-only access</option>
-                  <option value={TaskRole.EDITOR}>✏️ Editor - Can edit data</option>
-                  <option value={TaskRole.REVIEWER}>✅ Reviewer - Can approve/reject adjustments</option>
-                  <option value={TaskRole.ADMIN}>⚙️ Admin - Full task control</option>
-                </select>
+                <div className="w-full px-4 py-3 border-2 border-blue-200 rounded-lg bg-blue-50">
+                  {isLoadingRole ? (
+                    <div className="text-sm text-forvis-gray-600">Loading role...</div>
+                  ) : (
+                    <>
+                      <div className="text-lg font-bold text-blue-700">
+                        {autoRole || 'USER'}
+                      </div>
+                      <div className="text-xs text-blue-600 mt-1">
+                        Based on service line access rights
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           )}

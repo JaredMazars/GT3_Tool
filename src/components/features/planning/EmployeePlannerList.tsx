@@ -60,6 +60,7 @@ export function EmployeePlannerList({ serviceLine, subServiceLineGroup, filters 
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
+      // TaskRole values
       case 'ADMIN':
         return 'bg-purple-100 text-purple-800 border-purple-300';
       case 'REVIEWER':
@@ -68,6 +69,17 @@ export function EmployeePlannerList({ serviceLine, subServiceLineGroup, filters 
         return 'bg-green-100 text-green-800 border-green-300';
       case 'VIEWER':
         return 'bg-gray-100 text-gray-800 border-gray-300';
+      // ServiceLineRole values
+      case 'ADMINISTRATOR':
+        return 'bg-red-100 text-red-800 border-red-300';
+      case 'PARTNER':
+        return 'bg-orange-100 text-orange-800 border-orange-300';
+      case 'MANAGER':
+        return 'bg-purple-100 text-purple-800 border-purple-300';
+      case 'SUPERVISOR':
+        return 'bg-green-100 text-green-800 border-green-300';
+      case 'USER':
+        return 'bg-blue-100 text-blue-800 border-blue-300';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-300';
     }

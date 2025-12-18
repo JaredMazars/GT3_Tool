@@ -15,7 +15,13 @@ import { formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineU
 
 export function ServiceLineSelector() {
   const params = useParams();
-  const serviceLine = (params.serviceLine as string)?.toLowerCase();
+  const serviceLine = (params.serviceLine as string)?.toLowerCase() || '';
+  
+  // Guard against missing service line
+  if (!serviceLine) {
+    return null;
+  }
+  
   const isShared = isSharedService(serviceLine.toUpperCase());
 
   // Determine grid columns based on cards shown

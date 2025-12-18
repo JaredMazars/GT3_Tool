@@ -642,19 +642,32 @@ export async function updateServiceLineRole(
   isSubGroup: boolean = false
 ): Promise<void> {
   try {
+    // #region agent log
+    await fetch('http://127.0.0.1:7242/ingest/fefc3511-fdd0-43c4-a837-f5a8973894e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'serviceLineService.ts:644',message:'updateServiceLineRole called',data:{userId,serviceLineOrSubGroup,role,isSubGroup},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
+    // #endregion
+    
     if (isSubGroup) {
-      // Update role for specific sub-group
-      await prisma.serviceLineUser.update({
+      // Upsert role for specific sub-group
+      const result = await prisma.serviceLineUser.upsert({
         where: {
           userId_subServiceLineGroup: {
             userId,
             subServiceLineGroup: serviceLineOrSubGroup as string,
           },
         },
-        data: {
+        update: {
+          role: role as string,
+        },
+        create: {
+          userId,
+          subServiceLineGroup: serviceLineOrSubGroup as string,
           role: role as string,
         },
       });
+
+      // #region agent log
+      await fetch('http://127.0.0.1:7242/ingest/fefc3511-fdd0-43c4-a837-f5a8973894e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'serviceLineService.ts:670',message:'Upsert completed',data:{resultRole:result.role,resultId:result.id,userId:result.userId,subServiceLineGroup:result.subServiceLineGroup},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
+      // #endregion
 
       logger.info('Updated sub-group role', { userId, subGroup: serviceLineOrSubGroup, role });
     } else {
@@ -662,17 +675,29 @@ export async function updateServiceLineRole(
       const subGroups = await getSubServiceLineGroupsByMaster(serviceLineOrSubGroup as string);
       const subGroupCodes = subGroups.map(sg => sg.code);
 
-      await prisma.serviceLineUser.updateMany({
-        where: {
-          userId,
-          subServiceLineGroup: { in: subGroupCodes },
-        },
-        data: {
-          role: role as string,
-        },
-      });
+      // Upsert each sub-group individually to handle both create and update
+      await Promise.all(
+        subGroupCodes.map(subGroupCode =>
+          prisma.serviceLineUser.upsert({
+            where: {
+              userId_subServiceLineGroup: {
+                userId,
+                subServiceLineGroup: subGroupCode,
+              },
+            },
+            update: {
+              role: role as string,
+            },
+            create: {
+              userId,
+              subServiceLineGroup: subGroupCode,
+              role: role as string,
+            },
+          })
+        )
+      );
 
-      logger.info('Updated service line role', { userId, serviceLine: serviceLineOrSubGroup, role });
+      logger.info('Updated service line role', { userId, serviceLine: serviceLineOrSubGroup, role, count: subGroupCodes.length });
     }
   } catch (error) {
     logger.error('Error updating service line role', { userId, serviceLineOrSubGroup, role, error });

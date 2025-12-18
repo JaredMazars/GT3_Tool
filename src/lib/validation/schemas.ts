@@ -100,7 +100,8 @@ export const CreateTaskSchema = z.object({
   // Team Members
   teamMembers: z.array(z.object({
     empCode: z.string(),
-    role: z.enum(['ADMIN', 'REVIEWER', 'EDITOR', 'VIEWER']),
+    // Accept both TaskRole and ServiceLineRole values
+    role: z.enum(['ADMIN', 'REVIEWER', 'EDITOR', 'VIEWER', 'ADMINISTRATOR', 'PARTNER', 'MANAGER', 'SUPERVISOR', 'USER']),
   })).optional(),
 
   // System Fields
@@ -112,7 +113,8 @@ export const CreateTaskSchema = z.object({
  */
 export const AddTaskTeamSchema = z.object({
   userId: z.string().optional(),
-  role: z.enum(['ADMIN', 'REVIEWER', 'EDITOR', 'VIEWER']).optional().default('VIEWER'),
+  // Accept both TaskRole and ServiceLineRole values
+  role: z.enum(['ADMIN', 'REVIEWER', 'EDITOR', 'VIEWER', 'ADMINISTRATOR', 'PARTNER', 'MANAGER', 'SUPERVISOR', 'USER']).optional().default('VIEWER'),
   // Allocation fields
   startDate: z.coerce.date().optional().nullable(),
   endDate: z.coerce.date().optional().nullable(),
@@ -126,7 +128,8 @@ export const AddTaskTeamSchema = z.object({
 }).strict();
 
 export const UpdateTaskTeamSchema = z.object({
-  role: z.enum(['ADMIN', 'REVIEWER', 'EDITOR', 'VIEWER']),
+  // Accept both TaskRole and ServiceLineRole values
+  role: z.enum(['ADMIN', 'REVIEWER', 'EDITOR', 'VIEWER', 'ADMINISTRATOR', 'PARTNER', 'MANAGER', 'SUPERVISOR', 'USER']),
 }).strict();
 
 /**
@@ -134,7 +137,8 @@ export const UpdateTaskTeamSchema = z.object({
  */
 export const CreateTaskAllocationSchema = z.object({
   userId: z.string().min(1, 'User ID is required'),
-  role: z.enum(['ADMIN', 'REVIEWER', 'EDITOR', 'VIEWER']).default('VIEWER'),
+  // Accept both TaskRole and ServiceLineRole values
+  role: z.enum(['ADMIN', 'REVIEWER', 'EDITOR', 'VIEWER', 'ADMINISTRATOR', 'PARTNER', 'MANAGER', 'SUPERVISOR', 'USER']).default('VIEWER'),
   startDate: z.coerce.date().optional().nullable(),
   endDate: z.coerce.date().optional().nullable(),
   allocatedHours: z.number().min(0).optional().nullable(),
@@ -142,7 +146,8 @@ export const CreateTaskAllocationSchema = z.object({
 }).strict();
 
 export const UpdateTaskAllocationSchema = z.object({
-  role: z.enum(['ADMIN', 'REVIEWER', 'EDITOR', 'VIEWER']).optional(),
+  // Accept both TaskRole and ServiceLineRole values
+  role: z.enum(['ADMIN', 'REVIEWER', 'EDITOR', 'VIEWER', 'ADMINISTRATOR', 'PARTNER', 'MANAGER', 'SUPERVISOR', 'USER']).optional(),
   startDate: z.coerce.date().optional().nullable(),
   endDate: z.coerce.date().optional().nullable(),
   allocatedHours: z.number().min(0).optional().nullable(),
