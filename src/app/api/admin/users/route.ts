@@ -16,6 +16,7 @@ export const GET = secureRoute.query({
   handler: async (_request, { user }) => {
     // Get all users with their task assignments
     const users = await prisma.user.findMany({
+      take: 500,
       select: {
         id: true,
         name: true,
@@ -48,6 +49,7 @@ export const GET = secureRoute.query({
           orderBy: {
             createdAt: 'desc',
           },
+          take: 50, // Limit tasks per user
         },
         Session: {
           select: {
@@ -59,9 +61,10 @@ export const GET = secureRoute.query({
           take: 1,
         },
       },
-      orderBy: {
-        name: 'asc',
-      },
+      orderBy: [
+        { name: 'asc' },
+        { id: 'asc' },
+      ],
     });
 
     // Transform data to include useful metrics

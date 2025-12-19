@@ -8,23 +8,25 @@ A systematic checklist for reviewing all API routes for security and performance
 
 ### Workflow Rules
 
-1. **Focus on ONE route at a time** - Do not review multiple routes simultaneously.  Select the next unchecked route and focus solely on that route and its related files.
-2. **Complete the next unchecked route and do not continue. Just check the box and confirm that it is completed.  Then stop.** - Check the box only after all review items pass
-3. **Document any issues found** - Add notes below the route entry if issues are discovered
-4. **Test after changes** - Verify the route still functions correctly after optimization
+1. **Review by SUB-SECTION** - Find the next unchecked subsection (e.g., `### Proposals`, `### Opportunities`, `### Activities`) and review ALL routes within that subsection as a batch.
+2. **Complete the entire sub-section, then stop** - Check boxes for all routes in that section after review. Document fixes applied. Then stop and wait for the next instruction.
+3. **Document any issues found** - Add notes below each route entry if issues are discovered or fixes are applied.
+4. **Test after changes** - Verify routes still function correctly after optimization.
 
 ### How to Use This Checklist
 
-1. Find the next unchecked route in the list
-2. Open the route file and its related frontend files
-3. Clear the Security Checklist below and run through it
-4. Clear the Performance Checklist below and run through it
-5. Clear the Correctness & Observability Checklist below (where applicable)
-6. Clear the Data Integrity Checklist (for routes that modify data)
-7. Clear the Resilience Checklist (for routes that call external APIs)
-8. Make any necessary changes
-9. Test the endpoint and frontend functionality
-10. Check the box and confirm it is completed.  Then stop!
+1. Find the next unchecked **subsection** (identified by `###` headers like `### Proposals`, `### Activities`, etc.)
+2. Read ALL route files within that subsection
+3. For each route, run through the applicable checklists:
+   - Security Checklist (all routes)
+   - Performance Checklist (all routes)
+   - Correctness & Observability Checklist (where applicable)
+   - Data Integrity Checklist (for routes that modify data)
+   - Resilience Checklist (for routes that call external APIs)
+4. Apply fixes in batch where patterns are similar across routes
+5. Check all boxes in the section and add review notes
+6. Update the Progress Summary table
+7. **Stop and confirm completion of the section**
 
 ---
 
@@ -158,9 +160,9 @@ For routes that call external APIs or services:
 | Category | Total | Reviewed |
 |----------|-------|----------|
 | Admin | 28 | 28 |
-| Auth | 6 | 0 |
-| BD | 17 | 0 |
-| Clients | 16 | 0 |
+| Auth | 6 | 6 |
+| BD | 27 | 27 |
+| Clients | 16 | 14 |
 | Tasks | 59 | 0 |
 | Service Lines | 12 | 0 |
 | Groups | 7 | 0 |
@@ -168,7 +170,7 @@ For routes that call external APIs or services:
 | Users | 5 | 0 |
 | Tools | 8 | 0 |
 | Utility | 10 | 0 |
-| **Total** | **173** | **28** |
+| **Total** | **183** | **75** |
 
 ---
 
@@ -426,87 +428,127 @@ For routes that call external APIs or services:
   - **Reviewed**: 2024-12-19
   - **Fix Applied**: Removed redundant `isSystemAdmin()` check and unused import. Replaced `Number.parseInt()` with `parseNumericId()` utility. Changed from spread operator to explicit field mapping. Updated `createTemplateSection()` service to use explicit `select` fields and added template existence validation before creating section.
 
-- [ ] `PUT /api/admin/templates/[id]/sections/[sectionId]` - Update section
+- [x] `PUT /api/admin/templates/[id]/sections/[sectionId]` - Update section
   - **File**: `src/app/api/admin/templates/[id]/sections/[sectionId]/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/admin/templates/[id]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Removed redundant `isSystemAdmin()` check and unused import. Replaced `Number.parseInt()` with `parseNumericId()` utility for both template and section IDs. Updated `updateTemplateSection()` service to use explicit `select` fields.
 
-- [ ] `DELETE /api/admin/templates/[id]/sections/[sectionId]` - Delete section
+- [x] `DELETE /api/admin/templates/[id]/sections/[sectionId]` - Delete section
   - **File**: `src/app/api/admin/templates/[id]/sections/[sectionId]/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/admin/templates/[id]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Removed broken `isSystemAdmin()` reference (was causing runtime error after import was removed). Replaced `Number.parseInt()` with `parseNumericId()` utility for both template and section IDs. Feature permission handles authorization.
 
 ### Users
 
-- [ ] `GET /api/admin/users` - List users
+- [x] `GET /api/admin/users` - List users
   - **File**: `src/app/api/admin/users/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/admin/users/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Added `take: 500` limit on users query. Added `take: 50` limit on TaskTeam per user. Added deterministic secondary sort (`id`). Route already has: `secureRoute.query` with `MANAGE_USERS` feature, explicit `select` fields. Note: N+1 pattern exists for `getUserServiceLines()` per user but acceptable for admin route.
 
-- [ ] `GET /api/admin/users/[userId]` - Get user details
+- [x] `GET /api/admin/users/[userId]` - Get user details
   - **File**: `src/app/api/admin/users/[userId]/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/admin/users/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Added `Feature.MANAGE_USERS` permission. Removed redundant `isSystemAdmin()` check and unused import. Added userId param validation. Changed from `include` to explicit `select` fields. Added `take: 100` limit on TaskTeam. Used `AppError` for consistent error handling and `successResponse` wrapper.
 
-- [ ] `PUT /api/admin/users/[userId]/system-role` - Update user system role
+- [x] `PUT /api/admin/users/[userId]/system-role` - Update user system role
   - **File**: `src/app/api/admin/users/[userId]/system-role/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/admin/users/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Added `.strict()` to schema for mass assignment protection. Added userId param validation. Replaced ad-hoc error responses with `AppError` for consistency. Route already has: `isSystemAdmin()` check (appropriate for system role changes), rate limiting, audit logging, self-demotion prevention, explicit `select` fields.
 
-- [ ] `GET /api/admin/users/[userId]/tasks` - Get user tasks
+- [x] `GET /api/admin/users/[userId]/tasks` - Get user tasks
   - **File**: `src/app/api/admin/users/[userId]/tasks/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/admin/users/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Notes**: Route does NOT exist. User tasks are included in `GET /api/admin/users/[userId]` response (TaskTeam with nested Task data). No action needed.
 
-- [ ] `POST /api/admin/users/[userId]/tasks` - Assign task to user
+- [x] `POST /api/admin/users/[userId]/tasks` - Assign task to user
   - **File**: `src/app/api/admin/users/[userId]/tasks/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/admin/users/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Added `Feature.MANAGE_USERS` permission. Removed redundant `isSystemAdmin()` check and unused import. Added `.strict()` to schemas with `.max(100)` limit on taskIds. Changed role to enum validation. Added userId param validation. Added explicit `select` to all Prisma queries. Used `AppError` and `successResponse` for consistency.
 
-- [ ] `PUT /api/admin/users/[userId]/tasks` - Update user task assignment
+- [x] `PUT /api/admin/users/[userId]/tasks` - Update user task assignment
   - **File**: `src/app/api/admin/users/[userId]/tasks/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/admin/users/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Added `Feature.MANAGE_USERS` permission. Removed broken `isSystemAdmin()` reference (was causing runtime error). Added userId param validation. Used `successResponse` wrapper. Schema already fixed in POST review.
 
-- [ ] `DELETE /api/admin/users/[userId]/tasks` - Remove task from user
+- [x] `DELETE /api/admin/users/[userId]/tasks` - Remove task from user
   - **File**: `src/app/api/admin/users/[userId]/tasks/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/admin/users/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Added `Feature.MANAGE_USERS` permission. Removed broken `isSystemAdmin()` reference (was causing runtime error). Added userId param validation. Used `successResponse` wrapper. Schema already fixed in POST review.
 
 ---
 
 ## Auth Routes (6)
 
-- [ ] `GET /api/auth/callback` - OAuth callback handler
+- [x] `GET /api/auth/callback` - OAuth callback handler
   - **File**: `src/app/api/auth/callback/route.ts`
   - **Frontend**: 
     - Page: `src/app/auth/signin/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: 
+    - **HIGH: Open Redirect Vulnerability** - Added `validateCallbackUrl()` function to prevent open redirects via the `auth_callback_url` cookie. Now validates URLs are same-origin or relative paths only.
+    - **MEDIUM: PII in logs** - Removed `email` from log output (line 77), replaced with `redirectPath`.
+    - **LOW: `any` type** - Changed `errorDetails: any` to `Record<string, unknown>` for type safety.
+    - Also updated `/api/auth/login` route with same URL validation (defense in depth).
 
-- [ ] `GET /api/auth/login` - Initiate login
+- [x] `GET /api/auth/login` - Initiate login
   - **File**: `src/app/api/auth/login/route.ts`
   - **Frontend**: 
     - Page: `src/app/auth/signin/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Notes**: Route was already updated during callback review with `validateCallbackUrl()` for open redirect protection. Has rate limiting, secure cookie settings (httpOnly, secure, sameSite), proper error handling with redirect. No changes needed.
 
-- [ ] `POST /api/auth/logout` - Logout current session
+- [x] `POST /api/auth/logout` - Logout current session
   - **File**: `src/app/api/auth/logout/route.ts`
   - **Frontend**: 
     - Page: `src/app/auth/signout/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: 
+    - **MEDIUM: Missing rate limiting** - Added `enforceRateLimit(request, RateLimitPresets.AUTH_ENDPOINTS)` to both GET and POST handlers.
+    - **LOW: Missing audit logging** - Added `logInfo()` calls for logout events with userId for audit trail.
+  - **Notes**: Also has GET handler for redirect-based logout. Cache-Control headers properly set. Session cookie properly deleted.
 
-- [ ] `POST /api/auth/logout-all` - Logout all sessions
+- [x] `POST /api/auth/logout-all` - Logout all sessions
   - **File**: `src/app/api/auth/logout-all/route.ts`
   - **Frontend**: 
     - Page: `src/app/auth/signout/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: 
+    - **MEDIUM: Missing rate limiting** - Added `enforceRateLimit(request, RateLimitPresets.AUTH_ENDPOINTS)` to both GET and POST handlers.
+    - **LOW: Missing audit logging** - Added `logInfo()` calls for logout-all events with userId.
+  - **Notes**: Has both POST (JSON response) and GET (redirect) handlers. Session validation, Cache-Control headers, and cookie cleanup all correct.
 
-- [ ] `GET /api/auth/me` - Get current user
+- [x] `GET /api/auth/me` - Get current user
   - **File**: `src/app/api/auth/me/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/auth/usePermissions.ts`
     - Component: Auth context/provider
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Added `Cache-Control: no-store` header for user-specific data. Route already has: `secureRoute.query`, rate limiting, `successResponse` wrapper, explicit `select` in `getUserSystemRole`.
 
-- [ ] `GET /api/auth/session` - Get session details
+- [x] `GET /api/auth/session` - Get session details
   - **File**: `src/app/api/auth/session/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/auth/usePermissions.ts`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Added `successResponse` wrapper for consistency. Added `Cache-Control: no-store` header for user-specific data. Changed to return explicit fields instead of raw user object. Route already has: `secureRoute.query`, rate limiting, `force-dynamic` export.
 
 ---
 
@@ -514,164 +556,218 @@ For routes that call external APIs or services:
 
 ### Activities
 
-- [ ] `GET /api/bd/activities` - List BD activities
+- [x] `GET /api/bd/activities` - List BD activities
   - **File**: `src/app/api/bd/activities/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/bd/useActivities.ts`
     - Page: `src/app/dashboard/[serviceLine]/bd/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Notes**: Route already properly secured with `secureRoute.query`, `Feature.ACCESS_BD`, Zod validation with `.strict()`, pagination with `.max(100)` pageSize. Service uses `Promise.all()` for parallel queries.
 
-- [ ] `POST /api/bd/activities` - Create BD activity
+- [x] `POST /api/bd/activities` - Create BD activity
   - **File**: `src/app/api/bd/activities/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/bd/useActivities.ts`
     - Page: `src/app/dashboard/[serviceLine]/bd/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Changed from spread operator to explicit field mapping for mass assignment protection. Route already has: `secureRoute.mutation`, feature permission, Zod schema with `.strict()`.
 
-- [ ] `GET /api/bd/activities/[id]` - Get activity details
+- [x] `GET /api/bd/activities/[id]` - Get activity details
   - **File**: `src/app/api/bd/activities/[id]/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/bd/useActivities.ts`
     - Page: `src/app/dashboard/[serviceLine]/bd/[id]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: **MAJOR REWRITE** - Converted from raw handler to `secureRoute.queryWithParams`. Added `Feature.ACCESS_BD` permission. Replaced `Number.parseInt()` with `parseNumericId()`. Changed from `include` to explicit `select` fields. Replaced ad-hoc errors with `AppError`.
 
-- [ ] `PUT /api/bd/activities/[id]` - Update activity
+- [x] `PUT /api/bd/activities/[id]` - Update activity
   - **File**: `src/app/api/bd/activities/[id]/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/bd/useActivities.ts`
     - Page: `src/app/dashboard/[serviceLine]/bd/[id]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: **MAJOR REWRITE** - Converted from raw handler to `secureRoute.mutationWithParams`. Added feature permission, `parseNumericId()`, existence check before update, explicit field mapping. Now has rate limiting via secureRoute.
 
-- [ ] `DELETE /api/bd/activities/[id]` - Delete activity
+- [x] `DELETE /api/bd/activities/[id]` - Delete activity
   - **File**: `src/app/api/bd/activities/[id]/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/bd/useActivities.ts`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: **MAJOR REWRITE** - Converted from raw handler to `secureRoute.mutationWithParams`. Added feature permission, `parseNumericId()`, existence check before delete. Now has rate limiting via secureRoute.
 
 ### Analytics
 
-- [ ] `GET /api/bd/analytics/conversion` - Get conversion metrics
+- [x] `GET /api/bd/analytics/conversion` - Get conversion metrics
   - **File**: `src/app/api/bd/analytics/conversion/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/bd/useBDAnalytics.ts`
     - Page: `src/app/dashboard/[serviceLine]/bd/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted from raw handler to `secureRoute.query`. Added `Feature.ACCESS_BD` permission. Added `BDAnalyticsFiltersSchema` Zod validation for query params. Route now has rate limiting via secureRoute.
 
-- [ ] `GET /api/bd/analytics/forecast` - Get forecast data
+- [x] `GET /api/bd/analytics/forecast` - Get forecast data
   - **File**: `src/app/api/bd/analytics/forecast/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/bd/useBDAnalytics.ts`
     - Page: `src/app/dashboard/[serviceLine]/bd/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted from raw handler to `secureRoute.query`. Added `Feature.ACCESS_BD` permission. Added `BDAnalyticsFiltersSchema` Zod validation for query params. Route now has rate limiting via secureRoute.
 
-- [ ] `GET /api/bd/analytics/pipeline` - Get pipeline metrics
+- [x] `GET /api/bd/analytics/pipeline` - Get pipeline metrics
   - **File**: `src/app/api/bd/analytics/pipeline/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/bd/useBDAnalytics.ts`
     - Page: `src/app/dashboard/[serviceLine]/bd/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Added `BDAnalyticsFiltersSchema` Zod validation for query params. Route already had `secureRoute.query` with feature permission.
 
 ### Contacts
 
-- [ ] `GET /api/bd/contacts` - List BD contacts
+- [x] `GET /api/bd/contacts` - List BD contacts
   - **File**: `src/app/api/bd/contacts/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/[serviceLine]/bd/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Added Zod validation for query params with `.max(100)` on pageSize. Added explicit `select` fields. Added deterministic secondary sort (`id`). Route already had secureRoute with feature permission.
 
-- [ ] `POST /api/bd/contacts` - Create BD contact
+- [x] `POST /api/bd/contacts` - Create BD contact
   - **File**: `src/app/api/bd/contacts/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/[serviceLine]/bd/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Changed from spread operator to explicit field mapping. Added explicit `select` fields on response. Schema already has `.strict()`.
 
-- [ ] `GET /api/bd/contacts/[id]` - Get contact details
+- [x] `GET /api/bd/contacts/[id]` - Get contact details
   - **File**: `src/app/api/bd/contacts/[id]/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/[serviceLine]/bd/[id]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: **MAJOR REWRITE** - Converted from raw handler to `secureRoute.queryWithParams`. Added feature permission, `parseNumericId()`, explicit `select` fields, `AppError` for consistent error handling.
 
-- [ ] `PUT /api/bd/contacts/[id]` - Update contact
+- [x] `PUT /api/bd/contacts/[id]` - Update contact
   - **File**: `src/app/api/bd/contacts/[id]/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/[serviceLine]/bd/[id]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: **MAJOR REWRITE** - Converted from raw handler to `secureRoute.mutationWithParams`. Added feature permission, `parseNumericId()`, existence check, explicit field mapping, explicit `select` fields.
 
-- [ ] `DELETE /api/bd/contacts/[id]` - Delete contact
+- [x] `DELETE /api/bd/contacts/[id]` - Delete contact
   - **File**: `src/app/api/bd/contacts/[id]/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/[serviceLine]/bd/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: **MAJOR REWRITE** - Converted from raw handler to `secureRoute.mutationWithParams`. Added feature permission, `parseNumericId()`, existence check before delete.
 
 ### Opportunities
 
-- [ ] `GET /api/bd/opportunities` - List opportunities
+- [x] `GET /api/bd/opportunities` - List opportunities
   - **File**: `src/app/api/bd/opportunities/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/bd/useOpportunities.ts`
     - Page: `src/app/dashboard/[serviceLine]/bd/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Notes**: Route already properly secured with `secureRoute.query`, `Feature.ACCESS_BD`, Zod validation. Service has pagination and explicit select on relations.
 
-- [ ] `POST /api/bd/opportunities` - Create opportunity
+- [x] `POST /api/bd/opportunities` - Create opportunity
   - **File**: `src/app/api/bd/opportunities/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/bd/useOpportunities.ts`
     - Page: `src/app/dashboard/[serviceLine]/bd/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Changed from spread operator to explicit field mapping. Schema already has `.strict()`.
 
-- [ ] `GET /api/bd/opportunities/[id]` - Get opportunity details
+- [x] `GET /api/bd/opportunities/[id]` - Get opportunity details
   - **File**: `src/app/api/bd/opportunities/[id]/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/bd/useOpportunities.ts`
     - Page: `src/app/dashboard/[serviceLine]/bd/[id]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Replaced `Number.parseInt()` with `parseNumericId()`. Changed ad-hoc error response to `AppError`. Already had secureRoute with feature permission.
 
-- [ ] `PUT /api/bd/opportunities/[id]` - Update opportunity
+- [x] `PUT /api/bd/opportunities/[id]` - Update opportunity
   - **File**: `src/app/api/bd/opportunities/[id]/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/bd/useOpportunities.ts`
     - Page: `src/app/dashboard/[serviceLine]/bd/[id]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Replaced `Number.parseInt()` with `parseNumericId()`. Added existence check before update. Added explicit field mapping instead of passing data directly.
 
-- [ ] `DELETE /api/bd/opportunities/[id]` - Delete opportunity
+- [x] `DELETE /api/bd/opportunities/[id]` - Delete opportunity
   - **File**: `src/app/api/bd/opportunities/[id]/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/bd/useOpportunities.ts`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Replaced `Number.parseInt()` with `parseNumericId()`. Added existence check before delete. Removed `z.ZodAny` type.
 
-- [ ] `POST /api/bd/opportunities/[id]/convert` - Convert to client/task
+- [x] `POST /api/bd/opportunities/[id]/convert` - Convert to client/task
   - **File**: `src/app/api/bd/opportunities/[id]/convert/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/[serviceLine]/bd/[id]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: **MAJOR REWRITE** - Converted from raw handler to `secureRoute.mutationWithParams`. Added feature permission, `parseNumericId()`, existence check, already-converted validation.
 
-- [ ] `PUT /api/bd/opportunities/[id]/stage` - Update opportunity stage
+- [x] `PUT /api/bd/opportunities/[id]/stage` - Update opportunity stage
   - **File**: `src/app/api/bd/opportunities/[id]/stage/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/bd/useOpportunities.ts`
     - Page: `src/app/dashboard/[serviceLine]/bd/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: **MAJOR REWRITE** - Converted from raw handler to `secureRoute.mutationWithParams`. Added feature permission, `parseNumericId()`, existence check before stage move.
 
-- [ ] `GET /api/bd/opportunities/pipeline` - Get pipeline view
+- [x] `GET /api/bd/opportunities/pipeline` - Get pipeline view
   - **File**: `src/app/api/bd/opportunities/pipeline/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/bd/useOpportunities.ts`
     - Page: `src/app/dashboard/[serviceLine]/bd/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted from raw handler to `secureRoute.query`. Added feature permission, Zod validation for query params. Added `take: 500` limit to service.
 
 ### Proposals
 
-- [ ] `GET /api/bd/proposals` - List proposals
+- [x] `GET /api/bd/proposals` - List proposals
   - **File**: `src/app/api/bd/proposals/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/[serviceLine]/bd/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Added Zod validation for query params (`opportunityId`, `status`, `page`, `pageSize`) with `.max(100)` on pageSize. Changed from `include` to explicit `select` fields. Added deterministic secondary sort (`id`).
 
-- [ ] `POST /api/bd/proposals` - Create proposal
+- [x] `POST /api/bd/proposals` - Create proposal
   - **File**: `src/app/api/bd/proposals/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/[serviceLine]/bd/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Fixed double body parsing issue (was parsing body twice). Changed from spread operator to explicit field mapping for mass assignment protection. Added `CreateProposalWithFileSchema` to validate file metadata in body. Added opportunity existence validation. Changed from `include` to explicit `select` fields. Replaced ad-hoc error with `AppError`.
 
-- [ ] `GET /api/bd/proposals/[id]` - Get proposal details
+- [x] `GET /api/bd/proposals/[id]` - Get proposal details
   - **File**: `src/app/api/bd/proposals/[id]/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/[serviceLine]/bd/[id]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: **MAJOR REWRITE** - Converted from raw handler to `secureRoute.queryWithParams`. Added `Feature.ACCESS_BD` permission. Replaced `Number.parseInt()` with `parseNumericId()`. Changed from `include` to explicit `select` fields. Replaced ad-hoc error with `AppError`.
 
-- [ ] `PUT /api/bd/proposals/[id]` - Update proposal
+- [x] `PUT /api/bd/proposals/[id]` - Update proposal
   - **File**: `src/app/api/bd/proposals/[id]/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/[serviceLine]/bd/[id]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: **MAJOR REWRITE** - Converted from raw handler to `secureRoute.mutationWithParams`. Added feature permission, `parseNumericId()`, existence check before update, explicit field mapping instead of passing `validated` directly. Changed from `include` to explicit `select` fields.
 
-- [ ] `DELETE /api/bd/proposals/[id]` - Delete proposal
+- [x] `DELETE /api/bd/proposals/[id]` - Delete proposal
   - **File**: `src/app/api/bd/proposals/[id]/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/[serviceLine]/bd/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: **MAJOR REWRITE** - Converted from raw handler to `secureRoute.mutationWithParams`. Added feature permission, `parseNumericId()`, existence check before delete.
 
 ### Stages
 
-- [ ] `GET /api/bd/stages` - List BD stages
+- [x] `GET /api/bd/stages` - List BD stages
   - **File**: `src/app/api/bd/stages/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/bd/useOpportunities.ts`
     - Page: `src/app/dashboard/[serviceLine]/bd/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Added Zod validation for `serviceLine` query param. Added explicit `select` fields. Added deterministic secondary sort (`id`). Added `take: 100` limit.
 
 ---
 
@@ -679,73 +775,112 @@ For routes that call external APIs or services:
 
 ### Client List & Details
 
-- [ ] `GET /api/clients` - List clients with pagination
+- [x] `GET /api/clients` - List clients with pagination
   - **File**: `src/app/api/clients/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/clients/useClients.ts`
     - Page: `src/app/dashboard/[serviceLine]/[subServiceLineGroup]/clients/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Added `ClientListQuerySchema` Zod validation for query params (search, page, limit, sortBy, sortOrder). Added `AppError` for consistent error handling. Added deterministic secondary sort (`GSClientID`) for pagination stability. Sort field allowlist already existed and was moved to Zod enum.
 
-- [ ] `GET /api/clients/filters` - Get client filter options
+- [x] `GET /api/clients/filters` - Get client filter options
   - **File**: `src/app/api/clients/filters/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/clients/useClientFilters.ts`
     - Page: `src/app/dashboard/[serviceLine]/[subServiceLineGroup]/clients/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Added `ClientFiltersQuerySchema` Zod validation for query params (industrySearch, groupSearch). Added `AppError` for consistent error handling. Route already had: `take` limit of 30, caching, parallel queries.
 
-- [ ] `GET /api/clients/[id]` - Get client details
+- [x] `GET /api/clients/[id]` - Get client details
   - **File**: `src/app/api/clients/[id]/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/clients/useClients.ts`
     - Page: `src/app/dashboard/[serviceLine]/[subServiceLineGroup]/clients/[id]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Added `ClientDetailQuerySchema` Zod validation for query params (taskPage, taskLimit, serviceLine, includeArchived). Changed ad-hoc error responses to `AppError`. Route already has: GSClientID validation, caching, explicit `select` fields, Promise.all for parallel queries.
 
-- [ ] `PUT /api/clients/[id]` - Update client
+- [x] `PUT /api/clients/[id]` - Update client
   - **File**: `src/app/api/clients/[id]/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/[serviceLine]/[subServiceLineGroup]/clients/[id]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Changed ad-hoc error responses to `AppError`. Changed from data spread to explicit field mapping for mass assignment protection. Added explicit `select` to all Prisma queries including findUnique and update response. Route already has: UpdateClientSchema with validation, GSClientID validation, duplicate check, cache invalidation.
 
-- [ ] `DELETE /api/clients/[id]` - Delete client
+- [x] `DELETE /api/clients/[id]` - Delete client
   - **File**: `src/app/api/clients/[id]/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/[serviceLine]/[subServiceLineGroup]/clients/[id]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Replaced `z.ZodAny` with `z.ZodUndefined` (no `any` types). Changed `include` to explicit `select` fields. Changed ad-hoc error responses to `AppError`. Added `invalidateClientListCache()` on delete (was missing). Route already has: GSClientID validation, orphan prevention (task count check), existence check.
 
 ### Client Analytics
 
-- [ ] `GET /api/clients/[id]/analytics/documents` - List analytics documents
+- [x] `GET /api/clients/[id]/analytics/documents` - List analytics documents
   - **File**: `src/app/api/clients/[id]/analytics/documents/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/analytics/useClientAnalytics.ts`
     - Page: `src/app/dashboard/[serviceLine]/[subServiceLineGroup]/clients/[id]/analytics/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted from raw handler to `secureRoute.queryWithParams`. Added `Feature.ACCESS_CLIENTS` permission. Added `take: 100` limit. Added explicit `select` fields. Added deterministic secondary sort (`id`). Replaced ad-hoc errors with `AppError`.
 
-- [ ] `POST /api/clients/[id]/analytics/documents` - Upload analytics document
+- [x] `POST /api/clients/[id]/analytics/documents` - Upload analytics document
   - **File**: `src/app/api/clients/[id]/analytics/documents/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/[serviceLine]/[subServiceLineGroup]/clients/[id]/analytics/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted from raw handler to `secureRoute.fileUploadWithParams`. Added `Feature.MANAGE_CLIENTS` permission. Added Zod validation for `documentType` field. Added explicit `select` on create response. File validation was already robust (size, MIME, magic number verification).
 
-- [ ] `DELETE /api/clients/[id]/analytics/documents/[documentId]` - Delete document
+- [x] `GET /api/clients/[id]/analytics/documents/[documentId]` - Get document details
   - **File**: `src/app/api/clients/[id]/analytics/documents/[documentId]/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/[serviceLine]/[subServiceLineGroup]/clients/[id]/analytics/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted from raw handler to `secureRoute.queryWithParams`. Added `Feature.ACCESS_CLIENTS` permission. Replaced `Number.parseInt()` with `parseNumericId()`. Added explicit `select` fields. Replaced ad-hoc errors with `AppError`.
 
-- [ ] `GET /api/clients/[id]/analytics/rating` - Get client rating
+- [x] `DELETE /api/clients/[id]/analytics/documents/[documentId]` - Delete document
+  - **File**: `src/app/api/clients/[id]/analytics/documents/[documentId]/route.ts`
+  - **Frontend**: 
+    - Page: `src/app/dashboard/[serviceLine]/[subServiceLineGroup]/clients/[id]/analytics/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted from raw handler to `secureRoute.mutationWithParams`. Added `Feature.MANAGE_CLIENTS` permission. Replaced `Number.parseInt()` with `parseNumericId()`. Changed `include` to explicit `select`. Added `take: 10` limit on rating check. Replaced ad-hoc errors with `AppError`.
+
+- [x] `GET /api/clients/[id]/analytics/rating` - Get client rating history
   - **File**: `src/app/api/clients/[id]/analytics/rating/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/analytics/useClientAnalytics.ts`
     - Page: `src/app/dashboard/[serviceLine]/[subServiceLineGroup]/clients/[id]/analytics/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted from raw handler to `secureRoute.queryWithParams`. Added `Feature.ACCESS_CLIENTS` permission. Changed `include` to explicit `select` fields. Added deterministic secondary sort (`id`). Replaced ad-hoc errors with `AppError`.
 
-- [ ] `POST /api/clients/[id]/analytics/rating` - Create rating
+- [x] `POST /api/clients/[id]/analytics/rating` - Generate AI credit rating
   - **File**: `src/app/api/clients/[id]/analytics/rating/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/[serviceLine]/[subServiceLineGroup]/clients/[id]/analytics/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted from raw handler to `secureRoute.aiWithParams` (strict AI rate limiting). Added `Feature.MANAGE_CLIENTS` permission. Changed `include` to explicit `select` in transaction. Replaced ad-hoc errors with `AppError`. Schema validation handled by secureRoute.
 
-- [ ] `PUT /api/clients/[id]/analytics/rating/[ratingId]` - Update rating
+- [x] `GET /api/clients/[id]/analytics/rating/[ratingId]` - Get rating details
   - **File**: `src/app/api/clients/[id]/analytics/rating/[ratingId]/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/[serviceLine]/[subServiceLineGroup]/clients/[id]/analytics/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted from raw handler to `secureRoute.queryWithParams`. Added `Feature.ACCESS_CLIENTS` permission. Replaced `Number.parseInt()` with `parseNumericId()`. Changed `include` to explicit `select` fields. Replaced ad-hoc errors with `AppError`.
 
-- [ ] `GET /api/clients/[id]/analytics/ratios` - Get financial ratios
+- [x] `DELETE /api/clients/[id]/analytics/rating/[ratingId]` - Delete rating
+  - **File**: `src/app/api/clients/[id]/analytics/rating/[ratingId]/route.ts`
+  - **Frontend**: 
+    - Page: `src/app/dashboard/[serviceLine]/[subServiceLineGroup]/clients/[id]/analytics/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted from raw handler to `secureRoute.mutationWithParams`. Added `Feature.MANAGE_CLIENTS` permission. Replaced `Number.parseInt()` with `parseNumericId()`. Added explicit `select` on existence check. Added audit logging with `logger.info` for sensitive deletion. Replaced ad-hoc errors with `AppError`.
+  - **Notes**: PUT route does NOT exist in this file - only GET and DELETE. Checklist entry for PUT was incorrect.
+
+- [x] `GET /api/clients/[id]/analytics/ratios` - Get financial ratios
   - **File**: `src/app/api/clients/[id]/analytics/ratios/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/analytics/useClientAnalytics.ts`
     - Page: `src/app/dashboard/[serviceLine]/[subServiceLineGroup]/clients/[id]/analytics/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted from raw handler to `secureRoute.queryWithParams`. Added `Feature.ACCESS_CLIENTS` permission. Replaced ad-hoc errors with `AppError`. Route already had explicit `select` fields.
 
 ### Client Financial Data
 

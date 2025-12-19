@@ -10,10 +10,11 @@ import { logger } from '@/lib/utils/logger';
 import { secureRoute, RateLimitPresets } from '@/lib/api/secureRoute';
 import { auditUserRoleChange } from '@/lib/utils/auditLog';
 import { getClientIdentifier } from '@/lib/utils/rateLimit';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 
 const UpdateSystemRoleSchema = z.object({
   systemRole: z.enum(['USER', 'SYSTEM_ADMIN']),
-});
+}).strict();
 
 /**
  * PUT /api/admin/users/[userId]/system-role
@@ -28,13 +29,15 @@ export const PUT = secureRoute.mutationWithParams<typeof UpdateSystemRoleSchema,
   handler: async (request, { user, data, params }) => {
     const { userId } = params;
     
+    // Validate userId param
+    if (!userId) {
+      throw new AppError(400, 'User ID is required', ErrorCodes.VALIDATION_ERROR);
+    }
+    
     // Only SYSTEM_ADMINs can modify system roles
     const isAdmin = await isSystemAdmin(user.id);
     if (!isAdmin) {
-      return NextResponse.json(
-        { success: false, error: 'Forbidden - Only System Administrators can modify system roles' },
-        { status: 403 }
-      );
+      throw new AppError(403, 'Only System Administrators can modify system roles', ErrorCodes.FORBIDDEN);
     }
 
     // Check if target user exists
@@ -49,15 +52,12 @@ export const PUT = secureRoute.mutationWithParams<typeof UpdateSystemRoleSchema,
     });
 
     if (!targetUser) {
-      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
+      throw new AppError(404, 'User not found', ErrorCodes.NOT_FOUND);
     }
 
     // Prevent users from demoting themselves
     if (userId === user.id && data.systemRole !== 'SYSTEM_ADMIN') {
-      return NextResponse.json(
-        { success: false, error: 'You cannot demote yourself from SYSTEM_ADMIN' },
-        { status: 400 }
-      );
+      throw new AppError(400, 'You cannot demote yourself from SYSTEM_ADMIN', ErrorCodes.VALIDATION_ERROR);
     }
 
     // Capture old role for audit and notification

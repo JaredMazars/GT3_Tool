@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { getCachedList, setCachedList } from '@/lib/services/cache/listCache';
@@ -8,6 +9,16 @@ import { checkFeature } from '@/lib/permissions/checkFeature';
 import { Feature } from '@/lib/permissions/features';
 import { getUserSubServiceLineGroups } from '@/lib/services/service-lines/serviceLineService';
 import { secureRoute } from '@/lib/api/secureRoute';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+
+// Zod schema for query params validation
+const ClientListQuerySchema = z.object({
+  search: z.string().max(100).optional().default(''),
+  page: z.coerce.number().int().min(1).max(1000).optional().default(1),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(50),
+  sortBy: z.enum(['clientNameFull', 'clientCode', 'groupDesc', 'createdAt', 'updatedAt']).optional().default('clientNameFull'),
+  sortOrder: z.enum(['asc', 'desc']).optional().default('asc'),
+}).strict();
 
 /**
  * GET /api/clients
@@ -24,15 +35,25 @@ export const GET = secureRoute.query({
     const hasServiceLineAccess = userSubGroups.length > 0;
     
     if (!hasPagePermission && !hasServiceLineAccess) {
-      return NextResponse.json({ success: false, error: 'Forbidden - Insufficient permissions' }, { status: 403 });
+      throw new AppError(403, 'Forbidden - Insufficient permissions', ErrorCodes.FORBIDDEN);
     }
     
     const { searchParams } = new URL(request.url);
-    const search = searchParams.get('search') || '';
-    const page = Number.parseInt(searchParams.get('page') || '1');
-    const limit = Math.min(Number.parseInt(searchParams.get('limit') || '50'), 100);
-    const sortBy = searchParams.get('sortBy') || 'clientNameFull';
-    const sortOrder = (searchParams.get('sortOrder') || 'asc') as 'asc' | 'desc';
+    
+    // Validate query params
+    const queryResult = ClientListQuerySchema.safeParse({
+      search: searchParams.get('search') || undefined,
+      page: searchParams.get('page') || undefined,
+      limit: searchParams.get('limit') || undefined,
+      sortBy: searchParams.get('sortBy') || undefined,
+      sortOrder: searchParams.get('sortOrder') || undefined,
+    });
+    
+    if (!queryResult.success) {
+      throw new AppError(400, 'Invalid query parameters', ErrorCodes.VALIDATION_ERROR, { errors: queryResult.error.flatten() });
+    }
+    
+    const { search, page, limit, sortBy, sortOrder } = queryResult.data;
     const clientCodes = searchParams.getAll('clientCodes[]');
     const industries = searchParams.getAll('industries[]');
     const groups = searchParams.getAll('groups[]');
@@ -94,14 +115,11 @@ export const GET = secureRoute.query({
       ];
     }
 
-    type OrderByClause = Record<string, 'asc' | 'desc'>;
-    const orderBy: OrderByClause = {};
-    const validSortFields = ['clientNameFull', 'clientCode', 'groupDesc', 'createdAt', 'updatedAt'] as const;
-    if (validSortFields.includes(sortBy as typeof validSortFields[number])) {
-      orderBy[sortBy] = sortOrder;
-    } else {
-      orderBy.clientNameFull = 'asc';
-    }
+    // Build orderBy with deterministic secondary sort for pagination stability
+    const orderBy: Array<Record<string, 'asc' | 'desc'>> = [
+      { [sortBy]: sortOrder },
+      { GSClientID: 'asc' }, // Secondary sort for deterministic ordering
+    ];
 
     const total = await prisma.client.count({ where });
 

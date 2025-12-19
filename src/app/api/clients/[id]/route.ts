@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { UpdateClientSchema, GSClientIDSchema } from '@/lib/validation/schemas';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { z } from 'zod';
@@ -10,6 +10,14 @@ import { invalidateClientListCache } from '@/lib/services/cache/listCache';
 import { enrichRecordsWithEmployeeNames } from '@/lib/services/employees/employeeQueries';
 import { calculateWIPByTask, calculateWIPBalances } from '@/lib/services/clients/clientBalanceCalculation';
 import { secureRoute } from '@/lib/api/secureRoute';
+
+// Zod schema for GET query params validation
+const ClientDetailQuerySchema = z.object({
+  taskPage: z.coerce.number().int().min(1).max(1000).optional().default(1),
+  taskLimit: z.coerce.number().int().min(1).max(50).optional().default(20),
+  serviceLine: z.string().max(50).optional(),
+  includeArchived: z.enum(['true', 'false']).optional().default('false'),
+}).strict();
 
 /**
  * GET /api/clients/[id]
@@ -21,14 +29,25 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
 
     const validationResult = GSClientIDSchema.safeParse(GSClientID);
     if (!validationResult.success) {
-      return NextResponse.json({ success: false, error: 'Invalid client ID format. Expected GUID.' }, { status: 400 });
+      throw new AppError(400, 'Invalid client ID format. Expected GUID.', ErrorCodes.VALIDATION_ERROR);
     }
 
     const { searchParams } = new URL(request.url);
-    const taskPage = Number.parseInt(searchParams.get('taskPage') || '1');
-    const taskLimit = Math.min(Number.parseInt(searchParams.get('taskLimit') || '20'), 50);
-    const serviceLine = searchParams.get('serviceLine') || undefined;
-    const includeArchived = searchParams.get('includeArchived') === 'true';
+    
+    // Validate query params
+    const queryResult = ClientDetailQuerySchema.safeParse({
+      taskPage: searchParams.get('taskPage') || undefined,
+      taskLimit: searchParams.get('taskLimit') || undefined,
+      serviceLine: searchParams.get('serviceLine') || undefined,
+      includeArchived: searchParams.get('includeArchived') || undefined,
+    });
+    
+    if (!queryResult.success) {
+      throw new AppError(400, 'Invalid query parameters', ErrorCodes.VALIDATION_ERROR, { errors: queryResult.error.flatten() });
+    }
+    
+    const { taskPage, taskLimit, serviceLine, includeArchived: includeArchivedStr } = queryResult.data;
+    const includeArchived = includeArchivedStr === 'true';
     
     const cached = await getCachedClient(GSClientID, serviceLine, includeArchived);
     if (cached) {
@@ -55,7 +74,7 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
     });
 
     if (!client) {
-      return NextResponse.json({ success: false, error: 'Client not found' }, { status: 404 });
+      throw new AppError(404, 'Client not found', ErrorCodes.NOT_FOUND);
     }
 
     const taskWhere: TaskWhereClause = { GSClientID: client.GSClientID };
@@ -180,23 +199,59 @@ export const PUT = secureRoute.mutationWithParams<typeof UpdateClientSchema, { i
 
     const validationResult = GSClientIDSchema.safeParse(GSClientID);
     if (!validationResult.success) {
-      return NextResponse.json({ success: false, error: 'Invalid client ID format. Expected GUID.' }, { status: 400 });
+      throw new AppError(400, 'Invalid client ID format. Expected GUID.', ErrorCodes.VALIDATION_ERROR);
     }
 
-    const existingClient = await prisma.client.findUnique({ where: { GSClientID: GSClientID } });
+    const existingClient = await prisma.client.findUnique({
+      where: { GSClientID: GSClientID },
+      select: { GSClientID: true, clientCode: true },
+    });
 
     if (!existingClient) {
-      return NextResponse.json({ success: false, error: 'Client not found' }, { status: 404 });
+      throw new AppError(404, 'Client not found', ErrorCodes.NOT_FOUND);
     }
 
     if (data.clientCode && data.clientCode !== existingClient.clientCode) {
-      const duplicateClient = await prisma.client.findUnique({ where: { clientCode: data.clientCode } });
+      const duplicateClient = await prisma.client.findUnique({
+        where: { clientCode: data.clientCode },
+        select: { clientCode: true },
+      });
       if (duplicateClient) {
         throw new AppError(400, `Client code '${data.clientCode}' is already in use`, ErrorCodes.VALIDATION_ERROR);
       }
     }
 
-    const client = await prisma.client.update({ where: { GSClientID: GSClientID }, data });
+    // Explicit field mapping to prevent mass assignment
+    const client = await prisma.client.update({
+      where: { GSClientID: GSClientID },
+      data: {
+        clientNameFull: data.clientNameFull,
+        clientCode: data.clientCode,
+        groupCode: data.groupCode,
+        groupDesc: data.groupDesc,
+        clientPartner: data.clientPartner,
+        clientManager: data.clientManager,
+        clientIncharge: data.clientIncharge,
+        industry: data.industry,
+        sector: data.sector,
+        active: data.active,
+      },
+      select: {
+        id: true,
+        GSClientID: true,
+        clientCode: true,
+        clientNameFull: true,
+        groupCode: true,
+        groupDesc: true,
+        clientPartner: true,
+        clientManager: true,
+        clientIncharge: true,
+        industry: true,
+        sector: true,
+        active: true,
+        updatedAt: true,
+      },
+    });
 
     await invalidateClientCache(GSClientID);
     await invalidateClientListCache(GSClientID);
@@ -209,31 +264,35 @@ export const PUT = secureRoute.mutationWithParams<typeof UpdateClientSchema, { i
  * DELETE /api/clients/[id]
  * Delete client
  */
-export const DELETE = secureRoute.mutationWithParams<z.ZodAny, { id: string }>({
+export const DELETE = secureRoute.mutationWithParams<z.ZodUndefined, { id: string }>({
   handler: async (request, { user, params }) => {
     const GSClientID = params.id;
 
     const validationResult = GSClientIDSchema.safeParse(GSClientID);
     if (!validationResult.success) {
-      return NextResponse.json({ success: false, error: 'Invalid client ID format. Expected GUID.' }, { status: 400 });
+      throw new AppError(400, 'Invalid client ID format. Expected GUID.', ErrorCodes.VALIDATION_ERROR);
     }
 
     const existingClient = await prisma.client.findUnique({
       where: { GSClientID: GSClientID },
-      include: { _count: { select: { Task: true } } },
+      select: {
+        GSClientID: true,
+        _count: { select: { Task: true } },
+      },
     });
 
     if (!existingClient) {
-      return NextResponse.json({ success: false, error: 'Client not found' }, { status: 404 });
+      throw new AppError(404, 'Client not found', ErrorCodes.NOT_FOUND);
     }
 
     if (existingClient._count.Task > 0) {
-      return NextResponse.json({ success: false, error: 'Cannot delete client with existing tasks. Please reassign or delete tasks first.' }, { status: 400 });
+      throw new AppError(400, 'Cannot delete client with existing tasks. Please reassign or delete tasks first.', ErrorCodes.VALIDATION_ERROR);
     }
 
     await prisma.client.delete({ where: { GSClientID: GSClientID } });
 
     await invalidateClientCache(GSClientID);
+    await invalidateClientListCache(GSClientID);
 
     return NextResponse.json(successResponse({ message: 'Client deleted successfully' }));
   },

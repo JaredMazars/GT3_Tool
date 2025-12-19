@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { isSystemAdmin } from '@/lib/services/auth/auth';
 import { prisma } from '@/lib/db/prisma';
-import { secureRoute } from '@/lib/api/secureRoute';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { successResponse } from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 
 // Force dynamic rendering (uses cookies)
 export const dynamic = 'force-dynamic';
@@ -11,26 +12,52 @@ export const dynamic = 'force-dynamic';
  * Get detailed user information
  * Admin only
  */
-export const GET = secureRoute.queryWithParams({
-  handler: async (request, { user, params }) => {
-    const isAdmin = await isSystemAdmin(user.id);
-    if (!isAdmin) {
-      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+export const GET = secureRoute.queryWithParams<{ userId: string }>({
+  feature: Feature.MANAGE_USERS,
+  handler: async (request, { params }) => {
+    if (!params.userId) {
+      throw new AppError(400, 'User ID is required', ErrorCodes.VALIDATION_ERROR);
     }
 
     const targetUser = await prisma.user.findUnique({
       where: { id: params.userId },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
         TaskTeam: {
-          include: {
+          select: {
+            id: true,
+            role: true,
+            createdAt: true,
             Task: {
-              include: {
-                Client: true,
+              select: {
+                id: true,
+                TaskDesc: true,
+                TaskCode: true,
+                ServLineDesc: true,
+                Client: {
+                  select: {
+                    id: true,
+                    GSClientID: true,
+                    clientCode: true,
+                    clientNameFull: true,
+                  },
+                },
               },
             },
           },
+          take: 100,
+          orderBy: { createdAt: 'desc' },
         },
         Session: {
+          select: {
+            id: true,
+            expires: true,
+          },
           orderBy: {
             expires: 'desc',
           },
@@ -40,13 +67,10 @@ export const GET = secureRoute.queryWithParams({
     });
 
     if (!targetUser) {
-      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
+      throw new AppError(404, 'User not found', ErrorCodes.NOT_FOUND);
     }
 
-    return NextResponse.json({
-      success: true,
-      data: targetUser,
-    });
+    return NextResponse.json(successResponse(targetUser));
   },
 });
 
@@ -56,10 +80,15 @@ export const GET = secureRoute.queryWithParams({
  * Admin only
  */
 export const DELETE = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_USERS,
   handler: async (request, { user, params }) => {
-    const isAdmin = await isSystemAdmin(user.id);
-    if (!isAdmin) {
-      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+    if (!params.userId) {
+      throw new AppError(400, 'User ID is required', ErrorCodes.VALIDATION_ERROR);
+    }
+
+    // Prevent self-deletion
+    if (user.id === params.userId) {
+      throw new AppError(400, 'Cannot remove yourself from projects', ErrorCodes.VALIDATION_ERROR);
     }
 
     // Remove user from all projects
@@ -67,9 +96,8 @@ export const DELETE = secureRoute.mutationWithParams({
       where: { userId: params.userId },
     });
 
-    return NextResponse.json({
-      success: true,
+    return NextResponse.json(successResponse({
       message: 'User removed from all projects',
-    });
+    }));
   },
 });

@@ -5,105 +5,132 @@
  * DELETE /api/bd/proposals/[id] - Delete proposal
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { NextResponse } from 'next/server';
+import { successResponse, parseNumericId } from '@/lib/utils/apiUtils';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { UpdateBDProposalSchema } from '@/lib/validation/schemas';
 import { prisma } from '@/lib/db/prisma';
 
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+/**
+ * Common select fields for proposal queries
+ */
+const proposalSelectFields = {
+  id: true,
+  opportunityId: true,
+  title: true,
+  description: true,
+  proposedValue: true,
+  validUntil: true,
+  status: true,
+  version: true,
+  fileName: true,
+  filePath: true,
+  fileSize: true,
+  uploadedBy: true,
+  sentAt: true,
+  viewedAt: true,
+  respondedAt: true,
+  createdAt: true,
+  updatedAt: true,
+  BDOpportunity: {
+    select: {
+      id: true,
+      title: true,
+      companyName: true,
+    },
+  },
+} as const;
 
-    const { id } = await context.params;
-    const proposalId = Number.parseInt(id);
+/**
+ * GET /api/bd/proposals/[id]
+ * Get proposal details
+ */
+export const GET = secureRoute.queryWithParams<{ id: string }>({
+  feature: Feature.ACCESS_BD,
+  handler: async (request, { user, params }) => {
+    const proposalId = parseNumericId(params.id, 'Proposal');
 
     const proposal = await prisma.bDProposal.findUnique({
       where: { id: proposalId },
-      include: {
-        BDOpportunity: {
-          select: {
-            id: true,
-            title: true,
-            companyName: true,
-          },
-        },
-      },
+      select: proposalSelectFields,
     });
 
     if (!proposal) {
-      return NextResponse.json({ error: 'Proposal not found' }, { status: 404 });
+      throw new AppError(404, 'Proposal not found', ErrorCodes.NOT_FOUND);
     }
 
     return NextResponse.json(successResponse(proposal));
-  } catch (error) {
-    return handleApiError(error, 'GET /api/bd/proposals/[id]');
-  }
-}
+  },
+});
 
-export async function PUT(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+/**
+ * PUT /api/bd/proposals/[id]
+ * Update proposal
+ */
+export const PUT = secureRoute.mutationWithParams<
+  typeof UpdateBDProposalSchema,
+  { id: string }
+>({
+  feature: Feature.ACCESS_BD,
+  schema: UpdateBDProposalSchema,
+  handler: async (request, { user, params, data }) => {
+    const proposalId = parseNumericId(params.id, 'Proposal');
+
+    // Check existence before update
+    const existing = await prisma.bDProposal.findUnique({
+      where: { id: proposalId },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      throw new AppError(404, 'Proposal not found', ErrorCodes.NOT_FOUND);
     }
-
-    const { id } = await context.params;
-    const proposalId = Number.parseInt(id);
-
-    const body = await request.json();
-    const validated = UpdateBDProposalSchema.parse(body);
 
     const proposal = await prisma.bDProposal.update({
       where: { id: proposalId },
-      data: validated,
-      include: {
-        BDOpportunity: {
-          select: {
-            id: true,
-            title: true,
-            companyName: true,
-          },
-        },
+      data: {
+        title: data.title,
+        description: data.description,
+        proposedValue: data.proposedValue,
+        validUntil: data.validUntil,
+        status: data.status,
+        sentAt: data.sentAt,
+        viewedAt: data.viewedAt,
+        respondedAt: data.respondedAt,
+        updatedAt: new Date(),
       },
+      select: proposalSelectFields,
     });
 
     return NextResponse.json(successResponse(proposal));
-  } catch (error) {
-    return handleApiError(error, 'PUT /api/bd/proposals/[id]');
-  }
-}
+  },
+});
 
-export async function DELETE(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+/**
+ * DELETE /api/bd/proposals/[id]
+ * Delete proposal
+ */
+export const DELETE = secureRoute.mutationWithParams<never, { id: string }>({
+  feature: Feature.ACCESS_BD,
+  handler: async (request, { user, params }) => {
+    const proposalId = parseNumericId(params.id, 'Proposal');
+
+    // Check existence before delete
+    const existing = await prisma.bDProposal.findUnique({
+      where: { id: proposalId },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      throw new AppError(404, 'Proposal not found', ErrorCodes.NOT_FOUND);
     }
-
-    const { id } = await context.params;
-    const proposalId = Number.parseInt(id);
 
     await prisma.bDProposal.delete({
       where: { id: proposalId },
     });
 
     return NextResponse.json(successResponse({ deleted: true }));
-  } catch (error) {
-    return handleApiError(error, 'DELETE /api/bd/proposals/[id]');
-  }
-}
+  },
+});
 

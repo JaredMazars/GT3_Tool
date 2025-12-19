@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { deleteSession, deleteAllUserSessions, verifySession } from '@/lib/services/auth/auth';
-import { clearRateLimitsForIdentifier, getClientIdentifier } from '@/lib/utils/rateLimit';
+import { clearRateLimitsForIdentifier, getClientIdentifier, enforceRateLimit, RateLimitPresets } from '@/lib/utils/rateLimit';
+import { logInfo } from '@/lib/utils/logger';
 
 /**
  * Handle logout - clear session cookie and redirect
  */
 export async function GET(request: NextRequest) {
+  // Apply rate limiting to prevent abuse
+  enforceRateLimit(request, RateLimitPresets.AUTH_ENDPOINTS);
+  
   // Get current session token
   const sessionToken = request.cookies.get('session')?.value;
   
@@ -20,10 +24,15 @@ export async function GET(request: NextRequest) {
       const session = await verifySession(sessionToken);
       if (session?.user?.id) {
         await deleteAllUserSessions(session.user.id);
+        logInfo('User logged out from all devices', { userId: session.user.id });
       }
     } else {
       // Delete only this session
+      const session = await verifySession(sessionToken);
       await deleteSession(sessionToken);
+      if (session?.user?.id) {
+        logInfo('User logged out', { userId: session.user.id });
+      }
     }
   }
   
@@ -53,12 +62,19 @@ export async function GET(request: NextRequest) {
  * Handle logout via POST - clear session cookie and return redirect URL
  */
 export async function POST(request: NextRequest) {
+  // Apply rate limiting to prevent abuse
+  enforceRateLimit(request, RateLimitPresets.AUTH_ENDPOINTS);
+  
   // Get current session token
   const sessionToken = request.cookies.get('session')?.value;
   
   // Delete session from database
   if (sessionToken) {
+    const session = await verifySession(sessionToken);
     await deleteSession(sessionToken);
+    if (session?.user?.id) {
+      logInfo('User logged out via POST', { userId: session.user.id });
+    }
   }
   
   // Clear rate limits for this IP

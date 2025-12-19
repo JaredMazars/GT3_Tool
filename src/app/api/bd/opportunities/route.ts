@@ -56,11 +56,19 @@ export const POST = secureRoute.mutation({
   feature: Feature.ACCESS_BD,
   schema: CreateBDOpportunitySchema,
   handler: async (request, { user, data }) => {
-    const assignedTo = data.assignedTo || user.id;
-
     const opportunity = await createOpportunity({
-      ...data,
-      assignedTo,
+      title: data.title,
+      description: data.description,
+      clientId: data.GSClientID,
+      companyName: data.companyName,
+      contactId: data.contactId,
+      serviceLine: data.serviceLine,
+      stageId: data.stageId,
+      value: data.value,
+      probability: data.probability,
+      expectedCloseDate: data.expectedCloseDate,
+      source: data.source,
+      assignedTo: data.assignedTo || user.id,
       createdBy: user.id,
     });
 

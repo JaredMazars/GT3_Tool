@@ -7,6 +7,7 @@ import { NextResponse } from 'next/server';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { getPipelineMetrics } from '@/lib/services/bd/analyticsService';
+import { BDAnalyticsFiltersSchema } from '@/lib/validation/schemas';
 
 /**
  * GET /api/bd/analytics/pipeline
@@ -17,10 +18,10 @@ export const GET = secureRoute.query({
   handler: async (request, { user }) => {
     const { searchParams } = new URL(request.url);
 
-    const filters = {
+    const filters = BDAnalyticsFiltersSchema.parse({
       serviceLine: searchParams.get('serviceLine') || undefined,
       assignedTo: searchParams.get('assignedTo') || undefined,
-    };
+    });
 
     const metrics = await getPipelineMetrics(filters);
 

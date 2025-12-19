@@ -142,6 +142,27 @@ const { isViewOnly, canEdit } = usePageAccess();
 - Server Components default, `'use client'` only when needed
 - NEVER use `confirm()`, `alert()`, `prompt()` - use custom modals
 
+### Input Validation & Sanitization
+
+- Validate route params + query strings via Zod or `parseXxxId()` (not just body)
+- Zod schemas use `.strict()` for mutations (prevents mass assignment)
+- User-controlled sorting/filtering must use allowlists (no raw field passthrough)
+- List endpoints enforce limits (`take` with max value, validate cursor/skip)
+- Explicit field mapping in Prisma `data` - never spread user input directly
+
+### Authorization Beyond Roles
+
+- **IDOR protection**: Verify user access to specific resources, not just role checks
+- Filter out soft-deleted records where applicable
+- Business logic authorization (e.g., users can't approve their own submissions)
+
+### Data Protection
+
+- `Cache-Control: no-store` for sensitive/user-specific responses
+- Audit logging for sensitive operations (include userId, resourceId - no secrets/PII)
+- File uploads: validate size + MIME type allowlist; storage paths not user-controlled
+- `X-Content-Type-Options: nosniff` for file downloads
+
 ## Performance (REQUIRED)
 
 ### Imports
@@ -153,8 +174,17 @@ const { isViewOnly, canEdit } = usePageAccess();
 
 - ALWAYS explicit `select:` fields
 - Batch queries: `Promise.all()`
-- Transactions for multi-step operations
+- Transactions (`prisma.$transaction`) for multi-step mutations
 - Prevent N+1 queries
+- Default limits on `findMany()` - no unbounded queries on large tables
+- Deterministic ordering for pagination (cursor or stable `orderBy` with secondary sort)
+
+### Request Handling
+
+- Large payloads: paginate or stream responses
+- External API calls: parallelize with `Promise.all()` + set timeouts
+- Race conditions: use optimistic locking or transactions for concurrent mutations
+- Response size: bound large JSON responses
 
 ### Caching
 
@@ -188,6 +218,14 @@ return handleApiError(error, 'Context');
 ```
 
 Codes: `VALIDATION_ERROR`, `NOT_FOUND`, `FORBIDDEN`, `UNAUTHORIZED`
+
+## Data Integrity
+
+- Validate foreign key references exist before insert/update
+- Idempotency for critical mutations (retrying POST/PUT shouldn't create duplicates)
+- Check unique constraints before insert to prevent race condition errors
+- Timezone: store/return UTC, convert on frontend
+- Decimal precision: use `Decimal.js` for financial data, never floats
 
 ## Code Quality
 

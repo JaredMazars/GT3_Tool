@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { deleteAllUserSessions, verifySession } from '@/lib/services/auth/auth';
-import { clearRateLimitsForIdentifier, getClientIdentifier } from '@/lib/utils/rateLimit';
+import { clearRateLimitsForIdentifier, getClientIdentifier, enforceRateLimit, RateLimitPresets } from '@/lib/utils/rateLimit';
+import { logInfo } from '@/lib/utils/logger';
 
 /**
  * Handle logout from all devices
  * Deletes all sessions for the current user
  */
 export async function POST(request: NextRequest) {
+  // Apply rate limiting to prevent abuse
+  enforceRateLimit(request, RateLimitPresets.AUTH_ENDPOINTS);
+  
   try {
     // Get current session token
     const sessionToken = request.cookies.get('session')?.value;
@@ -30,6 +34,8 @@ export async function POST(request: NextRequest) {
     
     // Delete all sessions for this user
     await deleteAllUserSessions(session.user.id);
+    
+    logInfo('User logged out from all devices', { userId: session.user.id });
     
     // Clear rate limits for this IP
     const clientIdentifier = getClientIdentifier(request);
@@ -65,6 +71,9 @@ export async function POST(request: NextRequest) {
  * This allows users to access logout-all via a link
  */
 export async function GET(request: NextRequest) {
+  // Apply rate limiting to prevent abuse
+  enforceRateLimit(request, RateLimitPresets.AUTH_ENDPOINTS);
+  
   try {
     // Get current session token
     const sessionToken = request.cookies.get('session')?.value;
@@ -82,6 +91,8 @@ export async function GET(request: NextRequest) {
     
     // Delete all sessions for this user
     await deleteAllUserSessions(session.user.id);
+    
+    logInfo('User logged out from all devices via GET', { userId: session.user.id });
     
     // Clear rate limits for this IP
     const clientIdentifier = getClientIdentifier(request);

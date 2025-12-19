@@ -6,8 +6,8 @@
  */
 
 import { NextResponse } from 'next/server';
-import { z } from 'zod';
-import { successResponse } from '@/lib/utils/apiUtils';
+import { successResponse, parseNumericId } from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { UpdateBDOpportunitySchema } from '@/lib/validation/schemas';
 import {
@@ -15,20 +15,21 @@ import {
   updateOpportunity,
   deleteOpportunity,
 } from '@/lib/services/bd/opportunityService';
+import { prisma } from '@/lib/db/prisma';
 
 /**
  * GET /api/bd/opportunities/[id]
  * Get opportunity details
  */
-export const GET = secureRoute.queryWithParams<{ id: string }>({
+export const GET = secureRoute.queryWithParams({
   feature: Feature.ACCESS_BD,
   handler: async (request, { user, params }) => {
-    const opportunityId = Number.parseInt(params.id, 10);
+    const opportunityId = parseNumericId(params.id, 'Opportunity');
 
     const opportunity = await getOpportunityById(opportunityId);
 
     if (!opportunity) {
-      return NextResponse.json({ success: false, error: 'Opportunity not found' }, { status: 404 });
+      throw new AppError(404, 'Opportunity not found', ErrorCodes.NOT_FOUND);
     }
 
     return NextResponse.json(successResponse(opportunity));
@@ -39,13 +40,37 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
  * PUT /api/bd/opportunities/[id]
  * Update opportunity
  */
-export const PUT = secureRoute.mutationWithParams<typeof UpdateBDOpportunitySchema, { id: string }>({
+export const PUT = secureRoute.mutationWithParams({
   feature: Feature.ACCESS_BD,
   schema: UpdateBDOpportunitySchema,
   handler: async (request, { user, data, params }) => {
-    const opportunityId = Number.parseInt(params.id, 10);
+    const opportunityId = parseNumericId(params.id, 'Opportunity');
 
-    const opportunity = await updateOpportunity(opportunityId, data);
+    // Verify opportunity exists
+    const existing = await prisma.bDOpportunity.findUnique({
+      where: { id: opportunityId },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      throw new AppError(404, 'Opportunity not found', ErrorCodes.NOT_FOUND);
+    }
+
+    const opportunity = await updateOpportunity(opportunityId, {
+      title: data.title,
+      description: data.description,
+      clientId: data.GSClientID,
+      companyName: data.companyName,
+      contactId: data.contactId,
+      stageId: data.stageId,
+      value: data.value,
+      probability: data.probability,
+      expectedCloseDate: data.expectedCloseDate,
+      source: data.source,
+      status: data.status,
+      lostReason: data.lostReason,
+      assignedTo: data.assignedTo,
+    });
 
     return NextResponse.json(successResponse(opportunity));
   },
@@ -55,10 +80,20 @@ export const PUT = secureRoute.mutationWithParams<typeof UpdateBDOpportunitySche
  * DELETE /api/bd/opportunities/[id]
  * Delete opportunity
  */
-export const DELETE = secureRoute.mutationWithParams<z.ZodAny, { id: string }>({
+export const DELETE = secureRoute.mutationWithParams({
   feature: Feature.ACCESS_BD,
   handler: async (request, { user, params }) => {
-    const opportunityId = Number.parseInt(params.id, 10);
+    const opportunityId = parseNumericId(params.id, 'Opportunity');
+
+    // Verify opportunity exists
+    const existing = await prisma.bDOpportunity.findUnique({
+      where: { id: opportunityId },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      throw new AppError(404, 'Opportunity not found', ErrorCodes.NOT_FOUND);
+    }
 
     await deleteOpportunity(opportunityId);
 

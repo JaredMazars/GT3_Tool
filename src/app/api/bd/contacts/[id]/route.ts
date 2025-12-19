@@ -5,87 +5,131 @@
  * DELETE /api/bd/contacts/[id] - Delete contact
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { NextResponse } from 'next/server';
+import { successResponse, parseNumericId } from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { UpdateBDContactSchema } from '@/lib/validation/schemas';
 import { prisma } from '@/lib/db/prisma';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+const contactSelectFields = {
+  id: true,
+  companyName: true,
+  firstName: true,
+  lastName: true,
+  email: true,
+  phone: true,
+  mobile: true,
+  jobTitle: true,
+  linkedin: true,
+  industry: true,
+  sector: true,
+  website: true,
+  address: true,
+  city: true,
+  province: true,
+  postalCode: true,
+  country: true,
+  notes: true,
+  createdBy: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
 
-    const { id } = await context.params;
-    const contactId = Number.parseInt(id);
+/**
+ * GET /api/bd/contacts/[id]
+ * Get contact details
+ */
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_BD,
+  handler: async (request, { user, params }) => {
+    const contactId = parseNumericId(params.id, 'Contact');
 
     const contact = await prisma.bDContact.findUnique({
       where: { id: contactId },
+      select: contactSelectFields,
     });
 
     if (!contact) {
-      return NextResponse.json({ error: 'Contact not found' }, { status: 404 });
+      throw new AppError(404, 'Contact not found', ErrorCodes.NOT_FOUND);
     }
 
     return NextResponse.json(successResponse(contact));
-  } catch (error) {
-    return handleApiError(error, 'GET /api/bd/contacts/[id]');
-  }
-}
+  },
+});
 
-export async function PUT(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+/**
+ * PUT /api/bd/contacts/[id]
+ * Update contact
+ */
+export const PUT = secureRoute.mutationWithParams({
+  feature: Feature.ACCESS_BD,
+  schema: UpdateBDContactSchema,
+  handler: async (request, { user, params, data }) => {
+    const contactId = parseNumericId(params.id, 'Contact');
+
+    // Verify contact exists
+    const existing = await prisma.bDContact.findUnique({
+      where: { id: contactId },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      throw new AppError(404, 'Contact not found', ErrorCodes.NOT_FOUND);
     }
-
-    const { id } = await context.params;
-    const contactId = Number.parseInt(id);
-
-    const body = await request.json();
-    const validated = UpdateBDContactSchema.parse(body);
 
     const contact = await prisma.bDContact.update({
       where: { id: contactId },
-      data: validated,
+      data: {
+        companyName: data.companyName,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        phone: data.phone,
+        mobile: data.mobile,
+        jobTitle: data.jobTitle,
+        linkedin: data.linkedin,
+        industry: data.industry,
+        sector: data.sector,
+        website: data.website,
+        address: data.address,
+        city: data.city,
+        province: data.province,
+        postalCode: data.postalCode,
+        country: data.country,
+        notes: data.notes,
+        updatedAt: new Date(),
+      },
+      select: contactSelectFields,
     });
 
     return NextResponse.json(successResponse(contact));
-  } catch (error) {
-    return handleApiError(error, 'PUT /api/bd/contacts/[id]');
-  }
-}
+  },
+});
 
-export async function DELETE(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+/**
+ * DELETE /api/bd/contacts/[id]
+ * Delete contact
+ */
+export const DELETE = secureRoute.mutationWithParams({
+  feature: Feature.ACCESS_BD,
+  handler: async (request, { user, params }) => {
+    const contactId = parseNumericId(params.id, 'Contact');
+
+    // Verify contact exists
+    const existing = await prisma.bDContact.findUnique({
+      where: { id: contactId },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      throw new AppError(404, 'Contact not found', ErrorCodes.NOT_FOUND);
     }
-
-    const { id } = await context.params;
-    const contactId = Number.parseInt(id);
 
     await prisma.bDContact.delete({
       where: { id: contactId },
     });
 
     return NextResponse.json(successResponse({ deleted: true }));
-  } catch (error) {
-    return handleApiError(error, 'DELETE /api/bd/contacts/[id]');
-  }
-}
-
+  },
+});

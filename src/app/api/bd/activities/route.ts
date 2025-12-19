@@ -57,11 +57,17 @@ export const POST = secureRoute.mutation({
   feature: Feature.ACCESS_BD,
   schema: CreateBDActivitySchema,
   handler: async (request, { user, data }) => {
-    const assignedTo = data.assignedTo || user.id;
-
     const activity = await createActivity({
-      ...data,
-      assignedTo,
+      opportunityId: data.opportunityId,
+      contactId: data.contactId,
+      activityType: data.activityType,
+      subject: data.subject,
+      description: data.description,
+      status: data.status,
+      dueDate: data.dueDate,
+      duration: data.duration,
+      location: data.location,
+      assignedTo: data.assignedTo || user.id,
       createdBy: user.id,
     });
 

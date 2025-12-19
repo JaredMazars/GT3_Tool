@@ -1,34 +1,30 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, checkClientAccess } from '@/lib/services/auth/auth';
+import { NextResponse } from 'next/server';
+import { checkClientAccess } from '@/lib/services/auth/auth';
 import { prisma } from '@/lib/db/prisma';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { successResponse, parseNumericId } from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { logger } from '@/lib/utils/logger';
 import fs from 'fs/promises';
 import { GSClientIDSchema } from '@/lib/validation/schemas';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 
 /**
  * DELETE /api/clients/[id]/analytics/documents/[documentId]
  * Delete a specific analytics document
  */
-export async function DELETE(
-  request: NextRequest,
-  context: { params: Promise<{ id: string; documentId: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { id, documentId } = await context.params;
-    const GSClientID = id;
-    const docId = Number.parseInt(documentId);
+export const DELETE = secureRoute.mutationWithParams<
+  undefined,
+  { id: string; documentId: string }
+>({
+  feature: Feature.MANAGE_CLIENTS,
+  handler: async (request, { user, params }) => {
+    const GSClientID = params.id;
+    const docId = parseNumericId(params.documentId, 'Document');
 
     // Validate GSClientID is a valid GUID
     const validationResult = GSClientIDSchema.safeParse(GSClientID);
-    if (!validationResult.success || Number.isNaN(docId)) {
-      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+    if (!validationResult.success) {
+      throw new AppError(400, 'Invalid client ID format. Expected GUID.', ErrorCodes.VALIDATION_ERROR);
     }
 
     // SECURITY: Check authorization
@@ -36,11 +32,10 @@ export async function DELETE(
     if (!hasAccess) {
       logger.warn('Unauthorized document deletion attempt', {
         userId: user.id,
-        userEmail: user.email,
         GSClientID,
         documentId: docId,
       });
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      throw new AppError(403, 'Forbidden', ErrorCodes.FORBIDDEN);
     }
 
     // Get client by GSClientID to get numeric id
@@ -50,25 +45,32 @@ export async function DELETE(
     });
 
     if (!client) {
-      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+      throw new AppError(404, 'Client not found', ErrorCodes.NOT_FOUND);
     }
 
-    // Find the document
+    // Find the document with explicit select
     const document = await prisma.clientAnalyticsDocument.findFirst({
       where: {
         id: docId,
         clientId: client.id,
       },
+      select: {
+        id: true,
+        fileName: true,
+        filePath: true,
+      },
     });
 
     if (!document) {
-      return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+      throw new AppError(404, 'Document not found', ErrorCodes.NOT_FOUND);
     }
 
     // Check if document is being used in any credit ratings
     const ratingsUsingDoc = await prisma.creditRatingDocument.findMany({
       where: { analyticsDocumentId: docId },
-      include: {
+      take: 10, // Limit for performance
+      select: {
+        id: true,
         ClientCreditRating: {
           select: {
             id: true,
@@ -82,13 +84,11 @@ export async function DELETE(
     });
 
     if (ratingsUsingDoc.length > 0) {
-      return NextResponse.json(
-        {
-          error: 'Cannot delete document',
-          message: `This document is being used in ${ratingsUsingDoc.length} credit rating(s). Please delete those ratings first.`,
-          ratingsAffected: ratingsUsingDoc.map((r) => r.ClientCreditRating),
-        },
-        { status: 409 }
+      throw new AppError(
+        409,
+        `This document is being used in ${ratingsUsingDoc.length} credit rating(s). Please delete those ratings first.`,
+        ErrorCodes.CONFLICT,
+        { ratingsAffected: ratingsUsingDoc.map((r) => r.ClientCreditRating) }
       );
     }
 
@@ -122,33 +122,23 @@ export async function DELETE(
         documentId: docId,
       })
     );
-  } catch (error) {
-    return handleApiError(error, 'DELETE /api/clients/[id]/analytics/documents/[documentId]');
-  }
-}
+  },
+});
 
 /**
  * GET /api/clients/[id]/analytics/documents/[documentId]
  * Get a specific analytics document
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string; documentId: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { id, documentId } = await context.params;
-    const GSClientID = id;
-    const docId = Number.parseInt(documentId);
+export const GET = secureRoute.queryWithParams<{ id: string; documentId: string }>({
+  feature: Feature.ACCESS_CLIENTS,
+  handler: async (request, { user, params }) => {
+    const GSClientID = params.id;
+    const docId = parseNumericId(params.documentId, 'Document');
 
     // Validate GSClientID is a valid GUID
     const validationResult = GSClientIDSchema.safeParse(GSClientID);
-    if (!validationResult.success || Number.isNaN(docId)) {
-      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+    if (!validationResult.success) {
+      throw new AppError(400, 'Invalid client ID format. Expected GUID.', ErrorCodes.VALIDATION_ERROR);
     }
 
     // SECURITY: Check authorization
@@ -156,11 +146,10 @@ export async function GET(
     if (!hasAccess) {
       logger.warn('Unauthorized document access attempt', {
         userId: user.id,
-        userEmail: user.email,
         GSClientID,
         documentId: docId,
       });
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      throw new AppError(403, 'Forbidden', ErrorCodes.FORBIDDEN);
     }
 
     // Get client by GSClientID to get numeric id
@@ -170,24 +159,34 @@ export async function GET(
     });
 
     if (!client) {
-      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+      throw new AppError(404, 'Client not found', ErrorCodes.NOT_FOUND);
     }
 
-    // Find the document
+    // Find the document with explicit select
     const document = await prisma.clientAnalyticsDocument.findFirst({
       where: {
         id: docId,
         clientId: client.id,
       },
+      select: {
+        id: true,
+        clientId: true,
+        documentType: true,
+        fileName: true,
+        filePath: true,
+        fileSize: true,
+        uploadedBy: true,
+        uploadedAt: true,
+        extractedData: true,
+        updatedAt: true,
+      },
     });
 
     if (!document) {
-      return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+      throw new AppError(404, 'Document not found', ErrorCodes.NOT_FOUND);
     }
 
     return NextResponse.json(successResponse(document));
-  } catch (error) {
-    return handleApiError(error, 'GET /api/clients/[id]/analytics/documents/[documentId]');
-  }
-}
+  },
+});
 

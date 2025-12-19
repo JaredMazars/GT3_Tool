@@ -213,6 +213,7 @@ export async function getPipelineView(filters: {
       },
     },
     orderBy: [{ BDStage: { order: 'asc' } }, { updatedAt: 'desc' }],
+    take: 500, // Limit for performance
   });
 
   // Group by stage name
@@ -471,6 +472,7 @@ export async function getWeightedPipelineValue(filters: {
         },
       },
     },
+    take: 1000, // Limit for performance
   });
 
   let weightedValue = 0;

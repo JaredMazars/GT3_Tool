@@ -5,33 +5,45 @@
  * DELETE /api/bd/activities/[id] - Delete activity
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+import { NextResponse } from 'next/server';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { parseNumericId } from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { UpdateBDActivitySchema } from '@/lib/validation/schemas';
 import {
   updateActivity,
   deleteActivity,
 } from '@/lib/services/bd/activityService';
 import { prisma } from '@/lib/db/prisma';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { id } = await context.params;
-    const activityId = Number.parseInt(id);
+/**
+ * GET /api/bd/activities/[id]
+ * Get activity details
+ */
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_BD,
+  handler: async (request, { user, params }) => {
+    const activityId = parseNumericId(params.id, 'Activity');
 
     const activity = await prisma.bDActivity.findUnique({
       where: { id: activityId },
-      include: {
+      select: {
+        id: true,
+        opportunityId: true,
+        contactId: true,
+        activityType: true,
+        subject: true,
+        description: true,
+        status: true,
+        dueDate: true,
+        completedAt: true,
+        duration: true,
+        location: true,
+        assignedTo: true,
+        createdBy: true,
+        createdAt: true,
+        updatedAt: true,
         BDOpportunity: {
           select: {
             id: true,
@@ -51,57 +63,71 @@ export async function GET(
     });
 
     if (!activity) {
-      return NextResponse.json({ error: 'Activity not found' }, { status: 404 });
+      throw new AppError(404, 'Activity not found', ErrorCodes.NOT_FOUND);
     }
 
     return NextResponse.json(successResponse(activity));
-  } catch (error) {
-    return handleApiError(error, 'GET /api/bd/activities/[id]');
-  }
-}
+  },
+});
 
-export async function PUT(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+/**
+ * PUT /api/bd/activities/[id]
+ * Update activity
+ */
+export const PUT = secureRoute.mutationWithParams({
+  feature: Feature.ACCESS_BD,
+  schema: UpdateBDActivitySchema,
+  handler: async (request, { user, params, data }) => {
+    const activityId = parseNumericId(params.id, 'Activity');
+
+    // Verify activity exists
+    const existing = await prisma.bDActivity.findUnique({
+      where: { id: activityId },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      throw new AppError(404, 'Activity not found', ErrorCodes.NOT_FOUND);
     }
 
-    const { id } = await context.params;
-    const activityId = Number.parseInt(id);
-
-    const body = await request.json();
-    const validated = UpdateBDActivitySchema.parse(body);
-
-    const activity = await updateActivity(activityId, validated);
+    const activity = await updateActivity(activityId, {
+      contactId: data.contactId,
+      activityType: data.activityType,
+      subject: data.subject,
+      description: data.description,
+      status: data.status,
+      dueDate: data.dueDate,
+      completedAt: data.completedAt,
+      duration: data.duration,
+      location: data.location,
+      assignedTo: data.assignedTo,
+    });
 
     return NextResponse.json(successResponse(activity));
-  } catch (error) {
-    return handleApiError(error, 'PUT /api/bd/activities/[id]');
-  }
-}
+  },
+});
 
-export async function DELETE(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+/**
+ * DELETE /api/bd/activities/[id]
+ * Delete activity
+ */
+export const DELETE = secureRoute.mutationWithParams({
+  feature: Feature.ACCESS_BD,
+  handler: async (request, { user, params }) => {
+    const activityId = parseNumericId(params.id, 'Activity');
+
+    // Verify activity exists
+    const existing = await prisma.bDActivity.findUnique({
+      where: { id: activityId },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      throw new AppError(404, 'Activity not found', ErrorCodes.NOT_FOUND);
     }
-
-    const { id } = await context.params;
-    const activityId = Number.parseInt(id);
 
     await deleteActivity(activityId);
 
     return NextResponse.json(successResponse({ deleted: true }));
-  } catch (error) {
-    return handleApiError(error, 'DELETE /api/bd/activities/[id]');
-  }
-}
-
+  },
+});

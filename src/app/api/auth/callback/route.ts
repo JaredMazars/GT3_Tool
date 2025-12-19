@@ -3,6 +3,55 @@ import { handleCallback, createSession } from '@/lib/services/auth/auth';
 import { logError, logWarn, logInfo } from '@/lib/utils/logger';
 import { enforceRateLimit, RateLimitPresets } from '@/lib/utils/rateLimit';
 
+/**
+ * Validates that a callback URL is safe to redirect to (same-origin only).
+ * Prevents open redirect attacks by ensuring the URL is a relative path
+ * or matches the application's base URL.
+ */
+function validateCallbackUrl(callbackUrl: string, baseUrl: string): string {
+  // Default to dashboard for any invalid input
+  const defaultPath = '/dashboard';
+  
+  if (!callbackUrl || typeof callbackUrl !== 'string') {
+    return defaultPath;
+  }
+  
+  // Trim and normalize
+  const trimmed = callbackUrl.trim();
+  
+  // Block empty strings
+  if (!trimmed) {
+    return defaultPath;
+  }
+  
+  // Allow relative paths starting with / (but not // which could be protocol-relative)
+  if (trimmed.startsWith('/') && !trimmed.startsWith('//')) {
+    // Additional safety: block javascript: and data: URIs that could be embedded
+    const lowerPath = trimmed.toLowerCase();
+    if (lowerPath.includes('javascript:') || lowerPath.includes('data:')) {
+      return defaultPath;
+    }
+    return trimmed;
+  }
+  
+  // For absolute URLs, validate they match the base URL origin
+  try {
+    const parsedUrl = new URL(trimmed);
+    const parsedBase = new URL(baseUrl);
+    
+    // Must match origin exactly
+    if (parsedUrl.origin === parsedBase.origin) {
+      // Return just the path + query + hash to avoid any edge cases
+      return parsedUrl.pathname + parsedUrl.search + parsedUrl.hash;
+    }
+  } catch {
+    // Invalid URL, fall through to default
+  }
+  
+  // Any other format is rejected
+  return defaultPath;
+}
+
 // Force dynamic rendering (uses cookies and headers)
 export const dynamic = 'force-dynamic';
 
@@ -64,19 +113,17 @@ export async function GET(request: NextRequest) {
       'Auth callback flow'
     );
     
-    // Get callback URL from cookie
-    const callbackUrl = request.cookies.get('auth_callback_url')?.value || '/dashboard';
-    
-    // CRITICAL: Construct redirect URL using NEXTAUTH_URL to prevent localhost redirects in production
+    // Get callback URL from cookie and validate it to prevent open redirect attacks
+    const rawCallbackUrl = request.cookies.get('auth_callback_url')?.value || '/dashboard';
     const baseUrl = process.env.NEXTAUTH_URL;
-    const redirectUrl = callbackUrl.startsWith('http') 
-      ? callbackUrl 
-      : `${baseUrl}${callbackUrl.startsWith('/') ? callbackUrl : `/${callbackUrl}`}`;
+    const validatedPath = validateCallbackUrl(rawCallbackUrl, baseUrl);
+    
+    // Construct redirect URL using NEXTAUTH_URL to prevent localhost redirects in production
+    const redirectUrl = `${baseUrl}${validatedPath.startsWith('/') ? validatedPath : `/${validatedPath}`}`;
     
     logInfo('Auth callback successful', { 
       userId: user.id,
-      email: user.email,
-      redirectUrl,
+      redirectPath: validatedPath,
       duration: Date.now() - startTime 
     });
     
@@ -98,7 +145,7 @@ export async function GET(request: NextRequest) {
     const duration = Date.now() - startTime;
     
     // Extract detailed error information for diagnostics
-    const errorDetails: any = {
+    const errorDetails: Record<string, unknown> = {
       duration,
       hasCode: !!request.nextUrl.searchParams.get('code'),
       nextAuthUrl: process.env.NEXTAUTH_URL,
@@ -107,7 +154,7 @@ export async function GET(request: NextRequest) {
     
     // Check for Azure AD specific errors (MSAL errors)
     if (error && typeof error === 'object') {
-      const msalError = error as any;
+      const msalError = error as Record<string, unknown>;
       if (msalError.errorCode) {
         errorDetails.azureErrorCode = msalError.errorCode;
       }
@@ -118,8 +165,9 @@ export async function GET(request: NextRequest) {
         errorDetails.errorName = msalError.name;
       }
       // Check for Azure AD error codes in the error message
-      if (errorDetails.message && errorDetails.message.includes('AADSTS')) {
-        const aadMatch = errorDetails.message.match(/AADSTS\d+/);
+      const messageStr = typeof errorDetails.message === 'string' ? errorDetails.message : '';
+      if (messageStr.includes('AADSTS')) {
+        const aadMatch = messageStr.match(/AADSTS\d+/);
         if (aadMatch) {
           errorDetails.azureErrorCode = aadMatch[0];
         }
@@ -147,11 +195,15 @@ export async function GET(request: NextRequest) {
       );
     }
     
+    // Get error message as string for type-safe checks
+    const errorMessage = typeof errorDetails.message === 'string' ? errorDetails.message : '';
+    const azureErrorCode = typeof errorDetails.azureErrorCode === 'string' ? errorDetails.azureErrorCode : '';
+    
     // Check for Azure AD redirect URI mismatch
     const isRedirectUriError = 
-      errorDetails.message?.includes('redirect_uri') ||
-      errorDetails.azureErrorCode === 'AADSTS50011' ||
-      errorDetails.message?.includes('AADSTS50011');
+      errorMessage.includes('redirect_uri') ||
+      azureErrorCode === 'AADSTS50011' ||
+      errorMessage.includes('AADSTS50011');
     
     if (isRedirectUriError) {
       logError('Azure AD redirect URI mismatch error', error, {
@@ -165,9 +217,9 @@ export async function GET(request: NextRequest) {
     
     // Check for missing admin consent
     const isConsentError = 
-      errorDetails.azureErrorCode === 'AADSTS65001' ||
-      errorDetails.message?.includes('AADSTS65001') ||
-      errorDetails.message?.includes('consent');
+      azureErrorCode === 'AADSTS65001' ||
+      errorMessage.includes('AADSTS65001') ||
+      errorMessage.includes('consent');
     
     if (isConsentError) {
       logError('Azure AD admin consent required', error, {

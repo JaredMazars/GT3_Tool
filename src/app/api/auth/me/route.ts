@@ -19,7 +19,12 @@ export const GET = secureRoute.query({
         email: user.email,
         name: user.name,
         systemRole: systemRole || user.systemRole || user.role || 'USER',
-      })
+      }),
+      {
+        headers: {
+          'Cache-Control': 'no-store',
+        },
+      }
     );
   },
 });

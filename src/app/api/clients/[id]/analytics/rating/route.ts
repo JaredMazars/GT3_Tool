@@ -1,36 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, checkClientAccess } from '@/lib/services/auth/auth';
+import { checkClientAccess } from '@/lib/services/auth/auth';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { CreditRatingAnalyzer } from '@/lib/services/analytics/creditRatingAnalyzer';
 import { logger } from '@/lib/utils/logger';
 import { CreditRatingQuerySchema, GenerateCreditRatingSchema, GSClientIDSchema } from '@/lib/validation/schemas';
 import { parseCreditAnalysisReport, parseFinancialRatios, safeStringifyJSON } from '@/lib/utils/jsonValidation';
 import { CreditAnalysisReportSchema, FinancialRatiosSchema } from '@/lib/validation/schemas';
-import type { Prisma } from '@prisma/client';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 
 /**
  * GET /api/clients/[id]/analytics/rating
  * Fetch credit rating history for a client
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { id } = await context.params;
-    const GSClientID = id;
+export const GET = secureRoute.queryWithParams<{ id: string }>({
+  feature: Feature.ACCESS_CLIENTS,
+  handler: async (request, { user, params }) => {
+    const GSClientID = params.id;
 
     // Validate GSClientID is a valid GUID
     const validationResult = GSClientIDSchema.safeParse(GSClientID);
     if (!validationResult.success) {
-      return NextResponse.json({ error: 'Invalid client ID format. Expected GUID.' }, { status: 400 });
+      throw new AppError(400, 'Invalid client ID format. Expected GUID.', ErrorCodes.VALIDATION_ERROR);
     }
 
     // SECURITY: Check authorization
@@ -38,10 +30,9 @@ export async function GET(
     if (!hasAccess) {
       logger.warn('Unauthorized rating access attempt', {
         userId: user.id,
-        userEmail: user.email,
         GSClientID,
       });
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      throw new AppError(403, 'Forbidden', ErrorCodes.FORBIDDEN);
     }
 
     // VALIDATION: Validate and parse query parameters
@@ -66,10 +57,9 @@ export async function GET(
         queryParams,
         errors: queryValidation.error.errors,
       });
-      return NextResponse.json(
-        { error: 'Invalid query parameters', details: queryValidation.error.errors },
-        { status: 400 }
-      );
+      throw new AppError(400, 'Invalid query parameters', ErrorCodes.VALIDATION_ERROR, {
+        details: queryValidation.error.errors,
+      });
     }
 
     const { limit, startDate, endDate } = queryValidation.data;
@@ -81,7 +71,7 @@ export async function GET(
     });
 
     if (!client) {
-      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+      throw new AppError(404, 'Client not found', ErrorCodes.NOT_FOUND);
     }
 
     // Build type-safe where clause
@@ -100,15 +90,39 @@ export async function GET(
       };
     }
 
-    // Fetch ratings with documents
+    // Fetch ratings with explicit select
     const ratings = await prisma.clientCreditRating.findMany({
       where,
-      orderBy: { ratingDate: 'desc' },
+      orderBy: [
+        { ratingDate: 'desc' },
+        { id: 'desc' }, // Deterministic secondary sort
+      ],
       take: limit,
-      include: {
+      select: {
+        id: true,
+        clientId: true,
+        ratingScore: true,
+        ratingGrade: true,
+        analysisReport: true,
+        financialRatios: true,
+        confidence: true,
+        analyzedBy: true,
+        ratingDate: true,
+        createdAt: true,
+        updatedAt: true,
         CreditRatingDocument: {
-          include: {
-            ClientAnalyticsDocument: true,
+          select: {
+            id: true,
+            ClientAnalyticsDocument: {
+              select: {
+                id: true,
+                documentType: true,
+                fileName: true,
+                fileSize: true,
+                uploadedBy: true,
+                uploadedAt: true,
+              },
+            },
           },
         },
       },
@@ -119,7 +133,6 @@ export async function GET(
       clientDbId: client.id,
       ratingsFound: ratings.length,
       limit,
-      whereClause: JSON.stringify(where),
     });
 
     // Transform the data with safe JSON parsing
@@ -141,44 +154,32 @@ export async function GET(
       }
     });
 
-    logger.info('Transformed credit ratings', {
-      GSClientID,
-      clientDbId: client.id,
-      transformedCount: transformedRatings.length,
-    });
-
     return NextResponse.json(
       successResponse({
         ratings: transformedRatings,
         totalCount: transformedRatings.length,
       })
     );
-  } catch (error) {
-    return handleApiError(error, 'GET /api/clients/[id]/analytics/rating');
-  }
-}
+  },
+});
 
 /**
  * POST /api/clients/[id]/analytics/rating
- * Generate a new credit rating
+ * Generate a new credit rating (AI endpoint - strict rate limiting)
  */
-export async function POST(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { id } = await context.params;
-    const GSClientID = id;
+export const POST = secureRoute.aiWithParams<
+  typeof GenerateCreditRatingSchema,
+  { id: string }
+>({
+  feature: Feature.MANAGE_CLIENTS,
+  schema: GenerateCreditRatingSchema,
+  handler: async (request, { user, params, data }) => {
+    const GSClientID = params.id;
 
     // Validate GSClientID is a valid GUID
     const validationResult = GSClientIDSchema.safeParse(GSClientID);
     if (!validationResult.success) {
-      return NextResponse.json({ error: 'Invalid client ID format. Expected GUID.' }, { status: 400 });
+      throw new AppError(400, 'Invalid client ID format. Expected GUID.', ErrorCodes.VALIDATION_ERROR);
     }
 
     // SECURITY: Check authorization
@@ -186,24 +187,12 @@ export async function POST(
     if (!hasAccess) {
       logger.warn('Unauthorized rating generation attempt', {
         userId: user.id,
-        userEmail: user.email,
         GSClientID,
       });
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      throw new AppError(403, 'Forbidden', ErrorCodes.FORBIDDEN);
     }
 
-    // VALIDATION: Parse and validate request body
-    const body = await request.json();
-    const validation = GenerateCreditRatingSchema.safeParse(body);
-
-    if (!validation.success) {
-      return NextResponse.json(
-        { error: 'Invalid request body', details: validation.error.errors },
-        { status: 400 }
-      );
-    }
-
-    const { documentIds } = validation.data;
+    const { documentIds } = data;
 
     // Verify client exists
     const client = await prisma.client.findUnique({
@@ -218,33 +207,32 @@ export async function POST(
     });
 
     if (!client) {
-      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+      throw new AppError(404, 'Client not found', ErrorCodes.NOT_FOUND);
     }
 
-    // Fetch documents
+    // Fetch documents with explicit select
     const documents = await prisma.clientAnalyticsDocument.findMany({
       where: {
         id: { in: documentIds },
         clientId: client.id,
       },
+      select: {
+        id: true,
+        fileName: true,
+        documentType: true,
+        extractedData: true,
+      },
     });
 
     if (documents.length === 0) {
-      return NextResponse.json(
-        { error: 'No valid documents found for the provided IDs' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'No valid documents found for the provided IDs', ErrorCodes.NOT_FOUND);
     }
 
     if (documents.length !== documentIds.length) {
-      return NextResponse.json(
-        {
-          error: 'Some document IDs are invalid',
-          found: documents.length,
-          requested: documentIds.length,
-        },
-        { status: 400 }
-      );
+      throw new AppError(400, 'Some document IDs are invalid', ErrorCodes.VALIDATION_ERROR, {
+        found: documents.length,
+        requested: documentIds.length,
+      });
     }
 
     logger.info('Starting credit rating generation', {
@@ -278,10 +266,6 @@ export async function POST(
       ratingGrade: result.ratingGrade,
       ratingScore: result.ratingScore,
       confidence: result.confidence,
-      hasAnalysisReport: !!result.analysisReport,
-      hasFinancialRatios: !!result.financialRatios,
-      analysisReportFields: result.analysisReport ? Object.keys(result.analysisReport) : [],
-      ratiosCalculated: result.financialRatios ? Object.keys(result.financialRatios).filter(k => result.financialRatios[k as keyof typeof result.financialRatios] !== undefined) : [],
     });
 
     // DATA INTEGRITY: Save rating and document associations in a transaction
@@ -298,7 +282,7 @@ export async function POST(
         'financialRatios'
       );
 
-      // Create rating
+      // Create rating with explicit field mapping
       const rating = await tx.clientCreditRating.create({
         data: {
           clientId: client.id,
@@ -309,6 +293,7 @@ export async function POST(
           confidence: result.confidence,
           analyzedBy: user.email!,
         },
+        select: { id: true },
       });
 
       // Create junction table entries linking rating to documents
@@ -319,13 +304,34 @@ export async function POST(
         })),
       });
 
-      // Fetch complete rating with documents
+      // Fetch complete rating with explicit select
       const complete = await tx.clientCreditRating.findUnique({
         where: { id: rating.id },
-        include: {
+        select: {
+          id: true,
+          clientId: true,
+          ratingScore: true,
+          ratingGrade: true,
+          analysisReport: true,
+          financialRatios: true,
+          confidence: true,
+          analyzedBy: true,
+          ratingDate: true,
+          createdAt: true,
+          updatedAt: true,
           CreditRatingDocument: {
-            include: {
-              ClientAnalyticsDocument: true,
+            select: {
+              id: true,
+              ClientAnalyticsDocument: {
+                select: {
+                  id: true,
+                  documentType: true,
+                  fileName: true,
+                  fileSize: true,
+                  uploadedBy: true,
+                  uploadedAt: true,
+                },
+              },
             },
           },
         },
@@ -353,19 +359,11 @@ export async function POST(
       GSClientID,
       clientDbId: client.id,
       ratingGrade: completeRating.ratingGrade,
-      ratingScore: completeRating.ratingScore,
-      confidence: completeRating.confidence,
       analyzedBy: completeRating.analyzedBy,
       documentsLinked: completeRating.CreditRatingDocument.length,
-      analysisReportSize: completeRating.analysisReport.length,
-      financialRatiosSize: completeRating.financialRatios.length,
-      parsedAnalysisFields: Object.keys(transformedRating.analysisReport),
-      parsedRatiosCount: Object.keys(transformedRating.financialRatios).filter(k => transformedRating.financialRatios[k as keyof typeof transformedRating.financialRatios] !== undefined).length,
     });
 
     return NextResponse.json(successResponse(transformedRating), { status: 201 });
-  } catch (error) {
-    return handleApiError(error, 'POST /api/clients/[id]/analytics/rating');
-  }
-}
+  },
+});
 

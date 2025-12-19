@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
@@ -7,6 +8,13 @@ import { checkFeature } from '@/lib/permissions/checkFeature';
 import { Feature } from '@/lib/permissions/features';
 import { getUserSubServiceLineGroups } from '@/lib/services/service-lines/serviceLineService';
 import { secureRoute } from '@/lib/api/secureRoute';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+
+// Zod schema for query params validation
+const ClientFiltersQuerySchema = z.object({
+  industrySearch: z.string().max(100).optional().default(''),
+  groupSearch: z.string().max(100).optional().default(''),
+}).strict();
 
 /**
  * GET /api/clients/filters
@@ -23,12 +31,22 @@ export const GET = secureRoute.query({
     const hasServiceLineAccess = userSubGroups.length > 0;
     
     if (!hasPagePermission && !hasServiceLineAccess) {
-      return NextResponse.json({ success: false, error: 'Forbidden - Insufficient permissions' }, { status: 403 });
+      throw new AppError(403, 'Forbidden - Insufficient permissions', ErrorCodes.FORBIDDEN);
     }
 
     const { searchParams } = new URL(request.url);
-    const industrySearch = searchParams.get('industrySearch') || '';
-    const groupSearch = searchParams.get('groupSearch') || '';
+    
+    // Validate query params
+    const queryResult = ClientFiltersQuerySchema.safeParse({
+      industrySearch: searchParams.get('industrySearch') || undefined,
+      groupSearch: searchParams.get('groupSearch') || undefined,
+    });
+    
+    if (!queryResult.success) {
+      throw new AppError(400, 'Invalid query parameters', ErrorCodes.VALIDATION_ERROR, { errors: queryResult.error.flatten() });
+    }
+    
+    const { industrySearch, groupSearch } = queryResult.data;
 
     const industryTooShort = industrySearch.length > 0 && industrySearch.length < 2;
     const groupTooShort = groupSearch.length > 0 && groupSearch.length < 2;

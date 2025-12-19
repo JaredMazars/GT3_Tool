@@ -79,6 +79,7 @@ export async function getPipelineMetrics(filters: {
         },
       },
     },
+    take: 1000, // Limit for performance
   });
 
   let totalValue = 0;
@@ -365,6 +366,7 @@ export async function getLeaderboard(filters: {
       status: true,
       value: true,
     },
+    take: 5000, // Limit for performance
   });
 
   // Group by user
@@ -446,6 +448,7 @@ export async function getActivitySummary(filters: {
   const opportunities = await prisma.bDOpportunity.findMany({
     where: oppWhere,
     select: { id: true },
+    take: 1000, // Limit for performance
   });
 
   const opportunityIds = opportunities.map((o) => o.id);

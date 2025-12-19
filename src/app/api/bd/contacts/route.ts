@@ -5,10 +5,41 @@
  */
 
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { CreateBDContactSchema } from '@/lib/validation/schemas';
 import { prisma } from '@/lib/db/prisma';
+
+const ContactsQuerySchema = z.object({
+  search: z.string().max(200).optional(),
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(100).default(20),
+}).strict();
+
+const contactSelectFields = {
+  id: true,
+  companyName: true,
+  firstName: true,
+  lastName: true,
+  email: true,
+  phone: true,
+  mobile: true,
+  jobTitle: true,
+  linkedin: true,
+  industry: true,
+  sector: true,
+  website: true,
+  address: true,
+  city: true,
+  province: true,
+  postalCode: true,
+  country: true,
+  notes: true,
+  createdBy: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
 
 /**
  * GET /api/bd/contacts
@@ -18,9 +49,12 @@ export const GET = secureRoute.query({
   feature: Feature.ACCESS_BD,
   handler: async (request, { user }) => {
     const { searchParams } = new URL(request.url);
-    const search = searchParams.get('search');
-    const page = Number.parseInt(searchParams.get('page') || '1');
-    const pageSize = Number.parseInt(searchParams.get('pageSize') || '20');
+
+    const { search, page, pageSize } = ContactsQuerySchema.parse({
+      search: searchParams.get('search') || undefined,
+      page: searchParams.get('page') || undefined,
+      pageSize: searchParams.get('pageSize') || undefined,
+    });
 
     const where = search
       ? {
@@ -36,7 +70,8 @@ export const GET = secureRoute.query({
     const [contacts, total] = await Promise.all([
       prisma.bDContact.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        select: contactSelectFields,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
@@ -65,10 +100,27 @@ export const POST = secureRoute.mutation({
   handler: async (request, { user, data }) => {
     const contact = await prisma.bDContact.create({
       data: {
-        ...data,
+        companyName: data.companyName,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        phone: data.phone,
+        mobile: data.mobile,
+        jobTitle: data.jobTitle,
+        linkedin: data.linkedin,
+        industry: data.industry,
+        sector: data.sector,
+        website: data.website,
+        address: data.address,
+        city: data.city,
+        province: data.province,
+        postalCode: data.postalCode,
+        country: data.country,
+        notes: data.notes,
         createdBy: user.id,
         updatedAt: new Date(),
       },
+      select: contactSelectFields,
     });
 
     return NextResponse.json(successResponse(contact), { status: 201 });

@@ -396,6 +396,20 @@ export async function updateTemplateSection(
     const section = await prisma.templateSection.update({
       where: { id },
       data: updateData,
+      select: {
+        id: true,
+        templateId: true,
+        sectionKey: true,
+        title: true,
+        content: true,
+        isRequired: true,
+        isAiAdaptable: true,
+        order: true,
+        applicableServiceLines: true,
+        applicableProjectTypes: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
 
     logger.info(`Updated template section: ${section.title} (ID: ${section.id})`);
