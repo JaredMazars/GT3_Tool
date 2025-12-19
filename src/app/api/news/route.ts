@@ -4,30 +4,26 @@
  * POST /api/news - Create bulletin (BUSINESS_DEV ADMINISTRATOR only)
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { getCurrentUser } from '@/lib/services/auth/auth';
 import { checkFeature } from '@/lib/permissions/checkFeature';
 import { Feature } from '@/lib/permissions/features';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { secureRoute } from '@/lib/api/secureRoute';
 import {
   CreateNewsBulletinSchema,
   NewsBulletinFiltersSchema,
 } from '@/lib/validation/schemas';
 import { Prisma } from '@prisma/client';
 
-export async function GET(request: NextRequest) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+/**
+ * GET /api/news
+ * List news bulletins
+ */
+export const GET = secureRoute.query({
+  handler: async (request, { user }) => {
     const { searchParams } = new URL(request.url);
 
-    // Parse query parameters
     const filters = NewsBulletinFiltersSchema.parse({
       category: searchParams.get('category') || undefined,
       serviceLine: searchParams.get('serviceLine') || undefined,
@@ -39,7 +35,6 @@ export async function GET(request: NextRequest) {
       pageSize: searchParams.get('pageSize') ? Number.parseInt(searchParams.get('pageSize')!) : 20,
     });
 
-    // Build where clause
     const where: Prisma.NewsBulletinWhereInput = {
       isActive: filters.isActive ?? true,
     };
@@ -49,11 +44,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (filters.serviceLine) {
-      // Filter by specific service line OR bulletins for all (null serviceLine)
-      where.OR = [
-        { serviceLine: filters.serviceLine },
-        { serviceLine: null },
-      ];
+      where.OR = [{ serviceLine: filters.serviceLine }, { serviceLine: null }];
     }
 
     if (filters.isPinned !== undefined) {
@@ -61,26 +52,11 @@ export async function GET(request: NextRequest) {
     }
 
     if (!filters.includeExpired) {
-      where.OR = [
-        ...(where.OR || []),
-        { expiresAt: null },
-        { expiresAt: { gte: new Date() } },
-      ];
-      // If we already have an OR for serviceLine, we need to handle this differently
+      where.OR = [...(where.OR || []), { expiresAt: null }, { expiresAt: { gte: new Date() } }];
       if (filters.serviceLine) {
         where.AND = [
-          {
-            OR: [
-              { serviceLine: filters.serviceLine },
-              { serviceLine: null },
-            ],
-          },
-          {
-            OR: [
-              { expiresAt: null },
-              { expiresAt: { gte: new Date() } },
-            ],
-          },
+          { OR: [{ serviceLine: filters.serviceLine }, { serviceLine: null }] },
+          { OR: [{ expiresAt: null }, { expiresAt: { gte: new Date() } }] },
         ];
         delete where.OR;
       }
@@ -101,141 +77,82 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Get total count
     const total = await prisma.newsBulletin.count({ where });
 
-    // Get bulletins with pagination
     const bulletins = await prisma.newsBulletin.findMany({
       where,
       select: {
-        id: true,
-        title: true,
-        summary: true,
-        body: true,
-        category: true,
-        serviceLine: true,
-        effectiveDate: true,
-        expiresAt: true,
-        contactPerson: true,
-        actionRequired: true,
-        callToActionUrl: true,
-        callToActionText: true,
-        isPinned: true,
-        isActive: true,
-        documentFileName: true,
-        documentFilePath: true,
-        documentFileSize: true,
-        documentUploadedAt: true,
-        showDocumentLink: true,
-        createdAt: true,
-        updatedAt: true,
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
+        id: true, title: true, summary: true, body: true, category: true,
+        serviceLine: true, effectiveDate: true, expiresAt: true, contactPerson: true,
+        actionRequired: true, callToActionUrl: true, callToActionText: true,
+        isPinned: true, isActive: true, documentFileName: true, documentFilePath: true,
+        documentFileSize: true, documentUploadedAt: true, showDocumentLink: true,
+        createdAt: true, updatedAt: true,
+        createdBy: { select: { id: true, name: true, email: true } },
       },
-      orderBy: [
-        { isPinned: 'desc' },
-        { effectiveDate: 'desc' },
-      ],
+      orderBy: [{ isPinned: 'desc' }, { effectiveDate: 'desc' }],
       skip: (filters.page - 1) * filters.pageSize,
       take: filters.pageSize,
     });
 
     return NextResponse.json(
       successResponse({
-        bulletins,
-        total,
+        bulletins, total,
         page: filters.page,
         pageSize: filters.pageSize,
         totalPages: Math.ceil(total / filters.pageSize),
       })
     );
-  } catch (error) {
-    return handleApiError(error, 'GET /api/news');
-  }
-}
+  },
+});
 
-export async function POST(request: NextRequest) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // 2. Check feature permission - must have MANAGE_NEWS for BUSINESS_DEV
+/**
+ * POST /api/news
+ * Create news bulletin
+ */
+export const POST = secureRoute.mutation({
+  schema: CreateNewsBulletinSchema,
+  handler: async (request, { user, data }) => {
     const hasPermission = await checkFeature(user.id, Feature.MANAGE_NEWS, 'BUSINESS_DEV');
     if (!hasPermission) {
       return NextResponse.json(
-        { error: 'Forbidden: You do not have permission to create news bulletins' },
+        { success: false, error: 'Forbidden: You do not have permission to create news bulletins' },
         { status: 403 }
       );
     }
 
-    // 3. Parse and validate request body
-    const body = await request.json();
-    const validated = CreateNewsBulletinSchema.parse(body);
-
-    // 4. Create the bulletin
     const bulletin = await prisma.newsBulletin.create({
       data: {
-        title: validated.title,
-        summary: validated.summary,
-        body: validated.body,
-        category: validated.category,
-        serviceLine: validated.serviceLine ?? null,
-        effectiveDate: validated.effectiveDate,
-        expiresAt: validated.expiresAt ?? null,
-        contactPerson: validated.contactPerson ?? null,
-        actionRequired: validated.actionRequired,
-        callToActionUrl: validated.callToActionUrl ?? null,
-        callToActionText: validated.callToActionText ?? null,
-        isPinned: validated.isPinned,
-        documentFileName: validated.documentFileName ?? null,
-        documentFilePath: validated.documentFilePath ?? null,
-        documentFileSize: validated.documentFileSize ?? null,
-        documentUploadedAt: validated.documentUploadedAt ?? null,
-        showDocumentLink: validated.showDocumentLink ?? false,
+        title: data.title,
+        summary: data.summary,
+        body: data.body,
+        category: data.category,
+        serviceLine: data.serviceLine ?? null,
+        effectiveDate: data.effectiveDate,
+        expiresAt: data.expiresAt ?? null,
+        contactPerson: data.contactPerson ?? null,
+        actionRequired: data.actionRequired,
+        callToActionUrl: data.callToActionUrl ?? null,
+        callToActionText: data.callToActionText ?? null,
+        isPinned: data.isPinned,
+        documentFileName: data.documentFileName ?? null,
+        documentFilePath: data.documentFilePath ?? null,
+        documentFileSize: data.documentFileSize ?? null,
+        documentUploadedAt: data.documentUploadedAt ?? null,
+        showDocumentLink: data.showDocumentLink ?? false,
         createdById: user.id,
       },
       select: {
-        id: true,
-        title: true,
-        summary: true,
-        body: true,
-        category: true,
-        serviceLine: true,
-        effectiveDate: true,
-        expiresAt: true,
-        contactPerson: true,
-        actionRequired: true,
-        callToActionUrl: true,
-        callToActionText: true,
-        isPinned: true,
-        isActive: true,
-        documentFileName: true,
-        documentFilePath: true,
-        documentFileSize: true,
-        documentUploadedAt: true,
-        showDocumentLink: true,
-        createdAt: true,
-        updatedAt: true,
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
+        id: true, title: true, summary: true, body: true, category: true,
+        serviceLine: true, effectiveDate: true, expiresAt: true, contactPerson: true,
+        actionRequired: true, callToActionUrl: true, callToActionText: true,
+        isPinned: true, isActive: true, documentFileName: true, documentFilePath: true,
+        documentFileSize: true, documentUploadedAt: true, showDocumentLink: true,
+        createdAt: true, updatedAt: true,
+        createdBy: { select: { id: true, name: true, email: true } },
       },
     });
 
     return NextResponse.json(successResponse(bulletin), { status: 201 });
-  } catch (error) {
-    return handleApiError(error, 'POST /api/news');
-  }
-}
+  },
+});

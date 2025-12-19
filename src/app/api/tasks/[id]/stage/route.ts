@@ -1,8 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { parseTaskId, successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
-import { getCurrentUser } from '@/lib/services/auth/auth';
 import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { toTaskId } from '@/types/branded';
 import { sanitizeText } from '@/lib/utils/sanitization';
@@ -10,182 +8,99 @@ import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { invalidateTaskListCache } from '@/lib/services/cache/listCache';
 import { TaskStage } from '@/types/task-stages';
 import { z } from 'zod';
+import { secureRoute } from '@/lib/api/secureRoute';
 
-// Validation schema for stage update
 const updateStageSchema = z.object({
   stage: z.enum(['DRAFT', 'IN_PROGRESS', 'UNDER_REVIEW', 'COMPLETED', 'ARCHIVED']),
   notes: z.string().max(500).optional(),
 });
 
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    // Require authentication
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    // Ensure context and params exist
-    if (!context || !context.params) {
-      throw new Error('Invalid route context');
-    }
-    
-    const params = await context.params;
+/**
+ * GET /api/tasks/[id]/stage
+ * Get task stage and history
+ */
+export const GET = secureRoute.queryWithParams({
+  handler: async (request, { user, params }) => {
     const taskId = toTaskId(parseTaskId(params?.id));
 
-    // Check task access (any role can view)
     const hasAccess = await checkTaskAccess(user.id, taskId);
     if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
     }
 
-    // Try to get cached stage data
     const cacheKey = `${CACHE_PREFIXES.TASK}stage:${taskId}`;
     const cached = await cache.get(cacheKey);
     if (cached) {
       return NextResponse.json(successResponse(cached));
     }
 
-    // Get all stages for this task (history)
     const stages = await prisma.taskStage.findMany({
       where: { taskId },
-      select: {
-        id: true,
-        stage: true,
-        movedBy: true,
-        notes: true,
-        createdAt: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      select: { id: true, stage: true, movedBy: true, notes: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
     });
 
-    // Get current stage (most recent)
     const currentStage = stages.length > 0 ? stages[0]?.stage ?? TaskStage.DRAFT : TaskStage.DRAFT;
 
-    const response = {
-      currentStage,
-      history: stages,
-    };
+    const response = { currentStage, history: stages };
 
-    // Cache for 5 minutes
     await cache.set(cacheKey, response, 300);
 
     return NextResponse.json(successResponse(response));
-  } catch (error) {
-    return handleApiError(error, 'Get Task Stage');
-  }
-}
+  },
+});
 
-export async function POST(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    // Require authentication
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    // Ensure context and params exist
-    if (!context || !context.params) {
-      throw new Error('Invalid route context');
-    }
-    
-    const params = await context.params;
+/**
+ * POST /api/tasks/[id]/stage
+ * Update task stage
+ */
+export const POST = secureRoute.mutationWithParams({
+  schema: updateStageSchema,
+  handler: async (request, { user, data, params }) => {
     const taskId = toTaskId(parseTaskId(params?.id));
 
-    // Check task access (requires EDITOR role or higher)
     const hasAccess = await checkTaskAccess(user.id, taskId, 'EDITOR');
     if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden - EDITOR role required' }, { status: 403 });
+      return NextResponse.json({ success: false, error: 'Forbidden - EDITOR role required' }, { status: 403 });
     }
 
-    const body = await request.json();
+    const sanitizedNotes = data.notes ? sanitizeText(data.notes, { maxLength: 500, allowNewlines: true }) : null;
 
-    // Validate request body
-    const validation = updateStageSchema.safeParse(body);
-    if (!validation.success) {
-      return NextResponse.json(
-        { error: 'Invalid request data', details: validation.error.errors },
-        { status: 400 }
-      );
-    }
-
-    const { stage, notes } = validation.data;
-
-    // Sanitize notes if provided
-    const sanitizedNotes = notes ? sanitizeText(notes, { maxLength: 500, allowNewlines: true }) : null;
-
-    // Verify task exists
     const task = await prisma.task.findUnique({
       where: { id: taskId },
       select: { id: true, TaskDesc: true },
     });
 
     if (!task) {
-      return NextResponse.json(
-        { error: 'Task not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, error: 'Task not found' }, { status: 404 });
     }
 
-    // Get current stage
     const currentStage = await prisma.taskStage.findFirst({
       where: { taskId },
       orderBy: { createdAt: 'desc' },
       select: { stage: true },
     });
 
-    // Don't create duplicate stage entries if stage hasn't changed
-    // BUT: Allow the request to succeed (idempotent) rather than returning an error
-    // This prevents issues when the UI cache is out of sync with the database
-    if (currentStage && currentStage.stage === stage) {
+    if (currentStage && currentStage.stage === data.stage) {
       return NextResponse.json(successResponse({
         stage: currentStage,
         message: 'Task already in this stage',
       }));
     }
 
-    // Create new stage entry
     const newStage = await prisma.taskStage.create({
-      data: {
-        taskId,
-        stage,
-        movedBy: user.id,
-        notes: sanitizedNotes,
-      },
-      select: {
-        id: true,
-        stage: true,
-        movedBy: true,
-        notes: true,
-        createdAt: true,
-      },
+      data: { taskId, stage: data.stage, movedBy: user.id, notes: sanitizedNotes },
+      select: { id: true, stage: true, movedBy: true, notes: true, createdAt: true },
     });
 
-    // Invalidate caches
     await cache.invalidate(`${CACHE_PREFIXES.TASK}stage:${taskId}`);
     await cache.invalidate(`${CACHE_PREFIXES.TASK}detail:${taskId}`);
     await invalidateTaskListCache(taskId);
-    
-    // Invalidate ALL Kanban board caches since task moved between stages
-    // The invalidate method uses pattern matching, so this will match all keys containing "kanban"
     await cache.invalidate(`${CACHE_PREFIXES.TASK}kanban`);
 
     return NextResponse.json(successResponse({
       stage: newStage,
       message: 'Task stage updated successfully',
     }));
-  } catch (error) {
-    return handleApiError(error, 'Update Task Stage');
-  }
-}
-
-
-
+  },
+});

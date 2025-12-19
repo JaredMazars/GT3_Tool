@@ -1,8 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { parseTaskId, successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
-import { getCurrentUser } from '@/lib/services/auth/auth';
 import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { toTaskId } from '@/types/branded';
 import { Prisma } from '@prisma/client';
@@ -10,29 +8,18 @@ import { sanitizeText } from '@/lib/utils/sanitization';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { invalidateClientCache } from '@/lib/services/clients/clientCache';
 import { invalidateTaskListCache } from '@/lib/services/cache/listCache';
+import { secureRoute } from '@/lib/api/secureRoute';
 
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    // Require authentication
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    // Ensure context and params exist
-    if (!context || !context.params) {
-      throw new Error('Invalid route context');
-    }
-    
-    const params = await context.params;
-    
-    // Handle "new" route - this is not a valid task ID
+/**
+ * GET /api/tasks/[id]
+ * Get task by ID with optional team members
+ */
+export const GET = secureRoute.queryWithParams({
+  handler: async (request, { user, params }) => {
+    // Handle "new" route
     if (params?.id === 'new') {
       return NextResponse.json(
-        { error: 'Invalid route - use POST /api/tasks to create a new task' },
+        { success: false, error: 'Invalid route - use POST /api/tasks to create a new task' },
         { status: 404 }
       );
     }
@@ -42,14 +29,14 @@ export async function GET(
     // Check task access (any role can view)
     const hasAccess = await checkTaskAccess(user.id, taskId);
     if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
     }
 
     // Check if team members should be included
     const { searchParams } = new URL(request.url);
     const includeTeam = searchParams.get('includeTeam') === 'true';
 
-    // Try to get cached task data (cache key includes user ID for role)
+    // Try to get cached task data
     const cacheKey = `${CACHE_PREFIXES.TASK}detail:${taskId}:${includeTeam}:user:${user.id}`;
     const cached = await cache.get(cacheKey);
     if (cached) {
@@ -119,7 +106,6 @@ export async function GET(
             TaxAdjustment: true,
           },
         },
-        // Always include current user's role, plus all team members if requested
         TaskTeam: includeTeam ? {
           select: {
             id: true,
@@ -135,23 +121,15 @@ export async function GET(
             },
           },
         } : {
-          where: {
-            userId: user.id,
-          },
-          select: {
-            userId: true,
-            role: true,
-          },
+          where: { userId: user.id },
+          select: { userId: true, role: true },
           take: 1,
         },
       },
     });
 
     if (!task) {
-      return NextResponse.json(
-        { error: 'Task not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, error: 'Task not found' }, { status: 404 });
     }
 
     // Get service line mapping for URL construction
@@ -159,28 +137,24 @@ export async function GET(
     if (task.ServLineCode) {
       serviceLineMapping = await prisma.serviceLineExternal.findFirst({
         where: { ServLineCode: task.ServLineCode },
-        select: {
-          SubServlineGroupCode: true,
-          masterCode: true,
-        },
+        select: { SubServlineGroupCode: true, masterCode: true },
       });
     }
 
     // Transform data to match expected format
     const { Client, TaskAcceptance, TaskEngagementLetter, TaskTeam, ...taskData } = task;
     
-    // Extract current user's role from team
     const currentUserRole = TaskTeam && Array.isArray(TaskTeam) && TaskTeam.length > 0
-      ? TaskTeam.find((member: any) => member.userId === user.id)?.role || null
+      ? TaskTeam.find((member: { userId: string }) => member.userId === user.id)?.role || null
       : null;
     
     const transformedTask = {
       ...taskData,
       name: task.TaskDesc,
       description: task.TaskDesc,
-      client: Client, // Transform Client → client for consistency
+      client: Client,
       serviceLine: task.ServLineCode,
-      projectType: 'TAX_CALCULATION', // Default based on service line
+      projectType: 'TAX_CALCULATION',
       taxYear: null,
       taxPeriodStart: null,
       taxPeriodEnd: null,
@@ -188,11 +162,9 @@ export async function GET(
       submissionDeadline: null,
       status: task.Active === 'Yes' ? 'ACTIVE' : 'INACTIVE',
       archived: task.Active !== 'Yes',
-      // Flatten acceptance data
       acceptanceApproved: TaskAcceptance?.acceptanceApproved || false,
       acceptanceApprovedBy: TaskAcceptance?.approvedBy || null,
       acceptanceApprovedAt: TaskAcceptance?.approvedAt || null,
-      // Flatten engagement letter data
       engagementLetterGenerated: TaskEngagementLetter?.generated || false,
       engagementLetterContent: TaskEngagementLetter?.content || null,
       engagementLetterTemplateId: TaskEngagementLetter?.templateId || null,
@@ -206,9 +178,8 @@ export async function GET(
         mappings: task._count.MappedAccount,
         taxAdjustments: task._count.TaxAdjustment,
       },
-      currentUserRole, // Include current user's role for permission checks
-      currentUserId: user.id, // Include current user ID for easy access
-      // Include service line mapping for URL construction
+      currentUserRole,
+      currentUserId: user.id,
       subServiceLineGroupCode: serviceLineMapping?.SubServlineGroupCode || null,
       masterServiceLine: serviceLineMapping?.masterCode || null,
       ...(includeTeam && { users: TaskTeam }),
@@ -218,33 +189,18 @@ export async function GET(
     await cache.set(cacheKey, transformedTask, 300);
 
     return NextResponse.json(successResponse(transformedTask));
-  } catch (error) {
-    return handleApiError(error, 'Get Task');
-  }
-}
+  },
+});
 
-export async function PUT(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    // Require authentication
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    // Ensure context and params exist
-    if (!context || !context.params) {
-      throw new Error('Invalid route context');
-    }
-    
-    const params = await context.params;
-    
-    // Handle "new" route
+/**
+ * PUT /api/tasks/[id]
+ * Update a task
+ */
+export const PUT = secureRoute.mutationWithParams({
+  handler: async (request, { user, params }) => {
     if (params?.id === 'new') {
       return NextResponse.json(
-        { error: 'Invalid route - use POST /api/tasks to create a new task' },
+        { success: false, error: 'Invalid route - use POST /api/tasks to create a new task' },
         { status: 404 }
       );
     }
@@ -254,7 +210,7 @@ export async function PUT(
     // Check task access (requires EDITOR role or higher)
     const hasAccess = await checkTaskAccess(user.id, taskId, 'EDITOR');
     if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
     }
 
     const body = await request.json();
@@ -265,10 +221,7 @@ export async function PUT(
     if (body.name !== undefined) {
       const sanitizedName = sanitizeText(body.name, { maxLength: 200 });
       if (!sanitizedName) {
-        return NextResponse.json(
-          { error: 'Task name is required' },
-          { status: 400 }
-        );
+        return NextResponse.json({ success: false, error: 'Task name is required' }, { status: 400 });
       }
       updateData.TaskDesc = sanitizedName;
     }
@@ -284,10 +237,6 @@ export async function PUT(
       }
     }
     
-    // Note: Task model doesn't have these fields, they should be in TaskAcceptance or TaskEngagementLetter
-    // For now, we'll just acknowledge them but not update
-    
-    // Update client association via clientCode or GSClientID
     if (body.clientCode !== undefined) {
       if (body.clientCode !== null) {
         const client = await prisma.client.findUnique({
@@ -312,10 +261,7 @@ export async function PUT(
         TaskAcceptance: true,
         TaskEngagementLetter: true,
         _count: {
-          select: {
-            MappedAccount: true,
-            TaxAdjustment: true,
-          },
+          select: { MappedAccount: true, TaxAdjustment: true },
         },
       },
     });
@@ -324,12 +270,11 @@ export async function PUT(
     await cache.invalidate(`${CACHE_PREFIXES.TASK}detail:${taskId}`);
     await invalidateTaskListCache(Number(taskId));
     
-    // Invalidate client cache if client association changed
     if (task.GSClientID) {
       await invalidateClientCache(task.GSClientID);
     }
 
-    // Transform data to match expected format
+    // Transform data
     const { Client, TaskAcceptance, TaskEngagementLetter, ...taskData } = task;
     const transformedTask = {
       ...taskData,
@@ -364,33 +309,18 @@ export async function PUT(
     };
 
     return NextResponse.json(successResponse(transformedTask));
-  } catch (error) {
-    return handleApiError(error, 'Update Task');
-  }
-}
+  },
+});
 
-export async function PATCH(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    // Require authentication
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    // Ensure context and params exist
-    if (!context || !context.params) {
-      throw new Error('Invalid route context');
-    }
-    
-    const params = await context.params;
-    
-    // Handle "new" route
+/**
+ * PATCH /api/tasks/[id]
+ * Process task actions (e.g., restore archived task)
+ */
+export const PATCH = secureRoute.mutationWithParams({
+  handler: async (request, { user, params }) => {
     if (params?.id === 'new') {
       return NextResponse.json(
-        { error: 'Invalid route - use POST /api/tasks to create a new task' },
+        { success: false, error: 'Invalid route - use POST /api/tasks to create a new task' },
         { status: 404 }
       );
     }
@@ -400,63 +330,40 @@ export async function PATCH(
     // Check task access (requires ADMIN role)
     const hasAccess = await checkTaskAccess(user.id, taskId, 'ADMIN');
     if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
     }
 
     const body = await request.json();
     const { action } = body;
 
     if (action === 'restore') {
-      // Restore archived task to active status
       const task = await prisma.task.update({
         where: { id: taskId },
         data: { Active: 'Yes' },
       });
 
-      // Invalidate cache after restore
       await cache.invalidate(`${CACHE_PREFIXES.TASK}detail:${taskId}`);
       await invalidateTaskListCache(Number(taskId));
       if (task.GSClientID) {
         await invalidateClientCache(task.GSClientID);
       }
 
-      return NextResponse.json(successResponse({ 
-        message: 'Task restored successfully',
-        task 
-      }));
+      return NextResponse.json(successResponse({ message: 'Task restored successfully', task }));
     }
 
-    return NextResponse.json(
-      { error: 'Invalid action' },
-      { status: 400 }
-    );
-  } catch (error) {
-    return handleApiError(error, 'Process Task Action');
-  }
-}
+    return NextResponse.json({ success: false, error: 'Invalid action' }, { status: 400 });
+  },
+});
 
-export async function DELETE(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    // Require authentication
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    // Ensure context and params exist
-    if (!context || !context.params) {
-      throw new Error('Invalid route context');
-    }
-    
-    const params = await context.params;
-    
-    // Handle "new" route
+/**
+ * DELETE /api/tasks/[id]
+ * Archive a task
+ */
+export const DELETE = secureRoute.mutationWithParams({
+  handler: async (request, { user, params }) => {
     if (params?.id === 'new') {
       return NextResponse.json(
-        { error: 'Invalid route - use POST /api/tasks to create a new task' },
+        { success: false, error: 'Invalid route - use POST /api/tasks to create a new task' },
         { status: 404 }
       );
     }
@@ -466,7 +373,7 @@ export async function DELETE(
     // Check task access (requires ADMIN role)
     const hasAccess = await checkTaskAccess(user.id, taskId, 'ADMIN');
     if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
     }
 
     // Archive the task instead of deleting
@@ -475,18 +382,12 @@ export async function DELETE(
       data: { Active: 'No' },
     });
 
-    // Invalidate cache after archive
     await cache.invalidate(`${CACHE_PREFIXES.TASK}detail:${taskId}`);
     await invalidateTaskListCache(Number(taskId));
     if (task.GSClientID) {
       await invalidateClientCache(task.GSClientID);
     }
 
-    return NextResponse.json(successResponse({ 
-      message: 'Task archived successfully',
-      task 
-    }));
-  } catch (error) {
-    return handleApiError(error, 'Archive Task');
-  }
-} 
+    return NextResponse.json(successResponse({ message: 'Task archived successfully', task }));
+  },
+});

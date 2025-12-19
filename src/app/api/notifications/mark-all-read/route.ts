@@ -1,20 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { NextResponse } from 'next/server';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { getCurrentUser } from '@/lib/services/auth/auth';
 import { notificationService } from '@/lib/services/notifications/notificationService';
+import { secureRoute } from '@/lib/api/secureRoute';
 
 /**
  * POST /api/notifications/mark-all-read
  * Mark all notifications as read (optionally filtered by project)
  */
-export async function POST(request: NextRequest) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+export const POST = secureRoute.mutation({
+  handler: async (request, { user }) => {
     let taskId: number | undefined;
 
     try {
@@ -32,9 +26,5 @@ export async function POST(request: NextRequest) {
         updatedCount,
       })
     );
-  } catch (error) {
-    return handleApiError(error, 'POST /api/notifications/mark-all-read');
-  }
-}
-
-
+  },
+});

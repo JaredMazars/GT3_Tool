@@ -1,33 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { checkFeature } from '@/lib/permissions/checkFeature';
-import { Feature } from '@/lib/permissions/features';
+import { NextResponse } from 'next/server';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { getAllExternalServiceLines } from '@/lib/utils/serviceLineExternal';
 import { getAllServiceLines } from '@/lib/utils/serviceLine';
 
-export async function GET(_request: NextRequest) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // 2. Check permission
-    const hasPermission = await checkFeature(user.id, Feature.MANAGE_SERVICE_LINES);
-    if (!hasPermission) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    // 3. Fetch external service lines
+/**
+ * GET /api/admin/service-line-mapping
+ * Get all external service lines with their master service line mappings
+ */
+export const GET = secureRoute.query({
+  feature: Feature.MANAGE_SERVICE_LINES,
+  handler: async (request, { user }) => {
     const externalServiceLines = await getAllExternalServiceLines();
-
-    // 4. Fetch master service lines for reference
     const masterServiceLines = await getAllServiceLines();
 
-    // 5. Enrich external service lines with master details
     const enrichedData = externalServiceLines.map((external) => {
       const master = external.masterCode
         ? masterServiceLines.find((m) => m.code === external.masterCode)
@@ -45,18 +31,5 @@ export async function GET(_request: NextRequest) {
         masterServiceLines,
       })
     );
-  } catch (error) {
-    return handleApiError(error, 'GET /api/admin/service-line-mapping');
-  }
-}
-
-
-
-
-
-
-
-
-
-
-
+  },
+});

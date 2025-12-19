@@ -4,20 +4,19 @@
  * POST /api/bd/contacts - Create new contact
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+import { NextResponse } from 'next/server';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { CreateBDContactSchema } from '@/lib/validation/schemas';
 import { prisma } from '@/lib/db/prisma';
 
-export async function GET(request: NextRequest) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+/**
+ * GET /api/bd/contacts
+ * List contacts with search and pagination
+ */
+export const GET = secureRoute.query({
+  feature: Feature.ACCESS_BD,
+  handler: async (request, { user }) => {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
     const page = Number.parseInt(searchParams.get('page') || '1');
@@ -53,33 +52,25 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(total / pageSize),
       })
     );
-  } catch (error) {
-    return handleApiError(error, 'GET /api/bd/contacts');
-  }
-}
+  },
+});
 
-export async function POST(request: NextRequest) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const validated = CreateBDContactSchema.parse(body);
-
+/**
+ * POST /api/bd/contacts
+ * Create new contact
+ */
+export const POST = secureRoute.mutation({
+  feature: Feature.ACCESS_BD,
+  schema: CreateBDContactSchema,
+  handler: async (request, { user, data }) => {
     const contact = await prisma.bDContact.create({
       data: {
-        ...validated,
+        ...data,
         createdBy: user.id,
         updatedAt: new Date(),
       },
     });
 
     return NextResponse.json(successResponse(contact), { status: 201 });
-  } catch (error) {
-    return handleApiError(error, 'POST /api/bd/contacts');
-  }
-}
-
-
+  },
+});

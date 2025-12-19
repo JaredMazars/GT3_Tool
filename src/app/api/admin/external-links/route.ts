@@ -6,20 +6,20 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { checkFeature } from '@/lib/permissions/checkFeature';
-import { Feature } from '@/lib/permissions/features';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { CreateExternalLinkSchema } from '@/lib/validation/schemas';
-import { sanitizeObject } from '@/lib/utils/sanitization';
 
-export async function GET(request: NextRequest) {
-  try {
+/**
+ * GET /api/admin/external-links
+ * List external links - public for activeOnly, admin for all
+ */
+export const GET = secureRoute.query({
+  handler: async (request, { user }) => {
     const { searchParams } = new URL(request.url);
     const activeOnly = searchParams.get('activeOnly') === 'true';
 
-    // If fetching active links only, no auth required (public to all logged-in users)
+    // If fetching active links only, return public links
     if (activeOnly) {
       const links = await prisma.externalLink.findMany({
         where: { active: true },
@@ -36,22 +36,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(successResponse(links));
     }
 
-    // For all links (including inactive), require authentication and admin access
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Check feature permission
-    const hasAccess = await checkFeature(user.id, Feature.MANAGE_EXTERNAL_LINKS);
-    if (!hasAccess) {
-      return NextResponse.json(
-        { error: 'You do not have permission to manage external links' },
-        { status: 403 }
-      );
-    }
-
-    // Fetch all links
+    // For all links (including inactive), fetch all
     const links = await prisma.externalLink.findMany({
       orderBy: { name: 'asc' },
       select: {
@@ -67,41 +52,24 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json(successResponse(links));
-  } catch (error) {
-    return handleApiError(error, 'GET /api/admin/external-links');
-  }
-}
+  },
+});
 
-export async function POST(request: NextRequest) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // 2. Check feature permission
-    const hasAccess = await checkFeature(user.id, Feature.MANAGE_EXTERNAL_LINKS);
-    if (!hasAccess) {
-      return NextResponse.json(
-        { error: 'You do not have permission to manage external links' },
-        { status: 403 }
-      );
-    }
-
-    // 3. Parse and validate input
-    const body = await request.json();
-    const sanitized = sanitizeObject(body);
-    const validated = CreateExternalLinkSchema.parse(sanitized);
-
-    // 4. Create link
+/**
+ * POST /api/admin/external-links
+ * Create new external link (admin only)
+ */
+export const POST = secureRoute.mutation({
+  feature: Feature.MANAGE_EXTERNAL_LINKS,
+  schema: CreateExternalLinkSchema,
+  handler: async (request, { user, data }) => {
     const link = await prisma.externalLink.create({
       data: {
-        name: validated.name,
-        url: validated.url,
-        icon: validated.icon,
-        active: validated.active ?? true,
-        sortOrder: validated.sortOrder ?? 0,
+        name: data.name,
+        url: data.url,
+        icon: data.icon,
+        active: data.active ?? true,
+        sortOrder: data.sortOrder ?? 0,
         updatedAt: new Date(),
       },
       select: {
@@ -117,21 +85,5 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(successResponse(link), { status: 201 });
-  } catch (error) {
-    return handleApiError(error, 'POST /api/admin/external-links');
-  }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  },
+});

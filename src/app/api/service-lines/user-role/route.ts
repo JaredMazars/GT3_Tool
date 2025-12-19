@@ -1,53 +1,35 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+import { NextResponse } from 'next/server';
 import { getUserServiceLineRole } from '@/lib/services/service-lines/getUserServiceLineRole';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
 import { prisma } from '@/lib/db/prisma';
+import { secureRoute } from '@/lib/api/secureRoute';
 
 /**
  * GET /api/service-lines/user-role
  * Get user's service line role for a specific sub-service line group
- * Handles both direct User IDs and employee-{id} format
  */
-export async function GET(request: NextRequest) {
-  try {
-    // Authenticate
-    const currentUser = await getCurrentUser();
-    if (!currentUser?.id) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
+export const GET = secureRoute.query({
+  handler: async (request, { user }) => {
     const searchParams = request.nextUrl.searchParams;
     let userId = searchParams.get('userId');
     const subServiceLineGroup = searchParams.get('subServiceLineGroup');
 
     if (!userId || !subServiceLineGroup) {
-      return NextResponse.json(
-        { success: false, error: 'userId and subServiceLineGroup are required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: 'userId and subServiceLineGroup are required' }, { status: 400 });
     }
 
-    // Handle employee-{id} format - look up the User account
+    // Handle employee-{id} format
     if (userId.startsWith('employee-')) {
       const idPart = userId.split('-')[1];
       const employeeId = idPart ? parseInt(idPart) : NaN;
       
       if (!isNaN(employeeId)) {
-        // Look up employee and find their User account
         const employee = await prisma.employee.findUnique({
           where: { id: employeeId },
-          select: {
-            WinLogon: true,
-          },
+          select: { WinLogon: true },
         });
         
         if (employee?.WinLogon) {
-          // Try to find existing user by email
           const existingUser = await prisma.user.findFirst({
             where: {
               OR: [
@@ -55,30 +37,26 @@ export async function GET(request: NextRequest) {
                 { email: { startsWith: employee.WinLogon.split('@')[0] } },
               ],
             },
-            select: {
-              id: true,
-            },
+            select: { id: true },
           });
           
           if (existingUser) {
             userId = existingUser.id;
           } else {
-            // Employee has no User account yet - default to USER
             return NextResponse.json(
               successResponse({
                 role: 'USER',
-                userId: userId, // Return original employee-{id}
+                userId: userId,
                 subServiceLineGroup,
                 note: 'Employee has no User account - defaulting to USER',
               })
             );
           }
         } else {
-          // Employee has no WinLogon - default to USER
           return NextResponse.json(
             successResponse({
               role: 'USER',
-              userId: userId, // Return original employee-{id}
+              userId: userId,
               subServiceLineGroup,
               note: 'Employee has no email - defaulting to USER',
             })
@@ -91,12 +69,10 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(
       successResponse({
-        role: role || 'USER', // Default to USER if no role found
+        role: role || 'USER',
         userId,
         subServiceLineGroup,
       })
     );
-  } catch (error) {
-    return handleApiError(error, 'Error fetching user service line role');
-  }
-}
+  },
+});

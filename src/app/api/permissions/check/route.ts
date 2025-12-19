@@ -3,25 +3,22 @@
  * Checks if current user has specific feature(s)
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+import { NextResponse } from 'next/server';
 import { checkFeature, checkAnyFeature, checkAllFeatures } from '@/lib/permissions/checkFeature';
 import { Feature } from '@/lib/permissions/features';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { secureRoute } from '@/lib/api/secureRoute';
 
-export async function GET(request: NextRequest) {
-  try {
-    // Require authentication
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+/**
+ * GET /api/permissions/check
+ * Check if user has specific permission(s)
+ */
+export const GET = secureRoute.query({
+  handler: async (request, { user }) => {
     const { searchParams } = new URL(request.url);
     const feature = searchParams.get('feature');
     const featuresParam = searchParams.get('features');
-    const mode = searchParams.get('mode') || 'any'; // 'any' or 'all'
+    const mode = searchParams.get('mode') || 'any';
     const serviceLine = searchParams.get('serviceLine') || undefined;
 
     // Single feature check
@@ -42,11 +39,6 @@ export async function GET(request: NextRequest) {
     }
 
     // No feature specified
-    return NextResponse.json(
-      { error: 'Missing feature or features parameter' },
-      { status: 400 }
-    );
-  } catch (error) {
-    return handleApiError(error, 'Permission check failed');
-  }
-}
+    return NextResponse.json({ success: false, error: 'Missing feature or features parameter' }, { status: 400 });
+  },
+});

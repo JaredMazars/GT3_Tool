@@ -1,48 +1,35 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { UpdateClientSchema, GSClientIDSchema } from '@/lib/validation/schemas';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { getCurrentUser } from '@/lib/services/auth/auth';
 import { z } from 'zod';
-import { getExternalServiceLinesByMaster } from '@/lib/utils/serviceLineExternal';
-import { getTaskCountsByServiceLine, getTotalTaskCount } from '@/lib/services/tasks/taskAggregation';
+import { getTaskCountsByServiceLine } from '@/lib/services/tasks/taskAggregation';
 import { getCachedClient, setCachedClient, invalidateClientCache } from '@/lib/services/clients/clientCache';
 import { invalidateClientListCache } from '@/lib/services/cache/listCache';
 import { enrichRecordsWithEmployeeNames } from '@/lib/services/employees/employeeQueries';
+import { calculateWIPByTask, calculateWIPBalances } from '@/lib/services/clients/clientBalanceCalculation';
+import { secureRoute } from '@/lib/api/secureRoute';
 
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    // Require authentication
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    const params = await context.params;
+/**
+ * GET /api/clients/[id]
+ * Get client details with tasks and balances
+ */
+export const GET = secureRoute.queryWithParams<{ id: string }>({
+  handler: async (request, { user, params }) => {
     const GSClientID = params.id;
 
-    // Validate GSClientID is a valid GUID
     const validationResult = GSClientIDSchema.safeParse(GSClientID);
     if (!validationResult.success) {
-      return NextResponse.json(
-        { error: 'Invalid client ID format. Expected GUID.' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: 'Invalid client ID format. Expected GUID.' }, { status: 400 });
     }
 
     const { searchParams } = new URL(request.url);
-    
-    // Pagination params for tasks
     const taskPage = Number.parseInt(searchParams.get('taskPage') || '1');
     const taskLimit = Math.min(Number.parseInt(searchParams.get('taskLimit') || '20'), 50);
     const serviceLine = searchParams.get('serviceLine') || undefined;
     const includeArchived = searchParams.get('includeArchived') === 'true';
     
-    // Try to get cached client data
     const cached = await getCachedClient(GSClientID, serviceLine, includeArchived);
     if (cached) {
       return NextResponse.json(successResponse(cached));
@@ -50,65 +37,32 @@ export async function GET(
     
     const taskSkip = (taskPage - 1) * taskLimit;
 
-    // Note: serviceLine parameter kept for backwards compatibility but not used for filtering
-    // All tasks are returned and filtering is done on the frontend based on SLGroup
-
-    // Build task where clause using GSClientID
     interface TaskWhereClause {
       GSClientID: string;
       Active?: string;
     }
     
-    // Get the client
     const client = await prisma.client.findUnique({
       where: { GSClientID: GSClientID },
       select: {
-        id: true,
-        GSClientID: true,
-        clientCode: true,
-        clientNameFull: true,
-        groupCode: true,
-        groupDesc: true,
-        clientPartner: true,
-        clientManager: true,
-        clientIncharge: true,
-        active: true,
-        clientDateOpen: true,
-        clientDateTerminate: true,
-        industry: true,
-        sector: true,
-        forvisMazarsIndustry: true,
-        forvisMazarsSector: true,
-        forvisMazarsSubsector: true,
-        clientOCFlag: true,
-        clientTaxFlag: true,
-        clientSecFlag: true,
-        creditor: true,
-        rolePlayer: true,
-        typeCode: true,
-        typeDesc: true,
-        createdAt: true,
-        updatedAt: true,
+        id: true, GSClientID: true, clientCode: true, clientNameFull: true,
+        groupCode: true, groupDesc: true, clientPartner: true, clientManager: true,
+        clientIncharge: true, active: true, clientDateOpen: true, clientDateTerminate: true,
+        industry: true, sector: true, forvisMazarsIndustry: true, forvisMazarsSector: true,
+        forvisMazarsSubsector: true, clientOCFlag: true, clientTaxFlag: true, clientSecFlag: true,
+        creditor: true, rolePlayer: true, typeCode: true, typeDesc: true, createdAt: true, updatedAt: true,
       },
     });
 
     if (!client) {
-      return NextResponse.json(
-        { error: 'Client not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, error: 'Client not found' }, { status: 404 });
     }
 
-    // Build task where clause using GSClientID
-    const taskWhere: TaskWhereClause = {
-      GSClientID: client.GSClientID,  // Use external GUID for query
-    };
-    
+    const taskWhere: TaskWhereClause = { GSClientID: client.GSClientID };
     if (!includeArchived) {
       taskWhere.Active = 'Yes';
     }
 
-    // Get tasks for this client and task counts in parallel
     const [tasks, totalTasks, taskCountsByServiceLine] = await Promise.all([
       prisma.task.findMany({
         where: taskWhere,
@@ -116,40 +70,19 @@ export async function GET(
         skip: taskSkip,
         take: taskLimit,
         select: {
-          id: true,
-          TaskDesc: true,
-          TaskCode: true,
-          Active: true,
-          createdAt: true,
-          updatedAt: true,
-          ServLineCode: true, // Include to derive serviceLine
-          SLGroup: true, // Include for sub-service line group filtering
-          GSTaskID: true,
-          TaskDateOpen: true,
-          TaskDateTerminate: true,
-          TaskPartner: true,
-          TaskPartnerName: true,
-          TaskManager: true,
-          TaskManagerName: true,
-          _count: {
-            select: {
-              MappedAccount: true,
-              TaxAdjustment: true,
-            },
-          },
+          id: true, TaskDesc: true, TaskCode: true, Active: true, createdAt: true,
+          updatedAt: true, ServLineCode: true, SLGroup: true, GSTaskID: true,
+          TaskDateOpen: true, TaskDateTerminate: true, TaskPartner: true, TaskPartnerName: true,
+          TaskManager: true, TaskManagerName: true,
+          _count: { select: { MappedAccount: true, TaxAdjustment: true } },
         },
       }),
-      prisma.task.count({
-        where: taskWhere,
-      }),
-      // OPTIMIZED: Single aggregated query instead of 9 separate counts
+      prisma.task.count({ where: taskWhere }),
       getTaskCountsByServiceLine(client.GSClientID, includeArchived),
     ]);
 
-    // Calculate total across all service lines
     const totalAcrossAllServiceLines = Object.values(taskCountsByServiceLine).reduce((sum, count) => sum + count, 0);
 
-    // Get mapping from ServLineCode to masterCode and SubServlineGroupCode
     const allServLineCodes = tasks.map(t => t.ServLineCode);
     const serviceLineMapping: Record<string, string> = {};
     const servLineToSubGroupMapping: Record<string, string> = {};
@@ -159,37 +92,19 @@ export async function GET(
     if (allServLineCodes.length > 0) {
       const mappings = await prisma.serviceLineExternal.findMany({
         where: { ServLineCode: { in: allServLineCodes } },
-        select: { 
-          ServLineCode: true, 
-          ServLineDesc: true,
-          masterCode: true, 
-          SubServlineGroupCode: true, 
-          SubServlineGroupDesc: true,
-          SLGroup: true 
-        },
+        select: { ServLineCode: true, ServLineDesc: true, masterCode: true, SubServlineGroupCode: true, SubServlineGroupDesc: true, SLGroup: true },
       });
       mappings.forEach(m => {
         if (m.ServLineCode) {
-          if (m.masterCode) {
-            serviceLineMapping[m.ServLineCode] = m.masterCode;
-          }
-          if (m.ServLineDesc) {
-            servLineDescMapping[m.ServLineCode] = m.ServLineDesc;
-          }
-          // Priority: SubServlineGroupCode, fallback to SLGroup from the mapping table
-          if (m.SubServlineGroupCode) {
-            servLineToSubGroupMapping[m.ServLineCode] = m.SubServlineGroupCode;
-          } else if (m.SLGroup) {
-            servLineToSubGroupMapping[m.ServLineCode] = m.SLGroup;
-          }
-          if (m.SubServlineGroupDesc) {
-            subGroupDescMapping[m.ServLineCode] = m.SubServlineGroupDesc;
-          }
+          if (m.masterCode) serviceLineMapping[m.ServLineCode] = m.masterCode;
+          if (m.ServLineDesc) servLineDescMapping[m.ServLineCode] = m.ServLineDesc;
+          if (m.SubServlineGroupCode) servLineToSubGroupMapping[m.ServLineCode] = m.SubServlineGroupCode;
+          else if (m.SLGroup) servLineToSubGroupMapping[m.ServLineCode] = m.SLGroup;
+          if (m.SubServlineGroupDesc) subGroupDescMapping[m.ServLineCode] = m.SubServlineGroupDesc;
         }
       });
     }
     
-    // Fetch ServiceLineMaster records to get master service line descriptions
     const masterCodes = Array.from(new Set(Object.values(serviceLineMapping).filter(Boolean)));
     const masterServiceLineDescMapping: Record<string, string> = {};
     
@@ -199,34 +114,18 @@ export async function GET(
         select: { code: true, description: true },
       });
       masterServiceLines.forEach(m => {
-        if (m.description) {
-          masterServiceLineDescMapping[m.code] = m.description;
-        }
+        if (m.description) masterServiceLineDescMapping[m.code] = m.description;
       });
     }
 
-    // Fetch WIP data from WIPTransactions table (NOT from Wip table)
     const taskGSTaskIDs = tasks.map(t => t.GSTaskID);
     const wipTransactions = taskGSTaskIDs.length > 0 ? await prisma.wIPTransactions.findMany({
-      where: {
-        OR: [
-          { GSClientID: client.GSClientID },
-          { GSTaskID: { in: taskGSTaskIDs } },
-        ],
-      },
-      select: {
-        GSTaskID: true,
-        Amount: true,
-        TType: true,
-        TranType: true,
-      },
+      where: { OR: [{ GSClientID: client.GSClientID }, { GSTaskID: { in: taskGSTaskIDs } }] },
+      select: { GSTaskID: true, Amount: true, TType: true, TranType: true },
     }) : [];
 
-    // Calculate WIP balances by task using transaction data
-    const { calculateWIPByTask } = await import('@/lib/services/clients/clientBalanceCalculation');
     const wipByTask = calculateWIPByTask(wipTransactions);
 
-    // Add masterServiceLine, subServiceLineGroupCode, descriptions, and WIP data to each task
     const tasksWithMasterServiceLine = tasks.map(task => {
       const masterCode = serviceLineMapping[task.ServLineCode] || null;
       const taskWip = wipByTask.get(task.GSTaskID);
@@ -238,34 +137,18 @@ export async function GET(
         subServiceLineGroupCode: servLineToSubGroupMapping[task.ServLineCode] || task.SLGroup,
         subServiceLineGroupDesc: subGroupDescMapping[task.ServLineCode] || null,
         ServLineDesc: servLineDescMapping[task.ServLineCode] || null,
-        wip: taskWip || { 
-          balWIP: 0, 
-          balTime: 0, 
-          balDisb: 0,
-          netWip: 0,
-          grossWip: 0,
-          time: 0,
-          timeAdjustments: 0,
-          disbursements: 0,
-          disbursementAdjustments: 0,
-          fees: 0,
-          provision: 0,
-        },
+        wip: taskWip || { balWIP: 0, balTime: 0, balDisb: 0, netWip: 0, grossWip: 0, time: 0, timeAdjustments: 0, disbursements: 0, disbursementAdjustments: 0, fees: 0, provision: 0 },
       };
     });
 
-    // Enrich client with employee names
     const [enrichedClient] = await enrichRecordsWithEmployeeNames([client], [
       { codeField: 'clientPartner', nameField: 'clientPartnerName' },
       { codeField: 'clientManager', nameField: 'clientManagerName' },
       { codeField: 'clientIncharge', nameField: 'clientInchargeName' },
     ]);
 
-    // Calculate client-level balances from transaction tables
-    const { calculateWIPBalances } = await import('@/lib/services/clients/clientBalanceCalculation');
     const clientWipBalances = calculateWIPBalances(wipTransactions);
 
-    // Fetch debtor balance from DrsTransactions
     const debtorAggregation = await prisma.drsTransactions.aggregate({
       where: { GSClientID: client.GSClientID },
       _sum: { Total: true },
@@ -274,184 +157,84 @@ export async function GET(
     const responseData = {
       ...enrichedClient,
       tasks: tasksWithMasterServiceLine,
-      balances: {
-        ...clientWipBalances,
-        debtorBalance: debtorAggregation._sum.Total || 0,
-      },
-      _count: {
-        Task: totalAcrossAllServiceLines, // Total across all service lines (not filtered by active tab)
-      },
-      taskPagination: {
-        page: taskPage,
-        limit: taskLimit,
-        total: totalTasks, // Filtered count for pagination
-        totalPages: Math.ceil(totalTasks / taskLimit),
-      },
+      balances: { ...clientWipBalances, debtorBalance: debtorAggregation._sum.Total || 0 },
+      _count: { Task: totalAcrossAllServiceLines },
+      taskPagination: { page: taskPage, limit: taskLimit, total: totalTasks, totalPages: Math.ceil(totalTasks / taskLimit) },
       taskCountsByServiceLine,
     };
 
-    // Cache the response
     await setCachedClient(GSClientID, responseData, serviceLine, includeArchived);
 
     return NextResponse.json(successResponse(responseData));
-  } catch (error) {
-    return handleApiError(error, 'Get Client');
-  }
-}
+  },
+});
 
-export async function PUT(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    // Require authentication
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    const params = await context.params;
+/**
+ * PUT /api/clients/[id]
+ * Update client
+ */
+export const PUT = secureRoute.mutationWithParams<typeof UpdateClientSchema, { id: string }>({
+  schema: UpdateClientSchema,
+  handler: async (request, { user, data, params }) => {
     const GSClientID = params.id;
 
-    // Validate GSClientID is a valid GUID
     const validationResult = GSClientIDSchema.safeParse(GSClientID);
     if (!validationResult.success) {
-      return NextResponse.json(
-        { error: 'Invalid client ID format. Expected GUID.' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: 'Invalid client ID format. Expected GUID.' }, { status: 400 });
     }
 
-    const body = await request.json();
-    
-    // Validate request body
-    const validatedData = UpdateClientSchema.parse(body);
-
-    // Check if client exists
-    const existingClient = await prisma.client.findUnique({
-      where: { GSClientID: GSClientID },
-    });
+    const existingClient = await prisma.client.findUnique({ where: { GSClientID: GSClientID } });
 
     if (!existingClient) {
-      return NextResponse.json(
-        { error: 'Client not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, error: 'Client not found' }, { status: 404 });
     }
 
-    // Check for duplicate client code if provided and different from current
-    if (validatedData.clientCode && validatedData.clientCode !== existingClient.clientCode) {
-      const duplicateClient = await prisma.client.findUnique({
-        where: { clientCode: validatedData.clientCode },
-      });
-
+    if (data.clientCode && data.clientCode !== existingClient.clientCode) {
+      const duplicateClient = await prisma.client.findUnique({ where: { clientCode: data.clientCode } });
       if (duplicateClient) {
-        return handleApiError(
-          new AppError(400, `Client code '${validatedData.clientCode}' is already in use`, ErrorCodes.VALIDATION_ERROR),
-          'Update Client'
-        );
+        throw new AppError(400, `Client code '${data.clientCode}' is already in use`, ErrorCodes.VALIDATION_ERROR);
       }
     }
 
-    // Update client
-    const client = await prisma.client.update({
-      where: { GSClientID: GSClientID },
-      data: validatedData,
-    });
+    const client = await prisma.client.update({ where: { GSClientID: GSClientID }, data });
 
-    // Invalidate cache after update
     await invalidateClientCache(GSClientID);
     await invalidateClientListCache(GSClientID);
 
     return NextResponse.json(successResponse(client));
-  } catch (error) {
-    // Handle Zod validation errors
-    if (error instanceof z.ZodError) {
-      const message = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
-      return handleApiError(
-        new AppError(400, message, ErrorCodes.VALIDATION_ERROR),
-        'Update Client'
-      );
-    }
-    
-    // Handle Prisma unique constraint violations
-    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
-      const meta = 'meta' in error && error.meta && typeof error.meta === 'object' ? error.meta : null;
-      const target = meta && 'target' in meta ? meta.target : null;
-      if (target && Array.isArray(target) && target.includes('clientCode')) {
-        return handleApiError(
-          new AppError(400, 'Client code is already in use', ErrorCodes.VALIDATION_ERROR),
-          'Update Client'
-        );
-      }
-    }
-    
-    return handleApiError(error, 'Update Client');
-  }
-}
+  },
+});
 
-export async function DELETE(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    // Require authentication
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    const params = await context.params;
+/**
+ * DELETE /api/clients/[id]
+ * Delete client
+ */
+export const DELETE = secureRoute.mutationWithParams<z.ZodAny, { id: string }>({
+  handler: async (request, { user, params }) => {
     const GSClientID = params.id;
 
-    // Validate GSClientID is a valid GUID
     const validationResult = GSClientIDSchema.safeParse(GSClientID);
     if (!validationResult.success) {
-      return NextResponse.json(
-        { error: 'Invalid client ID format. Expected GUID.' },
-        { status: 400 }
-    );
-  }
+      return NextResponse.json({ success: false, error: 'Invalid client ID format. Expected GUID.' }, { status: 400 });
+    }
 
-  // Check if client exists
     const existingClient = await prisma.client.findUnique({
       where: { GSClientID: GSClientID },
-      include: {
-        _count: {
-          select: {
-            Task: true,
-          },
-        },
-      },
+      include: { _count: { select: { Task: true } } },
     });
 
     if (!existingClient) {
-      return NextResponse.json(
-        { error: 'Client not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, error: 'Client not found' }, { status: 404 });
     }
 
-    // Check if client has tasks
     if (existingClient._count.Task > 0) {
-      return NextResponse.json(
-        { error: 'Cannot delete client with existing tasks. Please reassign or delete tasks first.' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: 'Cannot delete client with existing tasks. Please reassign or delete tasks first.' }, { status: 400 });
     }
 
-    // Delete client
-    await prisma.client.delete({
-      where: { GSClientID: GSClientID },
-    });
+    await prisma.client.delete({ where: { GSClientID: GSClientID } });
 
-    // Invalidate cache after delete
     await invalidateClientCache(GSClientID);
 
-    return NextResponse.json(
-      successResponse({ message: 'Client deleted successfully' })
-    );
-  } catch (error) {
-    return handleApiError(error, 'Delete Client');
-  }
-}
+    return NextResponse.json(successResponse({ message: 'Client deleted successfully' }));
+  },
+});

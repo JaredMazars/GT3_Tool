@@ -6,6 +6,7 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { getSubServiceLineGroupsByMaster } from '@/lib/utils/serviceLineExternal';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
+import { getUserSubServiceLineGroups } from '@/lib/services/service-lines/serviceLineService';
 
 /**
  * GET /api/service-lines/[serviceLine]/sub-groups
@@ -33,7 +34,6 @@ export async function GET(
     }
 
     // 4. Get user's accessible sub-service line groups
-    const { getUserSubServiceLineGroups } = await import('@/lib/services/service-lines/serviceLineService');
     const userSubGroups = await getUserSubServiceLineGroups(user.id);
 
     // 5. Fetch ALL SubServLineGroups with counts for this master code

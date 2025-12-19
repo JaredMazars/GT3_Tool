@@ -1,27 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
+import { secureRoute } from '@/lib/api/secureRoute';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * DEBUG ENDPOINT - Check current user's role
  */
-export async function GET(_request: NextRequest) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    }
-
+export const GET = secureRoute.query({
+  handler: async (request, { user }) => {
     const dbUser = await prisma.user.findUnique({
       where: { id: user.id },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-      },
+      select: { id: true, email: true, name: true, role: true },
     });
 
     return NextResponse.json({
@@ -32,9 +22,5 @@ export async function GET(_request: NextRequest) {
         isSystemAdmin: dbUser?.role === 'SYSTEM_ADMIN',
       },
     });
-  } catch (error) {
-    console.error('Error checking user role:', error);
-    return NextResponse.json({ error: 'Failed to check user role' }, { status: 500 });
-  }
-}
-
+  },
+});

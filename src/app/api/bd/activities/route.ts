@@ -4,23 +4,22 @@
  * POST /api/bd/activities - Create new activity
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+import { NextResponse } from 'next/server';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import {
   CreateBDActivitySchema,
   BDActivityFiltersSchema,
 } from '@/lib/validation/schemas';
 import { getActivities, createActivity } from '@/lib/services/bd/activityService';
 
-export async function GET(request: NextRequest) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+/**
+ * GET /api/bd/activities
+ * List activities with filters
+ */
+export const GET = secureRoute.query({
+  feature: Feature.ACCESS_BD,
+  handler: async (request, { user }) => {
     const { searchParams } = new URL(request.url);
 
     const filters = BDActivityFiltersSchema.parse({
@@ -30,9 +29,7 @@ export async function GET(request: NextRequest) {
       activityType: searchParams.get('activityType') || undefined,
       status: searchParams.get('status') || undefined,
       assignedTo: searchParams.get('assignedTo') || undefined,
-      fromDate: searchParams.get('fromDate')
-        ? new Date(searchParams.get('fromDate')!)
-        : undefined,
+      fromDate: searchParams.get('fromDate') ? new Date(searchParams.get('fromDate')!) : undefined,
       toDate: searchParams.get('toDate') ? new Date(searchParams.get('toDate')!) : undefined,
       page: searchParams.get('page') ? Number.parseInt(searchParams.get('page')!) : 1,
       pageSize: searchParams.get('pageSize') ? Number.parseInt(searchParams.get('pageSize')!) : 20,
@@ -49,34 +46,25 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(result.total / filters.pageSize),
       })
     );
-  } catch (error) {
-    return handleApiError(error, 'GET /api/bd/activities');
-  }
-}
+  },
+});
 
-export async function POST(request: NextRequest) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const validated = CreateBDActivitySchema.parse(body);
-
-    // Default assignedTo to current user if not provided
-    const assignedTo = validated.assignedTo || user.id;
+/**
+ * POST /api/bd/activities
+ * Create new activity
+ */
+export const POST = secureRoute.mutation({
+  feature: Feature.ACCESS_BD,
+  schema: CreateBDActivitySchema,
+  handler: async (request, { user, data }) => {
+    const assignedTo = data.assignedTo || user.id;
 
     const activity = await createActivity({
-      ...validated,
+      ...data,
       assignedTo,
       createdBy: user.id,
     });
 
     return NextResponse.json(successResponse(activity), { status: 201 });
-  } catch (error) {
-    return handleApiError(error, 'POST /api/bd/activities');
-  }
-}
-
-
+  },
+});

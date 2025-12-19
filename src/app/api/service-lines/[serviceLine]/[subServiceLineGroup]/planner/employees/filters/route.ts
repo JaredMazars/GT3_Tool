@@ -5,7 +5,7 @@ import { getUserServiceLines } from '@/lib/services/service-lines/serviceLineSer
 import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError, AppError } from '@/lib/utils/errorHandler';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
-import { mapUsersToEmployees } from '@/lib/services/employees/employeeService';
+import { mapUsersToEmployees, mapEmployeesToUsers } from '@/lib/services/employees/employeeService';
 import { NON_CLIENT_EVENT_CONFIG } from '@/types';
 
 /**
@@ -122,7 +122,6 @@ export async function GET(
     });
 
     // 8. Map employees to users to get email addresses
-    const { mapEmployeesToUsers } = await import('@/lib/services/employees/employeeService');
     const employeeUserMap = await mapEmployeesToUsers(employees);
 
     // 9. Extract unique values for filters

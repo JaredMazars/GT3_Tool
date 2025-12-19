@@ -1,47 +1,34 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { NextResponse } from 'next/server';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { getCurrentUser } from '@/lib/services/auth/auth';
 import { prisma } from '@/lib/db/prisma';
 import { searchActiveEmployees, EmployeeSearchFilters } from '@/lib/services/employees/employeeSearch';
+import { secureRoute } from '@/lib/api/secureRoute';
 
-// Force dynamic rendering (uses cookies)
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: NextRequest) {
-  try {
-    // Require authentication
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
+/**
+ * GET /api/users/search
+ * Search active employees with optional filters
+ */
+export const GET = secureRoute.query({
+  handler: async (request, { user }) => {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q') || '';
     const limit = Number.parseInt(searchParams.get('limit') || '20');
-    const taskId = searchParams.get('taskId');
     const subServiceLineGroup = searchParams.get('subServiceLineGroup');
     const jobGrade = searchParams.get('jobGrade');
     const office = searchParams.get('office');
 
-    // Validate limit
     if (limit < 1 || limit > 100) {
-      return NextResponse.json(
-        { error: 'Limit must be between 1 and 100' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: 'Limit must be between 1 and 100' }, { status: 400 });
     }
 
-    // Note: We don't exclude users already on the task because they can have multiple planning allocations
-    let excludeUserIds: string[] = [];
+    const excludeUserIds: string[] = [];
 
-    // If subServiceLineGroup is provided, map it to ServLineCode values via ServiceLineExternal
     let serviceLineCodes: string[] = [];
     if (subServiceLineGroup) {
       const mappings = await prisma.serviceLineExternal.findMany({
-        where: { 
-          SubServlineGroupCode: subServiceLineGroup
-        },
+        where: { SubServlineGroupCode: subServiceLineGroup },
         select: { ServLineCode: true }
       });
       serviceLineCodes = mappings
@@ -49,7 +36,6 @@ export async function GET(request: NextRequest) {
         .filter((code): code is string => code !== null);
     }
 
-    // Build filters - use ServLineCode instead of ServLineDesc
     const filters: EmployeeSearchFilters = {};
     if (serviceLineCodes.length > 0) {
       filters.serviceLineCodes = serviceLineCodes;
@@ -61,12 +47,10 @@ export async function GET(request: NextRequest) {
       filters.office = office;
     }
 
-    // Search active employees with User matching
-    let employees = await searchActiveEmployees(query, limit, excludeUserIds, filters);
+    const employees = await searchActiveEmployees(query, limit, excludeUserIds, filters);
 
-    // Transform to format expected by frontend (ADUser-compatible)
     const formattedUsers = employees.map(emp => ({
-      id: emp.User?.id || '', // Empty string if no User account
+      id: emp.User?.id || '',
       email: emp.User?.email || emp.WinLogon || '',
       displayName: emp.EmpNameFull,
       userPrincipalName: emp.User?.email,
@@ -75,7 +59,6 @@ export async function GET(request: NextRequest) {
       officeLocation: emp.OfficeCode,
       employeeId: emp.EmpCode,
       employeeType: emp.Team,
-      // Additional employee-specific fields
       hasUserAccount: emp.User !== null,
       GSEmployeeID: emp.GSEmployeeID,
       EmpCode: emp.EmpCode,
@@ -84,10 +67,5 @@ export async function GET(request: NextRequest) {
     }));
 
     return NextResponse.json(successResponse(formattedUsers));
-  } catch (error) {
-    return handleApiError(error, 'Search Users');
-  }
-}
-
-
-
+  },
+});

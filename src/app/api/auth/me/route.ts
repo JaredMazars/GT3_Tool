@@ -1,20 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+import { NextResponse } from 'next/server';
 import { getUserSystemRole } from '@/lib/services/auth/authorization';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { secureRoute, RateLimitPresets } from '@/lib/api/secureRoute';
 
 /**
  * GET /api/auth/me
  * Get current user information including system role
  */
-export async function GET(_request: NextRequest) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+export const GET = secureRoute.query({
+  rateLimit: RateLimitPresets.AUTH_ENDPOINTS,
+  handler: async (request, { user }) => {
     // Get the system role from database
     const systemRole = await getUserSystemRole(user.id);
 
@@ -26,25 +21,5 @@ export async function GET(_request: NextRequest) {
         systemRole: systemRole || user.systemRole || user.role || 'USER',
       })
     );
-  } catch (error) {
-    return handleApiError(error, 'GET /api/auth/me');
-  }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  },
+});

@@ -6,6 +6,8 @@ import { handleApiError } from '@/lib/utils/errorHandler';
 import { toTaskId } from '@/types/branded';
 import { InitializeQuestionnaireSchema } from '@/lib/validation/schemas';
 import { getQuestionnaireType, getQuestionnaireStructure } from '@/lib/services/acceptance/questionnaireService';
+import { getAllQuestions } from '@/constants/acceptance-questions';
+import { calculateCompletionPercentage } from '@/lib/services/acceptance/riskCalculation';
 
 /**
  * POST /api/tasks/[id]/acceptance/initialize
@@ -125,9 +127,6 @@ export async function POST(
     // Calculate completion percentage if questionnaire exists
     let completionPercentage = 0;
     if (response && structure) {
-      const { getAllQuestions } = await import('@/constants/acceptance-questions');
-      const { calculateCompletionPercentage } = await import('@/lib/services/acceptance/riskCalculation');
-      
       const questionDefs = getAllQuestions(questionnaireType as any);
       const answerData = answers.map((a) => ({
         questionKey: a.AcceptanceQuestion.questionKey,

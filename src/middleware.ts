@@ -2,12 +2,39 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifySessionJWTOnly } from '@/lib/services/auth/jwt';
 
+/**
+ * Security headers applied to all responses
+ * Defined inline because Edge runtime has limited module support
+ */
+const SECURITY_HEADERS: Record<string, string> = {
+  // Prevents MIME type sniffing
+  'X-Content-Type-Options': 'nosniff',
+  // Prevents page from being embedded in iframes (clickjacking protection)
+  'X-Frame-Options': 'DENY',
+  // Enables XSS filtering in older browsers
+  'X-XSS-Protection': '1; mode=block',
+  // Controls Referer header behavior
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  // Restricts browser features
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
+};
+
+/**
+ * Apply security headers to a response
+ */
+function applySecurityHeaders(response: NextResponse): NextResponse {
+  for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
+    response.headers.set(key, value);
+  }
+  return response;
+}
+
 export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
 
   // Skip authentication check for auth routes
   if (pathname.startsWith('/api/auth')) {
-    return NextResponse.next();
+    return applySecurityHeaders(NextResponse.next());
   }
 
   // Skip auth check for other public routes
@@ -16,7 +43,7 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api/health')
   ) {
-    return NextResponse.next();
+    return applySecurityHeaders(NextResponse.next());
   }
 
   // Check authentication for protected routes
@@ -38,31 +65,36 @@ export async function middleware(req: NextRequest) {
   if (pathname === '/' && !isLoggedIn) {
     const redirectUrl = new URL('/api/auth/login', req.url);
     redirectUrl.searchParams.set('callbackUrl', '/dashboard');
-    return NextResponse.redirect(redirectUrl);
+    const redirectResponse = NextResponse.redirect(redirectUrl);
+    return applySecurityHeaders(redirectResponse);
   }
 
   // Redirect to dashboard if user is authenticated and accessing root
   if (pathname === '/' && isLoggedIn) {
-    return NextResponse.redirect(new URL('/dashboard', req.url));
+    const redirectResponse = NextResponse.redirect(new URL('/dashboard', req.url));
+    return applySecurityHeaders(redirectResponse);
   }
 
   // Require authentication for dashboard
   if (isDashboard && !isLoggedIn) {
     const redirectUrl = new URL('/api/auth/login', req.url);
     redirectUrl.searchParams.set('callbackUrl', pathname);
-    return NextResponse.redirect(redirectUrl);
+    const redirectResponse = NextResponse.redirect(redirectUrl);
+    return applySecurityHeaders(redirectResponse);
   }
 
   // Require authentication for API routes
   if (isApiRoute && !isLoggedIn) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const errorResponse = NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return applySecurityHeaders(errorResponse);
   }
 
   // Add pathname to headers for PageAccessGuard
   const response = NextResponse.next();
   response.headers.set('x-pathname', pathname);
   
-  return response;
+  // Apply security headers to all responses
+  return applySecurityHeaders(response);
 }
 
 export const config = {

@@ -6,7 +6,7 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError, AppError } from '@/lib/utils/errorHandler';
 import { startOfDay } from 'date-fns';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
-import { mapUsersToEmployees } from '@/lib/services/employees/employeeService';
+import { mapUsersToEmployees, mapEmployeesToUsers } from '@/lib/services/employees/employeeService';
 
 /**
  * GET /api/service-lines/[serviceLine]/[subServiceLineGroup]/planner/employees
@@ -223,7 +223,6 @@ export async function GET(
     
     if (includeUnallocated && allServiceLineEmployees.length > 0) {
       // Map employees to users to get user IDs
-      const { mapEmployeesToUsers } = await import('@/lib/services/employees/employeeService');
       const employeeUserMap = await mapEmployeesToUsers(allServiceLineEmployees);
       
       // Build map of employee ID -> user ID

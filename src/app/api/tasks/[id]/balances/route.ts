@@ -1,41 +1,32 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { handleApiError } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+import { secureRoute } from '@/lib/api/secureRoute';
 
 interface TaskBalances {
   taskId: number;
   GSTaskID: string;
   taskCode: string;
   taskDesc: string;
-  // Breakdown components
   time: number;
   timeAdjustments: number;
   disbursements: number;
   disbursementAdjustments: number;
   fees: number;
   provision: number;
-  // Calculated totals
   grossWip: number;
   netWip: number;
   lastUpdated: string | null;
 }
 
-/**
- * Transaction Type Classification
- */
 const TTYPE_CATEGORIES = {
-  TIME: ['T', 'TI', 'TIM'], // Time transactions
-  DISBURSEMENT: ['D', 'DI', 'DIS'], // Disbursement transactions
-  FEE: ['F', 'FEE'], // Fee transactions (reversed)
-  ADJUSTMENT: ['ADJ'], // Adjustment transactions (differentiated by TranType)
-  PROVISION: ['P', 'PRO'], // Provision transactions
+  TIME: ['T', 'TI', 'TIM'],
+  DISBURSEMENT: ['D', 'DI', 'DIS'],
+  FEE: ['F', 'FEE'],
+  ADJUSTMENT: ['ADJ'],
+  PROVISION: ['P', 'PRO'],
 };
 
-/**
- * Categorize a transaction type
- */
 function categorizeTransaction(tType: string, tranType?: string): {
   isTime: boolean;
   isDisbursement: boolean;
@@ -57,75 +48,29 @@ function categorizeTransaction(tType: string, tranType?: string): {
 /**
  * GET /api/tasks/[id]/balances
  * Get WIP balances for a task with detailed breakdown
- * 
- * Returns:
- * Breakdown Components:
- * - Time: Sum of time transactions (TTYPE 'T', 'TI', 'TIM')
- * - Time Adjustments: Sum of time adjustments (TTYPE 'AT', 'ADT')
- * - Disbursements: Sum of disbursements (TTYPE 'D', 'DI', 'DIS')
- * - Disbursement Adjustments: Sum of disbursement adjustments (TTYPE 'AD', 'ADD')
- * - Fees: Sum of fees (TTYPE 'F') - reversed/subtracted
- * - Provision: Sum of provisions (TTYPE 'P')
- * 
- * Calculated Totals:
- * - Gross WIP: Time + Time Adj + Disbursements + Disb Adj - Fees
- * - Net WIP: Gross WIP + Provision
- * - Latest update timestamp
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    // 2. Parse IDs
-    const params = await context.params;
+export const GET = secureRoute.queryWithParams<{ id: string }>({
+  handler: async (request, { user, params }) => {
     const taskId = parseInt(params.id, 10);
 
     if (isNaN(taskId)) {
-      return NextResponse.json(
-        { error: 'Invalid task ID format' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: 'Invalid task ID format' }, { status: 400 });
     }
 
-    // 3. Check Permission - verify task exists
     const task = await prisma.task.findUnique({
       where: { id: taskId },
-      select: {
-        id: true,
-        GSTaskID: true,
-        TaskCode: true,
-        TaskDesc: true,
-      },
+      select: { id: true, GSTaskID: true, TaskCode: true, TaskDesc: true },
     });
 
     if (!task) {
-      return NextResponse.json(
-        { error: 'Task not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, error: 'Task not found' }, { status: 404 });
     }
 
-    // 4-5. Execute - Get all WIP transactions for this task
     const wipTransactions = await prisma.wIPTransactions.findMany({
-      where: {
-        GSTaskID: task.GSTaskID,
-      },
-      select: {
-        Amount: true,
-        TType: true,
-        TranType: true,
-        updatedAt: true,
-      },
+      where: { GSTaskID: task.GSTaskID },
+      select: { Amount: true, TType: true, TranType: true, updatedAt: true },
     });
 
-    // Calculate balances with detailed breakdown
     let time = 0;
     let timeAdjustments = 0;
     let disbursements = 0;
@@ -139,64 +84,49 @@ export async function GET(
       const tranTypeUpper = transaction.TranType.toUpperCase();
 
       if (category.isProvision) {
-        // Provision tracked separately
         provision += amount;
       } else if (category.isFee) {
-        // Fees are reversed (subtracted)
         fees += amount;
       } else if (category.isAdjustment) {
-        // Adjustment transactions - differentiate by TranType
         if (tranTypeUpper.includes('TIME')) {
           timeAdjustments += amount;
         } else if (tranTypeUpper.includes('DISBURSEMENT') || tranTypeUpper.includes('DISB')) {
           disbursementAdjustments += amount;
         }
       } else if (category.isTime) {
-        // Time transactions
         time += amount;
       } else if (category.isDisbursement) {
-        // Disbursement transactions
         disbursements += amount;
       } else {
-        // Other transactions default to time-like behavior
         time += amount;
       }
     });
 
-    // Gross WIP = Time + Time Adjustments + Disbursements + Disbursement Adjustments - Fees
     const grossWip = time + timeAdjustments + disbursements + disbursementAdjustments - fees;
-    
-    // Net WIP = Gross WIP + Provision
     const netWip = grossWip + provision;
 
-    // Get the latest update timestamp
     const latestTransaction = wipTransactions.length > 0
       ? wipTransactions.reduce((latest, current) =>
           current.updatedAt > latest.updatedAt ? current : latest
         )
       : null;
 
-    // 6. Respond
     const responseData: TaskBalances = {
       taskId: task.id,
       GSTaskID: task.GSTaskID,
       taskCode: task.TaskCode,
       taskDesc: task.TaskDesc,
-      // Breakdown components
       time,
       timeAdjustments,
       disbursements,
       disbursementAdjustments,
       fees,
       provision,
-      // Calculated totals
       grossWip,
       netWip,
       lastUpdated: latestTransaction?.updatedAt.toISOString() || null,
     };
 
     return NextResponse.json(successResponse(responseData));
-  } catch (error) {
-    return handleApiError(error, 'Get Task Balances');
-  }
-}
+  },
+});

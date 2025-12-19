@@ -1,40 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { NextResponse } from 'next/server';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { getCurrentUser } from '@/lib/services/auth/auth';
 import { getEmployeeFilterOptions } from '@/lib/services/employees/employeeSearch';
+import { secureRoute } from '@/lib/api/secureRoute';
 
-// Force dynamic rendering (uses cookies)
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: NextRequest) {
-  try {
-    // Require authentication
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Get available filter options
+/**
+ * GET /api/users/search/filters
+ * Get available filter options for employee search
+ */
+export const GET = secureRoute.query({
+  handler: async (request, { user }) => {
     const filterOptions = await getEmployeeFilterOptions();
-
     return NextResponse.json(successResponse(filterOptions));
-  } catch (error) {
-    return handleApiError(error, 'Get Employee Filter Options');
-  }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  },
+});

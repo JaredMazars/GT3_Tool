@@ -3,19 +3,18 @@
  * GET /api/bd/stages - List all active stages
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+import { NextResponse } from 'next/server';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { prisma } from '@/lib/db/prisma';
 
-export async function GET(request: NextRequest) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+/**
+ * GET /api/bd/stages
+ * List all active stages
+ */
+export const GET = secureRoute.query({
+  feature: Feature.ACCESS_BD,
+  handler: async (request, { user }) => {
     const { searchParams } = new URL(request.url);
     const serviceLine = searchParams.get('serviceLine');
 
@@ -28,9 +27,5 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json(successResponse(stages));
-  } catch (error) {
-    return handleApiError(error, 'GET /api/bd/stages');
-  }
-}
-
-
+  },
+});

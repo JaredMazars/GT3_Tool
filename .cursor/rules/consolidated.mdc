@@ -46,7 +46,7 @@ const clients = await prisma.client.findMany({ where: { clientCode: { contains: 
 ## Service Lines
 
 **Client-Facing:** TAX, AUDIT, ACCOUNTING, ADVISORY
-**Shared Services:** QRM, BUSINESS_DEV, IT, FINANCE, HR
+**Shared Services:** QRM, BUSINESS DEVELOPMENT, IT, FINANCE, HR, COUNTRY MANAGEMENT
 
 **Tables:**
 | Table | Purpose |

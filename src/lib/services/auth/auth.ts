@@ -226,8 +226,8 @@ export async function createSession(
   userAgent?: string,
   ipAddress?: string
 ): Promise<string> {
-  // Generate session fingerprint if fingerprinting is enabled
-  const fingerprintEnabled = process.env.SESSION_FINGERPRINT_ENABLED === 'true';
+  // Generate session fingerprint (enabled by default, opt-out with SESSION_FINGERPRINT_DISABLED=true)
+  const fingerprintEnabled = process.env.SESSION_FINGERPRINT_DISABLED !== 'true';
   const fingerprint = fingerprintEnabled && userAgent && ipAddress
     ? generateFingerprint(userAgent, ipAddress)
     : undefined;
@@ -407,8 +407,8 @@ export async function verifySession(
     // First verify JWT signature and expiration
     const verified = await jwtVerify(token, JWT_SECRET);
     
-    // Validate fingerprint if enabled and present in token
-    const fingerprintEnabled = process.env.SESSION_FINGERPRINT_ENABLED === 'true';
+    // Validate fingerprint (enabled by default, opt-out with SESSION_FINGERPRINT_DISABLED=true)
+    const fingerprintEnabled = process.env.SESSION_FINGERPRINT_DISABLED !== 'true';
     if (fingerprintEnabled && verified.payload.fingerprint && userAgent && ipAddress) {
       const currentFingerprint = generateFingerprint(userAgent, ipAddress);
       if (verified.payload.fingerprint !== currentFingerprint) {

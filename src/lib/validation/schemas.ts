@@ -6,6 +6,119 @@ import { z } from 'zod';
 import { CreditRatingGrade, AnalyticsDocumentType } from '@/types/analytics';
 import { isValidUrl } from './urlValidation';
 
+// =============================================================================
+// Security Validation Helpers
+// =============================================================================
+
+/**
+ * Common SQL injection patterns to detect
+ * These are checked AFTER sanitization as an additional layer of defense
+ */
+const SQL_INJECTION_PATTERNS = [
+  /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION|ALTER|CREATE|TRUNCATE)\b)/i,
+  /(--|#|\/\*|\*\/)/,  // SQL comments
+  /(\bOR\b|\bAND\b)\s*\d+\s*[=<>]/i,  // OR 1=1 patterns
+  /'\s*(OR|AND)\s*'/i,  // ' OR ' patterns
+  /;\s*(SELECT|INSERT|UPDATE|DELETE|DROP)/i,  // Chained statements
+  /\bEXEC(\s+|\()|\bXP_/i,  // SQL Server specific
+];
+
+/**
+ * Path traversal patterns to detect
+ */
+const PATH_TRAVERSAL_PATTERNS = [
+  /\.\.\//,  // ../
+  /\.\.\\/, // ..\
+  /%2e%2e/i,  // URL encoded ..
+  /%252e/i,  // Double URL encoded .
+  /\0/,  // Null bytes
+];
+
+/**
+ * Check if a string contains potential SQL injection patterns
+ * @param value - String to check
+ * @returns true if potentially dangerous patterns detected
+ */
+export function containsSQLInjection(value: string): boolean {
+  return SQL_INJECTION_PATTERNS.some(pattern => pattern.test(value));
+}
+
+/**
+ * Check if a string contains path traversal attempts
+ * @param value - String to check
+ * @returns true if path traversal detected
+ */
+export function containsPathTraversal(value: string): boolean {
+  return PATH_TRAVERSAL_PATTERNS.some(pattern => pattern.test(value));
+}
+
+/**
+ * Safe string validator that rejects SQL injection and path traversal
+ * Use for user-provided input that goes into queries or file paths
+ */
+export const safeString = (maxLength?: number) => {
+  let schema = z.string();
+  if (maxLength) {
+    schema = schema.max(maxLength);
+  }
+  return schema
+    .refine(val => !containsSQLInjection(val), {
+      message: 'Input contains potentially unsafe patterns',
+    })
+    .refine(val => !containsPathTraversal(val), {
+      message: 'Input contains potentially unsafe path patterns',
+    });
+};
+
+/**
+ * Safe identifier string (alphanumeric, underscore, hyphen only)
+ * Use for codes, keys, and identifiers
+ */
+export const safeIdentifier = (maxLength: number = 50) => {
+  return z.string()
+    .max(maxLength)
+    .regex(/^[a-zA-Z0-9_-]+$/, {
+      message: 'Must contain only letters, numbers, underscores, and hyphens',
+    });
+};
+
+/**
+ * Validate object nesting depth to prevent deeply nested payloads
+ * @param maxDepth - Maximum allowed nesting depth
+ */
+export function validateNestingDepth(obj: unknown, maxDepth: number = 5, currentDepth: number = 0): boolean {
+  if (currentDepth > maxDepth) {
+    return false;
+  }
+  
+  if (obj === null || typeof obj !== 'object') {
+    return true;
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.every(item => validateNestingDepth(item, maxDepth, currentDepth + 1));
+  }
+  
+  return Object.values(obj).every(value => validateNestingDepth(value, maxDepth, currentDepth + 1));
+}
+
+/**
+ * Create a refined schema that validates nesting depth
+ */
+export const withMaxNestingDepth = <T extends z.ZodTypeAny>(
+  schema: T,
+  maxDepth: number = 5
+) => {
+  return schema.refine(
+    (data) => validateNestingDepth(data, maxDepth),
+    { message: `Object nesting exceeds maximum depth of ${maxDepth}` }
+  );
+};
+
+// =============================================================================
+// URL Validation
+// =============================================================================
+
 /**
  * Custom URL validator that only allows safe protocols (http, https, mailto)
  * This matches the backend sanitizeUrl() function
@@ -18,6 +131,10 @@ const safeUrl = (maxLength?: number) => {
     message: 'Must be a valid URL with http://, https://, or mailto: protocol',
   });
 };
+
+// =============================================================================
+// GUID/UUID Validation
+// =============================================================================
 
 /**
  * GUID/UUID validation helper

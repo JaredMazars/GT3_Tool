@@ -11,6 +11,7 @@ import { sanitizeComment } from '@/lib/utils/sanitization';
 import { enforceRateLimit, RateLimitPresets } from '@/lib/utils/rateLimit';
 import { validateAcceptanceAccess } from '@/lib/api/acceptanceMiddleware';
 import { logAnswersSaved } from '@/lib/services/acceptance/auditLog';
+import { logger } from '@/lib/utils/logger';
 
 /**
  * PATCH /api/tasks/[id]/acceptance/answers
@@ -83,7 +84,7 @@ export async function PATCH(
         const question = questionMap.get(answerInput.questionKey);
         
         if (!question) {
-          console.warn(`Question with key ${answerInput.questionKey} not found`);
+          logger.warn('Question not found', { questionKey: answerInput.questionKey });
           return null;
         }
 

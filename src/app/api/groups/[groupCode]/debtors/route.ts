@@ -9,6 +9,8 @@ import {
   DebtorMetrics 
 } from '@/lib/services/analytics/debtorAggregation';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
+import { checkFeature } from '@/lib/permissions/checkFeature';
+import { Feature } from '@/lib/permissions/features';
 
 interface MasterServiceLineInfo {
   code: string;
@@ -48,8 +50,6 @@ export async function GET(
     }
 
     // 3. Check Permission
-    const { checkFeature } = await import('@/lib/permissions/checkFeature');
-    const { Feature } = await import('@/lib/permissions/features');
     const hasPermission = await checkFeature(user.id, Feature.VIEW_WIP_DATA);
     if (!hasPermission) {
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 });

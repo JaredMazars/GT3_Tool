@@ -6,6 +6,7 @@ import { DocumentType } from '@/types';
 import { readFile } from 'fs/promises';
 import path from 'node:path';
 import { GSClientIDSchema } from '@/lib/validation/schemas';
+import { logger } from '@/lib/utils/logger';
 
 /**
  * GET /api/clients/[id]/documents/download
@@ -210,7 +211,7 @@ export async function GET(
     try {
       fileBuffer = await readFile(fullPath);
     } catch (fileError) {
-      console.error('File read error:', fileError);
+      logger.error('File read error', fileError);
       return NextResponse.json(
         { error: 'Document file not found on server', details: filePath },
         { status: 404 }

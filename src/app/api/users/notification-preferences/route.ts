@@ -1,139 +1,91 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { handleApiError } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { getCurrentUser } from '@/lib/services/auth/auth';
 import { CreateNotificationPreferenceSchema, UpdateNotificationPreferenceSchema } from '@/lib/validation/schemas';
+import { secureRoute } from '@/lib/api/secureRoute';
 
 /**
  * GET /api/users/notification-preferences
  * Get current user's notification preferences
  */
-export async function GET(request: NextRequest) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+export const GET = secureRoute.query({
+  handler: async (request, { user }) => {
     const preferences = await prisma.notificationPreference.findMany({
       where: { userId: user.id },
-      orderBy: [
-        { taskId: 'asc' },
-        { notificationType: 'asc' },
-      ],
+      orderBy: [{ taskId: 'asc' }, { notificationType: 'asc' }],
     });
-
     return NextResponse.json(successResponse(preferences));
-  } catch (error) {
-    return handleApiError(error, 'GET /api/users/notification-preferences');
-  }
-}
+  },
+});
 
 /**
  * POST /api/users/notification-preferences
  * Create a new notification preference
  */
-export async function POST(request: NextRequest) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const validated = CreateNotificationPreferenceSchema.parse(body);
-
-    // Check if preference already exists
+export const POST = secureRoute.mutation({
+  schema: CreateNotificationPreferenceSchema,
+  handler: async (request, { user, data }) => {
     const existing = await prisma.notificationPreference.findFirst({
       where: {
         userId: user.id,
-        taskId: validated.taskId ?? null,
-        notificationType: validated.notificationType,
+        taskId: data.taskId ?? null,
+        notificationType: data.notificationType,
       },
     });
 
     if (existing) {
-      return NextResponse.json(
-        { error: 'Preference already exists. Use PUT to update.' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: 'Preference already exists. Use PUT to update.' }, { status: 400 });
     }
 
     const preference = await prisma.notificationPreference.create({
       data: {
         userId: user.id,
-        taskId: validated.taskId || null,
-        notificationType: validated.notificationType,
-        emailEnabled: validated.emailEnabled,
+        taskId: data.taskId || null,
+        notificationType: data.notificationType,
+        emailEnabled: data.emailEnabled,
       },
     });
 
     return NextResponse.json(successResponse(preference), { status: 201 });
-  } catch (error) {
-    return handleApiError(error, 'POST /api/users/notification-preferences');
-  }
-}
+  },
+});
 
 /**
  * PUT /api/users/notification-preferences
  * Update a notification preference
  */
-export async function PUT(request: NextRequest) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+export const PUT = secureRoute.mutation({
+  schema: UpdateNotificationPreferenceSchema,
+  handler: async (request, { user, data }) => {
     const { searchParams } = new URL(request.url);
     const taskIdStr = searchParams.get('taskId');
     const notificationType = searchParams.get('notificationType');
 
     if (!notificationType) {
-      return NextResponse.json(
-        { error: 'notificationType query parameter is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: 'notificationType query parameter is required' }, { status: 400 });
     }
 
-    const body = await request.json();
-    const validated = UpdateNotificationPreferenceSchema.parse(body);
-
-    // Try to find existing preference
     const parsedTaskId = taskIdStr ? Number.parseInt(taskIdStr, 10) : null;
     const existing = await prisma.notificationPreference.findFirst({
-      where: {
-        userId: user.id,
-        taskId: parsedTaskId,
-        notificationType,
-      },
+      where: { userId: user.id, taskId: parsedTaskId, notificationType },
     });
 
     if (existing) {
-      // Update existing preference
       const updated = await prisma.notificationPreference.update({
         where: { id: existing.id },
-        data: {
-          emailEnabled: validated.emailEnabled,
-        },
+        data: { emailEnabled: data.emailEnabled },
       });
       return NextResponse.json(successResponse(updated));
     } else {
-      // Create new preference
       const created = await prisma.notificationPreference.create({
         data: {
           userId: user.id,
           taskId: parsedTaskId,
           notificationType,
-          emailEnabled: validated.emailEnabled,
+          emailEnabled: data.emailEnabled,
         },
       });
       return NextResponse.json(successResponse(created), { status: 201 });
     }
-  } catch (error) {
-    return handleApiError(error, 'PUT /api/users/notification-preferences');
-  }
-}
-
-
+  },
+});

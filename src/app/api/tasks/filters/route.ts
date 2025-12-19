@@ -1,58 +1,30 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { handleApiError } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { getCurrentUser } from '@/lib/services/auth/auth';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { getServLineCodesBySubGroup } from '@/lib/utils/serviceLineExternal';
 import { performanceMonitor } from '@/lib/utils/performanceMonitor';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 
 /**
  * GET /api/tasks/filters
  * Fetch distinct filter option values for task filters
- * Returns clients, task names, partners, managers, and service lines for filter dropdowns
- * 
- * Performance optimizations:
- * - Redis caching (30min TTL for relatively static data)
- * - No pagination (returns all distinct values up to limit)
- * - Optional search parameters for server-side filtering
  */
-export async function GET(request: NextRequest) {
-  const startTime = Date.now();
-  let cacheHit = false;
-  
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const GET = secureRoute.query({
+  feature: Feature.ACCESS_TASKS,
+  handler: async (request, { user }) => {
+    const startTime = Date.now();
+    let cacheHit = false;
 
-    // 2. Check Permission
-    const { checkFeature } = await import('@/lib/permissions/checkFeature');
-    const { Feature } = await import('@/lib/permissions/features');
-    
-    const hasTaskPermission = await checkFeature(user.id, Feature.ACCESS_TASKS);
-    
-    if (!hasTaskPermission) {
-      return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 });
-    }
-
-    // Parse query parameters
     const { searchParams } = new URL(request.url);
-
-    // Get service line context
     const serviceLine = searchParams.get('serviceLine') || undefined;
     const subServiceLineGroup = searchParams.get('subServiceLineGroup') || undefined;
 
-    // Get ServLineCodes for the specific sub-service line group (same logic as task list)
     let servLineCodes: string[] = [];
     if (subServiceLineGroup) {
       servLineCodes = await getServLineCodesBySubGroup(subServiceLineGroup, serviceLine);
       
       if (servLineCodes.length === 0) {
-        // Return empty results if no ServLineCodes found for this sub-group
         return NextResponse.json(successResponse({
           clients: [],
           taskNames: [],
@@ -75,7 +47,6 @@ export async function GET(request: NextRequest) {
     const partnerSearch = searchParams.get('partnerSearch') || '';
     const managerSearch = searchParams.get('managerSearch') || '';
 
-    // Enforce minimum search length (client-side should prevent this, but validate server-side)
     const clientTooShort = clientSearch.length > 0 && clientSearch.length < 2;
     const taskNameTooShort = taskNameSearch.length > 0 && taskNameSearch.length < 2;
     const partnerTooShort = partnerSearch.length > 0 && partnerSearch.length < 2;
@@ -99,10 +70,8 @@ export async function GET(request: NextRequest) {
       }));
     }
 
-    // Build cache key with service line context (no user ID - filters are same for all users)
     const cacheKey = `${CACHE_PREFIXES.ANALYTICS}task-filters:sl:${serviceLine}:subGroup:${subServiceLineGroup}:client:${clientSearch}:taskName:${taskNameSearch}:partner:${partnerSearch}:manager:${managerSearch}`;
     
-    // Try cache first (60min TTL since filter options are relatively static)
     const cached = await cache.get(cacheKey);
     if (cached) {
       cacheHit = true;
@@ -110,56 +79,25 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(successResponse(cached));
     }
 
-    // Reduced limit for faster response times
     const FILTER_LIMIT = 30;
+    const baseWhere = servLineCodes.length > 0 ? { ServLineCode: { in: servLineCodes } } : {};
 
-    // Base where clause for service line filtering (using ServLineCode field)
-    const baseWhere = servLineCodes.length > 0 
-      ? { ServLineCode: { in: servLineCodes } }
-      : {};
-
-
-    // Build where clauses for each filter type
-    
-    // For clients: Query Task table with Client relation for search
-    const clientWhere: any = {
-      ...baseWhere,
-      GSClientID: { not: null },
-    };
-    
-      if (clientSearch) {
-      clientWhere.Client = {
-        OR: [
-          { clientCode: { contains: clientSearch } },
-          { clientNameFull: { contains: clientSearch } },
-        ],
-      };
+    const clientWhere: Record<string, unknown> = { ...baseWhere, GSClientID: { not: null } };
+    if (clientSearch) {
+      clientWhere.Client = { OR: [{ clientCode: { contains: clientSearch } }, { clientNameFull: { contains: clientSearch } }] };
     }
 
-    const taskNameWhere: any = {
-      ...baseWhere,
-      TaskDesc: { not: '' }, // Exclude empty strings
-    };
-    
+    const taskNameWhere: Record<string, unknown> = { ...baseWhere, TaskDesc: { not: '' } };
     if (taskNameSearch) {
       taskNameWhere.TaskDesc = { contains: taskNameSearch };
     }
 
-    // For partner/manager search: First get matching employee codes from Employee table
     let partnerEmployeeCodes: string[] = [];
     if (partnerSearch) {
       const matchingPartners = await prisma.employee.findMany({
-        where: {
-          Active: 'Yes',
-          OR: [
-            { EmpCode: { contains: partnerSearch } },
-            { EmpName: { contains: partnerSearch } },
-          ],
-        },
-        select: {
-          EmpCode: true,
-        },
-        take: 100, // Reasonable limit for search matches
+        where: { Active: 'Yes', OR: [{ EmpCode: { contains: partnerSearch } }, { EmpName: { contains: partnerSearch } }] },
+        select: { EmpCode: true },
+        take: 100,
       });
       partnerEmployeeCodes = matchingPartners.map(e => e.EmpCode);
     }
@@ -167,179 +105,85 @@ export async function GET(request: NextRequest) {
     let managerEmployeeCodes: string[] = [];
     if (managerSearch) {
       const matchingManagers = await prisma.employee.findMany({
-        where: {
-          Active: 'Yes',
-          OR: [
-            { EmpCode: { contains: managerSearch } },
-            { EmpName: { contains: managerSearch } },
-          ],
-        },
-        select: {
-          EmpCode: true,
-        },
-        take: 100, // Reasonable limit for search matches
+        where: { Active: 'Yes', OR: [{ EmpCode: { contains: managerSearch } }, { EmpName: { contains: managerSearch } }] },
+        select: { EmpCode: true },
+        take: 100,
       });
       managerEmployeeCodes = matchingManagers.map(e => e.EmpCode);
     }
     
-    const partnerWhere: any = {
-      ...baseWhere,
-      TaskPartner: { not: '' }, // Exclude empty strings
-    };
-    
+    const partnerWhere: Record<string, unknown> = { ...baseWhere, TaskPartner: { not: '' } };
     if (partnerSearch && partnerEmployeeCodes.length > 0) {
-      // Filter by matching employee codes
       partnerWhere.TaskPartner = { in: partnerEmployeeCodes };
     } else if (partnerSearch && partnerEmployeeCodes.length === 0) {
-      // No employees matched search - return no results
       partnerWhere.TaskPartner = { in: ['__NO_MATCH__'] };
     }
 
-    const managerWhere: any = {
-      ...baseWhere,
-      TaskManager: { not: '' }, // Exclude empty strings
-    };
-    
+    const managerWhere: Record<string, unknown> = { ...baseWhere, TaskManager: { not: '' } };
     if (managerSearch && managerEmployeeCodes.length > 0) {
-      // Filter by matching employee codes
       managerWhere.TaskManager = { in: managerEmployeeCodes };
     } else if (managerSearch && managerEmployeeCodes.length === 0) {
-      // No employees matched search - return no results
       managerWhere.TaskManager = { in: ['__NO_MATCH__'] };
     }
 
-    // Execute queries in parallel for better performance
-    // Note: Removed total count queries for performance - using hasMore based on returned count
-    const [
-      clientsData,
-      taskNamesData,
-      partnersData,
-      managersData,
-    ] = await Promise.all([
-      // Get distinct clients - query Task table (only clients with tasks)
+    const [clientsData, taskNamesData, partnersData, managersData] = await Promise.all([
       prisma.task.findMany({
         where: clientWhere,
-        select: {
-          GSClientID: true,
-          Client: {
-            select: {
-              id: true,
-              clientCode: true,
-              clientNameFull: true,
-            },
-          },
-        },
+        select: { GSClientID: true, Client: { select: { id: true, clientCode: true, clientNameFull: true } } },
         distinct: ['GSClientID'],
-        orderBy: {
-          Client: {
-            clientCode: 'asc',
-          },
-        },
+        orderBy: { Client: { clientCode: 'asc' } },
         take: FILTER_LIMIT,
       }),
-      
-      // Get distinct task names
-      prisma.task.groupBy({
-        by: ['TaskDesc'],
-        where: taskNameWhere,
-        orderBy: {
-          TaskDesc: 'asc',
-        },
-        take: FILTER_LIMIT,
-      }),
-      
-      // Get distinct partners
+      prisma.task.groupBy({ by: ['TaskDesc'], where: taskNameWhere, orderBy: { TaskDesc: 'asc' }, take: FILTER_LIMIT }),
       prisma.task.findMany({
         where: partnerWhere,
-        select: {
-          TaskPartner: true,
-          TaskPartnerName: true,
-        },
+        select: { TaskPartner: true, TaskPartnerName: true },
         distinct: ['TaskPartner'],
-        orderBy: {
-          TaskPartnerName: 'asc',
-        },
+        orderBy: { TaskPartnerName: 'asc' },
         take: FILTER_LIMIT,
       }),
-      
-      // Get distinct managers
       prisma.task.findMany({
         where: managerWhere,
-        select: {
-          TaskManager: true,
-          TaskManagerName: true,
-        },
+        select: { TaskManager: true, TaskManagerName: true },
         distinct: ['TaskManager'],
-        orderBy: {
-          TaskManagerName: 'asc',
-        },
+        orderBy: { TaskManagerName: 'asc' },
         take: FILTER_LIMIT,
       }),
     ]);
 
-    // FIX: Both TaskPartnerName and TaskManagerName have wrong values in database
-    // Lookup correct names from Employee table
     const uniquePartnerCodes = [...new Set(partnersData.map(t => t.TaskPartner).filter(Boolean))];
     const uniqueManagerCodes = [...new Set(managersData.map(t => t.TaskManager).filter(Boolean))];
     const allEmployeeCodes = [...new Set([...uniquePartnerCodes, ...uniqueManagerCodes])];
     
     const employees = allEmployeeCodes.length > 0 ? await prisma.employee.findMany({
-      where: {
-        EmpCode: { in: allEmployeeCodes },
-        Active: 'Yes',
-      },
-      select: {
-        EmpCode: true,
-        EmpName: true,
-      },
+      where: { EmpCode: { in: allEmployeeCodes }, Active: 'Yes' },
+      select: { EmpCode: true, EmpName: true },
     }) : [];
     
-    // Create lookup map
-    const employeeNameMap = new Map(
-      employees.map(emp => [emp.EmpCode, emp.EmpName])
-    );
+    const employeeNameMap = new Map(employees.map(emp => [emp.EmpCode, emp.EmpName]));
 
-    // Format the response
     const clients = clientsData
       .filter(task => task.Client !== null)
-      .map(task => ({
-        id: task.Client!.id,
-        code: task.Client!.clientCode || '',
-        name: task.Client!.clientNameFull || task.Client!.clientCode || 'Unknown',
-      }));
+      .map(task => ({ id: task.Client!.id, code: task.Client!.clientCode || '', name: task.Client!.clientNameFull || task.Client!.clientCode || 'Unknown' }));
 
-    const taskNames = taskNamesData
-      .map(item => item.TaskDesc)
-      .filter((name): name is string => !!name);
+    const taskNames = taskNamesData.map(item => item.TaskDesc).filter((name): name is string => !!name);
 
-    // Deduplicate partners by ID (in case DISTINCT didn't work properly)
     const partnersMap = new Map<string, { id: string; name: string }>();
-    partnersData
-      .filter(task => task.TaskPartner !== null)
-      .forEach(task => {
-        const id = task.TaskPartner!;
-        if (!partnersMap.has(id)) {
-          partnersMap.set(id, {
-            id,
-            name: employeeNameMap.get(id) || task.TaskPartnerName || id,
-          });
-        }
-      });
+    partnersData.filter(task => task.TaskPartner !== null).forEach(task => {
+      const id = task.TaskPartner!;
+      if (!partnersMap.has(id)) {
+        partnersMap.set(id, { id, name: employeeNameMap.get(id) || task.TaskPartnerName || id });
+      }
+    });
     const partners = Array.from(partnersMap.values());
 
-    // Deduplicate managers by ID (in case DISTINCT didn't work properly)
     const managersMap = new Map<string, { id: string; name: string }>();
-    managersData
-      .filter(task => task.TaskManager !== null)
-      .forEach(task => {
-        const id = task.TaskManager!;
-        if (!managersMap.has(id)) {
-          managersMap.set(id, {
-            id,
-            name: employeeNameMap.get(id) || task.TaskManagerName || id,
-          });
-        }
-      });
+    managersData.filter(task => task.TaskManager !== null).forEach(task => {
+      const id = task.TaskManager!;
+      if (!managersMap.has(id)) {
+        managersMap.set(id, { id, name: employeeNameMap.get(id) || task.TaskManagerName || id });
+      }
+    });
     const managers = Array.from(managersMap.values());
 
     const responseData = {
@@ -349,43 +193,17 @@ export async function GET(request: NextRequest) {
       managers,
       serviceLines: [],
       metadata: {
-        clients: {
-          hasMore: clients.length >= FILTER_LIMIT,
-          total: clients.length, // Approximate - actual total may be higher if hasMore is true
-          returned: clients.length,
-        },
-        taskNames: {
-          hasMore: taskNames.length >= FILTER_LIMIT,
-          total: taskNames.length, // Approximate - actual total may be higher if hasMore is true
-          returned: taskNames.length,
-        },
-        partners: {
-          hasMore: partners.length >= FILTER_LIMIT,
-          total: partners.length, // Approximate - actual total may be higher if hasMore is true
-          returned: partners.length,
-        },
-        managers: {
-          hasMore: managers.length >= FILTER_LIMIT,
-          total: managers.length, // Approximate - actual total may be higher if hasMore is true
-          returned: managers.length,
-        },
-        serviceLines: {
-          hasMore: false,
-          total: 0,
-          returned: 0,
-        },
+        clients: { hasMore: clients.length >= FILTER_LIMIT, total: clients.length, returned: clients.length },
+        taskNames: { hasMore: taskNames.length >= FILTER_LIMIT, total: taskNames.length, returned: taskNames.length },
+        partners: { hasMore: partners.length >= FILTER_LIMIT, total: partners.length, returned: partners.length },
+        managers: { hasMore: managers.length >= FILTER_LIMIT, total: managers.length, returned: managers.length },
+        serviceLines: { hasMore: false, total: 0, returned: 0 },
       },
     };
 
-    // Cache the response (60min TTL - increased from 30min since filter options are relatively static)
     await cache.set(cacheKey, responseData, 3600);
-
-    // Track performance
     performanceMonitor.trackApiCall('/api/tasks/filters', startTime, cacheHit);
 
     return NextResponse.json(successResponse(responseData));
-  } catch (error) {
-    performanceMonitor.trackApiCall('/api/tasks/filters [ERROR]', startTime, cacheHit);
-    return handleApiError(error, 'Get Task Filters');
-  }
-}
+  },
+});

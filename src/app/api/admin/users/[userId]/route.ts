@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, isSystemAdmin } from '@/lib/services/auth/auth';
+import { NextResponse } from 'next/server';
+import { isSystemAdmin } from '@/lib/services/auth/auth';
 import { prisma } from '@/lib/db/prisma';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { secureRoute } from '@/lib/api/secureRoute';
 
 // Force dynamic rendering (uses cookies)
 export const dynamic = 'force-dynamic';
@@ -11,24 +11,14 @@ export const dynamic = 'force-dynamic';
  * Get detailed user information
  * Admin only
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ userId: string }> }
-) {
-  try {
-    const currentUser = await getCurrentUser();
-    
-    if (!currentUser) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const isAdmin = await isSystemAdmin(currentUser.id);
+export const GET = secureRoute.queryWithParams({
+  handler: async (request, { user, params }) => {
+    const isAdmin = await isSystemAdmin(user.id);
     if (!isAdmin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
     }
 
-    const params = await context.params;
-    const user = await prisma.user.findUnique({
+    const targetUser = await prisma.user.findUnique({
       where: { id: params.userId },
       include: {
         TaskTeam: {
@@ -49,41 +39,29 @@ export async function GET(
       },
     });
 
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (!targetUser) {
+      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
     }
 
     return NextResponse.json({
       success: true,
-      data: user,
+      data: targetUser,
     });
-  } catch (error) {
-    return handleApiError(error);
-  }
-}
+  },
+});
 
 /**
  * DELETE /api/admin/users/[userId]
  * Remove user from all projects
  * Admin only
  */
-export async function DELETE(
-  request: NextRequest,
-  context: { params: Promise<{ userId: string }> }
-) {
-  try {
-    const currentUser = await getCurrentUser();
-    
-    if (!currentUser) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const isAdmin = await isSystemAdmin(currentUser.id);
+export const DELETE = secureRoute.mutationWithParams({
+  handler: async (request, { user, params }) => {
+    const isAdmin = await isSystemAdmin(user.id);
     if (!isAdmin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
     }
 
-    const params = await context.params;
     // Remove user from all projects
     await prisma.taskTeam.deleteMany({
       where: { userId: params.userId },
@@ -93,8 +71,5 @@ export async function DELETE(
       success: true,
       message: 'User removed from all projects',
     });
-  } catch (error) {
-    return handleApiError(error);
-  }
-}
-
+  },
+});

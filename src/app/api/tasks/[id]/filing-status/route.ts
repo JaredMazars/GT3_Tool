@@ -1,12 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+import { NextResponse } from 'next/server';
 import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { prisma } from '@/lib/db/prisma';
-import { handleApiError } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { toTaskId } from '@/types/branded';
 import { sanitizeText } from '@/lib/utils/sanitization';
 import { z } from 'zod';
+import { secureRoute } from '@/lib/api/secureRoute';
 
 const CreateFilingStatusSchema = z.object({
   filingType: z.string().min(1).max(100),
@@ -17,77 +16,55 @@ const CreateFilingStatusSchema = z.object({
   notes: z.string().optional(),
 });
 
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const params = await context.params;
+/**
+ * GET /api/tasks/[id]/filing-status
+ * Get filing statuses for a task
+ */
+export const GET = secureRoute.queryWithParams({
+  handler: async (request, { user, params }) => {
     const taskId = toTaskId(params.id);
 
-    // Check project access
     const hasAccess = await checkTaskAccess(user.id, taskId);
     if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
     }
     
     const filings = await prisma.filingStatus.findMany({
       where: { taskId },
-      orderBy: [
-        { status: 'asc' },
-        { deadline: 'asc' },
-      ],
+      orderBy: [{ status: 'asc' }, { deadline: 'asc' }],
     });
 
     return NextResponse.json(successResponse(filings));
-  } catch (error) {
-    return handleApiError(error, 'GET /api/tasks/[id]/filing-status');
-  }
-}
+  },
+});
 
-export async function POST(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const params = await context.params;
+/**
+ * POST /api/tasks/[id]/filing-status
+ * Create a new filing status
+ */
+export const POST = secureRoute.mutationWithParams({
+  schema: CreateFilingStatusSchema,
+  handler: async (request, { user, data, params }) => {
     const taskId = toTaskId(params.id);
 
-    // Check project access (requires EDITOR role or higher)
     const hasAccess = await checkTaskAccess(user.id, taskId, 'EDITOR');
     if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
     }
-
-    const body = await request.json();
-    const validated = CreateFilingStatusSchema.parse(body);
 
     const filing = await prisma.filingStatus.create({
       data: {
         taskId,
-        filingType: sanitizeText(validated.filingType, { maxLength: 100 }) || validated.filingType,
-        description: validated.description ? sanitizeText(validated.description, { allowNewlines: true }) : undefined,
-        status: validated.status || 'PENDING',
-        deadline: validated.deadline ? new Date(validated.deadline) : null,
-        referenceNumber: validated.referenceNumber,
-        notes: validated.notes ? sanitizeText(validated.notes, { allowNewlines: true }) : undefined,
+        filingType: sanitizeText(data.filingType, { maxLength: 100 }) || data.filingType,
+        description: data.description ? sanitizeText(data.description, { allowNewlines: true }) : undefined,
+        status: data.status || 'PENDING',
+        deadline: data.deadline ? new Date(data.deadline) : null,
+        referenceNumber: data.referenceNumber,
+        notes: data.notes ? sanitizeText(data.notes, { allowNewlines: true }) : undefined,
         createdBy: user.id,
       },
     });
 
     return NextResponse.json(successResponse(filing), { status: 201 });
-  } catch (error) {
-    return handleApiError(error, 'POST /api/tasks/[id]/filing-status');
-  }
-}
-
+  },
+});

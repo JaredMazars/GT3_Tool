@@ -4,35 +4,20 @@
  * POST /api/admin/service-line-master - Create new service line master
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { checkFeature } from '@/lib/permissions/checkFeature';
-import { Feature } from '@/lib/permissions/features';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { CreateServiceLineMasterSchema } from '@/lib/validation/schemas';
-import { sanitizeObject } from '@/lib/utils/sanitization';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 
-export async function GET(_request: NextRequest) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // 2. Check feature permission
-    const hasAccess = await checkFeature(user.id, Feature.MANAGE_SERVICE_LINES);
-    if (!hasAccess) {
-      return NextResponse.json(
-        { error: 'You do not have permission to manage service lines' },
-        { status: 403 }
-      );
-    }
-
-    // 3. Fetch all service line masters sorted by sortOrder
+/**
+ * GET /api/admin/service-line-master
+ * List all service line masters
+ */
+export const GET = secureRoute.query({
+  feature: Feature.MANAGE_SERVICE_LINES,
+  handler: async (request, { user }) => {
     const serviceLineMasters = await prisma.serviceLineMaster.findMany({
       orderBy: { sortOrder: 'asc' },
       select: {
@@ -47,77 +32,59 @@ export async function GET(_request: NextRequest) {
     });
 
     return NextResponse.json(successResponse(serviceLineMasters));
-  } catch (error) {
-    return handleApiError(error, 'GET /api/admin/service-line-master');
-  }
-}
+  },
+});
 
-export async function POST(request: NextRequest) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // 2. Check feature permission
-    const hasAccess = await checkFeature(user.id, Feature.MANAGE_SERVICE_LINES);
-    if (!hasAccess) {
-      return NextResponse.json(
-        { error: 'You do not have permission to manage service lines' },
-        { status: 403 }
-      );
-    }
-
-    // 3. Parse and validate input
-    const body = await request.json();
-    const sanitized = sanitizeObject(body);
-    const validated = CreateServiceLineMasterSchema.parse(sanitized);
-
-    // 4. Check for unique code
+/**
+ * POST /api/admin/service-line-master
+ * Create new service line master
+ */
+export const POST = secureRoute.mutation({
+  feature: Feature.MANAGE_SERVICE_LINES,
+  schema: CreateServiceLineMasterSchema,
+  handler: async (request, { user, data }) => {
+    // Check for unique code
     const existingCode = await prisma.serviceLineMaster.findUnique({
-      where: { code: validated.code },
+      where: { code: data.code },
       select: { code: true },
     });
 
     if (existingCode) {
       throw new AppError(
         409,
-        `Service line with code '${validated.code}' already exists`,
+        `Service line with code '${data.code}' already exists`,
         ErrorCodes.VALIDATION_ERROR
       );
     }
 
-    // 5. Check for unique name (case-insensitive comparison)
+    // Check for unique name
     const existingName = await prisma.serviceLineMaster.findFirst({
-      where: { 
-        name: validated.name,
-      },
+      where: { name: data.name },
       select: { code: true, name: true },
     });
 
     if (existingName) {
       throw new AppError(
         409,
-        `Service line with name '${validated.name}' already exists`,
+        `Service line with name '${data.name}' already exists`,
         ErrorCodes.VALIDATION_ERROR
       );
     }
 
-    // 6. Get the next sortOrder value
+    // Get the next sortOrder value
     const maxSortOrder = await prisma.serviceLineMaster.aggregate({
       _max: { sortOrder: true },
     });
     const nextSortOrder = (maxSortOrder._max.sortOrder ?? -1) + 1;
 
-    // 7. Create service line master
+    // Create service line master
     const serviceLineMaster = await prisma.serviceLineMaster.create({
       data: {
-        code: validated.code,
-        name: validated.name,
-        description: validated.description ?? null,
-        active: validated.active ?? true,
-        sortOrder: validated.sortOrder ?? nextSortOrder,
+        code: data.code,
+        name: data.name,
+        description: data.description ?? null,
+        active: data.active ?? true,
+        sortOrder: data.sortOrder ?? nextSortOrder,
         updatedAt: new Date(),
       },
       select: {
@@ -132,18 +99,5 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(successResponse(serviceLineMaster), { status: 201 });
-  } catch (error) {
-    return handleApiError(error, 'POST /api/admin/service-line-master');
-  }
-}
-
-
-
-
-
-
-
-
-
-
-
+  },
+});

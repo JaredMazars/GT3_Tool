@@ -10,7 +10,7 @@ import { Feature } from '@/lib/permissions/features';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { logger } from '@/lib/utils/logger';
-import { processUploadedPDF } from '@/lib/services/news/documentService';
+import { processUploadedPDF, uploadBulletinDocument } from '@/lib/services/news/documentService';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { checkRateLimit, RateLimitPresets } from '@/lib/utils/rateLimit';
 
@@ -86,7 +86,6 @@ export async function POST(request: NextRequest) {
     });
 
     // 9. Upload document to blob storage (temp folder - no bulletin ID yet)
-    const { uploadBulletinDocument } = await import('@/lib/services/news/documentService');
     const uploadResult = await uploadBulletinDocument(buffer, file.name);
 
     logger.info('Successfully uploaded document to blob storage', {

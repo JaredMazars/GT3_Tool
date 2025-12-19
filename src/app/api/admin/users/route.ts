@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { getUserServiceLines } from '@/lib/services/service-lines/serviceLineService';
 
 // Force dynamic rendering (uses cookies)
 export const dynamic = 'force-dynamic';
@@ -9,27 +9,11 @@ export const dynamic = 'force-dynamic';
 /**
  * GET /api/admin/users
  * Get all users with their task assignments
- * Admin only
+ * Admin only - requires ACCESS_ADMIN and MANAGE_USERS features
  */
-export async function GET(_request: NextRequest) {
-  try {
-    const currentUser = await getCurrentUser();
-    
-    if (!currentUser) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Check if user has admin access and user management permission
-    const { checkFeature } = await import('@/lib/permissions/checkFeature');
-    const { Feature } = await import('@/lib/permissions/features');
-    
-    const canAccessAdmin = await checkFeature(currentUser.id, Feature.ACCESS_ADMIN);
-    const canManageUsers = await checkFeature(currentUser.id, Feature.MANAGE_USERS);
-    
-    if (!canAccessAdmin || !canManageUsers) {
-      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
-    }
-
+export const GET = secureRoute.query({
+  feature: Feature.MANAGE_USERS,
+  handler: async (_request, { user }) => {
     // Get all users with their task assignments
     const users = await prisma.user.findMany({
       select: {
@@ -81,17 +65,14 @@ export async function GET(_request: NextRequest) {
     });
 
     // Transform data to include useful metrics
-    // Import getUserServiceLines to get properly grouped service line data
-    const { getUserServiceLines } = await import('@/lib/services/service-lines/serviceLineService');
-    
-    const usersWithMetrics = await Promise.all(users.map(async user => ({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-      tasks: user.TaskTeam.map(tt => ({
+    const usersWithMetrics = await Promise.all(users.map(async dbUser => ({
+      id: dbUser.id,
+      name: dbUser.name,
+      email: dbUser.email,
+      role: dbUser.role,
+      createdAt: dbUser.createdAt,
+      updatedAt: dbUser.updatedAt,
+      tasks: dbUser.TaskTeam.map(tt => ({
         id: tt.id,
         role: tt.role,
         task: {
@@ -109,19 +90,15 @@ export async function GET(_request: NextRequest) {
       })),
       // Use getUserServiceLines to get properly grouped service line data
       // This matches the structure returned by the modal's fetchUserServiceLines
-      serviceLines: await getUserServiceLines(user.id),
-      taskCount: user.TaskTeam.length,
-      lastActivity: user.Session[0]?.expires || user.updatedAt,
-      roles: [...new Set(user.TaskTeam.map(tt => tt.role))],
+      serviceLines: await getUserServiceLines(dbUser.id),
+      taskCount: dbUser.TaskTeam.length,
+      lastActivity: dbUser.Session[0]?.expires || dbUser.updatedAt,
+      roles: [...new Set(dbUser.TaskTeam.map(tt => tt.role))],
     })));
 
     return NextResponse.json({
       success: true,
       data: usersWithMetrics,
     });
-  } catch (error) {
-    return handleApiError(error);
-  }
-}
-
-
+  },
+});

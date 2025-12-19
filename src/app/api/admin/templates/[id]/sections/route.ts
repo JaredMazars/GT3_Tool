@@ -1,8 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+import { NextResponse } from 'next/server';
 import { isSystemAdmin } from '@/lib/services/auth/authorization';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { CreateTemplateSectionSchema } from '@/lib/validation/schemas';
 import {
   getTemplateSections,
@@ -13,79 +12,48 @@ import {
  * GET /api/admin/templates/[id]/sections
  * Get all sections for a template
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+export const GET = secureRoute.queryWithParams<{ id: string }>({
+  feature: Feature.MANAGE_TEMPLATES,
+  handler: async (request, { user, params }) => {
     const hasAdminAccess = await isSystemAdmin(user.id);
     if (!hasAdminAccess) {
-      return NextResponse.json(
-        { error: 'Admin access required' },
-        { status: 403 }
-      );
+      return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
     }
 
-    const { id } = await context.params;
-    const templateId = Number.parseInt(id, 10);
-
+    const templateId = Number.parseInt(params.id, 10);
     if (Number.isNaN(templateId)) {
-      return NextResponse.json({ error: 'Invalid template ID' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Invalid template ID' }, { status: 400 });
     }
 
     const sections = await getTemplateSections(templateId);
 
     return NextResponse.json(successResponse(sections));
-  } catch (error) {
-    return handleApiError(error, 'GET /api/admin/templates/[id]/sections');
-  }
-}
+  },
+});
 
 /**
  * POST /api/admin/templates/[id]/sections
  * Create a new section for a template
  */
-export async function POST(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+export const POST = secureRoute.mutationWithParams<typeof CreateTemplateSectionSchema, { id: string }>({
+  feature: Feature.MANAGE_TEMPLATES,
+  schema: CreateTemplateSectionSchema,
+  handler: async (request, { user, data, params }) => {
     const hasAdminAccess = await isSystemAdmin(user.id);
     if (!hasAdminAccess) {
-      return NextResponse.json(
-        { error: 'Admin access required' },
-        { status: 403 }
-      );
+      return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
     }
 
-    const { id } = await context.params;
-    const templateId = Number.parseInt(id, 10);
-
+    const templateId = Number.parseInt(params.id, 10);
     if (Number.isNaN(templateId)) {
-      return NextResponse.json({ error: 'Invalid template ID' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Invalid template ID' }, { status: 400 });
     }
-
-    const body = await request.json();
-    const validated = CreateTemplateSectionSchema.parse(body);
 
     const section = await createTemplateSection({
-      ...validated,
+      ...data,
       templateId,
     });
 
     return NextResponse.json(successResponse(section), { status: 201 });
-  } catch (error) {
-    return handleApiError(error, 'POST /api/admin/templates/[id]/sections');
-  }
-}
-
+  },
+});

@@ -6,6 +6,7 @@ import { Feature } from '@/lib/permissions/features';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { getAllToolConfigs } from '@/components/tools/ToolRegistry.server';
+import { logger } from '@/lib/utils/logger';
 
 /**
  * GET /api/tools/registered
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
     try {
       registeredConfigs = getAllToolConfigs();
     } catch (configError) {
-      console.error('Error loading tool configs:', configError);
+      logger.error('Error loading tool configs', configError);
       return NextResponse.json(
         { error: 'Failed to load tool configurations', details: configError instanceof Error ? configError.message : 'Unknown error' },
         { status: 500 }

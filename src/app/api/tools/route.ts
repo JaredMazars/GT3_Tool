@@ -1,139 +1,63 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { checkFeature } from '@/lib/permissions/checkFeature';
-import { Feature } from '@/lib/permissions/features';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
-import { sanitizeObject } from '@/lib/utils/sanitization';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 
 /**
  * GET /api/tools
  * List all tools (with optional filtering by active status)
  */
-export async function GET(request: NextRequest) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // 2. Check feature permission
-    const hasPermission = await checkFeature(user.id, Feature.MANAGE_TOOLS);
-    if (!hasPermission) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    // 3. Parse query parameters
+export const GET = secureRoute.query({
+  feature: Feature.MANAGE_TOOLS,
+  handler: async (request, { user }) => {
     const { searchParams } = new URL(request.url);
     const activeOnly = searchParams.get('active') === 'true';
 
-    // 4. Query tools
     const tools = await prisma.tool.findMany({
       where: activeOnly ? { active: true } : undefined,
       include: {
-        subTabs: {
-          where: { active: true },
-          orderBy: { sortOrder: 'asc' },
-        },
-        serviceLines: {
-          include: {
-            tool: {
-              select: { id: true, name: true, code: true },
-            },
-          },
-        },
-        _count: {
-          select: {
-            tasks: true,
-            subTabs: true,
-            serviceLines: true,
-          },
-        },
+        subTabs: { where: { active: true }, orderBy: { sortOrder: 'asc' } },
+        serviceLines: { include: { tool: { select: { id: true, name: true, code: true } } } },
+        _count: { select: { tasks: true, subTabs: true, serviceLines: true } },
       },
-      orderBy: [
-        { sortOrder: 'asc' },
-        { name: 'asc' },
-      ],
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
     });
 
     return NextResponse.json(successResponse(tools));
-  } catch (error) {
-    return handleApiError(error, 'Failed to fetch tools');
-  }
-}
+  },
+});
 
 /**
  * POST /api/tools
  * Create a new tool
  */
-export async function POST(request: NextRequest) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const POST = secureRoute.mutation({
+  feature: Feature.MANAGE_TOOLS,
+  handler: async (request, { user, data }) => {
+    const { name, code, description, icon, componentPath, active = true, sortOrder = 0 } = data;
 
-    // 2. Check feature permission
-    const hasPermission = await checkFeature(user.id, Feature.MANAGE_TOOLS);
-    if (!hasPermission) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    // 3. Parse and sanitize body
-    const body = await request.json();
-    const sanitizedData = sanitizeObject(body);
-
-    const { name, code, description, icon, componentPath, active = true, sortOrder = 0 } = sanitizedData;
-
-    // 4. Validate required fields
     if (!name || !code || !componentPath) {
       return NextResponse.json(
-        { error: 'Missing required fields: name, code, componentPath' },
+        { success: false, error: 'Missing required fields: name, code, componentPath' },
         { status: 400 }
       );
     }
 
-    // 5. Check if code already exists
-    const existingTool = await prisma.tool.findUnique({
-      where: { code },
-    });
+    const existingTool = await prisma.tool.findUnique({ where: { code } });
 
     if (existingTool) {
-      return NextResponse.json(
-        { error: 'Tool with this code already exists' },
-        { status: 409 }
-      );
+      return NextResponse.json({ success: false, error: 'Tool with this code already exists' }, { status: 409 });
     }
 
-    // 6. Create tool
     const tool = await prisma.tool.create({
-      data: {
-        name,
-        code,
-        description,
-        icon,
-        componentPath,
-        active,
-        sortOrder,
-      },
+      data: { name, code, description, icon, componentPath, active, sortOrder },
       include: {
         subTabs: true,
         serviceLines: true,
-        _count: {
-          select: {
-            tasks: true,
-            subTabs: true,
-            serviceLines: true,
-          },
-        },
+        _count: { select: { tasks: true, subTabs: true, serviceLines: true } },
       },
     });
 
     return NextResponse.json(successResponse(tool), { status: 201 });
-  } catch (error) {
-    return handleApiError(error, 'Failed to create tool');
-  }
-}
+  },
+});

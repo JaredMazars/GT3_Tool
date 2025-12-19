@@ -1,23 +1,22 @@
 /**
  * BD Proposals API Routes
  * GET /api/bd/proposals - List proposals
- * POST /api/bd/proposals - Create new proposal (with file upload)
+ * POST /api/bd/proposals - Create new proposal
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+import { NextResponse } from 'next/server';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { CreateBDProposalSchema } from '@/lib/validation/schemas';
 import { prisma } from '@/lib/db/prisma';
 
-export async function GET(request: NextRequest) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+/**
+ * GET /api/bd/proposals
+ * List proposals with filtering
+ */
+export const GET = secureRoute.query({
+  feature: Feature.ACCESS_BD,
+  handler: async (request, { user }) => {
     const { searchParams } = new URL(request.url);
     const opportunityId = searchParams.get('opportunityId')
       ? Number.parseInt(searchParams.get('opportunityId')!)
@@ -40,11 +39,7 @@ export async function GET(request: NextRequest) {
         where,
         include: {
           BDOpportunity: {
-            select: {
-              id: true,
-              title: true,
-              companyName: true,
-            },
+            select: { id: true, title: true, companyName: true },
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -63,35 +58,30 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(total / pageSize),
       })
     );
-  } catch (error) {
-    return handleApiError(error, 'GET /api/bd/proposals');
-  }
-}
+  },
+});
 
-export async function POST(request: NextRequest) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Note: File upload handling would be implemented here
-    // For now, we'll accept file metadata in JSON body
+/**
+ * POST /api/bd/proposals
+ * Create new proposal
+ */
+export const POST = secureRoute.mutation({
+  feature: Feature.ACCESS_BD,
+  schema: CreateBDProposalSchema,
+  handler: async (request, { user, data }) => {
+    // File metadata is expected in the body
     const body = await request.json();
-    const validated = CreateBDProposalSchema.parse(body);
-
-    // In a real implementation, file upload would be handled here
-    // For this implementation, we'll require fileName and filePath to be provided
+    
     if (!body.fileName || !body.filePath || !body.fileSize) {
       return NextResponse.json(
-        { error: 'File upload data required (fileName, filePath, fileSize)' },
+        { success: false, error: 'File upload data required (fileName, filePath, fileSize)' },
         { status: 400 }
       );
     }
 
     const proposal = await prisma.bDProposal.create({
       data: {
-        ...validated,
+        ...data,
         fileName: body.fileName,
         filePath: body.filePath,
         fileSize: body.fileSize,
@@ -100,19 +90,11 @@ export async function POST(request: NextRequest) {
       },
       include: {
         BDOpportunity: {
-          select: {
-            id: true,
-            title: true,
-            companyName: true,
-          },
+          select: { id: true, title: true, companyName: true },
         },
       },
     });
 
     return NextResponse.json(successResponse(proposal), { status: 201 });
-  } catch (error) {
-    return handleApiError(error, 'POST /api/bd/proposals');
-  }
-}
-
-
+  },
+});

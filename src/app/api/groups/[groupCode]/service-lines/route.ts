@@ -4,6 +4,8 @@ import { handleApiError } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
+import { checkFeature } from '@/lib/permissions/checkFeature';
+import { Feature } from '@/lib/permissions/features';
 
 /**
  * GET /api/groups/[groupCode]/service-lines
@@ -22,8 +24,6 @@ export async function GET(
     }
 
     // 2. Check Permission
-    const { checkFeature } = await import('@/lib/permissions/checkFeature');
-    const { Feature } = await import('@/lib/permissions/features');
     const hasPermission = await checkFeature(user.id, Feature.ACCESS_CLIENTS);
     if (!hasPermission) {
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 });

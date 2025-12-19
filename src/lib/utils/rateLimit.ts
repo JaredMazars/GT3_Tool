@@ -469,7 +469,142 @@ export function clearRateLimitsForIdentifier(identifier: string): void {
   }
 }
 
+// =============================================================================
+// Per-User Rate Limiting
+// =============================================================================
 
+/**
+ * Rate limit configuration for per-user limiting
+ */
+export interface UserRateLimitConfig extends RateLimitConfig {
+  /** Whether to also apply IP-based limiting */
+  includeIpLimit?: boolean;
+}
+
+/**
+ * Check rate limit for a specific user (in addition to IP-based limiting)
+ * This provides defense-in-depth: even if an attacker rotates IPs, they
+ * are still limited by their authenticated user account.
+ * 
+ * @param request - Next.js request object
+ * @param userId - Authenticated user ID
+ * @param config - Rate limit configuration
+ * @returns Object with allowed status and remaining requests
+ */
+export async function checkUserRateLimit(
+  request: NextRequest,
+  userId: string,
+  config: UserRateLimitConfig = RateLimitPresets.STANDARD
+): Promise<{
+  allowed: boolean;
+  remaining: number;
+  resetTime: number;
+  limit: number;
+  limitedBy: 'user' | 'ip' | null;
+}> {
+  const endpoint = request.nextUrl.pathname;
+  
+  // Check user-based rate limit
+  const userKey = getRateLimitKey(`user:${userId}`, endpoint, config.keyPrefix);
+  const redis = getRedisClient();
+  
+  let userResult: { allowed: boolean; remaining: number; resetTime: number; limit: number };
+  
+  if (redis && isRedisAvailable()) {
+    userResult = await checkRateLimitRedis(redis, userKey, config, userId, endpoint);
+  } else {
+    userResult = checkRateLimitMemory(userKey, config);
+  }
+  
+  // If user limit exceeded, return immediately
+  if (!userResult.allowed) {
+    logger.warn('Per-user rate limit exceeded', {
+      userId,
+      endpoint,
+      limit: config.maxRequests,
+    });
+    
+    return {
+      ...userResult,
+      limitedBy: 'user',
+    };
+  }
+  
+  // Optionally also check IP-based limit (default: true)
+  if (config.includeIpLimit !== false) {
+    const ipResult = await checkRateLimit(request, config);
+    
+    if (!ipResult.allowed) {
+      return {
+        ...ipResult,
+        limitedBy: 'ip',
+      };
+    }
+    
+    // Return the more restrictive result
+    const moreRestrictive = userResult.remaining < ipResult.remaining 
+      ? { ...userResult, limitedBy: null as 'user' | 'ip' | null }
+      : { ...ipResult, limitedBy: null as 'user' | 'ip' | null };
+      
+    return moreRestrictive;
+  }
+  
+  return {
+    ...userResult,
+    limitedBy: null,
+  };
+}
+
+/**
+ * Enforce per-user rate limit (throws if exceeded)
+ * 
+ * @param request - Next.js request object
+ * @param userId - Authenticated user ID
+ * @param config - Rate limit configuration
+ * @throws AppError if rate limit exceeded
+ */
+export async function enforceUserRateLimit(
+  request: NextRequest,
+  userId: string,
+  config: UserRateLimitConfig = RateLimitPresets.STANDARD
+): Promise<void> {
+  const result = await checkUserRateLimit(request, userId, config);
+  
+  if (!result.allowed) {
+    const resetTimeSeconds = Math.ceil((result.resetTime - Date.now()) / 1000);
+    const limitType = result.limitedBy === 'user' ? 'account' : 'IP address';
+    
+    throw new AppError(
+      429,
+      `Rate limit exceeded for your ${limitType}. Please try again in ${resetTimeSeconds} seconds.`,
+      ErrorCodes.RATE_LIMIT_EXCEEDED,
+      {
+        limit: result.limit,
+        resetTime: result.resetTime,
+        retryAfter: resetTimeSeconds,
+        limitedBy: result.limitedBy,
+      }
+    );
+  }
+}
+
+/**
+ * Clear all rate limits for a specific user
+ * Useful after password change or account recovery
+ * 
+ * @param userId - User ID to clear limits for
+ */
+export function clearRateLimitsForUser(userId: string): void {
+  const userPrefix = `user:${userId}`;
+  for (const [key] of rateLimitStore.entries()) {
+    if (key.includes(userPrefix)) {
+      rateLimitStore.delete(key);
+    }
+  }
+}
+
+// Export type for config
+export type { RateLimitConfig };
 
 
 

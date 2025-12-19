@@ -1,9 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { checkFeature } from '@/lib/permissions/checkFeature';
-import { Feature } from '@/lib/permissions/features';
+import { NextResponse } from 'next/server';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { prisma } from '@/lib/db/prisma';
 import { z } from 'zod';
 
@@ -12,63 +9,30 @@ const bulkMappingSchema = z.object({
   masterCode: z.string(),
 });
 
-export async function POST(request: NextRequest) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // 2. Check permission
-    const hasPermission = await checkFeature(user.id, Feature.MANAGE_SERVICE_LINES);
-    if (!hasPermission) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    // 3. Validate request body
-    const body = await request.json();
-    const validation = bulkMappingSchema.safeParse(body);
-    
-    if (!validation.success) {
-      return NextResponse.json(
-        { error: 'Invalid request body', details: validation.error },
-        { status: 400 }
-      );
-    }
-
-    const { externalIds, masterCode } = validation.data;
-
-    // 4. Bulk update mappings
+/**
+ * POST /api/admin/service-line-mapping/bulk
+ * Bulk update service line mappings
+ */
+export const POST = secureRoute.mutation({
+  feature: Feature.MANAGE_SERVICE_LINES,
+  schema: bulkMappingSchema,
+  handler: async (request, { user, data }) => {
     const result = await prisma.serviceLineExternal.updateMany({
       where: {
         id: {
-          in: externalIds,
+          in: data.externalIds,
         },
       },
       data: {
-        masterCode,
+        masterCode: data.masterCode,
       },
     });
 
     return NextResponse.json(
       successResponse({
         updated: result.count,
-        masterCode,
+        masterCode: data.masterCode,
       })
     );
-  } catch (error) {
-    return handleApiError(error, 'POST /api/admin/service-line-mapping/bulk');
-  }
-}
-
-
-
-
-
-
-
-
-
-
-
+  },
+});
