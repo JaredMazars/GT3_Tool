@@ -5,6 +5,7 @@
  */
 
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import {
@@ -14,6 +15,18 @@ import {
 } from '@/lib/services/admin/pagePermissionService';
 import { PagePermissionSchema } from '@/lib/validation/schemas';
 import { PageAccessLevel } from '@/types/pagePermissions';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+
+// Query parameter validation schema
+const PagePermissionQuerySchema = z.object({
+  merged: z.enum(['true', 'false']).optional(),
+  pathname: z.string().max(500).optional(),
+  role: z.string().max(50).optional(),
+  active: z.enum(['true', 'false']).optional(),
+});
+
+// Default limit for list endpoints
+const DEFAULT_LIMIT = 500;
 
 /**
  * GET /api/admin/page-permissions
@@ -23,20 +36,39 @@ export const GET = secureRoute.query({
   feature: Feature.ACCESS_ADMIN,
   handler: async (request, { user }) => {
     const { searchParams } = new URL(request.url);
-    const showMerged = searchParams.get('merged') === 'true';
-    const pathname = searchParams.get('pathname') || undefined;
-    const role = searchParams.get('role') || undefined;
-    const activeOnly = searchParams.get('active') !== 'false';
+    
+    // Validate query parameters
+    const queryResult = PagePermissionQuerySchema.safeParse({
+      merged: searchParams.get('merged') ?? undefined,
+      pathname: searchParams.get('pathname') ?? undefined,
+      role: searchParams.get('role') ?? undefined,
+      active: searchParams.get('active') ?? undefined,
+    });
+    
+    if (!queryResult.success) {
+      throw new AppError(
+        400,
+        'Invalid query parameters',
+        ErrorCodes.VALIDATION_ERROR,
+        { errors: queryResult.error.flatten().fieldErrors }
+      );
+    }
+    
+    const { merged, pathname, role, active } = queryResult.data;
+    const showMerged = merged === 'true';
+    const activeOnly = active !== 'false';
 
     let permissions;
     
     if (showMerged) {
+      // getMergedPagePermissions is bounded by number of pages in registry
       permissions = await getMergedPagePermissions();
     } else {
       permissions = await getAllPagePermissions({
         pathname,
         role,
         active: activeOnly ? true : undefined,
+        take: DEFAULT_LIMIT,
       });
     }
 

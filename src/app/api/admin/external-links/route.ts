@@ -4,26 +4,28 @@
  * POST /api/admin/external-links - Create new link (admin only)
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { CreateExternalLinkSchema } from '@/lib/validation/schemas';
+import { checkFeature } from '@/lib/permissions/checkFeature';
 
 /**
  * GET /api/admin/external-links
- * List external links - public for activeOnly, admin for all
+ * List external links - authenticated users can get active links, admin permission required for all
  */
 export const GET = secureRoute.query({
   handler: async (request, { user }) => {
     const { searchParams } = new URL(request.url);
     const activeOnly = searchParams.get('activeOnly') === 'true';
 
-    // If fetching active links only, return public links
+    // If fetching active links only, return public links (any authenticated user)
     if (activeOnly) {
       const links = await prisma.externalLink.findMany({
         where: { active: true },
-        orderBy: { name: 'asc' },
+        orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+        take: 100,
         select: {
           id: true,
           name: true,
@@ -36,9 +38,18 @@ export const GET = secureRoute.query({
       return NextResponse.json(successResponse(links));
     }
 
-    // For all links (including inactive), fetch all
+    // For all links (including inactive), require admin permission
+    const hasPermission = await checkFeature(user.id, Feature.MANAGE_EXTERNAL_LINKS);
+    if (!hasPermission) {
+      return NextResponse.json(
+        { success: false, error: 'You do not have permission to view all external links' },
+        { status: 403 }
+      );
+    }
+
     const links = await prisma.externalLink.findMany({
-      orderBy: { name: 'asc' },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      take: 100,
       select: {
         id: true,
         name: true,

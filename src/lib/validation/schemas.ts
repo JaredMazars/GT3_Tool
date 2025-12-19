@@ -892,7 +892,7 @@ export const GrantServiceLineAccessSchema = z.object({
   masterCode: ServiceLineCodeSchema.optional(),
   subGroups: z.array(z.string()).optional(),
   role: ServiceLineRoleSchema,
-}).refine((data) => {
+}).strict().refine((data) => {
   // If type is 'main', masterCode is required
   if (data.type === 'main') return !!data.masterCode;
   // If type is 'subgroup', subGroups array is required and must not be empty
@@ -910,7 +910,7 @@ export const RevokeServiceLineAccessSchema = z.object({
   type: AssignmentTypeSchema,
   masterCode: ServiceLineCodeSchema.optional(),
   subGroups: z.array(z.string()).optional(),
-}).refine((data) => {
+}).strict().refine((data) => {
   // If type is 'main', masterCode is required
   if (data.type === 'main') return !!data.masterCode;
   // If type is 'subgroup', subGroups array is required and must not be empty
@@ -928,17 +928,18 @@ export const UpdateServiceLineRoleSchema = z.object({
   serviceLineOrSubGroup: z.string().min(1, 'Service line or sub-group code is required'),
   role: ServiceLineRoleSchema,
   isSubGroup: z.boolean().default(false),
-});
+}).strict();
 
 /**
  * Switch assignment type between main and specific sub-groups
  */
 export const SwitchAssignmentTypeSchema = z.object({
+  action: z.literal('switchType'),
   userId: z.string().min(1, 'User ID is required'),
   masterCode: ServiceLineCodeSchema,
   newType: z.enum(['main', 'specific']),
   specificSubGroups: z.array(z.string()).optional(),
-}).refine((data) => {
+}).strict().refine((data) => {
   // If newType is 'specific', specificSubGroups is required
   if (data.newType === 'specific') {
     return data.specificSubGroups && data.specificSubGroups.length > 0;
@@ -1076,10 +1077,10 @@ export const UpdateServiceLineMasterSchema = z.object({
 export const ReorderServiceLineMasterSchema = z.object({
   items: z.array(
     z.object({
-      code: z.string().min(1),
-      sortOrder: z.number().int(),
+      code: z.string().min(1).max(50),
+      sortOrder: z.number().int().min(0).max(10000),
     })
-  ).min(1, 'At least one item is required'),
+  ).min(1, 'At least one item is required').max(100, 'Maximum 100 items per batch'),
 }).strict();
 
 // Inferred types

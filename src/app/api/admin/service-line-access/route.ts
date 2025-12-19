@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { isSystemAdmin } from '@/lib/services/auth/auth';
 import { 
   getUserServiceLines,
   grantServiceLineAccess,
@@ -24,10 +23,21 @@ import {
   UpdateServiceLineRoleSchema,
   SwitchAssignmentTypeSchema,
 } from '@/lib/validation/schemas';
-import { secureRoute, RateLimitPresets } from '@/lib/api/secureRoute';
+import { secureRoute, RateLimitPresets, Feature } from '@/lib/api/secureRoute';
 import { auditServiceLineAccessChange } from '@/lib/utils/auditLog';
 import { getClientIdentifier } from '@/lib/utils/rateLimit';
 import { z } from 'zod';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+
+// Valid service line codes
+const VALID_SERVICE_LINES = ['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'BUSINESS_DEV', 'IT', 'FINANCE', 'HR', 'COUNTRY_MANAGEMENT'] as const;
+
+// Query parameter validation schema for GET
+const ServiceLineAccessQuerySchema = z.object({
+  serviceLine: z.enum(VALID_SERVICE_LINES).optional(),
+  userId: z.string().uuid().optional(),
+  assignmentType: z.enum(['true', 'false']).optional(),
+});
 
 // Force dynamic rendering (uses cookies)
 export const dynamic = 'force-dynamic';
@@ -37,16 +47,27 @@ export const dynamic = 'force-dynamic';
  * Get all service line access for all users or specific queries (admin only)
  */
 export const GET = secureRoute.query({
+  feature: Feature.MANAGE_SERVICE_LINES,
   handler: async (request, { user }) => {
-    const isAdmin = await isSystemAdmin(user.id);
-    if (!isAdmin) {
-      return NextResponse.json({ success: false, error: 'Forbidden - Admin access required' }, { status: 403 });
+    const { searchParams } = new URL(request.url);
+
+    // Validate query parameters
+    const queryResult = ServiceLineAccessQuerySchema.safeParse({
+      serviceLine: searchParams.get('serviceLine') ?? undefined,
+      userId: searchParams.get('userId') ?? undefined,
+      assignmentType: searchParams.get('assignmentType') ?? undefined,
+    });
+
+    if (!queryResult.success) {
+      throw new AppError(
+        400,
+        'Invalid query parameters',
+        ErrorCodes.VALIDATION_ERROR,
+        { errors: queryResult.error.flatten().fieldErrors }
+      );
     }
 
-    const { searchParams } = new URL(request.url);
-    const serviceLine = searchParams.get('serviceLine');
-    const userId = searchParams.get('userId');
-    const getAssignmentType = searchParams.get('assignmentType');
+    const { serviceLine, userId, assignmentType } = queryResult.data;
 
     if (serviceLine) {
       const users = await getServiceLineUsers(serviceLine);
@@ -54,11 +75,11 @@ export const GET = secureRoute.query({
     } else if (userId) {
       const serviceLines = await getUserServiceLines(userId);
       
-      if (getAssignmentType === 'true') {
+      if (assignmentType === 'true') {
         const serviceLineWithTypes = await Promise.all(
           serviceLines.map(async (sl) => {
-            const assignmentType = await getUserAssignmentType(userId, sl.serviceLine);
-            return { ...sl, assignmentType };
+            const slAssignmentType = await getUserAssignmentType(userId, sl.serviceLine);
+            return { ...sl, assignmentType: slAssignmentType };
           })
         );
         return NextResponse.json(successResponse(serviceLineWithTypes));
@@ -66,9 +87,8 @@ export const GET = secureRoute.query({
       
       return NextResponse.json(successResponse(serviceLines));
     } else {
-      const allServiceLines = ['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'BUSINESS_DEV', 'IT', 'FINANCE', 'HR', 'COUNTRY_MANAGEMENT'];
       const allData = await Promise.all(
-        allServiceLines.map(async (sl) => ({
+        VALID_SERVICE_LINES.map(async (sl) => ({
           serviceLine: sl,
           users: await getServiceLineUsers(sl),
         }))
@@ -83,14 +103,10 @@ export const GET = secureRoute.query({
  * Grant user access to a service line (admin only)
  */
 export const POST = secureRoute.mutation({
+  feature: Feature.MANAGE_SERVICE_LINES,
   rateLimit: { ...RateLimitPresets.STANDARD, maxRequests: 20 },
   schema: GrantServiceLineAccessSchema,
   handler: async (request, { user, data }) => {
-    const isAdmin = await isSystemAdmin(user.id);
-    if (!isAdmin) {
-      return NextResponse.json({ success: false, error: 'Forbidden - Admin access required' }, { status: 403 });
-    }
-
     const { userId, type, masterCode, subGroups, role } = data;
     const ipAddress = getClientIdentifier(request);
 
@@ -154,14 +170,10 @@ const PutSchema = z.union([
  * Update user's role or switch assignment type (admin only)
  */
 export const PUT = secureRoute.mutation({
+  feature: Feature.MANAGE_SERVICE_LINES,
   rateLimit: { ...RateLimitPresets.STANDARD, maxRequests: 20 },
   schema: PutSchema,
   handler: async (request, { user, data }) => {
-    const isAdmin = await isSystemAdmin(user.id);
-    if (!isAdmin) {
-      return NextResponse.json({ success: false, error: 'Forbidden - Admin access required' }, { status: 403 });
-    }
-
     // Check if this is a switch assignment type request
     if ('action' in data && data.action === 'switchType') {
       const { userId, masterCode, newType, specificSubGroups } = data as z.infer<typeof SwitchAssignmentTypeSchema>;
@@ -206,13 +218,9 @@ export const PUT = secureRoute.mutation({
  * Revoke user access to a service line or sub-group (admin only)
  */
 export const DELETE = secureRoute.mutation({
+  feature: Feature.MANAGE_SERVICE_LINES,
   rateLimit: { ...RateLimitPresets.STANDARD, maxRequests: 20 },
   handler: async (request, { user }) => {
-    const isAdmin = await isSystemAdmin(user.id);
-    if (!isAdmin) {
-      return NextResponse.json({ success: false, error: 'Forbidden - Admin access required' }, { status: 403 });
-    }
-
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
     const type = searchParams.get('type') as 'main' | 'subgroup';
@@ -228,9 +236,11 @@ export const DELETE = secureRoute.mutation({
 
     const validation = RevokeServiceLineAccessSchema.safeParse(requestData);
     if (!validation.success) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid request parameters', details: validation.error.format() },
-        { status: 400 }
+      throw new AppError(
+        400,
+        'Invalid request parameters',
+        ErrorCodes.VALIDATION_ERROR,
+        { errors: validation.error.flatten().fieldErrors }
       );
     }
 
@@ -265,7 +275,11 @@ export const DELETE = secureRoute.mutation({
 
       return NextResponse.json(successResponse({ message: `Access revoked from ${subGroups.length} sub-group(s)` }));
     } else {
-      return NextResponse.json({ success: false, error: 'Invalid request parameters' }, { status: 400 });
+      throw new AppError(
+        400,
+        'Invalid request parameters: type and corresponding code required',
+        ErrorCodes.VALIDATION_ERROR
+      );
     }
   },
 });

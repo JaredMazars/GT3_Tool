@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { isSystemAdmin } from '@/lib/services/auth/authorization';
-import { successResponse } from '@/lib/utils/apiUtils';
+import { successResponse, parseNumericId } from '@/lib/utils/apiUtils';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { UpdateTemplateSchema } from '@/lib/validation/schemas';
 import {
@@ -16,16 +15,8 @@ import {
  */
 export const GET = secureRoute.queryWithParams<{ id: string }>({
   feature: Feature.MANAGE_TEMPLATES,
-  handler: async (request, { user, params }) => {
-    const hasAdminAccess = await isSystemAdmin(user.id);
-    if (!hasAdminAccess) {
-      return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
-    }
-
-    const templateId = Number.parseInt(params.id, 10);
-    if (Number.isNaN(templateId)) {
-      return NextResponse.json({ success: false, error: 'Invalid template ID' }, { status: 400 });
-    }
+  handler: async (request, { params }) => {
+    const templateId = parseNumericId(params.id, 'Template');
 
     const template = await getTemplateById(templateId);
 
@@ -44,16 +35,8 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
 export const PUT = secureRoute.mutationWithParams<typeof UpdateTemplateSchema, { id: string }>({
   feature: Feature.MANAGE_TEMPLATES,
   schema: UpdateTemplateSchema,
-  handler: async (request, { user, data, params }) => {
-    const hasAdminAccess = await isSystemAdmin(user.id);
-    if (!hasAdminAccess) {
-      return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
-    }
-
-    const templateId = Number.parseInt(params.id, 10);
-    if (Number.isNaN(templateId)) {
-      return NextResponse.json({ success: false, error: 'Invalid template ID' }, { status: 400 });
-    }
+  handler: async (request, { data, params }) => {
+    const templateId = parseNumericId(params.id, 'Template');
 
     const template = await updateTemplate(templateId, data);
 
@@ -67,16 +50,8 @@ export const PUT = secureRoute.mutationWithParams<typeof UpdateTemplateSchema, {
  */
 export const DELETE = secureRoute.mutationWithParams<z.ZodAny, { id: string }>({
   feature: Feature.MANAGE_TEMPLATES,
-  handler: async (request, { user, params }) => {
-    const hasAdminAccess = await isSystemAdmin(user.id);
-    if (!hasAdminAccess) {
-      return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
-    }
-
-    const templateId = Number.parseInt(params.id, 10);
-    if (Number.isNaN(templateId)) {
-      return NextResponse.json({ success: false, error: 'Invalid template ID' }, { status: 400 });
-    }
+  handler: async (request, { params }) => {
+    const templateId = parseNumericId(params.id, 'Template');
 
     await deleteTemplate(templateId);
 

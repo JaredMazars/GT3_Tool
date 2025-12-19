@@ -42,8 +42,12 @@ export async function syncPageRegistry(): Promise<{
         active: true,
         lastSeen: now,
       },
+      select: {
+        createdAt: true,
+        updatedAt: true,
+      },
     });
-    
+
     if (result.createdAt.getTime() === result.updatedAt.getTime()) {
       discovered++;
     } else {
@@ -79,10 +83,23 @@ export async function getPageRegistry(filters?: {
       active: filters?.active,
       category: filters?.category,
     },
+    select: {
+      id: true,
+      pathname: true,
+      pageTitle: true,
+      category: true,
+      discovered: true,
+      active: true,
+      lastSeen: true,
+      createdAt: true,
+      updatedAt: true,
+    },
     orderBy: [
       { category: 'asc' },
       { pathname: 'asc' },
     ],
+    // Registry is bounded by number of actual pages in app
+    take: 1000,
   });
 }
 
@@ -93,6 +110,7 @@ export async function getAllPagePermissions(filters?: {
   pathname?: string;
   role?: string;
   active?: boolean;
+  take?: number;
 }): Promise<PagePermission[]> {
   const results = await prisma.pagePermission.findMany({
     where: {
@@ -100,10 +118,22 @@ export async function getAllPagePermissions(filters?: {
       role: filters?.role,
       active: filters?.active,
     },
+    select: {
+      id: true,
+      pathname: true,
+      role: true,
+      accessLevel: true,
+      description: true,
+      active: true,
+      createdAt: true,
+      updatedAt: true,
+      createdBy: true,
+    },
     orderBy: [
       { pathname: 'asc' },
       { role: 'asc' },
     ],
+    take: filters?.take ?? 500,
   });
   return results as PagePermission[];
 }
@@ -119,7 +149,20 @@ export async function getPagePermissionsByPath(
       pathname,
       active: true,
     },
+    select: {
+      id: true,
+      pathname: true,
+      role: true,
+      accessLevel: true,
+      description: true,
+      active: true,
+      createdAt: true,
+      updatedAt: true,
+      createdBy: true,
+    },
     orderBy: { role: 'asc' },
+    // Bounded by number of roles (typically < 10)
+    take: 50,
   });
   return results as PagePermission[];
 }
@@ -173,11 +216,22 @@ export async function createPagePermission(data: {
       active: true,
       createdBy: data.createdBy,
     },
+    select: {
+      id: true,
+      pathname: true,
+      role: true,
+      accessLevel: true,
+      description: true,
+      active: true,
+      createdAt: true,
+      updatedAt: true,
+      createdBy: true,
+    },
   });
-  
+
   // Clear cache for this page
   await clearPagePermissionCache(data.pathname);
-  
+
   return permission as PagePermission;
 }
 
@@ -191,7 +245,7 @@ export async function bulkUpsertPagePermissions(
   createdBy: string
 ): Promise<PagePermission[]> {
   const results: PagePermission[] = [];
-  
+
   // Use transaction to ensure all succeed or all fail
   await prisma.$transaction(async (tx) => {
     for (const [role, accessLevel] of Object.entries(permissions)) {
@@ -215,15 +269,26 @@ export async function bulkUpsertPagePermissions(
           active: true,
           createdBy,
         },
+        select: {
+          id: true,
+          pathname: true,
+          role: true,
+          accessLevel: true,
+          description: true,
+          active: true,
+          createdAt: true,
+          updatedAt: true,
+          createdBy: true,
+        },
       });
-      
+
       results.push(permission as PagePermission);
     }
   });
-  
+
   // Clear cache for this page
   await clearPagePermissionCache(pathname);
-  
+
   return results;
 }
 
@@ -240,8 +305,9 @@ export async function updatePagePermission(
 ): Promise<PagePermission> {
   const existing = await prisma.pagePermission.findUnique({
     where: { id },
+    select: { pathname: true },
   });
-  
+
   if (!existing) {
     throw new AppError(
       404,
@@ -250,15 +316,26 @@ export async function updatePagePermission(
       { id }
     );
   }
-  
+
   const updated = await prisma.pagePermission.update({
     where: { id },
     data,
+    select: {
+      id: true,
+      pathname: true,
+      role: true,
+      accessLevel: true,
+      description: true,
+      active: true,
+      createdAt: true,
+      updatedAt: true,
+      createdBy: true,
+    },
   });
-  
+
   // Clear cache for this page
   await clearPagePermissionCache(existing.pathname);
-  
+
   return updated as PagePermission;
 }
 
@@ -268,8 +345,9 @@ export async function updatePagePermission(
 export async function deletePagePermission(id: number): Promise<void> {
   const existing = await prisma.pagePermission.findUnique({
     where: { id },
+    select: { pathname: true },
   });
-  
+
   if (!existing) {
     throw new AppError(
       404,
@@ -278,11 +356,11 @@ export async function deletePagePermission(id: number): Promise<void> {
       { id }
     );
   }
-  
+
   await prisma.pagePermission.delete({
     where: { id },
   });
-  
+
   // Clear cache for this page
   await clearPagePermissionCache(existing.pathname);
 }

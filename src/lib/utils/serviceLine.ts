@@ -42,7 +42,18 @@ export async function getActiveServiceLines(): Promise<ServiceLineMaster[]> {
 export async function getAllServiceLines(): Promise<ServiceLineMaster[]> {
   try {
     return await prisma.serviceLineMaster.findMany({
+      select: {
+        code: true,
+        name: true,
+        description: true,
+        active: true,
+        sortOrder: true,
+        createdAt: true,
+        updatedAt: true,
+      },
       orderBy: { sortOrder: 'asc' },
+      // Bounded by actual service lines in system
+      take: 100,
     });
   } catch (error) {
     logger.error('Error fetching all service lines', { error });

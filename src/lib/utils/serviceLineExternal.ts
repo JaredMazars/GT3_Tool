@@ -86,7 +86,21 @@ export async function getExternalServiceLinesByMaster(
 export async function getAllExternalServiceLines(): Promise<ServiceLineExternal[]> {
   try {
     return await prisma.serviceLineExternal.findMany({
+      select: {
+        id: true,
+        ServLineCode: true,
+        ServLineDesc: true,
+        GLPrefix: true,
+        SLGroup: true,
+        masterCode: true,
+        SubServlineGroupCode: true,
+        SubServlineGroupDesc: true,
+        createdAt: true,
+        updatedAt: true,
+      },
       orderBy: { SubServlineGroupCode: 'asc' },
+      // Bounded by actual service lines in system
+      take: 500,
     });
   } catch (error) {
     logger.error('Error fetching all external service lines', { error });
@@ -125,6 +139,18 @@ export async function setExternalMapping(
       where: { id: externalId },
       data: {
         masterCode,
+      },
+      select: {
+        id: true,
+        ServLineCode: true,
+        ServLineDesc: true,
+        GLPrefix: true,
+        SLGroup: true,
+        masterCode: true,
+        SubServlineGroupCode: true,
+        SubServlineGroupDesc: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
   } catch (error) {

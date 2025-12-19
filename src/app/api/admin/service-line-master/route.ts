@@ -7,7 +7,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { secureRoute, Feature, RateLimitPresets } from '@/lib/api/secureRoute';
 import { CreateServiceLineMasterSchema } from '@/lib/validation/schemas';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 
@@ -29,6 +29,8 @@ export const GET = secureRoute.query({
         createdAt: true,
         updatedAt: true,
       },
+      // Bounded by actual service lines in system
+      take: 100,
     });
 
     return NextResponse.json(successResponse(serviceLineMasters));
@@ -41,6 +43,7 @@ export const GET = secureRoute.query({
  */
 export const POST = secureRoute.mutation({
   feature: Feature.MANAGE_SERVICE_LINES,
+  rateLimit: { ...RateLimitPresets.STANDARD, maxRequests: 20 },
   schema: CreateServiceLineMasterSchema,
   handler: async (request, { user, data }) => {
     // Check for unique code

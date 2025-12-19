@@ -46,14 +46,12 @@ const clients = await prisma.client.findMany({ where: { clientCode: { contains: 
 ## Service Lines
 
 **Client-Facing:** TAX, AUDIT, ACCOUNTING, ADVISORY
-**Shared Services:** QRM, BUSINESS DEVELOPMENT, IT, FINANCE, HR, COUNTRY MANAGEMENT
+**Shared Services:** QRM, BUSINESS_DEV, IT, FINANCE, HR, COUNTRY_MANAGEMENT
 
 **Tables:**
-| Table | Purpose |
-|-------|---------|
-| `ServiceLineMaster` | Application master list (code, name, active) |
-| `ServiceLineExternal` | Maps `ServLineCode` -> `SubServlineGroupCode` -> `masterCode` |
-| `ServiceLineUser` | User assignments to `subServiceLineGroup` with `role` |
+- `ServiceLineMaster`: Application master list (code, name, active)
+- `ServiceLineExternal`: Maps `ServLineCode` -> `SubServlineGroupCode` -> `masterCode`
+- `ServiceLineUser`: User assignments to `subServiceLineGroup` with `role`
 
 **Access Pattern:** Task's `ServLineCode` -> `SubServlineGroupCode` -> check user's `ServiceLineUser` assignments
 
@@ -68,92 +66,53 @@ const clients = await prisma.client.findMany({ where: { clientCode: { contains: 
 
 Roles defined in `@/lib/utils/roleHierarchy.ts`. SYSTEM_ADMIN bypasses all checks.
 
-### API Route Pattern (REQUIRED)
+### API Routes - Use secureRoute (REQUIRED)
+
+All API routes MUST use the `secureRoute` wrapper from `@/lib/api/secureRoute.ts`:
 
 ```typescript
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { checkFeature } from '@/lib/permissions/checkFeature';
-import { Feature } from '@/lib/permissions/features';
-import { getUserSubServiceLineGroups } from '@/lib/services/service-lines/serviceLineService';
-import { enforceRateLimit, RateLimitPresets } from '@/lib/utils/rateLimit';
-import { sanitizeObject } from '@/lib/utils/sanitization';
-import { logger } from '@/lib/utils/logger';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 
-export async function POST(request: NextRequest) {
-  try {
-    // 1. Rate limit (REQUIRED for mutations)
-    await enforceRateLimit(request, RateLimitPresets.STANDARD);
-
-    // 2. Authenticate
-    const user = await getCurrentUser();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    // 3. Sanitize + Validate (REQUIRED for mutations)
-    const body = await request.json();
-    const sanitized = sanitizeObject(body);
-    const validated = Schema.parse(sanitized);
-
-    // 4. Authorize (Feature OR Service Line access)
-    const hasFeature = await checkFeature(user.id, Feature.MANAGE_TASKS);
-    const userSubGroups = await getUserSubServiceLineGroups(user.id);
-    if (!hasFeature && userSubGroups.length === 0) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    // 5. Execute with explicit select
-    const result = await prisma.task.create({
-      data: validated,
-      select: { id: true, TaskCode: true },
-    });
-
-    // 6. Log and respond
-    logger.info('Task created', { taskId: result.id });
+// Mutations (POST/PUT/PATCH/DELETE)
+export const POST = secureRoute.mutation({
+  feature: Feature.MANAGE_TASKS,
+  schema: CreateTaskSchema,
+  handler: async (request, { user, data }) => {
+    const result = await prisma.task.create({ data, select: { id: true } });
     return NextResponse.json(successResponse(result));
-  } catch (error) {
-    return handleApiError(error, 'POST /api/tasks');
-  }
-}
-```
+  },
+});
 
-**Or use middleware:**
-```typescript
-import { withAccess, requireAccess } from '@/lib/api/authMiddleware';
-
-// Middleware wrapper
-export const GET = withAccess({
+// Queries (GET)
+export const GET = secureRoute.query({
   feature: Feature.ACCESS_TASKS,
-  requireServiceLine: true,
-}, handler);
+  handler: async (request, { user }) => {
+    return NextResponse.json(successResponse(data));
+  },
+});
 
-// Direct function call
-const access = await requireAccess(user.id, { feature: Feature.X, taskId: 123 });
-if (!access.allowed) return 403;
+// Routes with params (e.g., [id])
+export const GET = secureRoute.queryWithParams({
+  taskIdParam: 'id',
+  handler: async (request, { user, params }) => { ... },
+});
+
+// AI endpoints (strict rate limiting)
+export const POST = secureRoute.ai({ schema, handler });
+
+// File uploads
+export const POST = secureRoute.fileUpload({ handler });
 ```
 
-### Security Checklist
+**secureRoute handles automatically:**
+- Authentication, Rate limiting (per-user + IP), Input sanitization, Zod validation, Error handling, Performance tracking
 
-- [ ] `enforceRateLimit()` for ALL mutations (POST/PUT/PATCH/DELETE)
-- [ ] `getCurrentUser()` at start
-- [ ] `sanitizeObject()` + Zod before processing body
-- [ ] `checkFeature()` OR `getUserSubServiceLineGroups()` for access
-- [ ] For tasks: `checkTaskAccess(userId, taskId)`
-- [ ] Explicit `select:` fields only
-- [ ] `handleApiError()` in catch
-- [ ] `logger.info/warn/error()` NOT `console.*`
-
-### Rate Limiting
-
-```typescript
-import { enforceRateLimit, RateLimitPresets } from '@/lib/utils/rateLimit';
-
-// Presets
-await enforceRateLimit(request, RateLimitPresets.STANDARD);     // 30/min
-await enforceRateLimit(request, RateLimitPresets.AI_ENDPOINTS); // 5/min
-await enforceRateLimit(request, RateLimitPresets.FILE_UPLOADS); // 10/min
-
-// Admin routes: stricter limits
-await enforceRateLimit(request, { maxRequests: 20, windowMs: 60000, keyPrefix: 'admin' });
-```
+**Developer responsibilities:**
+- Choose correct wrapper (`mutation`, `query`, `ai`, `fileUpload`)
+- Specify `feature` for authorization
+- Use explicit `select:` in Prisma queries
+- Call cache invalidation after mutations
+- Use `logger` (NOT `console.*`)
 
 ### Page-Level Access
 
@@ -166,10 +125,8 @@ await enforceRateLimit(request, { maxRequests: 20, windowMs: 60000, keyPrefix: '
 - Analytics/BD: PARTNER+ (MANAGER gets VIEW)
 - Regular pages: All roles FULL, VIEWER gets VIEW
 
-**Implementation:**
 ```typescript
 // Layout
-import { PageAccessGuard } from '@/components/guards/PageAccessGuard';
 <PageAccessGuard pathname={pathname}>{children}</PageAccessGuard>
 
 // Components
@@ -199,23 +156,27 @@ const { isViewOnly, canEdit } = usePageAccess();
 - Transactions for multi-step operations
 - Prevent N+1 queries
 
-### Caching (Redis with fallback)
+### Caching
 
 **TTLs:** Sessions 1h | User/Task 10min | Analytics/Static 30min
 
 **Prefixes:** `CACHE_PREFIXES.SESSION`, `USER`, `TASK`, `SERVICE_LINE`, `ANALYTICS`
 
-Feature permissions are in-memory TypeScript constants (no caching needed).
+**Cache Invalidation (after mutations):**
+```typescript
+import { invalidateOnTaskMutation, invalidateOnClientMutation } from '@/lib/services/cache/cacheInvalidation';
+
+await invalidateOnTaskMutation(taskId, serviceLine, subServiceLineGroup);
+await invalidateOnClientMutation(clientId);
+```
 
 ### Logging
 
 ```typescript
 import { logger } from '@/lib/utils/logger';
-
 logger.info('Action completed', { userId, taskId });
 logger.warn('Unusual condition', { details });
 logger.error('Operation failed', error);
-
 // NEVER use console.log/warn/error in production code
 ```
 
@@ -223,7 +184,6 @@ logger.error('Operation failed', error);
 
 ```typescript
 throw new AppError(status, message, ErrorCodes.X, metadata);
-// Catch
 return handleApiError(error, 'Context');
 ```
 

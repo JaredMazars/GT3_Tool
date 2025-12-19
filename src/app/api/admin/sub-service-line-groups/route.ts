@@ -11,7 +11,9 @@ export const GET = secureRoute.query({
   feature: Feature.MANAGE_TOOLS,
   handler: async (request, { user }) => {
     // Get all distinct SubServiceLineGroups with their master service line
+    // Note: take limit of 500 is reasonable for sub-service-line configuration data
     const subServiceLineGroups = await prisma.serviceLineExternal.findMany({
+      take: 500,
       where: {
         SubServlineGroupCode: { not: null },
         masterCode: { not: null },
@@ -45,10 +47,13 @@ export const GET = secureRoute.query({
     }, {} as Record<string, Array<{ code: string; description: string }>>);
 
     // Get master service line names
-    const masterServiceLines = await prisma.serviceLineMaster.findMany({
-      where: { code: { in: Object.keys(grouped) } },
-      select: { code: true, name: true, description: true },
-    });
+    const masterCodes = Object.keys(grouped);
+    const masterServiceLines = masterCodes.length > 0
+      ? await prisma.serviceLineMaster.findMany({
+          where: { code: { in: masterCodes } },
+          select: { code: true, name: true, description: true },
+        })
+      : [];
 
     const masterServiceLineMap = masterServiceLines.reduce((acc, master) => {
       acc[master.code] = { name: master.name, description: master.description };
