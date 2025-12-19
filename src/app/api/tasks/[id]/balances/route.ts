@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { secureRoute } from '@/lib/api/secureRoute';
+import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 
 interface TaskBalances {
   taskId: number;
@@ -27,7 +28,7 @@ const TTYPE_CATEGORIES = {
   PROVISION: ['P', 'PRO'],
 };
 
-function categorizeTransaction(tType: string, tranType?: string): {
+function categorizeTransaction(tType: string): {
   isTime: boolean;
   isDisbursement: boolean;
   isFee: boolean;
@@ -50,12 +51,9 @@ function categorizeTransaction(tType: string, tranType?: string): {
  * Get WIP balances for a task with detailed breakdown
  */
 export const GET = secureRoute.queryWithParams<{ id: string }>({
+  feature: Feature.ACCESS_TASKS,
   handler: async (request, { user, params }) => {
-    const taskId = parseInt(params.id, 10);
-
-    if (isNaN(taskId)) {
-      return NextResponse.json({ success: false, error: 'Invalid task ID format' }, { status: 400 });
-    }
+    const taskId = parseTaskId(params.id);
 
     const task = await prisma.task.findUnique({
       where: { id: taskId },
@@ -63,12 +61,13 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
     });
 
     if (!task) {
-      return NextResponse.json({ success: false, error: 'Task not found' }, { status: 404 });
+      throw new AppError(404, 'Task not found', ErrorCodes.NOT_FOUND);
     }
 
     const wipTransactions = await prisma.wIPTransactions.findMany({
       where: { GSTaskID: task.GSTaskID },
       select: { Amount: true, TType: true, TranType: true, updatedAt: true },
+      take: 50000,
     });
 
     let time = 0;
@@ -80,7 +79,7 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
 
     wipTransactions.forEach((transaction) => {
       const amount = transaction.Amount || 0;
-      const category = categorizeTransaction(transaction.TType, transaction.TranType);
+      const category = categorizeTransaction(transaction.TType);
       const tranTypeUpper = transaction.TranType.toUpperCase();
 
       if (category.isProvision) {

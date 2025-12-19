@@ -9,11 +9,12 @@ import { invalidateTaskListCache } from '@/lib/services/cache/listCache';
 import { TaskStage } from '@/types/task-stages';
 import { z } from 'zod';
 import { secureRoute } from '@/lib/api/secureRoute';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 
 const updateStageSchema = z.object({
   stage: z.enum(['DRAFT', 'IN_PROGRESS', 'UNDER_REVIEW', 'COMPLETED', 'ARCHIVED']),
   notes: z.string().max(500).optional(),
-});
+}).strict();
 
 /**
  * GET /api/tasks/[id]/stage
@@ -25,7 +26,7 @@ export const GET = secureRoute.queryWithParams({
 
     const hasAccess = await checkTaskAccess(user.id, taskId);
     if (!hasAccess) {
-      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+      throw new AppError(403, 'Forbidden', ErrorCodes.FORBIDDEN);
     }
 
     const cacheKey = `${CACHE_PREFIXES.TASK}stage:${taskId}`;
@@ -37,7 +38,8 @@ export const GET = secureRoute.queryWithParams({
     const stages = await prisma.taskStage.findMany({
       where: { taskId },
       select: { id: true, stage: true, movedBy: true, notes: true, createdAt: true },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: 100,
     });
 
     const currentStage = stages.length > 0 ? stages[0]?.stage ?? TaskStage.DRAFT : TaskStage.DRAFT;
@@ -61,7 +63,7 @@ export const POST = secureRoute.mutationWithParams({
 
     const hasAccess = await checkTaskAccess(user.id, taskId, 'EDITOR');
     if (!hasAccess) {
-      return NextResponse.json({ success: false, error: 'Forbidden - EDITOR role required' }, { status: 403 });
+      throw new AppError(403, 'Forbidden - EDITOR role required', ErrorCodes.FORBIDDEN);
     }
 
     const sanitizedNotes = data.notes ? sanitizeText(data.notes, { maxLength: 500, allowNewlines: true }) : null;
@@ -72,7 +74,7 @@ export const POST = secureRoute.mutationWithParams({
     });
 
     if (!task) {
-      return NextResponse.json({ success: false, error: 'Task not found' }, { status: 404 });
+      throw new AppError(404, 'Task not found', ErrorCodes.NOT_FOUND);
     }
 
     const currentStage = await prisma.taskStage.findFirst({

@@ -1,20 +1,21 @@
 import { NextResponse } from 'next/server';
 import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { prisma } from '@/lib/db/prisma';
-import { successResponse } from '@/lib/utils/apiUtils';
+import { parseTaskId, successResponse } from '@/lib/utils/apiUtils';
 import { toTaskId } from '@/types/branded';
 import { sanitizeText } from '@/lib/utils/sanitization';
 import { z } from 'zod';
 import { secureRoute } from '@/lib/api/secureRoute';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 
 const CreateFilingStatusSchema = z.object({
   filingType: z.string().min(1).max(100),
-  description: z.string().optional(),
+  description: z.string().max(2000).optional(),
   status: z.enum(['PENDING', 'IN_PROGRESS', 'SUBMITTED', 'ACCEPTED', 'REJECTED']).optional(),
   deadline: z.string().datetime().optional(),
   referenceNumber: z.string().max(100).optional(),
-  notes: z.string().optional(),
-});
+  notes: z.string().max(2000).optional(),
+}).strict();
 
 /**
  * GET /api/tasks/[id]/filing-status
@@ -22,16 +23,30 @@ const CreateFilingStatusSchema = z.object({
  */
 export const GET = secureRoute.queryWithParams({
   handler: async (request, { user, params }) => {
-    const taskId = toTaskId(params.id);
+    const taskId = toTaskId(parseTaskId(params?.id));
 
     const hasAccess = await checkTaskAccess(user.id, taskId);
     if (!hasAccess) {
-      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+      throw new AppError(403, 'Forbidden', ErrorCodes.FORBIDDEN);
     }
     
     const filings = await prisma.filingStatus.findMany({
       where: { taskId },
-      orderBy: [{ status: 'asc' }, { deadline: 'asc' }],
+      select: {
+        id: true,
+        taskId: true,
+        filingType: true,
+        description: true,
+        status: true,
+        deadline: true,
+        referenceNumber: true,
+        notes: true,
+        createdBy: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: [{ status: 'asc' }, { deadline: 'asc' }, { id: 'asc' }],
+      take: 100,
     });
 
     return NextResponse.json(successResponse(filings));
@@ -45,23 +60,46 @@ export const GET = secureRoute.queryWithParams({
 export const POST = secureRoute.mutationWithParams({
   schema: CreateFilingStatusSchema,
   handler: async (request, { user, data, params }) => {
-    const taskId = toTaskId(params.id);
+    const taskId = toTaskId(parseTaskId(params?.id));
 
     const hasAccess = await checkTaskAccess(user.id, taskId, 'EDITOR');
     if (!hasAccess) {
-      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+      throw new AppError(403, 'Forbidden - EDITOR role required', ErrorCodes.FORBIDDEN);
+    }
+
+    // Verify task exists
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { id: true },
+    });
+
+    if (!task) {
+      throw new AppError(404, 'Task not found', ErrorCodes.NOT_FOUND);
     }
 
     const filing = await prisma.filingStatus.create({
       data: {
         taskId,
         filingType: sanitizeText(data.filingType, { maxLength: 100 }) || data.filingType,
-        description: data.description ? sanitizeText(data.description, { allowNewlines: true }) : undefined,
+        description: data.description ? sanitizeText(data.description, { maxLength: 2000, allowNewlines: true }) : undefined,
         status: data.status || 'PENDING',
         deadline: data.deadline ? new Date(data.deadline) : null,
-        referenceNumber: data.referenceNumber,
-        notes: data.notes ? sanitizeText(data.notes, { allowNewlines: true }) : undefined,
+        referenceNumber: data.referenceNumber ? sanitizeText(data.referenceNumber, { maxLength: 100 }) : undefined,
+        notes: data.notes ? sanitizeText(data.notes, { maxLength: 2000, allowNewlines: true }) : undefined,
         createdBy: user.id,
+      },
+      select: {
+        id: true,
+        taskId: true,
+        filingType: true,
+        description: true,
+        status: true,
+        deadline: true,
+        referenceNumber: true,
+        notes: true,
+        createdBy: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
 

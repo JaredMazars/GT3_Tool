@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { handleApiError } from '@/lib/utils/errorHandler';
-import { GSClientIDSchema } from '@/lib/validation/schemas';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+import { successResponse, parseGSClientID } from '@/lib/utils/apiUtils';
+import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { 
   getInvoiceDetailsByBucket,
   InvoicesByBucket 
@@ -22,33 +22,15 @@ import {
  *   - Full payment history
  * - Client information
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    // 2. Parse IDs
-    const params = await context.params;
-    const GSClientID = params.id;
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_CLIENTS,
+  handler: async (request, { user, params }) => {
+    // Parse and validate GSClientID
+    const GSClientID = parseGSClientID(params.id);
 
-    // Validate GSClientID is a valid GUID
-    const validationResult = GSClientIDSchema.safeParse(GSClientID);
-    if (!validationResult.success) {
-      return NextResponse.json(
-        { error: 'Invalid client ID format. Expected GUID.' },
-        { status: 400 }
-      );
-    }
-
-    // 3. Check Permission - verify client exists and user has access
+    // Verify client exists
     const client = await prisma.client.findUnique({
-      where: { GSClientID: GSClientID },
+      where: { GSClientID },
       select: {
         id: true,
         GSClientID: true,
@@ -58,36 +40,39 @@ export async function GET(
     });
 
     if (!client) {
-      return NextResponse.json(
-        { error: 'Client not found' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Client not found', ErrorCodes.NOT_FOUND);
     }
 
-    // 4-5. Execute - Fetch debtor transactions for this client
-    const debtorTransactions = await prisma.drsTransactions.findMany({
-      where: {
-        GSClientID: GSClientID,
-      },
-      select: {
-        TranDate: true,
-        Total: true,
-        EntryType: true,
-        InvNumber: true,
-        Reference: true,
-        ServLineCode: true,
-        Narration: true,
-        updatedAt: true,
-      },
-    });
+    // Check cache first
+    const cacheKey = `${CACHE_PREFIXES.CLIENT}debtors-details:${GSClientID}`;
+    const cached = await cache.get<Record<string, unknown>>(cacheKey);
+    if (cached) {
+      return NextResponse.json(successResponse(cached));
+    }
 
-    // Get Service Line names for display
-    const serviceLineExternals = await prisma.serviceLineExternal.findMany({
-      select: {
-        ServLineCode: true,
-        masterCode: true,
-      },
-    });
+    // Fetch debtor transactions and service line mappings in parallel
+    const [debtorTransactions, serviceLineExternals] = await Promise.all([
+      prisma.drsTransactions.findMany({
+        where: { GSClientID },
+        select: {
+          TranDate: true,
+          Total: true,
+          EntryType: true,
+          InvNumber: true,
+          Reference: true,
+          ServLineCode: true,
+          Narration: true,
+          updatedAt: true,
+        },
+      }),
+      prisma.serviceLineExternal.findMany({
+        select: {
+          ServLineCode: true,
+          masterCode: true,
+        },
+        take: 1000,
+      }),
+    ]);
 
     // Create a map of ServLineCode to Master Service Line name
     const servLineToMasterMap = new Map<string, string>();
@@ -108,6 +93,7 @@ export async function GET(
         code: true,
         name: true,
       },
+      take: 100,
     });
 
     // Create map of master code to name
@@ -131,7 +117,6 @@ export async function GET(
       servLineNameMap
     );
 
-    // 6. Respond
     const responseData = {
       GSClientID: client.GSClientID,
       clientCode: client.clientCode,
@@ -143,9 +128,10 @@ export async function GET(
       ),
     };
 
+    // Cache for 10 minutes (600 seconds)
+    await cache.set(cacheKey, responseData, 600);
+
     return NextResponse.json(successResponse(responseData));
-  } catch (error) {
-    return handleApiError(error, 'Get Client Debtor Details');
-  }
-}
+  },
+});
 

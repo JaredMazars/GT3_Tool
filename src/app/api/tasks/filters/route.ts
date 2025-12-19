@@ -5,6 +5,17 @@ import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { getServLineCodesBySubGroup } from '@/lib/utils/serviceLineExternal';
 import { performanceMonitor } from '@/lib/utils/performanceMonitor';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { z } from 'zod';
+
+// Zod schema for query params validation
+const TaskFiltersQuerySchema = z.object({
+  serviceLine: z.string().max(50).optional(),
+  subServiceLineGroup: z.string().max(50).optional(),
+  clientSearch: z.string().max(100).default(''),
+  taskNameSearch: z.string().max(100).default(''),
+  partnerSearch: z.string().max(100).default(''),
+  managerSearch: z.string().max(100).default(''),
+});
 
 /**
  * GET /api/tasks/filters
@@ -17,8 +28,18 @@ export const GET = secureRoute.query({
     let cacheHit = false;
 
     const { searchParams } = new URL(request.url);
-    const serviceLine = searchParams.get('serviceLine') || undefined;
-    const subServiceLineGroup = searchParams.get('subServiceLineGroup') || undefined;
+    
+    // Validate query params with Zod
+    const queryParams = TaskFiltersQuerySchema.parse({
+      serviceLine: searchParams.get('serviceLine') ?? undefined,
+      subServiceLineGroup: searchParams.get('subServiceLineGroup') ?? undefined,
+      clientSearch: searchParams.get('clientSearch') ?? undefined,
+      taskNameSearch: searchParams.get('taskNameSearch') ?? undefined,
+      partnerSearch: searchParams.get('partnerSearch') ?? undefined,
+      managerSearch: searchParams.get('managerSearch') ?? undefined,
+    });
+    
+    const { serviceLine, subServiceLineGroup, clientSearch, taskNameSearch, partnerSearch, managerSearch } = queryParams;
 
     let servLineCodes: string[] = [];
     if (subServiceLineGroup) {
@@ -41,11 +62,6 @@ export const GET = secureRoute.query({
         }));
       }
     }
-
-    const clientSearch = searchParams.get('clientSearch') || '';
-    const taskNameSearch = searchParams.get('taskNameSearch') || '';
-    const partnerSearch = searchParams.get('partnerSearch') || '';
-    const managerSearch = searchParams.get('managerSearch') || '';
 
     const clientTooShort = clientSearch.length > 0 && clientSearch.length < 2;
     const taskNameTooShort = taskNameSearch.length > 0 && taskNameSearch.length < 2;

@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { handleApiError } from '@/lib/utils/errorHandler';
-import { GSClientIDSchema } from '@/lib/validation/schemas';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+import { successResponse, parseGSClientID } from '@/lib/utils/apiUtils';
+import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { 
   aggregateWipTransactionsByServiceLine, 
   aggregateOverallWipData,
@@ -33,11 +33,6 @@ interface ProfitabilityMetrics {
   ltdFeeDisb: number;
   ltdHours: number;
   taskCount: number;
-}
-
-interface MasterServiceLineInfo {
-  code: string;
-  name: string;
 }
 
 /**
@@ -103,33 +98,15 @@ function calculateProfitabilityMetrics(data: {
  * - Task count contributing to WIP
  * - Latest update timestamp
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    // 2. Parse IDs
-    const params = await context.params;
-    const GSClientID = params.id;
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_CLIENTS,
+  handler: async (request, { user, params }) => {
+    // Parse and validate GSClientID
+    const GSClientID = parseGSClientID(params.id);
 
-    // Validate GSClientID is a valid GUID
-    const validationResult = GSClientIDSchema.safeParse(GSClientID);
-    if (!validationResult.success) {
-      return NextResponse.json(
-        { error: 'Invalid client ID format. Expected GUID.' },
-        { status: 400 }
-      );
-    }
-
-    // 3. Check Permission - verify client exists and user has access
+    // Verify client exists
     const client = await prisma.client.findUnique({
-      where: { GSClientID: GSClientID },
+      where: { GSClientID },
       select: {
         id: true,
         GSClientID: true,
@@ -139,32 +116,34 @@ export async function GET(
     });
 
     if (!client) {
-      return NextResponse.json(
-        { error: 'Client not found' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Client not found', ErrorCodes.NOT_FOUND);
     }
 
-    // 4-5. Execute - Get CARL partner employee codes from cache
-    const carlPartnerCodes = await getCarlPartnerCodes();
+    // Check cache first
+    const cacheKey = `${CACHE_PREFIXES.CLIENT}wip:${GSClientID}`;
+    const cached = await cache.get<Record<string, unknown>>(cacheKey);
+    if (cached) {
+      return NextResponse.json(successResponse(cached));
+    }
 
-    // Fetch ALL WIP transactions for this client (including Carl Partners)
-    const wipTransactions = await prisma.wIPTransactions.findMany({
-      where: {
-        GSClientID: GSClientID,
-      },
-      select: {
-        GSTaskID: true,
-        TaskServLine: true,
-        Amount: true,
-        Cost: true,
-        Hour: true,
-        TType: true,
-        TranType: true,
-        EmpCode: true,
-        updatedAt: true,
-      },
-    });
+    // Get CARL partner employee codes and WIP transactions in parallel
+    const [carlPartnerCodes, wipTransactions] = await Promise.all([
+      getCarlPartnerCodes(),
+      prisma.wIPTransactions.findMany({
+        where: { GSClientID },
+        select: {
+          GSTaskID: true,
+          TaskServLine: true,
+          Amount: true,
+          Cost: true,
+          Hour: true,
+          TType: true,
+          TranType: true,
+          EmpCode: true,
+          updatedAt: true,
+        },
+      }),
+    ]);
 
     // Set cost to 0 for Carl Partner transactions
     const processedTransactions = wipTransactions.map(txn => ({
@@ -199,6 +178,7 @@ export async function GET(
         code: true,
         name: true,
       },
+      take: 100,
     });
 
     // Calculate profitability metrics for each Master Service Line
@@ -217,7 +197,6 @@ export async function GET(
         )
       : null;
 
-    // 6. Respond
     const responseData = {
       GSClientID: client.GSClientID,
       clientCode: client.clientCode,
@@ -232,10 +211,9 @@ export async function GET(
       lastUpdated: latestWipTransaction?.updatedAt || null,
     };
 
+    // Cache for 10 minutes (600 seconds)
+    await cache.set(cacheKey, responseData, 600);
+
     return NextResponse.json(successResponse(responseData));
-  } catch (error) {
-    return handleApiError(error, 'Get Client WIP');
-  }
-}
-
-
+  },
+});

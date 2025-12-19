@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { CreateTaskSchema } from '@/lib/validation/schemas';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { getTasksWithCounts } from '@/lib/services/tasks/taskService';
 import { getServLineCodesBySubGroup, getExternalServiceLinesByMaster } from '@/lib/utils/serviceLineExternal';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
@@ -14,6 +13,28 @@ import { Feature } from '@/lib/permissions/features';
 import { getUserSubServiceLineGroups } from '@/lib/services/service-lines/serviceLineService';
 import { logger } from '@/lib/utils/logger';
 import { secureRoute } from '@/lib/api/secureRoute';
+
+// Zod schema for GET query params validation
+const TaskListQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  search: z.string().max(200).default(''),
+  includeArchived: z.enum(['true', 'false']).default('false'),
+  serviceLine: z.string().max(50).optional(),
+  subServiceLineGroup: z.string().max(50).optional(),
+  internalOnly: z.enum(['true', 'false']).default('false'),
+  clientTasksOnly: z.enum(['true', 'false']).default('false'),
+  myTasksOnly: z.enum(['true', 'false']).default('false'),
+  sortBy: z.enum(['TaskDesc', 'updatedAt', 'createdAt']).default('updatedAt'),
+  sortOrder: z.enum(['asc', 'desc']).default('desc'),
+  clientCode: z.string().max(50).optional(),
+  status: z.enum(['Active', 'Inactive']).optional(),
+  clientIds: z.string().max(1000).optional(),
+  taskNames: z.string().max(2000).optional(),
+  partnerCodes: z.string().max(1000).optional(),
+  managerCodes: z.string().max(1000).optional(),
+  serviceLineCodes: z.string().max(1000).optional(),
+});
 
 /**
  * GET /api/tasks
@@ -30,29 +51,46 @@ export const GET = secureRoute.query({
     const hasServiceLineAccess = userSubGroups.length > 0;
     
     if (!hasPagePermission && !hasServiceLineAccess) {
-      return NextResponse.json({ success: false, error: 'Forbidden - Insufficient permissions' }, { status: 403 });
+      throw new AppError(403, 'Forbidden - Insufficient permissions', ErrorCodes.FORBIDDEN);
     }
     
     const { searchParams } = new URL(request.url);
-    const page = Number.parseInt(searchParams.get('page') || '1');
-    const limit = Math.min(Number.parseInt(searchParams.get('limit') || '50'), 100);
-    const search = searchParams.get('search') || '';
-    const includeArchived = searchParams.get('includeArchived') === 'true';
-    const serviceLine = searchParams.get('serviceLine') || undefined;
-    const subServiceLineGroup = searchParams.get('subServiceLineGroup') || undefined;
-    const internalOnly = searchParams.get('internalOnly') === 'true';
-    const clientTasksOnly = searchParams.get('clientTasksOnly') === 'true';
-    const myTasksOnly = searchParams.get('myTasksOnly') === 'true';
-    const sortBy = searchParams.get('sortBy') || 'updatedAt';
-    const sortOrder = (searchParams.get('sortOrder') || 'desc') as 'asc' | 'desc';
-    const clientCode = searchParams.get('clientCode') || undefined;
-    const status = searchParams.get('status') || undefined;
     
-    const clientIds = searchParams.get('clientIds')?.split(',').map(Number).filter(Boolean) || [];
-    const taskNames = searchParams.get('taskNames')?.split(',') || [];
-    const partnerCodes = searchParams.get('partnerCodes')?.split(',') || [];
-    const managerCodes = searchParams.get('managerCodes')?.split(',') || [];
-    const serviceLineCodes = searchParams.get('serviceLineCodes')?.split(',') || [];
+    // Validate query params with Zod
+    const queryParams = TaskListQuerySchema.parse({
+      page: searchParams.get('page') ?? undefined,
+      limit: searchParams.get('limit') ?? undefined,
+      search: searchParams.get('search') ?? undefined,
+      includeArchived: searchParams.get('includeArchived') ?? undefined,
+      serviceLine: searchParams.get('serviceLine') ?? undefined,
+      subServiceLineGroup: searchParams.get('subServiceLineGroup') ?? undefined,
+      internalOnly: searchParams.get('internalOnly') ?? undefined,
+      clientTasksOnly: searchParams.get('clientTasksOnly') ?? undefined,
+      myTasksOnly: searchParams.get('myTasksOnly') ?? undefined,
+      sortBy: searchParams.get('sortBy') ?? undefined,
+      sortOrder: searchParams.get('sortOrder') ?? undefined,
+      clientCode: searchParams.get('clientCode') ?? undefined,
+      status: searchParams.get('status') ?? undefined,
+      clientIds: searchParams.get('clientIds') ?? undefined,
+      taskNames: searchParams.get('taskNames') ?? undefined,
+      partnerCodes: searchParams.get('partnerCodes') ?? undefined,
+      managerCodes: searchParams.get('managerCodes') ?? undefined,
+      serviceLineCodes: searchParams.get('serviceLineCodes') ?? undefined,
+    });
+    
+    const { page, limit, search, sortBy, sortOrder, clientCode, status } = queryParams;
+    const includeArchived = queryParams.includeArchived === 'true';
+    const serviceLine = queryParams.serviceLine;
+    const subServiceLineGroup = queryParams.subServiceLineGroup;
+    const internalOnly = queryParams.internalOnly === 'true';
+    const clientTasksOnly = queryParams.clientTasksOnly === 'true';
+    const myTasksOnly = queryParams.myTasksOnly === 'true';
+    
+    const clientIds = queryParams.clientIds?.split(',').map(Number).filter(Boolean) || [];
+    const taskNames = queryParams.taskNames?.split(',').filter(Boolean) || [];
+    const partnerCodes = queryParams.partnerCodes?.split(',').filter(Boolean) || [];
+    const managerCodes = queryParams.managerCodes?.split(',').filter(Boolean) || [];
+    const serviceLineCodes = queryParams.serviceLineCodes?.split(',').filter(Boolean) || [];
 
     const skip = (page - 1) * limit;
 
@@ -173,14 +211,11 @@ export const GET = secureRoute.query({
       where.ServLineCode = { in: serviceLineCodes };
     }
 
-    const orderBy: Prisma.TaskOrderByWithRelationInput = {};
-    const validSortFields = ['TaskDesc', 'updatedAt', 'createdAt'] as const;
-    type ValidSortField = typeof validSortFields[number];
-    if (validSortFields.includes(sortBy as ValidSortField)) {
-      orderBy[sortBy as ValidSortField] = sortOrder;
-    } else {
-      orderBy.updatedAt = 'desc';
-    }
+    // sortBy already validated by Zod schema - apply with deterministic secondary sort
+    const orderBy: Prisma.TaskOrderByWithRelationInput[] = [
+      { [sortBy]: sortOrder },
+      { id: 'asc' }, // Deterministic secondary sort for pagination stability
+    ];
 
     const [total, tasks] = await Promise.all([
       prisma.task.count({ where }),
@@ -285,13 +320,11 @@ export const POST = secureRoute.mutation({
   handler: async (request, { user, data }) => {
     const dbUser = await prisma.user.findUnique({
       where: { id: user.id },
+      select: { id: true, email: true },
     });
     
     if (!dbUser) {
-      return NextResponse.json({ 
-        success: false,
-        error: 'User not found in database. Please log out and log back in.' 
-      }, { status: 400 });
+      throw new AppError(400, 'User not found in database. Please log out and log back in.', ErrorCodes.NOT_FOUND);
     }
 
     let GSClientID: string | null = null;

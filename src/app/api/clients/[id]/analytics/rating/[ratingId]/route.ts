@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { checkClientAccess } from '@/lib/services/auth/auth';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse, parseNumericId } from '@/lib/utils/apiUtils';
@@ -114,7 +115,7 @@ export const GET = secureRoute.queryWithParams<{ id: string; ratingId: string }>
  * Delete a specific credit rating
  */
 export const DELETE = secureRoute.mutationWithParams<
-  undefined,
+  z.ZodUndefined,
   { id: string; ratingId: string }
 >({
   feature: Feature.MANAGE_CLIENTS,

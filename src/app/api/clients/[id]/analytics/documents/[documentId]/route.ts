@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { checkClientAccess } from '@/lib/services/auth/auth';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse, parseNumericId } from '@/lib/utils/apiUtils';
@@ -13,7 +14,7 @@ import { secureRoute, Feature } from '@/lib/api/secureRoute';
  * Delete a specific analytics document
  */
 export const DELETE = secureRoute.mutationWithParams<
-  undefined,
+  z.ZodUndefined,
   { id: string; documentId: string }
 >({
   feature: Feature.MANAGE_CLIENTS,

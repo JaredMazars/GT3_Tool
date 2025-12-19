@@ -8,31 +8,57 @@ import { isSystemAdmin } from '@/lib/services/auth/authorization';
 import { TaskStage } from '@/types/task-stages';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { logger } from '@/lib/utils/logger';
-import { secureRoute } from '@/lib/api/secureRoute';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { z } from 'zod';
+
+// Zod schema for query params validation
+const KanbanQuerySchema = z.object({
+  serviceLine: z.string().max(50).optional(),
+  subServiceLineGroup: z.string().max(50).optional(),
+  myTasksOnly: z.enum(['true', 'false']).default('false'),
+  includeArchived: z.enum(['true', 'false']).default('false'),
+  search: z.string().max(200).default(''),
+  clientIds: z.string().max(1000).optional(),
+  taskNames: z.string().max(2000).optional(),
+  partnerCodes: z.string().max(1000).optional(),
+  managerCodes: z.string().max(1000).optional(),
+  serviceLineCodes: z.string().max(1000).optional(),
+});
 
 /**
  * GET /api/tasks/kanban
  * Get tasks organized by kanban stage
  */
 export const GET = secureRoute.query({
+  feature: Feature.ACCESS_TASKS,
   handler: async (request, { user }) => {
     const { searchParams } = new URL(request.url);
-    const serviceLine = searchParams.get('serviceLine');
-    const subServiceLineGroup = searchParams.get('subServiceLineGroup');
-    const myTasksOnly = searchParams.get('myTasksOnly') === 'true';
-    const includeArchived = searchParams.get('includeArchived') === 'true';
-    const search = searchParams.get('search') || '';
     
-    const clientIdsParam = searchParams.get('clientIds');
-    const clientIds = clientIdsParam ? clientIdsParam.split(',').map(Number).filter(Boolean) : [];
-    const taskNamesParam = searchParams.get('taskNames');
-    const taskNames = taskNamesParam ? taskNamesParam.split(',') : [];
-    const partnerCodesParam = searchParams.get('partnerCodes');
-    const partnerCodes = partnerCodesParam ? partnerCodesParam.split(',') : [];
-    const managerCodesParam = searchParams.get('managerCodes');
-    const managerCodes = managerCodesParam ? managerCodesParam.split(',') : [];
-    const serviceLineCodesParam = searchParams.get('serviceLineCodes');
-    const serviceLineCodes = serviceLineCodesParam ? serviceLineCodesParam.split(',') : [];
+    // Validate query params with Zod
+    const queryParams = KanbanQuerySchema.parse({
+      serviceLine: searchParams.get('serviceLine') ?? undefined,
+      subServiceLineGroup: searchParams.get('subServiceLineGroup') ?? undefined,
+      myTasksOnly: searchParams.get('myTasksOnly') ?? undefined,
+      includeArchived: searchParams.get('includeArchived') ?? undefined,
+      search: searchParams.get('search') ?? undefined,
+      clientIds: searchParams.get('clientIds') ?? undefined,
+      taskNames: searchParams.get('taskNames') ?? undefined,
+      partnerCodes: searchParams.get('partnerCodes') ?? undefined,
+      managerCodes: searchParams.get('managerCodes') ?? undefined,
+      serviceLineCodes: searchParams.get('serviceLineCodes') ?? undefined,
+    });
+    
+    const serviceLine = queryParams.serviceLine || null;
+    const subServiceLineGroup = queryParams.subServiceLineGroup || null;
+    const myTasksOnly = queryParams.myTasksOnly === 'true';
+    const includeArchived = queryParams.includeArchived === 'true';
+    const search = queryParams.search;
+    
+    const clientIds = queryParams.clientIds ? queryParams.clientIds.split(',').map(Number).filter(Boolean) : [];
+    const taskNames = queryParams.taskNames ? queryParams.taskNames.split(',').filter(Boolean) : [];
+    const partnerCodes = queryParams.partnerCodes ? queryParams.partnerCodes.split(',').filter(Boolean) : [];
+    const managerCodes = queryParams.managerCodes ? queryParams.managerCodes.split(',').filter(Boolean) : [];
+    const serviceLineCodes = queryParams.serviceLineCodes ? queryParams.serviceLineCodes.split(',').filter(Boolean) : [];
 
     const userServiceLines = await getUserServiceLines(user.id);
     

@@ -5,10 +5,10 @@ import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { z } from 'zod';
 
 const CheckDuplicateSchema = z.object({
-  servLineCode: z.string().min(1),
+  servLineCode: z.string().min(1).max(50),
   year: z.number().int().min(2000).max(2100),
   stdTaskCode: z.string().min(1).max(10),
-});
+}).strict();
 
 /**
  * POST /api/tasks/check-duplicate
@@ -27,6 +27,7 @@ export const POST = secureRoute.mutation({
       where: { TaskCode: { startsWith: basePattern } },
       select: { TaskCode: true },
       orderBy: { TaskCode: 'desc' },
+      take: 100, // Limit to prevent unbounded queries
     });
 
     let maxIncrement = 0;
@@ -64,6 +65,7 @@ export const POST = secureRoute.mutation({
           Client: { select: { clientCode: true, clientNameFull: true } },
         },
         orderBy: { TaskCode: 'desc' },
+        take: 100, // Limit to prevent unbounded queries
       });
 
       existingTasksDetails = detailedTasks.map(task => ({

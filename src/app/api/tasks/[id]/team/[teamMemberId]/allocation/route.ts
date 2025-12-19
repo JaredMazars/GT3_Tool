@@ -1,15 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { getCurrentUser } from '@/lib/services/auth/auth';
 import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError, AppError } from '@/lib/utils/errorHandler';
-import { sanitizeObject } from '@/lib/utils/sanitization';
+import { successResponse, parseTaskId, parseNumericId } from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { toTaskId } from '@/types/branded';
 import { calculateBusinessDays } from '@/lib/utils/dateUtils';
 import { z } from 'zod';
 import { validateAllocation, AllocationValidationError } from '@/lib/validation/taskAllocation';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 
 const allocationUpdateSchema = z.object({
   startDate: z.string().datetime().optional(),
@@ -18,52 +17,32 @@ const allocationUpdateSchema = z.object({
   allocatedPercentage: z.number().min(0).max(100).nullable().optional(),
   actualHours: z.number().min(0).nullable().optional(),
   role: z.enum(['ADMINISTRATOR', 'PARTNER', 'MANAGER', 'SUPERVISOR', 'USER', 'VIEWER']).optional()
-});
+}).strict();
 
 /**
  * PUT /api/tasks/[id]/team/[teamMemberId]/allocation
  * Update allocation details for a team member
  */
-export async function PUT(
-  request: NextRequest,
-  context: { params: Promise<{ id: string; teamMemberId: string }> }
-) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user?.id) {
-      return handleApiError(new AppError(401, 'Unauthorized'), 'API: Update allocation');
-    }
-
+export const PUT = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TASKS,
+  schema: allocationUpdateSchema,
+  handler: async (request, { user, params, data: validatedData }) => {
     // 2. Parse and validate IDs
-    const params = await context.params;
-    const taskId = toTaskId(params.id);
-    const teamMemberId = parseInt(params.teamMemberId);
-
-    if (isNaN(teamMemberId)) {
-      return handleApiError(new AppError(400, 'Invalid team member ID'), 'Update allocation');
-    }
+    const taskId = toTaskId(parseTaskId(params.id));
+    const teamMemberId = parseNumericId(params.teamMemberId, 'team member ID');
 
     // 3. Check task access - must be ADMIN to update allocations
     const accessResult = await checkTaskAccess(user.id, taskId, 'ADMIN');
     if (!accessResult.canAccess) {
-      return handleApiError(new AppError(403, 'Only task admins can update allocations'), 'Update allocation');
+      throw new AppError(403, 'Only task admins can update allocations', ErrorCodes.FORBIDDEN);
     }
-
-    // 4. Parse and validate request body
-    const rawBody = await request.json();
-    const sanitizedBody = sanitizeObject(rawBody);
-    const validatedData = allocationUpdateSchema.parse(sanitizedBody);
 
     // 5. Validate date logic (INCLUSIVE end date model)
     if (validatedData.startDate && validatedData.endDate) {
       const start = new Date(validatedData.startDate);
       const end = new Date(validatedData.endDate);
       if (start > end) {
-        return handleApiError(
-          new AppError(400, 'End date cannot be before start date'),
-          'Update allocation'
-        );
+        throw new AppError(400, 'End date cannot be before start date', ErrorCodes.VALIDATION_ERROR);
       }
     }
 
@@ -83,10 +62,7 @@ export async function PUT(
     });
 
     if (!teamMember || teamMember.taskId !== taskId) {
-      return handleApiError(
-        new AppError(404, 'Team member not found'),
-        'Update allocation'
-      );
+      throw new AppError(404, 'Team member not found', ErrorCodes.NOT_FOUND);
     }
 
     // 6a. Validate allocation (overlap and role consistency)
@@ -109,10 +85,7 @@ export async function PUT(
       );
     } catch (error) {
       if (error instanceof AllocationValidationError) {
-        return handleApiError(
-          new AppError(400, error.message, undefined, error.details),
-          'Update allocation'
-        );
+        throw new AppError(400, error.message, ErrorCodes.VALIDATION_ERROR, error.details);
       }
       throw error;
     }
@@ -194,45 +167,24 @@ export async function PUT(
         }
       })
     );
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return handleApiError(
-        new AppError(400, `Validation error: ${error.errors.map(e => e.message).join(', ')}`),
-        'Update allocation'
-      );
-    }
-    return handleApiError(error, 'Update allocation');
-  }
-}
+  },
+});
 
 /**
  * DELETE /api/tasks/[id]/team/[teamMemberId]/allocation
  * Clear allocation details for a team member without removing them from the team
  */
-export async function DELETE(
-  request: NextRequest,
-  context: { params: Promise<{ id: string; teamMemberId: string }> }
-) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user?.id) {
-      return handleApiError(new AppError(401, 'Unauthorized'), 'Clear allocation');
-    }
-
+export const DELETE = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TASKS,
+  handler: async (request, { user, params }) => {
     // 2. Parse and validate IDs
-    const params = await context.params;
-    const taskId = toTaskId(params.id);
-    const teamMemberId = parseInt(params.teamMemberId);
-
-    if (isNaN(teamMemberId)) {
-      return handleApiError(new AppError(400, 'Invalid team member ID'), 'Clear allocation');
-    }
+    const taskId = toTaskId(parseTaskId(params.id));
+    const teamMemberId = parseNumericId(params.teamMemberId, 'team member ID');
 
     // 3. Check task access - must be ADMIN to clear allocations
     const accessResult = await checkTaskAccess(user.id, taskId, 'ADMIN');
     if (!accessResult.canAccess) {
-      return handleApiError(new AppError(403, 'Only task admins can clear allocations'), 'Clear allocation');
+      throw new AppError(403, 'Only task admins can clear allocations', ErrorCodes.FORBIDDEN);
     }
 
     // 4. Find the team member record
@@ -246,10 +198,7 @@ export async function DELETE(
     });
 
     if (!teamMember || teamMember.taskId !== taskId) {
-      return handleApiError(
-        new AppError(404, 'Team member not found'),
-        'Clear allocation'
-      );
+      throw new AppError(404, 'Team member not found', ErrorCodes.NOT_FOUND);
     }
 
     // 5. Clear allocation fields while keeping team member on task
@@ -292,7 +241,5 @@ export async function DELETE(
         allocation: updated
       })
     );
-  } catch (error) {
-    return handleApiError(error, 'Clear allocation');
-  }
-}
+  },
+});

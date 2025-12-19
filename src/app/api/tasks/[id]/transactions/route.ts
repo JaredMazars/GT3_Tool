@@ -1,15 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
-import { handleApiError } from '@/lib/utils/errorHandler';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { checkFeature } from '@/lib/permissions/checkFeature';
-import { Feature } from '@/lib/permissions/features';
+import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
 import { getCarlPartnerCodes } from '@/lib/cache/staticDataCache';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 
 // Maximum transactions per page to prevent memory issues
 const MAX_PAGE_SIZE = 500;
 const DEFAULT_PAGE_SIZE = 100;
+
+const TransactionsQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).default(DEFAULT_PAGE_SIZE),
+}).strict();
 
 /**
  * GET /api/tasks/[id]/transactions
@@ -24,38 +28,11 @@ const DEFAULT_PAGE_SIZE = 100;
  * - Array of WIP transactions with standard fields
  * - Pagination metadata
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    // 2. Parse IDs
-    const params = await context.params;
-    const taskId = parseInt(params.id, 10);
+export const GET = secureRoute.queryWithParams<{ id: string }>({
+  feature: Feature.ACCESS_TASKS,
+  handler: async (request, { user, params }) => {
+    const taskId = parseTaskId(params.id);
 
-    if (isNaN(taskId)) {
-      return NextResponse.json(
-        { error: 'Invalid task ID format' },
-        { status: 400 }
-      );
-    }
-
-    // 3. Check Feature - verify user has access to tasks
-    const hasAccess = await checkFeature(user.id, Feature.ACCESS_TASKS);
-    if (!hasAccess) {
-      return NextResponse.json(
-        { error: 'Forbidden - Insufficient permissions' },
-        { status: 403 }
-      );
-    }
-
-    // 4. Execute - verify task exists and get task details
     const task = await prisma.task.findUnique({
       where: { id: taskId },
       select: {
@@ -67,22 +44,27 @@ export async function GET(
     });
 
     if (!task) {
-      return NextResponse.json(
-        { error: 'Task not found' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Task not found', ErrorCodes.NOT_FOUND);
     }
 
-    // 5. Parse pagination parameters
+    // Parse and validate query parameters
     const { searchParams } = new URL(request.url);
-    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
-    const limit = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(searchParams.get('limit') || String(DEFAULT_PAGE_SIZE), 10)));
+    const queryResult = TransactionsQuerySchema.safeParse({
+      page: searchParams.get('page') ?? undefined,
+      limit: searchParams.get('limit') ?? undefined,
+    });
+
+    if (!queryResult.success) {
+      throw new AppError(400, 'Invalid query parameters', ErrorCodes.VALIDATION_ERROR);
+    }
+
+    const { page, limit } = queryResult.data;
     const skip = (page - 1) * limit;
 
-    // 6. Execute - Get CARL partner employee codes from cache
+    // Get CARL partner employee codes from cache
     const carlPartnerCodes = await getCarlPartnerCodes();
 
-    // 7. Fetch WIP transactions with pagination
+    // Fetch WIP transactions with pagination
     const [transactions, total] = await Promise.all([
       prisma.wIPTransactions.findMany({
         where: {
@@ -104,9 +86,10 @@ export async function GET(
           OfficeCode: true,
           TaskServLine: true,
         },
-        orderBy: {
-          TranDate: 'desc',
-        },
+        orderBy: [
+          { TranDate: 'desc' },
+          { id: 'desc' },
+        ],
         skip,
         take: limit,
       }),
@@ -117,7 +100,7 @@ export async function GET(
       }),
     ]);
 
-    // 8. Respond - Map transactions and zero out CARL partner costs
+    // Map transactions and zero out CARL partner costs
     const responseData = {
       taskId: task.id,
       taskCode: task.TaskCode,
@@ -147,14 +130,5 @@ export async function GET(
     };
 
     return NextResponse.json(successResponse(responseData));
-  } catch (error) {
-    return handleApiError(error, 'Get Task Transactions');
-  }
-}
-
-
-
-
-
-
-
+  },
+});

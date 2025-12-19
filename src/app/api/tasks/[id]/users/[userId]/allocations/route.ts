@@ -1,44 +1,31 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { handleApiError, AppError } from '@/lib/utils/errorHandler';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { CreateTaskAllocationSchema } from '@/lib/validation/schemas';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
 import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
-import { toTaskId } from '@/types/branded';
-import { z } from 'zod';
 import { validateAllocation, AllocationValidationError } from '@/lib/validation/taskAllocation';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { toTaskId } from '@/types/branded';
 
 /**
  * GET /api/tasks/[id]/users/[userId]/allocations
  * List all allocation periods for a specific user on a task
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string; userId: string }> }
-) {
-  try {
-    // Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const params = await context.params;
-    const taskId = toTaskId(params?.id);
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_TASKS,
+  handler: async (request, { user, params }) => {
+    const taskId = toTaskId(parseTaskId(params?.id));
     const targetUserId = params?.userId;
 
     if (!targetUserId) {
-      return NextResponse.json(
-        { error: 'User ID is required' },
-        { status: 400 }
-      );
+      throw new AppError(400, 'User ID is required', ErrorCodes.VALIDATION_ERROR);
     }
 
     // Check task access
     const hasAccess = await checkTaskAccess(user.id, taskId);
     if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      throw new AppError(403, 'Forbidden', ErrorCodes.FORBIDDEN);
     }
 
     // Get all allocations
@@ -60,59 +47,39 @@ export async function GET(
       orderBy: [
         { startDate: 'asc' },
         { createdAt: 'asc' },
+        { id: 'asc' },
       ],
+      take: 100,
     });
 
     return NextResponse.json(successResponse({ allocations }));
-  } catch (error) {
-    return handleApiError(error, 'Get allocations');
-  }
-}
+  },
+});
 
 /**
  * POST /api/tasks/[id]/users/[userId]/allocations
  * Create an additional allocation period for an existing team member
  */
-export async function POST(
-  request: NextRequest,
-  context: { params: Promise<{ id: string; userId: string }> }
-) {
-  try {
-    // Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const params = await context.params;
-    const taskId = toTaskId(params?.id);
+export const POST = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TASKS,
+  schema: CreateTaskAllocationSchema,
+  handler: async (request, { user, params, data: validatedData }) => {
+    const taskId = toTaskId(parseTaskId(params?.id));
     const targetUserId = params?.userId;
 
     if (!targetUserId) {
-      return NextResponse.json(
-        { error: 'User ID is required' },
-        { status: 400 }
-      );
+      throw new AppError(400, 'User ID is required', ErrorCodes.VALIDATION_ERROR);
     }
 
     // Check if user has ADMIN role on task
     const hasAccess = await checkTaskAccess(user.id, taskId, 'ADMIN');
     if (!hasAccess) {
-      return NextResponse.json(
-        { error: 'Only task admins can create allocations' },
-        { status: 403 }
-      );
+      throw new AppError(403, 'Only task admins can create allocations', ErrorCodes.FORBIDDEN);
     }
-
-    const body = await request.json();
-    const validatedData = CreateTaskAllocationSchema.parse(body);
 
     // Ensure userId matches route parameter
     if (validatedData.userId !== targetUserId) {
-      return NextResponse.json(
-        { error: 'User ID in body must match route parameter' },
-        { status: 400 }
-      );
+      throw new AppError(400, 'User ID in body must match route parameter', ErrorCodes.VALIDATION_ERROR);
     }
 
     // Check if user exists on task
@@ -121,13 +88,11 @@ export async function POST(
         taskId,
         userId: targetUserId,
       },
+      select: { id: true, role: true },
     });
 
     if (!existingAllocation) {
-      return NextResponse.json(
-        { error: 'User must be on the task before creating additional allocations' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'User must be on the task before creating additional allocations', ErrorCodes.NOT_FOUND);
     }
 
     // Validate the new allocation (overlap and role consistency)
@@ -145,13 +110,7 @@ export async function POST(
       );
     } catch (error) {
       if (error instanceof AllocationValidationError) {
-        return NextResponse.json(
-          {
-            error: error.message,
-            metadata: error.details,
-          },
-          { status: 400 }
-        );
+        throw new AppError(400, error.message, ErrorCodes.VALIDATION_ERROR, error.details);
       }
       throw error;
     }
@@ -191,17 +150,8 @@ export async function POST(
       successResponse({ allocation: newAllocation }),
       { status: 201 }
     );
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      const message = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
-      return handleApiError(
-        new AppError(400, message),
-        'Create allocation'
-      );
-    }
-    return handleApiError(error, 'Create allocation');
-  }
-}
+  },
+});
 
 /**
  * DELETE /api/tasks/[id]/users/[userId]/allocations/[allocationId]

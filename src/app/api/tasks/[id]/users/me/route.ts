@@ -1,17 +1,18 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { successResponse } from '@/lib/utils/apiUtils';
+import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
 import { isSystemAdmin } from '@/lib/services/auth/authorization';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { toTaskId } from '@/types/branded';
-import { secureRoute } from '@/lib/api/secureRoute';
 
 /**
  * GET /api/tasks/[id]/users/me
  * Get current user's role on a task
  */
 export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_TASKS,
   handler: async (request, { user, params }) => {
-    const taskId = toTaskId(params?.id);
+    const taskId = toTaskId(parseTaskId(params?.id));
 
     // Check if user is a system admin first
     const isAdmin = await isSystemAdmin(user.id);

@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { successResponse } from '@/lib/utils/apiUtils';
+import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
 import { aggregateOverallWipData } from '@/lib/services/analytics/wipAggregation';
 import { getCarlPartnerCodes } from '@/lib/cache/staticDataCache';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 
 interface ProfitabilityMetrics {
   grossProduction: number;
@@ -82,11 +83,7 @@ function calculateProfitabilityMetrics(data: {
 export const GET = secureRoute.queryWithParams<{ id: string }>({
   feature: Feature.ACCESS_TASKS,
   handler: async (request, { user, params }) => {
-    const taskId = parseInt(params.id, 10);
-
-    if (isNaN(taskId)) {
-      return NextResponse.json({ success: false, error: 'Invalid task ID format' }, { status: 400 });
-    }
+    const taskId = parseTaskId(params.id);
 
     const task = await prisma.task.findUnique({
       where: { id: taskId },
@@ -94,7 +91,7 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
     });
 
     if (!task) {
-      return NextResponse.json({ success: false, error: 'Task not found' }, { status: 404 });
+      throw new AppError(404, 'Task not found', ErrorCodes.NOT_FOUND);
     }
 
     const carlPartnerCodes = await getCarlPartnerCodes();
@@ -111,6 +108,7 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
         EmpCode: true,
         updatedAt: true,
       },
+      take: 50000,
     });
 
     const processedTransactions = wipTransactions.map(txn => ({

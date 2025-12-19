@@ -1,42 +1,28 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
-import { DocumentType, ClientDocument, DocumentsByType } from '@/types';
-import { GSClientIDSchema } from '@/lib/validation/schemas';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+import { successResponse, parseGSClientID } from '@/lib/utils/apiUtils';
+import { DocumentType, DocumentsByType } from '@/types';
 
 /**
  * GET /api/clients/[id]/documents
  * Fetch all documents across all projects for a client
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { id } = await context.params;
-    const GSClientID = id;
-
-    // Validate GSClientID is a valid GUID
-    const validationResult = GSClientIDSchema.safeParse(GSClientID);
-    if (!validationResult.success) {
-      return NextResponse.json({ error: 'Invalid client ID format. Expected GUID.' }, { status: 400 });
-    }
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_CLIENTS,
+  handler: async (request, { user, params }) => {
+    // Parse and validate GSClientID
+    const GSClientID = parseGSClientID(params.id);
 
     // Get client by GSClientID
     const client = await prisma.client.findUnique({
-      where: { GSClientID: GSClientID },
+      where: { GSClientID },
       select: { GSClientID: true },
     });
 
     if (!client) {
-      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+      throw new AppError(404, 'Client not found', ErrorCodes.NOT_FOUND);
     }
 
     // Get all projects for this client using GSClientID
@@ -53,11 +39,13 @@ export async function GET(
           },
         },
       },
+      orderBy: [{ id: 'asc' }],
+      take: 500, // Reasonable limit for client projects
     });
 
     // Early return if no projects
     if (projects.length === 0) {
-      return NextResponse.json(
+      const response = NextResponse.json(
         successResponse({
           documents: {
             engagementLetters: [],
@@ -69,20 +57,48 @@ export async function GET(
           totalCount: 0,
         })
       );
+      response.headers.set('Cache-Control', 'no-store');
+      return response;
     }
 
     const taskIds = projects.map((p) => p.id);
     const taskMap = new Map(projects.map((p) => [p.id, p.TaskDesc]));
 
-    // Fetch all documents in parallel for performance
+    // Fetch all documents in parallel for performance with limits
     const [adminDocs, adjustmentDocs, opinionDocs, sarsDocs] = await Promise.all([
       prisma.taskDocument.findMany({
         where: { taskId: { in: taskIds } },
-        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          fileName: true,
+          fileType: true,
+          fileSize: true,
+          filePath: true,
+          taskId: true,
+          uploadedBy: true,
+          createdAt: true,
+          category: true,
+          description: true,
+          version: true,
+        },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: 200,
       }),
       prisma.adjustmentDocument.findMany({
         where: { taskId: { in: taskIds } },
-        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          fileName: true,
+          fileType: true,
+          fileSize: true,
+          filePath: true,
+          taskId: true,
+          uploadedBy: true,
+          createdAt: true,
+          extractionStatus: true,
+        },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: 200,
       }),
       prisma.opinionDocument.findMany({
         where: {
@@ -90,21 +106,40 @@ export async function GET(
             taskId: { in: taskIds },
           },
         },
-        include: {
+        select: {
+          id: true,
+          fileName: true,
+          fileType: true,
+          fileSize: true,
+          filePath: true,
+          uploadedBy: true,
+          createdAt: true,
+          category: true,
           OpinionDraft: {
             select: {
               taskId: true,
             },
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: 200,
       }),
       prisma.sarsResponse.findMany({
         where: {
           taskId: { in: taskIds },
           documentPath: { not: null },
         },
-        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          documentPath: true,
+          taskId: true,
+          createdBy: true,
+          createdAt: true,
+          referenceNumber: true,
+          subject: true,
+        },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: 200,
       }),
     ]);
 
@@ -131,6 +166,7 @@ export async function GET(
       ? await prisma.user.findMany({
           where: { id: { in: Array.from(userIds) } },
           select: { id: true, name: true, email: true },
+          take: 100, // Reasonable limit for users
         })
       : [];
     const userMap = new Map(users.map(u => [u.id, u.name || u.email]));
@@ -248,11 +284,9 @@ export async function GET(
       })
     );
 
-    // Add cache headers for better performance
-    response.headers.set('Cache-Control', 'private, s-maxage=60, stale-while-revalidate=120');
+    // Use no-store for user-specific data per workspace rules
+    response.headers.set('Cache-Control', 'no-store');
     
     return response;
-  } catch (error) {
-    return handleApiError(error, 'GET /api/clients/[id]/documents');
-  }
-}
+  },
+});

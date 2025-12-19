@@ -1,63 +1,42 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { getCurrentUser } from '@/lib/services/auth/auth';
 import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError, AppError } from '@/lib/utils/errorHandler';
-import { sanitizeObject } from '@/lib/utils/sanitization';
+import { successResponse, parseTaskId, parseNumericId } from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { toTaskId } from '@/types/branded';
 import { z } from 'zod';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 
 const transferSchema = z.object({
-  targetUserId: z.string().min(1, 'Target user ID is required'),
+  targetUserId: z.string().min(1, 'Target user ID is required').max(255),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
-});
+}).strict();
 
 /**
  * POST /api/tasks/[id]/team/[teamMemberId]/transfer
  * Transfer allocation from one team member to another
  */
-export async function POST(
-  request: NextRequest,
-  context: { params: Promise<{ id: string; teamMemberId: string }> }
-) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user?.id) {
-      return handleApiError(new AppError(401, 'Unauthorized'), 'API: Transfer allocation');
-    }
-
+export const POST = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TASKS,
+  schema: transferSchema,
+  handler: async (request, { user, params, data: validatedData }) => {
     // 2. Parse and validate IDs
-    const params = await context.params;
-    const taskId = toTaskId(params.id);
-    const sourceTeamMemberId = parseInt(params.teamMemberId);
-
-    if (isNaN(sourceTeamMemberId)) {
-      return handleApiError(new AppError(400, 'Invalid team member ID'), 'Transfer allocation');
-    }
+    const taskId = toTaskId(parseTaskId(params.id));
+    const sourceTeamMemberId = parseNumericId(params.teamMemberId, 'team member ID');
 
     // 3. Check task access - must be ADMIN to transfer allocations
     const accessResult = await checkTaskAccess(user.id, taskId, 'ADMIN');
     if (!accessResult.canAccess) {
-      return handleApiError(new AppError(403, 'Only task admins can transfer allocations'), 'Transfer allocation');
+      throw new AppError(403, 'Only task admins can transfer allocations', ErrorCodes.FORBIDDEN);
     }
-
-    // 4. Parse and validate request body
-    const rawBody = await request.json();
-    const sanitizedBody = sanitizeObject(rawBody);
-    const validatedData = transferSchema.parse(sanitizedBody);
 
     // 5. Validate date logic if provided
     if (validatedData.startDate && validatedData.endDate) {
       const start = new Date(validatedData.startDate);
       const end = new Date(validatedData.endDate);
       if (start > end) {
-        return handleApiError(
-          new AppError(400, 'End date cannot be before start date'),
-          'Transfer allocation'
-        );
+        throw new AppError(400, 'End date cannot be before start date', ErrorCodes.VALIDATION_ERROR);
       }
     }
 
@@ -201,13 +180,5 @@ export async function POST(
         }
       })
     );
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return handleApiError(
-        new AppError(400, `Validation error: ${error.errors.map(e => e.message).join(', ')}`),
-        'Transfer allocation'
-      );
-    }
-    return handleApiError(error, 'Transfer allocation');
-  }
-}
+  },
+});

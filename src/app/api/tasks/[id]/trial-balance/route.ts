@@ -1,34 +1,35 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { handleApiError } from '@/lib/utils/errorHandler';
-import { parseTaskId, getTaskOrThrow, successResponse } from '@/lib/utils/apiUtils';
+import { parseTaskId, successResponse } from '@/lib/utils/apiUtils';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 
 /**
  * GET /api/tasks/[id]/trial-balance
  * Get trial balance data for a project
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    // Ensure context and params exist
-    if (!context || !context.params) {
-      throw new Error('Invalid route context');
+export const GET = secureRoute.queryWithParams<{ id: string }>({
+  feature: Feature.ACCESS_TASKS,
+  handler: async (request, { user, params }) => {
+    const taskId = parseTaskId(params.id);
+
+    // Verify task exists
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { id: true },
+    });
+
+    if (!task) {
+      throw new AppError(404, 'Task not found', ErrorCodes.NOT_FOUND);
     }
-    
-    const params = await context.params;
-    const taskId = parseTaskId(params?.id);
-    
-    // Verify project exists
-    await getTaskOrThrow(taskId);
-    
+
     // Fetch all mapped accounts for this project
     const accounts = await prisma.mappedAccount.findMany({
       where: { taskId },
       orderBy: [
         { section: 'asc' },
         { accountCode: 'asc' },
+        { id: 'asc' },
       ],
       select: {
         id: true,
@@ -40,6 +41,7 @@ export async function GET(
         section: true,
         subsection: true,
       },
+      take: 5000,
     });
 
     // Calculate totals
@@ -55,8 +57,5 @@ export async function GET(
     };
 
     return NextResponse.json(successResponse(trialBalanceData));
-  } catch (error) {
-    return handleApiError(error, 'Get Trial Balance');
-  }
-}
-
+  },
+});

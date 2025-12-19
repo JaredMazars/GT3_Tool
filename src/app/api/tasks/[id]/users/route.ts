@@ -1,48 +1,34 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
-import { AddTaskTeamSchema, CreateTaskAllocationSchema } from '@/lib/validation/schemas';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+import { AddTaskTeamSchema } from '@/lib/validation/schemas';
+import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
 import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { emailService } from '@/lib/services/email/emailService';
 import { notificationService } from '@/lib/services/notifications/notificationService';
 import { createUserAddedNotification } from '@/lib/services/notifications/templates';
 import { NotificationType } from '@/types/notification';
 import { logger } from '@/lib/utils/logger';
-import { z } from 'zod';
-import { toTaskId } from '@/types/branded';
 import { validateAllocation, AllocationValidationError } from '@/lib/validation/taskAllocation';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { getUserServiceLineRole } from '@/lib/services/service-lines/getUserServiceLineRole';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { toTaskId } from '@/types/branded';
 
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    // Require authentication
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    const params = await context.params;
-    
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_TASKS,
+  handler: async (request, { user, params }) => {
     // Handle "new" route
     if (params?.id === 'new') {
-      return NextResponse.json(
-        { error: 'Invalid route - project must be created first' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Invalid route - project must be created first', ErrorCodes.NOT_FOUND);
     }
     
-    const taskId = toTaskId(params?.id);
+    const taskId = toTaskId(parseTaskId(params?.id));
 
     // Check project access
     const hasAccess = await checkTaskAccess(user.id, taskId);
     if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      throw new AppError(403, 'Forbidden', ErrorCodes.FORBIDDEN);
     }
 
     // Get task details including client info
@@ -63,7 +49,17 @@ export async function GET(
     // Get all users on this project with Employee data
     const taskTeams = await prisma.taskTeam.findMany({
       where: { taskId },
-      include: {
+      select: {
+        id: true,
+        taskId: true,
+        userId: true,
+        role: true,
+        startDate: true,
+        endDate: true,
+        allocatedHours: true,
+        allocatedPercentage: true,
+        actualHours: true,
+        createdAt: true,
         User: {
           select: {
             id: true,
@@ -73,7 +69,11 @@ export async function GET(
           },
         },
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: [
+        { createdAt: 'asc' },
+        { id: 'asc' },
+      ],
+      take: 500,
     });
 
     // Batch fetch all employees for better performance
@@ -124,40 +124,26 @@ export async function GET(
       };
     });
     return NextResponse.json(successResponse(enrichedTaskTeams));
-  } catch (error) {
-    return handleApiError(error, 'Get Project Users');
-  }
-}
+  },
+});
 
-export async function POST(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    // Require authentication
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    const params = await context.params;
-    
+export const POST = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TASKS,
+  schema: AddTaskTeamSchema,
+  handler: async (request, { user, params, data: validatedData }) => {
     // Handle "new" route
     if (params?.id === 'new') {
-      return NextResponse.json(
-        { error: 'Invalid route - project must be created first' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Invalid route - project must be created first', ErrorCodes.NOT_FOUND);
     }
     
-    const taskId = toTaskId(params?.id);
+    const taskId = toTaskId(parseTaskId(params?.id));
     // Get project details
     const task = await prisma.task.findUnique({
       where: { id: taskId },
       select: { ServLineCode: true },
     });
     if (!task) {
-      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+      throw new AppError(404, 'Task not found', ErrorCodes.NOT_FOUND);
     }
 
     // Check authorization: user must be a project member OR service line admin
@@ -182,6 +168,7 @@ export async function POST(
             subServiceLineGroup: serviceLineMapping.SubServlineGroupCode,
           },
         },
+        select: { role: true },
       });
       isServiceLineAdmin = serviceLineAccess?.role === 'ADMINISTRATOR' || serviceLineAccess?.role === 'PARTNER';
     }
@@ -194,15 +181,9 @@ export async function POST(
     const isSystemAdmin = currentUser?.role === 'SYSTEM_ADMIN';
     // Allow if user is: System Admin OR project member OR service line admin
     if (!currentUserOnProject && !isServiceLineAdmin && !isSystemAdmin) {
-      return NextResponse.json(
-        { error: 'You must be a project member or service line admin to add users' },
-        { status: 403 }
-      );
+      throw new AppError(403, 'You must be a project member or service line admin to add users', ErrorCodes.FORBIDDEN);
     }
 
-    const body = await request.json();
-    
-    const validatedData = AddTaskTeamSchema.parse(body);
     let targetUserId = validatedData.userId;
     
     // Handle synthetic employee IDs from planner (format: "employee-{employeeId}")
@@ -285,22 +266,17 @@ export async function POST(
     }
 
     if (!targetUserId) {
-      return NextResponse.json(
-        { error: 'Unable to identify user. Please provide employee information.' },
-        { status: 400 }
-      );
+      throw new AppError(400, 'Unable to identify user. Please provide employee information.', ErrorCodes.VALIDATION_ERROR);
     }
 
     // Check if user exists in system
     const targetUser = await prisma.user.findUnique({
       where: { id: targetUserId },
+      select: { id: true },
     });
     
     if (!targetUser) {
-      return NextResponse.json(
-        { error: 'User not found in system' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'User not found in system', ErrorCodes.NOT_FOUND);
     }
 
     // Check if user is already on this task (prevent duplicates)
@@ -311,13 +287,11 @@ export async function POST(
           userId: targetUserId,
         },
       },
+      select: { id: true },
     });
 
     if (existingTeamMember) {
-      return NextResponse.json(
-        { error: 'User is already a member of this project team' },
-        { status: 409 }
-      );
+      throw new AppError(409, 'User is already a member of this project team', ErrorCodes.VALIDATION_ERROR);
     }
 
     // Auto-assign role based on user's ServiceLineRole for the task's sub-service line group
@@ -352,13 +326,7 @@ export async function POST(
       );
     } catch (error) {
       if (error instanceof AllocationValidationError) {
-        return NextResponse.json(
-          { 
-            error: error.message,
-            metadata: error.details,
-          },
-          { status: 400 }
-        );
+        throw new AppError(400, error.message, ErrorCodes.VALIDATION_ERROR, error.details);
       }
       throw error;
     }
@@ -374,7 +342,17 @@ export async function POST(
         allocatedHours,
         allocatedPercentage,
       },
-      include: {
+      select: {
+        id: true,
+        taskId: true,
+        userId: true,
+        role: true,
+        startDate: true,
+        endDate: true,
+        allocatedHours: true,
+        allocatedPercentage: true,
+        actualHours: true,
+        createdAt: true,
         User: {
           select: {
             id: true,
@@ -473,16 +451,6 @@ export async function POST(
     await cache.invalidate(`${CACHE_PREFIXES.TASK}planner:employees`);
 
     return NextResponse.json(successResponse(taskTeam), { status: 201 });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      const message = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
-      return handleApiError(
-        new AppError(400, message, ErrorCodes.VALIDATION_ERROR),
-        'Add Project User'
-      );
-    }
-    
-    return handleApiError(error, 'Add Project User');
-  }
-}
+  },
+});
 

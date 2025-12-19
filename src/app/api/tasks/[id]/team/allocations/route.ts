@@ -1,34 +1,26 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { getCurrentUser } from '@/lib/services/auth/auth';
 import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError, AppError } from '@/lib/utils/errorHandler';
+import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { toTaskId } from '@/types/branded';
 import { NON_CLIENT_EVENT_LABELS, NonClientEventType } from '@/types';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 
 /**
  * GET /api/tasks/[id]/team/allocations
  * Fetch all team members and their allocations for a task
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user?.id) {
-      return handleApiError(new AppError(401, 'Unauthorized'), 'Get team allocations');
-    }
-
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_TASKS,
+  handler: async (request, { user, params }) => {
     // 2. Parse and validate task ID
-    const taskId = toTaskId(params.id);
+    const taskId = toTaskId(parseTaskId(params.id));
 
     // 3. Check task access
     const accessResult = await checkTaskAccess(user.id, taskId, 'VIEWER');
     if (!accessResult.canAccess) {
-      return handleApiError(new AppError(403, 'Access denied'), 'Get team allocations');
+      throw new AppError(403, 'Access denied', ErrorCodes.FORBIDDEN);
     }
 
     // 4. Fetch task with team members in a single optimized query
@@ -63,17 +55,17 @@ export async function GET(
               }
             }
           },
-          orderBy: {
-            User: {
-              name: 'asc'
-            }
-          }
+          orderBy: [
+            { User: { name: 'asc' } },
+            { id: 'asc' },
+          ],
+          take: 200,
         }
       }
     });
 
     if (!task) {
-      return handleApiError(new AppError(404, 'Task not found'), 'Get team allocations');
+      throw new AppError(404, 'Task not found', ErrorCodes.NOT_FOUND);
     }
 
     // 5. Fetch all other allocations for these team members
@@ -108,7 +100,12 @@ export async function GET(
             }
           }
         }
-      }
+      },
+      orderBy: [
+        { startDate: 'asc' },
+        { id: 'asc' },
+      ],
+      take: 1000,
     });
 
     // 5b. Map users to employees to fetch non-client allocations
@@ -131,7 +128,8 @@ export async function GET(
         id: true,
         WinLogon: true,
         EmpCatCode: true
-      }
+      },
+      take: 500,
     });
 
     // Create mapping: userId -> employeeId and userId -> jobGradeCode
@@ -172,9 +170,11 @@ export async function GET(
         notes: true,
         createdAt: true
       },
-      orderBy: {
-        startDate: 'asc'
-      }
+      orderBy: [
+        { startDate: 'asc' },
+        { id: 'asc' },
+      ],
+      take: 500,
     });
 
     // 6. Transform to response format
@@ -256,9 +256,7 @@ export async function GET(
     });
 
     return NextResponse.json(successResponse({ teamMembers: teamMembersWithAllocations }));
-  } catch (error) {
-    return handleApiError(error, 'Get team allocations');
-  }
-}
+  },
+});
 
 

@@ -1,6 +1,7 @@
 import { prisma } from '../db/prisma';
 import { AppError, ErrorCodes } from './errorHandler';
 import { Prisma } from '@prisma/client';
+import { GSClientIDSchema } from '@/lib/validation/schemas';
 
 /**
  * Common utility functions for API routes
@@ -58,6 +59,36 @@ export function parseNumericId(
  */
 export function parseTaskId(id: string | undefined): number {
   return parseNumericId(id, 'Task');
+}
+
+/**
+ * Parse and validate GSClientID (GUID) from route params
+ * @param id - String ID from route params
+ * @returns Validated GSClientID string
+ * @throws AppError if ID is invalid
+ */
+export function parseGSClientID(id: string | undefined): string {
+  if (!id || id === 'undefined' || id === 'null') {
+    throw new AppError(
+      400,
+      'Client ID is required',
+      ErrorCodes.VALIDATION_ERROR,
+      { providedId: id, type: typeof id }
+    );
+  }
+  
+  const result = GSClientIDSchema.safeParse(id);
+  
+  if (!result.success) {
+    throw new AppError(
+      400,
+      'Invalid Client ID format - must be a valid GUID',
+      ErrorCodes.VALIDATION_ERROR,
+      { providedId: id }
+    );
+  }
+  
+  return result.data;
 }
 
 

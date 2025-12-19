@@ -1,11 +1,22 @@
 import { NextResponse } from 'next/server';
-import { successResponse } from '@/lib/utils/apiUtils';
+import { parseTaskId, successResponse } from '@/lib/utils/apiUtils';
 import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { enhancedSearchService } from '@/lib/services/search/enhancedSearchService';
 import { logger } from '@/lib/utils/logger';
 import { SearchFilters } from '@/types/search';
 import { toTaskId } from '@/types/branded';
 import { secureRoute } from '@/lib/api/secureRoute';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+import { z } from 'zod';
+
+const TaskSearchQuerySchema = z.object({
+  q: z.string().min(1).max(500),
+  sources: z.enum(['all', 'internal', 'external']).optional().default('all'),
+  category: z.string().max(100).optional(),
+  dateFrom: z.string().datetime().optional(),
+  dateTo: z.string().datetime().optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(10),
+});
 
 /**
  * GET /api/tasks/[id]/search
@@ -13,28 +24,41 @@ import { secureRoute } from '@/lib/api/secureRoute';
  */
 export const GET = secureRoute.queryWithParams({
   handler: async (request, { user, params }) => {
-    const taskId = toTaskId(params.id);
+    const taskId = toTaskId(parseTaskId(params?.id));
 
     const hasAccess = await checkTaskAccess(user.id, taskId);
     if (!hasAccess) {
-      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+      throw new AppError(403, 'Forbidden', ErrorCodes.FORBIDDEN);
     }
 
     const { searchParams } = new URL(request.url);
-    const query = searchParams.get('q');
-    const sources = searchParams.get('sources') || 'all';
-    const category = searchParams.get('category') || undefined;
-    const dateFrom = searchParams.get('dateFrom') ? new Date(searchParams.get('dateFrom')!) : undefined;
-    const dateTo = searchParams.get('dateTo') ? new Date(searchParams.get('dateTo')!) : undefined;
-    const limit = searchParams.get('limit') ? Number.parseInt(searchParams.get('limit')!, 10) : 10;
+    
+    // Validate query parameters
+    const queryParamsResult = TaskSearchQuerySchema.safeParse({
+      q: searchParams.get('q'),
+      sources: searchParams.get('sources') || undefined,
+      category: searchParams.get('category') || undefined,
+      dateFrom: searchParams.get('dateFrom') || undefined,
+      dateTo: searchParams.get('dateTo') || undefined,
+      limit: searchParams.get('limit') || undefined,
+    });
 
-    if (!query) {
-      return NextResponse.json({ success: false, error: 'Query parameter "q" is required' }, { status: 400 });
+    if (!queryParamsResult.success) {
+      throw new AppError(400, 'Invalid query parameters', ErrorCodes.VALIDATION_ERROR, {
+        errors: queryParamsResult.error.flatten().fieldErrors,
+      });
     }
+
+    const { q: query, sources, category, dateFrom, dateTo, limit } = queryParamsResult.data;
 
     logger.info('Project search initiated', { query, taskId, sources, userId: user.id });
 
-    const filters: SearchFilters = { category, dateFrom, dateTo, limit };
+    const filters: SearchFilters = { 
+      category, 
+      dateFrom: dateFrom ? new Date(dateFrom) : undefined, 
+      dateTo: dateTo ? new Date(dateTo) : undefined, 
+      limit,
+    };
 
     let searchResults;
 

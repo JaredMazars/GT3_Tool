@@ -1,44 +1,31 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { UpdateTaskTeamSchema } from '@/lib/validation/schemas';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
 import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { emailService } from '@/lib/services/email/emailService';
 import { notificationService } from '@/lib/services/notifications/notificationService';
 import { createUserRemovedNotification, createUserRoleChangedNotification } from '@/lib/services/notifications/templates';
 import { NotificationType } from '@/types/notification';
 import { logger } from '@/lib/utils/logger';
-import { z } from 'zod';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { toTaskId } from '@/types/branded';
 
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string; userId: string }> }
-) {
-  try {
-    // Require authentication
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    const params = await context.params;
-    const taskId = toTaskId(params?.id);
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_TASKS,
+  handler: async (request, { user, params }) => {
+    const taskId = toTaskId(parseTaskId(params?.id));
     const targetUserId = params?.userId;
 
     if (!targetUserId) {
-      return NextResponse.json(
-        { error: 'User ID is required' },
-        { status: 400 }
-      );
+      throw new AppError(400, 'User ID is required', ErrorCodes.VALIDATION_ERROR);
     }
 
     // Check project access
     const hasAccess = await checkTaskAccess(user.id, taskId);
     if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      throw new AppError(403, 'Forbidden', ErrorCodes.FORBIDDEN);
     }
 
     // Get ALL allocations for this user on this task
@@ -47,7 +34,17 @@ export async function GET(
         taskId,
         userId: targetUserId,
       },
-      include: {
+      select: {
+        id: true,
+        taskId: true,
+        userId: true,
+        role: true,
+        startDate: true,
+        endDate: true,
+        allocatedHours: true,
+        allocatedPercentage: true,
+        actualHours: true,
+        createdAt: true,
         User: {
           select: {
             id: true,
@@ -60,56 +57,36 @@ export async function GET(
       orderBy: [
         { startDate: 'asc' },
         { createdAt: 'asc' },
+        { id: 'asc' },
       ],
+      take: 100,
     });
 
     if (allocations.length === 0) {
-      return NextResponse.json(
-        { error: 'User not found on this project' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'User not found on this project', ErrorCodes.NOT_FOUND);
     }
 
     // Return all allocations
     return NextResponse.json(successResponse({ allocations }));
-  } catch (error) {
-    return handleApiError(error, 'Get Project User');
-  }
-}
+  },
+});
 
-export async function PUT(
-  request: NextRequest,
-  context: { params: Promise<{ id: string; userId: string }> }
-) {
-  try {
-    // Require authentication
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    const params = await context.params;
-    const taskId = toTaskId(params?.id);
+export const PUT = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TASKS,
+  schema: UpdateTaskTeamSchema,
+  handler: async (request, { user, params, data: validatedData }) => {
+    const taskId = toTaskId(parseTaskId(params?.id));
     const targetUserId = params?.userId;
 
     if (!targetUserId) {
-      return NextResponse.json(
-        { error: 'User ID is required' },
-        { status: 400 }
-      );
+      throw new AppError(400, 'User ID is required', ErrorCodes.VALIDATION_ERROR);
     }
 
     // Check if user has ADMIN role on project
     const hasAccess = await checkTaskAccess(user.id, taskId, 'ADMIN');
     if (!hasAccess) {
-      return NextResponse.json(
-        { error: 'Only project admins can update user roles' },
-        { status: 403 }
-      );
+      throw new AppError(403, 'Only project admins can update user roles', ErrorCodes.FORBIDDEN);
     }
-
-    const body = await request.json();
-    const validatedData = UpdateTaskTeamSchema.parse(body);
 
     // Check if target user exists on project (get first allocation)
     const existingTaskTeam = await prisma.taskTeam.findFirst({
@@ -126,18 +103,12 @@ export async function PUT(
     });
 
     if (!existingTaskTeam) {
-      return NextResponse.json(
-        { error: 'User not found on this project' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'User not found on this project', ErrorCodes.NOT_FOUND);
     }
 
     // Prevent user from changing their own role
     if (targetUserId === user.id) {
-      return NextResponse.json(
-        { error: 'You cannot change your own role' },
-        { status: 400 }
-      );
+      throw new AppError(400, 'You cannot change your own role', ErrorCodes.VALIDATION_ERROR);
     }
 
     // Check if this is the last ADMINISTRATOR/PARTNER on the project
@@ -154,13 +125,11 @@ export async function PUT(
         },
         select: { userId: true },
         distinct: ['userId'],
+        take: 10,
       });
 
       if (adminUsers.length === 1) {
-        return NextResponse.json(
-          { error: 'Cannot remove the last administrator/partner from the project' },
-          { status: 400 }
-        );
+        throw new AppError(400, 'Cannot remove the last administrator/partner from the project', ErrorCodes.VALIDATION_ERROR);
       }
     }
 
@@ -184,7 +153,17 @@ export async function PUT(
         taskId,
         userId: targetUserId,
       },
-      include: {
+      select: {
+        id: true,
+        taskId: true,
+        userId: true,
+        role: true,
+        startDate: true,
+        endDate: true,
+        allocatedHours: true,
+        allocatedPercentage: true,
+        actualHours: true,
+        createdAt: true,
         User: {
           select: {
             id: true,
@@ -197,7 +176,9 @@ export async function PUT(
       orderBy: [
         { startDate: 'asc' },
         { createdAt: 'asc' },
+        { id: 'asc' },
       ],
+      take: 100,
     });
 
     const taskTeam = updatedAllocations[0]; // Use first allocation for notification
@@ -254,48 +235,23 @@ export async function PUT(
     }
 
     return NextResponse.json(successResponse(taskTeam));
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      const message = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
-      return handleApiError(
-        new AppError(400, message, ErrorCodes.VALIDATION_ERROR),
-        'Update Project User'
-      );
-    }
-    
-    return handleApiError(error, 'Update Project User');
-  }
-}
+  },
+});
 
-export async function DELETE(
-  request: NextRequest,
-  context: { params: Promise<{ id: string; userId: string }> }
-) {
-  try {
-    // Require authentication
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    const params = await context.params;
-    const taskId = toTaskId(params?.id);
+export const DELETE = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TASKS,
+  handler: async (request, { user, params }) => {
+    const taskId = toTaskId(parseTaskId(params?.id));
     const targetUserId = params?.userId;
 
     if (!targetUserId) {
-      return NextResponse.json(
-        { error: 'User ID is required' },
-        { status: 400 }
-      );
+      throw new AppError(400, 'User ID is required', ErrorCodes.VALIDATION_ERROR);
     }
 
     // Check if user has ADMIN role on project
     const hasAccess = await checkTaskAccess(user.id, taskId, 'ADMIN');
     if (!hasAccess) {
-      return NextResponse.json(
-        { error: 'Only project admins can remove users' },
-        { status: 403 }
-      );
+      throw new AppError(403, 'Only project admins can remove users', ErrorCodes.FORBIDDEN);
     }
 
     // Check if target user exists on project
@@ -304,7 +260,10 @@ export async function DELETE(
         taskId,
         userId: targetUserId,
       },
-      include: {
+      select: {
+        id: true,
+        role: true,
+        userId: true,
         User: {
           select: {
             id: true,
@@ -316,18 +275,12 @@ export async function DELETE(
     });
 
     if (!existingTaskTeam) {
-      return NextResponse.json(
-        { error: 'User not found on this project' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'User not found on this project', ErrorCodes.NOT_FOUND);
     }
 
     // Prevent user from removing themselves
     if (targetUserId === user.id) {
-      return NextResponse.json(
-        { error: 'You cannot remove yourself from the project' },
-        { status: 400 }
-      );
+      throw new AppError(400, 'You cannot remove yourself from the project', ErrorCodes.VALIDATION_ERROR);
     }
 
     // Check if this is the last ADMINISTRATOR/PARTNER on the project
@@ -343,13 +296,11 @@ export async function DELETE(
         },
         select: { userId: true },
         distinct: ['userId'],
+        take: 10,
       });
 
       if (adminUsers.length === 1) {
-        return NextResponse.json(
-          { error: 'Cannot remove the last administrator/partner from the project' },
-          { status: 400 }
-        );
+        throw new AppError(400, 'Cannot remove the last administrator/partner from the project', ErrorCodes.VALIDATION_ERROR);
       }
     }
 
@@ -415,11 +366,11 @@ export async function DELETE(
       logger.error('Failed to create in-app notification:', notificationError);
     }
 
+    logger.info('User removed from project', { taskId, targetUserId, removedBy: user.id });
+
     return NextResponse.json(
       successResponse({ message: 'User removed from project successfully' })
     );
-  } catch (error) {
-    return handleApiError(error, 'Remove Project User');
-  }
-}
+  },
+});
 

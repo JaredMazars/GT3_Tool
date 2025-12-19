@@ -9,6 +9,21 @@ import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { invalidateClientCache } from '@/lib/services/clients/clientCache';
 import { invalidateTaskListCache } from '@/lib/services/cache/listCache';
 import { secureRoute } from '@/lib/api/secureRoute';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+import { z } from 'zod';
+
+// Zod schema for PUT request body
+const UpdateTaskSchema = z.object({
+  name: z.string().max(200).optional(),
+  description: z.string().max(1000).optional(),
+  clientCode: z.string().max(50).nullable().optional(),
+  GSClientID: z.string().uuid().nullable().optional(),
+}).strict();
+
+// Zod schema for PATCH request body
+const TaskActionSchema = z.object({
+  action: z.enum(['restore']),
+}).strict();
 
 /**
  * GET /api/tasks/[id]
@@ -18,10 +33,7 @@ export const GET = secureRoute.queryWithParams({
   handler: async (request, { user, params }) => {
     // Handle "new" route
     if (params?.id === 'new') {
-      return NextResponse.json(
-        { success: false, error: 'Invalid route - use POST /api/tasks to create a new task' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Invalid route - use POST /api/tasks to create a new task', ErrorCodes.NOT_FOUND);
     }
     
     const taskId = toTaskId(parseTaskId(params?.id));
@@ -29,7 +41,7 @@ export const GET = secureRoute.queryWithParams({
     // Check task access (any role can view)
     const hasAccess = await checkTaskAccess(user.id, taskId);
     if (!hasAccess) {
-      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+      throw new AppError(403, 'Forbidden', ErrorCodes.FORBIDDEN);
     }
 
     // Check if team members should be included
@@ -129,7 +141,7 @@ export const GET = secureRoute.queryWithParams({
     });
 
     if (!task) {
-      return NextResponse.json({ success: false, error: 'Task not found' }, { status: 404 });
+      throw new AppError(404, 'Task not found', ErrorCodes.NOT_FOUND);
     }
 
     // Get service line mapping for URL construction
@@ -197,12 +209,10 @@ export const GET = secureRoute.queryWithParams({
  * Update a task
  */
 export const PUT = secureRoute.mutationWithParams({
-  handler: async (request, { user, params }) => {
+  schema: UpdateTaskSchema,
+  handler: async (request, { user, params, data }) => {
     if (params?.id === 'new') {
-      return NextResponse.json(
-        { success: false, error: 'Invalid route - use POST /api/tasks to create a new task' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Invalid route - use POST /api/tasks to create a new task', ErrorCodes.NOT_FOUND);
     }
     
     const taskId = toTaskId(parseTaskId(params?.id));
@@ -210,24 +220,22 @@ export const PUT = secureRoute.mutationWithParams({
     // Check task access (requires EDITOR role or higher)
     const hasAccess = await checkTaskAccess(user.id, taskId, 'EDITOR');
     if (!hasAccess) {
-      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+      throw new AppError(403, 'Forbidden', ErrorCodes.FORBIDDEN);
     }
 
-    const body = await request.json();
-
-    // Build update data object
+    // Build update data object with explicit field mapping
     const updateData: Prisma.TaskUncheckedUpdateInput = {};
     
-    if (body.name !== undefined) {
-      const sanitizedName = sanitizeText(body.name, { maxLength: 200 });
+    if (data.name !== undefined) {
+      const sanitizedName = sanitizeText(data.name, { maxLength: 200 });
       if (!sanitizedName) {
-        return NextResponse.json({ success: false, error: 'Task name is required' }, { status: 400 });
+        throw new AppError(400, 'Task name is required', ErrorCodes.VALIDATION_ERROR);
       }
       updateData.TaskDesc = sanitizedName;
     }
     
-    if (body.description !== undefined) {
-      const sanitizedDesc = sanitizeText(body.description, { 
+    if (data.description !== undefined) {
+      const sanitizedDesc = sanitizeText(data.description, { 
         maxLength: 1000,
         allowHTML: false,
         allowNewlines: true 
@@ -237,10 +245,10 @@ export const PUT = secureRoute.mutationWithParams({
       }
     }
     
-    if (body.clientCode !== undefined) {
-      if (body.clientCode !== null) {
+    if (data.clientCode !== undefined) {
+      if (data.clientCode !== null) {
         const client = await prisma.client.findUnique({
-          where: { clientCode: body.clientCode },
+          where: { clientCode: data.clientCode },
           select: { GSClientID: true },
         });
         if (client) {
@@ -249,17 +257,59 @@ export const PUT = secureRoute.mutationWithParams({
       } else {
         updateData.GSClientID = null;
       }
-    } else if (body.GSClientID !== undefined) {
-      updateData.GSClientID = body.GSClientID;
+    } else if (data.GSClientID !== undefined) {
+      updateData.GSClientID = data.GSClientID;
     }
 
     const task = await prisma.task.update({
       where: { id: taskId },
       data: updateData,
-      include: {
-        Client: true,
-        TaskAcceptance: true,
-        TaskEngagementLetter: true,
+      select: {
+        id: true,
+        GSClientID: true,
+        TaskDesc: true,
+        TaskCode: true,
+        ServLineCode: true,
+        ServLineDesc: true,
+        TaskPartner: true,
+        TaskPartnerName: true,
+        TaskManager: true,
+        TaskManagerName: true,
+        OfficeCode: true,
+        SLGroup: true,
+        Active: true,
+        TaskDateOpen: true,
+        TaskDateTerminate: true,
+        createdAt: true,
+        updatedAt: true,
+        Client: {
+          select: {
+            id: true,
+            GSClientID: true,
+            clientCode: true,
+            clientNameFull: true,
+          },
+        },
+        TaskAcceptance: {
+          select: {
+            acceptanceApproved: true,
+            approvedBy: true,
+            approvedAt: true,
+          },
+        },
+        TaskEngagementLetter: {
+          select: {
+            generated: true,
+            uploaded: true,
+            filePath: true,
+            content: true,
+            templateId: true,
+            generatedAt: true,
+            generatedBy: true,
+            uploadedAt: true,
+            uploadedBy: true,
+          },
+        },
         _count: {
           select: { MappedAccount: true, TaxAdjustment: true },
         },
@@ -317,29 +367,31 @@ export const PUT = secureRoute.mutationWithParams({
  * Process task actions (e.g., restore archived task)
  */
 export const PATCH = secureRoute.mutationWithParams({
-  handler: async (request, { user, params }) => {
+  schema: TaskActionSchema,
+  handler: async (request, { user, params, data }) => {
     if (params?.id === 'new') {
-      return NextResponse.json(
-        { success: false, error: 'Invalid route - use POST /api/tasks to create a new task' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Invalid route - use POST /api/tasks to create a new task', ErrorCodes.NOT_FOUND);
     }
     
-    const taskId = toTaskId(params?.id);
+    const taskId = toTaskId(parseTaskId(params?.id));
 
     // Check task access (requires ADMIN role)
     const hasAccess = await checkTaskAccess(user.id, taskId, 'ADMIN');
     if (!hasAccess) {
-      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+      throw new AppError(403, 'Forbidden', ErrorCodes.FORBIDDEN);
     }
 
-    const body = await request.json();
-    const { action } = body;
-
-    if (action === 'restore') {
+    if (data.action === 'restore') {
       const task = await prisma.task.update({
         where: { id: taskId },
         data: { Active: 'Yes' },
+        select: {
+          id: true,
+          TaskDesc: true,
+          TaskCode: true,
+          Active: true,
+          GSClientID: true,
+        },
       });
 
       await cache.invalidate(`${CACHE_PREFIXES.TASK}detail:${taskId}`);
@@ -351,7 +403,8 @@ export const PATCH = secureRoute.mutationWithParams({
       return NextResponse.json(successResponse({ message: 'Task restored successfully', task }));
     }
 
-    return NextResponse.json({ success: false, error: 'Invalid action' }, { status: 400 });
+    // This should never be reached due to Zod validation, but kept for safety
+    throw new AppError(400, 'Invalid action', ErrorCodes.VALIDATION_ERROR);
   },
 });
 
@@ -362,24 +415,28 @@ export const PATCH = secureRoute.mutationWithParams({
 export const DELETE = secureRoute.mutationWithParams({
   handler: async (request, { user, params }) => {
     if (params?.id === 'new') {
-      return NextResponse.json(
-        { success: false, error: 'Invalid route - use POST /api/tasks to create a new task' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Invalid route - use POST /api/tasks to create a new task', ErrorCodes.NOT_FOUND);
     }
     
-    const taskId = toTaskId(params?.id);
+    const taskId = toTaskId(parseTaskId(params?.id));
 
     // Check task access (requires ADMIN role)
     const hasAccess = await checkTaskAccess(user.id, taskId, 'ADMIN');
     if (!hasAccess) {
-      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+      throw new AppError(403, 'Forbidden', ErrorCodes.FORBIDDEN);
     }
 
     // Archive the task instead of deleting
     const task = await prisma.task.update({
       where: { id: taskId },
       data: { Active: 'No' },
+      select: {
+        id: true,
+        TaskDesc: true,
+        TaskCode: true,
+        Active: true,
+        GSClientID: true,
+      },
     });
 
     await cache.invalidate(`${CACHE_PREFIXES.TASK}detail:${taskId}`);

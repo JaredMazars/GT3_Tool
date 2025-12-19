@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { handleApiError } from '@/lib/utils/errorHandler';
-import { GSClientIDSchema } from '@/lib/validation/schemas';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+import { successResponse, parseGSClientID } from '@/lib/utils/apiUtils';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 
 interface ClientBalances {
@@ -75,33 +74,15 @@ function categorizeTransaction(tType: string, tranType?: string): {
  * - Debtor Balance: Sum of Total from DrsTransactions
  * - Latest update timestamp
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    // 2. Parse IDs
-    const params = await context.params;
-    const GSClientID = params.id;
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_CLIENTS,
+  handler: async (request, { user, params }) => {
+    // Parse and validate GSClientID
+    const GSClientID = parseGSClientID(params.id);
 
-    // Validate GSClientID is a valid GUID
-    const validationResult = GSClientIDSchema.safeParse(GSClientID);
-    if (!validationResult.success) {
-      return NextResponse.json(
-        { error: 'Invalid client ID format. Expected GUID.' },
-        { status: 400 }
-      );
-    }
-
-    // 3. Check Permission - verify client exists and user has access
+    // Verify client exists
     const client = await prisma.client.findUnique({
-      where: { GSClientID: GSClientID },
+      where: { GSClientID },
       select: {
         id: true,
         GSClientID: true,
@@ -111,10 +92,7 @@ export async function GET(
     });
 
     if (!client) {
-      return NextResponse.json(
-        { error: 'Client not found' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Client not found', ErrorCodes.NOT_FOUND);
     }
 
     // Generate cache key
@@ -126,32 +104,24 @@ export async function GET(
       return NextResponse.json(successResponse(cached));
     }
 
-    // 4-5. Execute - Calculate balances from transaction tables
-    
     // Get all tasks for this client
     const clientTasks = await prisma.task.findMany({
-      where: {
-        GSClientID: GSClientID,
-      },
-      select: {
-        GSTaskID: true,
-      },
+      where: { GSClientID },
+      select: { GSTaskID: true },
+      take: 10000, // Reasonable limit for client tasks
     });
 
     const taskIds = clientTasks.map(task => task.GSTaskID);
 
     // Calculate WIP Balance: Sum of Amount from WIPTransactions for all client tasks
-    // Use both GSClientID and GSTaskID to capture all transactions
-    // If TTYPE is 'F', reverse the amount (make it negative)
-    // Provision (TTYPE 'P') should NOT be reversed
     const wipWhereClause = taskIds.length > 0
       ? {
           OR: [
-            { GSClientID: GSClientID },
+            { GSClientID },
             { GSTaskID: { in: taskIds } },
           ],
         }
-      : { GSClientID: GSClientID };
+      : { GSClientID };
 
     const wipTransactions = await prisma.wIPTransactions.findMany({
       where: wipWhereClause,
@@ -176,26 +146,20 @@ export async function GET(
       const tranTypeUpper = transaction.TranType.toUpperCase();
 
       if (category.isProvision) {
-        // Provision tracked separately
         provision += amount;
       } else if (category.isFee) {
-        // Fees are reversed (subtracted)
         fees += amount;
       } else if (category.isAdjustment) {
-        // Adjustment transactions - differentiate by TranType
         if (tranTypeUpper.includes('TIME')) {
           timeAdjustments += amount;
         } else if (tranTypeUpper.includes('DISBURSEMENT') || tranTypeUpper.includes('DISB')) {
           disbursementAdjustments += amount;
         }
       } else if (category.isTime) {
-        // Time transactions
         time += amount;
       } else if (category.isDisbursement) {
-        // Disbursement transactions
         disbursements += amount;
       } else {
-        // Other transactions default to time-like behavior
         time += amount;
       }
     });
@@ -206,38 +170,23 @@ export async function GET(
     // Net WIP = Gross WIP + Provision
     const netWip = grossWip + provision;
 
-    // Calculate Debtor Balance: Sum of Total from DrsTransactions
-    const debtorAggregation = await prisma.drsTransactions.aggregate({
-      where: {
-        GSClientID: GSClientID,
-      },
-      _sum: {
-        Total: true,
-      },
-    });
-
-    // Get the latest update timestamp from both transaction tables
-    const latestWipTransaction = await prisma.wIPTransactions.findFirst({
-      where: wipWhereClause,
-      orderBy: {
-        updatedAt: 'desc',
-      },
-      select: {
-        updatedAt: true,
-      },
-    });
-
-    const latestDebtorTransaction = await prisma.drsTransactions.findFirst({
-      where: {
-        GSClientID: GSClientID,
-      },
-      orderBy: {
-        updatedAt: 'desc',
-      },
-      select: {
-        updatedAt: true,
-      },
-    });
+    // Run parallel queries for debtor aggregation and latest timestamps
+    const [debtorAggregation, latestWipTransaction, latestDebtorTransaction] = await Promise.all([
+      prisma.drsTransactions.aggregate({
+        where: { GSClientID },
+        _sum: { Total: true },
+      }),
+      prisma.wIPTransactions.findFirst({
+        where: wipWhereClause,
+        orderBy: { updatedAt: 'desc' },
+        select: { updatedAt: true },
+      }),
+      prisma.drsTransactions.findFirst({
+        where: { GSClientID },
+        orderBy: { updatedAt: 'desc' },
+        select: { updatedAt: true },
+      }),
+    ]);
 
     // Determine the most recent update
     let lastUpdated: Date | null = null;
@@ -251,19 +200,16 @@ export async function GET(
       lastUpdated = latestDebtorTransaction.updatedAt;
     }
 
-    // 6. Respond
     const responseData: ClientBalances = {
       GSClientID: client.GSClientID,
       clientCode: client.clientCode,
       clientName: client.clientNameFull,
-      // Breakdown components
       time,
       timeAdjustments,
       disbursements,
       disbursementAdjustments,
       fees,
       provision,
-      // Calculated totals
       grossWip,
       netWip,
       debtorBalance: debtorAggregation._sum.Total || 0,
@@ -274,8 +220,6 @@ export async function GET(
     await cache.set(cacheKey, responseData, 600);
 
     return NextResponse.json(successResponse(responseData));
-  } catch (error) {
-    return handleApiError(error, 'Get Client Balances');
-  }
-}
+  },
+});
 
