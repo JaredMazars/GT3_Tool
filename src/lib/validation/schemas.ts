@@ -798,6 +798,13 @@ export const UpdateBDProposalSchema = z.object({
   respondedAt: z.coerce.date().nullable().optional(),
 }).strict();
 
+// BD Company Research schema
+export const CompanyResearchSchema = z.object({
+  companyName: z.string().min(1).max(500),
+}).strict();
+
+export type CompanyResearchInput = z.infer<typeof CompanyResearchSchema>;
+
 // BD Note schemas
 export const CreateBDNoteSchema = z.object({
   opportunityId: z.number().int().positive(),

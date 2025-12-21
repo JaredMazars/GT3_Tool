@@ -202,6 +202,13 @@ export const env = {
     'AZURE_SEARCH_INDEX_NAME',
     OPTIONAL_ENV_VARS.AZURE_SEARCH_INDEX_NAME
   ),
+
+  // Azure AI Foundry Agent Service (optional - for Grounding with Bing Search)
+  // Uses Azure AD authentication via DefaultAzureCredential (no API key needed)
+  azureAIFoundryEndpoint: getEnvVar('AZURE_EXISTING_AIPROJECT_ENDPOINT'),
+  azureAIAgentId: getEnvVar('AZURE_EXISTING_AGENT_ID'),
+  // Bing connection ID for grounding - format: /subscriptions/.../connections/<connection_name>
+  azureBingConnectionId: getEnvVar('AZURE_BING_CONNECTION_ID'),
 } as const;
 
 

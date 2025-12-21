@@ -19,13 +19,17 @@
     "db:validate": "bun scripts/validate-db-schema.ts",
     "db:sync": "bun scripts/sync-db-to-schema.ts",
     "db:sync:push": "bun scripts/sync-db-to-schema.ts --mode=push",
-    "db:sync:migrate": "bun scripts/sync-db-to-schema.ts --mode=migrate"
+    "db:sync:migrate": "bun scripts/sync-db-to-schema.ts --mode=migrate",
+    "seed:bd-stages": "npx tsx scripts/seed-bd-stages.ts"
   },
   "dependencies": {
     "@ai-sdk/azure": "^2.0.66",
     "@ai-sdk/openai": "^2.0.64",
     "@auth/prisma-adapter": "^2.7.5",
+    "@azure/ai-agents": "^1.1.0",
+    "@azure/ai-projects": "^1.0.1",
     "@azure/communication-email": "^1.1.0",
+    "@azure/core-util": "^1.13.1",
     "@azure/identity": "^4.13.0",
     "@azure/msal-browser": "^4.26.0",
     "@azure/msal-node": "^3.8.1",

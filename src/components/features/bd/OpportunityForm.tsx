@@ -7,7 +7,11 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Search } from 'lucide-react';
 import type { CreateBDOpportunityInput } from '@/lib/validation/schemas';
+import { useCompanyResearch } from '@/hooks/bd/useCompanyResearch';
+import { CompanyResearchModal } from './CompanyResearchModal';
+import type { CompanyResearchResult } from '@/lib/services/bd/companyResearchAgent';
 
 interface OpportunityFormProps {
   initialData?: Partial<CreateBDOpportunityInput>;
@@ -51,6 +55,11 @@ export function OpportunityForm({
   const [selectedClient, setSelectedClient] = useState<ClientSearchResult | null>(null);
   const [showClientDropdown, setShowClientDropdown] = useState(false);
   const clientSearchRef = useRef<HTMLDivElement>(null);
+
+  // Company research state
+  const [showResearchModal, setShowResearchModal] = useState(false);
+  const [researchResult, setResearchResult] = useState<CompanyResearchResult | null>(null);
+  const companyResearchMutation = useCompanyResearch();
 
   // Fetch clients based on search
   const { data: clientsData, isLoading: isLoadingClients } = useQuery({
@@ -126,6 +135,22 @@ export function OpportunityForm({
     if (value.length < 2) {
       setSelectedClient(null);
       setFormData((prev) => ({ ...prev, GSClientID: undefined }));
+    }
+  };
+
+  // Handle company research
+  const handleResearchCompany = async () => {
+    const companyName = formData.companyName?.trim();
+    if (!companyName) return;
+
+    setShowResearchModal(true);
+    setResearchResult(null);
+
+    try {
+      const result = await companyResearchMutation.mutateAsync(companyName);
+      setResearchResult(result);
+    } catch {
+      // Error is handled in the modal via mutation state
     }
   };
 
@@ -289,15 +314,38 @@ export function OpportunityForm({
           <label className="block text-sm font-medium text-forvis-gray-700 mb-1">
             Company Name <span className="text-red-600">*</span>
           </label>
-          <input
-            type="text"
-            name="companyName"
-            value={formData.companyName || ''}
-            onChange={handleChange}
-            required
-            className="block w-full px-4 py-2 border border-forvis-gray-300 rounded-lg text-sm text-forvis-gray-900 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
-            placeholder="e.g., ABC Corporation (Pty) Ltd"
-          />
+          <div className="flex gap-2">
+            <input
+              type="text"
+              name="companyName"
+              value={formData.companyName || ''}
+              onChange={handleChange}
+              required
+              className="flex-1 block px-4 py-2 border border-forvis-gray-300 rounded-lg text-sm text-forvis-gray-900 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
+              placeholder="e.g., ABC Corporation (Pty) Ltd"
+            />
+            <button
+              type="button"
+              onClick={handleResearchCompany}
+              disabled={!formData.companyName?.trim() || companyResearchMutation.isPending}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg shadow transition-all hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+              title="Research this company using AI"
+            >
+              {companyResearchMutation.isPending ? (
+                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+              ) : (
+                <Search className="h-4 w-4" />
+              )}
+              <span className="hidden sm:inline">Research</span>
+            </button>
+          </div>
+          <p className="mt-1 text-xs text-forvis-gray-500">
+            Click Research to get AI-powered insights about this company
+          </p>
         </div>
       )}
 
@@ -468,6 +516,16 @@ export function OpportunityForm({
           )}
         </button>
       </div>
+
+      {/* Company Research Modal */}
+      <CompanyResearchModal
+        isOpen={showResearchModal}
+        onClose={() => setShowResearchModal(false)}
+        companyName={formData.companyName || ''}
+        result={researchResult}
+        isLoading={companyResearchMutation.isPending}
+        error={companyResearchMutation.error}
+      />
     </form>
   );
 }
