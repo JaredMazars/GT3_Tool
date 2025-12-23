@@ -427,6 +427,3 @@ export async function generateNewsBulletinDocumentSasUrl(
   }
 }
 
-
-
-

@@ -6,7 +6,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, ExternalLink, Loader2, MessageSquare, Paperclip, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { X, ExternalLink, Loader2, MessageSquare, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { useReviewNote } from '../hooks/useReviewNotes';
 import { useChangeReviewNoteStatus } from '../hooks/useReviewNoteActions';
@@ -37,7 +37,7 @@ export function ReviewNoteDetailModal({
     taskId,
     noteId,
     includeComments: true,
-    includeAttachments: true,
+    includeAttachments: false,
   });
 
   const { data: comments = [] } = useReviewNoteComments(taskId, noteId);
@@ -53,6 +53,7 @@ export function ReviewNoteDetailModal({
       await addCommentMutation.mutateAsync({
         comment: newComment,
       });
+      
       setNewComment('');
     } catch (error) {
       console.error('Failed to add comment:', error);
@@ -274,22 +275,27 @@ export function ReviewNoteDetailModal({
             </div>
 
             {/* Add Comment */}
-            <div className="flex space-x-2">
+            <div className="space-y-3">
               <textarea
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 placeholder="Add a comment..."
-                className="flex-1 px-3 py-2 border border-forvis-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 text-sm"
+                className="w-full px-3 py-2 border border-forvis-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 text-sm"
                 rows={2}
+                disabled={addCommentMutation.isPending}
               />
-              <Button
-                onClick={handleAddComment}
-                disabled={!newComment.trim() || addCommentMutation.isPending}
-                variant="primary"
-                size="md"
-              >
-                {addCommentMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add'}
-              </Button>
+              
+              <div className="flex justify-end">
+                <Button
+                  onClick={handleAddComment}
+                  disabled={!newComment.trim() || addCommentMutation.isPending}
+                  variant="primary"
+                  size="md"
+                  icon={addCommentMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : undefined}
+                >
+                  {addCommentMutation.isPending ? 'Adding...' : 'Add Comment'}
+                </Button>
+              </div>
             </div>
           </div>
         </div>

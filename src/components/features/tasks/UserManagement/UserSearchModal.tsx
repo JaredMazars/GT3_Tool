@@ -441,9 +441,11 @@ export function UserSearchModal({ taskId, isOpen, onClose, onUserAdded }: UserSe
                   className="w-full px-4 py-2 border-2 border-forvis-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500 bg-white font-medium shadow-corporate text-sm h-[38px]"
                 >
                   <option value="VIEWER">👁️ Viewer - Read-only access</option>
-                  <option value="EDITOR">✏️ Editor - Can edit data</option>
-                  <option value="REVIEWER">✅ Reviewer - Can approve/reject adjustments</option>
-                  <option value="ADMIN">⚙️ Admin - Full task control</option>
+                  <option value="USER">✏️ User - Standard team member</option>
+                  <option value="SUPERVISOR">👔 Supervisor - Can review work</option>
+                  <option value="MANAGER">📊 Manager - Task management</option>
+                  <option value="PARTNER">⭐ Partner - Senior leadership</option>
+                  <option value="ADMINISTRATOR">⚙️ Administrator - Full control</option>
                 </select>
               </div>
               <div className="flex gap-3">

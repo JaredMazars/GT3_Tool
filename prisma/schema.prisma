@@ -1702,15 +1702,16 @@ model ReviewNote {
 }
 
 model ReviewNoteComment {
-  id           Int        @id @default(autoincrement())
-  reviewNoteId Int
-  userId       String
-  comment      String     @db.NVarChar(Max)
-  isInternal   Boolean    @default(false)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  ReviewNote   ReviewNote @relation(fields: [reviewNoteId], references: [id], onDelete: Cascade)
-  User         User       @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id                     Int                      @id @default(autoincrement())
+  reviewNoteId           Int
+  userId                 String
+  comment                String                   @db.NVarChar(Max)
+  isInternal             Boolean                  @default(false)
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+  ReviewNote             ReviewNote               @relation(fields: [reviewNoteId], references: [id], onDelete: Cascade)
+  User                   User                     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ReviewNoteAttachment   ReviewNoteAttachment[]
 
   @@index([reviewNoteId])
   @@index([createdAt])
@@ -1718,17 +1719,20 @@ model ReviewNoteComment {
 }
 
 model ReviewNoteAttachment {
-  id           Int        @id @default(autoincrement())
+  id           Int                 @id @default(autoincrement())
   reviewNoteId Int
-  fileName     String     @db.NVarChar(255)
-  filePath     String     @db.NVarChar(1000)
+  commentId    Int?
+  fileName     String              @db.NVarChar(255)
+  filePath     String              @db.NVarChar(1000)
   fileSize     Int
-  fileType     String     @db.NVarChar(100)
+  fileType     String              @db.NVarChar(100)
   uploadedBy   String
-  createdAt    DateTime   @default(now())
-  ReviewNote   ReviewNote @relation(fields: [reviewNoteId], references: [id], onDelete: Cascade)
-  User         User       @relation(fields: [uploadedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  createdAt    DateTime            @default(now())
+  ReviewNote   ReviewNote          @relation(fields: [reviewNoteId], references: [id], onDelete: Cascade)
+  Comment      ReviewNoteComment?  @relation(fields: [commentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  User         User                @relation(fields: [uploadedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([reviewNoteId])
+  @@index([commentId])
   @@index([uploadedBy])
 }

@@ -11,6 +11,8 @@ import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
 import { prisma } from '@/lib/db/prisma';
 import { readFile, unlink } from 'fs/promises';
 import { join } from 'path';
+import { downloadScreenshot, deleteScreenshot, isBlobStorageConfigured } from '@/lib/services/documents/blobStorage';
+import { logger } from '@/lib/utils/logger';
 
 /**
  * GET /api/tasks/[taskId]/review-notes/[noteId]/attachments/[attachmentId]
@@ -65,9 +67,27 @@ export const GET = secureRoute.queryWithParams({
       );
     }
 
-    // Read file
-    const fullPath = join(process.cwd(), attachment.filePath);
-    const fileBuffer = await readFile(fullPath);
+    // Read file - check if it's from blob storage or local filesystem
+    let fileBuffer: Buffer;
+    const isScreenshot = attachment.fileType.startsWith('image/') && 
+                        attachment.filePath.includes('/screenshots/');
+    
+    if (isScreenshot && isBlobStorageConfigured()) {
+      // Download from blob storage
+      try {
+        fileBuffer = await downloadScreenshot(attachment.filePath);
+      } catch (error) {
+        logger.error('Failed to download screenshot from blob storage', { error, attachmentId });
+        return NextResponse.json(
+          { success: false, error: 'Failed to download file' },
+          { status: 500 }
+        );
+      }
+    } else {
+      // Read from local filesystem (legacy attachments)
+      const fullPath = join(process.cwd(), attachment.filePath);
+      fileBuffer = await readFile(fullPath);
+    }
 
     // Return file
     return new NextResponse(fileBuffer, {
@@ -141,19 +161,29 @@ export const DELETE = secureRoute.mutationWithParams({
       );
     }
 
-    // Delete file from filesystem
+    // Delete file - check if it's from blob storage or local filesystem
+    const isScreenshot = attachment.filePath.includes('/screenshots/');
+    
     try {
-      const fullPath = join(process.cwd(), attachment.filePath);
-      await unlink(fullPath);
+      if (isScreenshot && isBlobStorageConfigured()) {
+        // Delete from blob storage
+        await deleteScreenshot(attachment.filePath);
+      } else {
+        // Delete from local filesystem (legacy attachments)
+        const fullPath = join(process.cwd(), attachment.filePath);
+        await unlink(fullPath);
+      }
     } catch (error) {
       // Log but continue - file might already be deleted
-      console.error('Failed to delete file from filesystem:', error);
+      logger.warn('Failed to delete file', { error, attachmentId, filePath: attachment.filePath });
     }
 
     // Delete from database
     await prisma.reviewNoteAttachment.delete({
       where: { id: attachmentId },
     });
+
+    logger.info('Attachment deleted successfully', { attachmentId, noteId, taskId });
 
     return NextResponse.json(successResponse({ message: 'Attachment deleted successfully' }));
   },

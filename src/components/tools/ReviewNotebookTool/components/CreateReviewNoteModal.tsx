@@ -219,7 +219,7 @@ export function CreateReviewNoteModal({ isOpen, onClose, taskId }: CreateReviewN
           <TaskTeamSelector
             taskId={taskId}
             value={formData.assignedTo || null}
-            onChange={(userId) => setFormData({ ...formData, assignedTo: userId })}
+            onChange={(userId, userName) => setFormData({ ...formData, assignedTo: userId })}
             label="Assign To"
             required={false}
           />
