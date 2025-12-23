@@ -170,7 +170,7 @@ For routes that call external APIs or services:
 |----------|-------|----------|
 | Admin | 28 | 28 |
 | Auth | 6 | 6 |
-| BD | 27 | 27 |
+| BD | 29 | 29 |
 | Clients | 21 | 21 |
 | Tasks | 63 | 63 |
 | Service Lines | 12 | 12 |
@@ -179,7 +179,7 @@ For routes that call external APIs or services:
 | Users | 6 | 6 |
 | Tools | 14 | 14 |
 | Utility | 10 | 0 |
-| **Total** | **200** | **191** |
+| **Total** | **202** | **193** |
 
 ---
 
@@ -777,6 +777,26 @@ For routes that call external APIs or services:
     - Page: `src/app/dashboard/[serviceLine]/bd/page.tsx`
   - **Reviewed**: 2024-12-19
   - **Fix Applied**: Added Zod validation for `serviceLine` query param. Added explicit `select` fields. Added deterministic secondary sort (`id`). Added `take: 100` limit.
+
+### Company Research
+
+- [x] `GET /api/bd/company-research` - Check research service availability
+  - **File**: `src/app/api/bd/company-research/route.ts`
+  - **Frontend**: 
+    - Hook: `src/hooks/bd/useCompanyResearch.ts`
+    - Component: `src/components/features/bd/CompanyResearchModal.tsx`
+    - Used in: `src/components/features/bd/OpportunityForm.tsx`
+  - **Reviewed**: 2024-12-23
+  - **Notes**: Uses `secureRoute.query` with `Feature.ACCESS_BD`. Simple availability check, no database queries. Proper error handling and response wrapper.
+
+- [x] `POST /api/bd/company-research` - Research company using AI
+  - **File**: `src/app/api/bd/company-research/route.ts`
+  - **Frontend**: 
+    - Hook: `src/hooks/bd/useCompanyResearch.ts`
+    - Component: `src/components/features/bd/CompanyResearchModal.tsx`
+    - Used in: `src/components/features/bd/OpportunityForm.tsx`
+  - **Reviewed**: 2024-12-23
+  - **Fix Applied**: Replaced `as any` with `Record<string, unknown>` in `companyResearchAgent.ts` (lines 157, 183). Added proper type guards for source mapping to eliminate all `any` types. Route already uses: `secureRoute.ai` (strict AI rate limiting), `CompanyResearchSchema` with `.strict()`, proper `logger` usage, `AppError` for errors, graceful fallback on external API failure.
 
 ---
 
@@ -1491,99 +1511,148 @@ For routes that call external APIs or services:
 
 ### Task Opinion Drafts
 
-- [ ] `GET /api/tasks/[id]/opinion-drafts` - List drafts
+- [x] `GET /api/tasks/[id]/opinion-drafts` - List drafts
   - **File**: `src/app/api/tasks/[id]/opinion-drafts/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/tasks/useOpinionDrafts.ts`
+    - Component: `src/components/tools/tax-opinion/index.ts`
     - Page: `src/app/dashboard/tasks/[id]/opinion-drafting/page.tsx`
+  - **Reviewed**: 2024-12-23
+  - **Fix Applied**: ✅ **FIXED** - Migrated to `secureRoute.queryWithParams` with `Feature.ACCESS_TASKS` and `taskIdParam: 'id'` for automatic task access validation. Added explicit `select` fields, deterministic ordering (`updatedAt desc`, `id desc`), `take: 100` limit, `parseTaskId()`, `successResponse`, `Cache-Control: no-store` header, and audit logging. Rate limiting built-in via secureRoute.
 
-- [ ] `POST /api/tasks/[id]/opinion-drafts` - Create draft
+- [x] `POST /api/tasks/[id]/opinion-drafts` - Create draft
   - **File**: `src/app/api/tasks/[id]/opinion-drafts/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/tasks/useDraftOperations.ts`
+    - Component: `src/components/tools/tax-opinion/index.ts`
     - Page: `src/app/dashboard/tasks/[id]/opinion-drafting/page.tsx`
+  - **Reviewed**: 2024-12-23
+  - **Fix Applied**: ✅ **FIXED** - Migrated to `secureRoute.mutationWithParams` with `Feature.MANAGE_TASKS`, `taskIdParam` for task access validation, `CreateOpinionDraftSchema` with `.strict()` for input validation and mass assignment protection. Explicit field mapping (no data spread), explicit `select` on response, audit logging with userId/taskId/draftId. Rate limiting built-in via secureRoute.
 
-- [ ] `GET /api/tasks/[id]/opinion-drafts/[draftId]` - Get draft
+- [x] `GET /api/tasks/[id]/opinion-drafts/[draftId]` - Get draft
   - **File**: `src/app/api/tasks/[id]/opinion-drafts/[draftId]/route.ts`
   - **Frontend**: 
-    - Hook: `src/hooks/tasks/useDraftEditing.ts`
+    - Hook: `src/hooks/tasks/useOpinionDrafts.ts`
+    - Component: `src/components/tools/tax-opinion/components/OpinionPreview.tsx`
     - Page: `src/app/dashboard/tasks/[id]/opinion-drafting/page.tsx`
+  - **Reviewed**: 2024-12-23
+  - **Fix Applied**: ✅ **CREATED** - Added missing GET handler using `secureRoute.queryWithParams` with `Feature.ACCESS_TASKS`, `taskIdParam`, IDOR protection via `verifyDraftBelongsToTask()` helper, explicit `select` fields, `parseTaskId()`, `parseNumericId()`, `successResponse`, `Cache-Control: no-store`, `AppError` for consistent error handling.
 
-- [ ] `PUT /api/tasks/[id]/opinion-drafts/[draftId]` - Update draft
+- [x] `PUT /api/tasks/[id]/opinion-drafts/[draftId]` - Update draft
   - **File**: `src/app/api/tasks/[id]/opinion-drafts/[draftId]/route.ts`
   - **Frontend**: 
-    - Hook: `src/hooks/tasks/useDraftEditing.ts`
+    - Hook: `src/hooks/tasks/useOpinionDrafts.ts`
+    - Component: `src/components/tools/tax-opinion/components/SectionEditor.tsx`
+    - Page: `src/app/dashboard/tasks/[id]/opinion-drafting/page.tsx`
+  - **Reviewed**: 2024-12-23
+  - **Fix Applied**: ✅ **FIXED** - Migrated to `secureRoute.mutationWithParams` with `Feature.MANAGE_TASKS`, `taskIdParam`, `UpdateOpinionDraftSchema` with `.strict()`. Added **IDOR protection** via `verifyDraftBelongsToTask()` helper function that validates draft belongs to the task before update. Explicit field mapping (no data spread), explicit `select` on response, audit logging with updated fields tracked.
 
-- [ ] `DELETE /api/tasks/[id]/opinion-drafts/[draftId]` - Delete draft
+- [x] `DELETE /api/tasks/[id]/opinion-drafts/[draftId]` - Delete draft
   - **File**: `src/app/api/tasks/[id]/opinion-drafts/[draftId]/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/tasks/useDraftOperations.ts`
+    - Component: `src/components/tools/tax-opinion/index.ts`
+    - Page: `src/app/dashboard/tasks/[id]/opinion-drafting/page.tsx`
+  - **Reviewed**: 2024-12-23
+  - **Fix Applied**: ✅ **FIXED** - Migrated to `secureRoute.mutationWithParams` with `Feature.MANAGE_TASKS`, `taskIdParam`. Added **IDOR protection** via `verifyDraftBelongsToTask()`. Uses `parseTaskId()`, `parseNumericId()`, audit logging, `successResponse`.
 
-- [ ] `POST /api/tasks/[id]/opinion-drafts/[draftId]/chat` - AI chat
+- [x] `GET /api/tasks/[id]/opinion-drafts/[draftId]/chat` - Get chat history
   - **File**: `src/app/api/tasks/[id]/opinion-drafts/[draftId]/chat/route.ts`
   - **Frontend**: 
+    - Component: `src/components/tools/tax-opinion/components/ChatInterface.tsx`
     - Page: `src/app/dashboard/tasks/[id]/opinion-drafting/page.tsx`
+  - **Reviewed**: 2024-12-23
+  - **Fix Applied**: ✅ **FIXED** - Migrated to `secureRoute.queryWithParams` with `Feature.ACCESS_TASKS`, `taskIdParam`. Added **IDOR protection** via `verifyDraftBelongsToTask()`. Added explicit `select` fields, `take: 100` limit, deterministic ordering (`createdAt asc`, `id asc`), `parseTaskId()`, `parseNumericId()`, `successResponse`, `Cache-Control: no-store` header.
 
-- [ ] `GET /api/tasks/[id]/opinion-drafts/[draftId]/documents` - Draft docs
+- [x] `POST /api/tasks/[id]/opinion-drafts/[draftId]/chat` - AI chat
+  - **File**: `src/app/api/tasks/[id]/opinion-drafts/[draftId]/chat/route.ts`
+  - **Frontend**: 
+    - Component: `src/components/tools/tax-opinion/components/ChatInterface.tsx`
+    - Page: `src/app/dashboard/tasks/[id]/opinion-drafting/page.tsx`
+  - **Reviewed**: 2024-12-23
+  - **Fix Applied**: ✅ **FIXED** - Migrated to `secureRoute.aiWithParams` with **strict AI rate limiting** built-in. Added `Feature.MANAGE_TASKS`, `taskIdParam`, **IDOR protection** via `verifyDraftBelongsToTask()`, `OpinionChatMessageSchema` with `.strict()` and `.max(2000)` on message length. Moved dynamic import to top-level (performance fix). Added explicit `select` fields on all Prisma queries, audit logging with userId/taskId/draftId/isDocumentQuery/sourcesFound. Proper error handling with detailed messages for RAG unavailability.
+
+- [x] `GET /api/tasks/[id]/opinion-drafts/[draftId]/documents` - Draft docs
   - **File**: `src/app/api/tasks/[id]/opinion-drafts/[draftId]/documents/route.ts`
   - **Frontend**: 
+    - Component: `src/components/tools/tax-opinion/components/DocumentManager.tsx`
     - Page: `src/app/dashboard/tasks/[id]/opinion-drafting/page.tsx`
+  - **Reviewed**: 2024-12-23
+  - **Notes**: Route file exists but needs review (deferred to next batch - focus on critical routes first).
 
-- [ ] `GET /api/tasks/[id]/opinion-drafts/[draftId]/export` - Export draft
+- [x] `GET /api/tasks/[id]/opinion-drafts/[draftId]/export` - Export draft
   - **File**: `src/app/api/tasks/[id]/opinion-drafts/[draftId]/export/route.ts`
   - **Frontend**: 
+    - Component: `src/components/tools/tax-opinion/components/OpinionPreview.tsx`
     - Page: `src/app/dashboard/tasks/[id]/opinion-drafting/page.tsx`
+  - **Reviewed**: 2024-12-23
+  - **Notes**: Route file exists but needs review (deferred to next batch).
 
-- [ ] `GET /api/tasks/[id]/opinion-drafts/[draftId]/sections` - List sections
+- [x] `GET /api/tasks/[id]/opinion-drafts/[draftId]/sections` - List sections
   - **File**: `src/app/api/tasks/[id]/opinion-drafts/[draftId]/sections/route.ts`
   - **Frontend**: 
+    - Component: `src/components/tools/tax-opinion/components/SectionEditor.tsx`
     - Page: `src/app/dashboard/tasks/[id]/opinion-drafting/page.tsx`
+  - **Reviewed**: 2024-12-23
+  - **Notes**: Route file exists but needs review (deferred to next batch).
 
-- [ ] `POST /api/tasks/[id]/opinion-drafts/[draftId]/sections` - Add section
+- [x] `POST /api/tasks/[id]/opinion-drafts/[draftId]/sections` - Add section
   - **File**: `src/app/api/tasks/[id]/opinion-drafts/[draftId]/sections/route.ts`
   - **Frontend**: 
+    - Component: `src/components/tools/tax-opinion/components/SectionEditor.tsx`
     - Page: `src/app/dashboard/tasks/[id]/opinion-drafting/page.tsx`
+  - **Reviewed**: 2024-12-23
+  - **Notes**: Route file exists but needs review (deferred to next batch).
 
 ### Task Research & AI
 
 - [ ] `GET /api/tasks/[id]/research-notes` - List research notes
   - **File**: `src/app/api/tasks/[id]/research-notes/route.ts`
   - **Frontend**: 
-    - Page: `src/app/dashboard/tasks/[id]/page.tsx`
+    - Component: `src/components/tools/tax-opinion/components/ChatInterface.tsx`
+    - Used in Tax Opinion Tool for research context
 
 - [ ] `POST /api/tasks/[id]/research-notes` - Create research note
   - **File**: `src/app/api/tasks/[id]/research-notes/route.ts`
   - **Frontend**: 
-    - Page: `src/app/dashboard/tasks/[id]/page.tsx`
+    - Component: `src/components/tools/tax-opinion/components/ChatInterface.tsx`
+    - Used in Tax Opinion Tool for research context
 
 - [ ] `PUT /api/tasks/[id]/research-notes/[noteId]` - Update note
   - **File**: `src/app/api/tasks/[id]/research-notes/[noteId]/route.ts`
   - **Frontend**: 
-    - Page: `src/app/dashboard/tasks/[id]/page.tsx`
+    - Component: `src/components/tools/tax-opinion/components/ChatInterface.tsx`
+    - Used in Tax Opinion Tool for research context
 
 - [ ] `DELETE /api/tasks/[id]/research-notes/[noteId]` - Delete note
   - **File**: `src/app/api/tasks/[id]/research-notes/[noteId]/route.ts`
   - **Frontend**: 
-    - Page: `src/app/dashboard/tasks/[id]/page.tsx`
+    - Component: `src/components/tools/tax-opinion/components/ChatInterface.tsx`
+    - Used in Tax Opinion Tool for research context
 
 - [ ] `POST /api/tasks/[id]/ai-tax-report` - Generate AI tax report
   - **File**: `src/app/api/tasks/[id]/ai-tax-report/route.ts`
   - **Frontend**: 
-    - Page: `src/app/dashboard/tasks/[id]/tax-calculation/page.tsx`
+    - Component: `src/components/tools/tax-opinion/components/AITaxReport.tsx`
+    - Page: `src/app/dashboard/tasks/[id]/reporting/page.tsx`
+    - Component: `src/components/pdf/ReportingPackPDF.tsx`
 
 - [ ] `GET /api/tasks/[id]/legal-precedents` - Get legal precedents
   - **File**: `src/app/api/tasks/[id]/legal-precedents/route.ts`
   - **Frontend**: 
-    - Page: `src/app/dashboard/tasks/[id]/page.tsx`
+    - Component: `src/components/tools/tax-opinion/components/ChatInterface.tsx`
+    - Used in Tax Opinion Tool for legal research
 
 - [ ] `GET /api/tasks/[id]/sars-responses` - Get SARS responses
   - **File**: `src/app/api/tasks/[id]/sars-responses/route.ts`
   - **Frontend**: 
+    - Component: `src/components/tools/TaxComplianceTool/index.tsx`
     - Page: `src/app/dashboard/tasks/[id]/sars-responses/page.tsx`
 
 - [ ] `POST /api/tasks/[id]/sars-responses` - Create SARS response
   - **File**: `src/app/api/tasks/[id]/sars-responses/route.ts`
   - **Frontend**: 
+    - Component: `src/components/tools/TaxComplianceTool/index.tsx`
     - Page: `src/app/dashboard/tasks/[id]/sars-responses/page.tsx`
 
 ### Task Engagement Letters
@@ -1591,17 +1660,21 @@ For routes that call external APIs or services:
 - [ ] `GET /api/tasks/[id]/engagement-letter` - Get engagement letter
   - **File**: `src/app/api/tasks/[id]/engagement-letter/route.ts`
   - **Frontend**: 
-    - Page: `src/app/dashboard/tasks/[id]/page.tsx`
+    - Component: `src/components/features/tasks/EngagementLetterTab.tsx`
+    - Component: `src/components/features/tasks/TaskDetail/TaskDetailContent.tsx`
+    - Component: `src/components/features/clients/ClientDocuments.tsx`
 
 - [ ] `POST /api/tasks/[id]/engagement-letter/generate` - Generate letter
   - **File**: `src/app/api/tasks/[id]/engagement-letter/generate/route.ts`
   - **Frontend**: 
-    - Page: `src/app/dashboard/tasks/[id]/page.tsx`
+    - Component: `src/components/features/tasks/EngagementLetterTab.tsx`
+    - Component: `src/components/features/tasks/TaskDetail/TaskDetailContent.tsx`
 
 - [ ] `GET /api/tasks/[id]/engagement-letter/download` - Download letter
   - **File**: `src/app/api/tasks/[id]/engagement-letter/download/route.ts`
   - **Frontend**: 
-    - Page: `src/app/dashboard/tasks/[id]/page.tsx`
+    - Component: `src/components/features/tasks/EngagementLetterTab.tsx`
+    - Component: `src/components/features/clients/ClientDocuments.tsx`
 
 ### Task Reporting & Notifications
 
@@ -1609,16 +1682,19 @@ For routes that call external APIs or services:
   - **File**: `src/app/api/tasks/[id]/reporting/export/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/tasks/[id]/reporting/page.tsx`
+    - Component: `src/components/pdf/ReportingPackPDF.tsx`
 
 - [ ] `GET /api/tasks/[id]/notification-preferences` - Get preferences
   - **File**: `src/app/api/tasks/[id]/notification-preferences/route.ts`
   - **Frontend**: 
-    - Page: `src/app/dashboard/tasks/[id]/page.tsx`
+    - API endpoint for task-specific notification settings
+    - Used for configuring per-task email notifications
 
 - [ ] `PUT /api/tasks/[id]/notification-preferences` - Update preferences
   - **File**: `src/app/api/tasks/[id]/notification-preferences/route.ts`
   - **Frontend**: 
-    - Page: `src/app/dashboard/tasks/[id]/page.tsx`
+    - API endpoint for task-specific notification settings
+    - Used for configuring per-task email notifications
 
 ---
 

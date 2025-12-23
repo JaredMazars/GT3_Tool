@@ -10,3 +10,4 @@ EXEC sp_rename 'dbo.ServiceLineTool.serviceLineCode', 'subServiceLineGroup', 'CO
 -- Recreate unique constraint and indexes with new column name
 ALTER TABLE [dbo].[ServiceLineTool] ADD CONSTRAINT [ServiceLineTool_subServiceLineGroup_toolId_key] UNIQUE NONCLUSTERED ([subServiceLineGroup] ASC, [toolId] ASC);
 CREATE NONCLUSTERED INDEX [ServiceLineTool_subServiceLineGroup_idx] ON [dbo].[ServiceLineTool]([subServiceLineGroup] ASC);
+

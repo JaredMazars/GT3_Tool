@@ -199,3 +199,4 @@ export const DELETE = secureRoute.mutationWithParams({
     return NextResponse.json(successResponse({ message: 'Tool deleted successfully' }));
   },
 });
+

@@ -229,3 +229,4 @@ export function AssignmentModal({ tool, isOpen, onClose }: AssignmentModalProps)
     </div>
   );
 }
+

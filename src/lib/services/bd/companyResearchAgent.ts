@@ -154,15 +154,42 @@ export class CompanyResearchAgent {
         }
       }
       
-      const rawAnalysis = JSON.parse(jsonContent) as any;
+      const rawAnalysis = JSON.parse(jsonContent) as Record<string, unknown>;
       
       // Map agent's field names (various formats) to expected schema (camelCase)
+      const rawOverview = (rawAnalysis['Company Overview'] || rawAnalysis.CompanyOverview || rawAnalysis.overview) as Record<string, unknown> | undefined;
+      const rawRisk = (rawAnalysis['Risk Assessment'] || rawAnalysis.RiskAssessment || rawAnalysis.riskAssessment) as Record<string, unknown> | undefined;
+      const rawFinancial = (rawAnalysis['Financial Health'] || rawAnalysis.FinancialHealth || rawAnalysis.financialHealth) as Record<string, unknown> | undefined;
+      const rawCipc = (rawAnalysis['CIPC Registration'] || rawAnalysis.CIPCRegistration || rawAnalysis.cipcStatus) as Record<string, unknown> | undefined;
+      
       const analysis: CompanyAnalysis = {
-        overview: rawAnalysis['Company Overview'] || rawAnalysis.CompanyOverview || rawAnalysis.overview || {},
-        riskAssessment: rawAnalysis['Risk Assessment'] || rawAnalysis.RiskAssessment || rawAnalysis.riskAssessment || {},
-        financialHealth: rawAnalysis['Financial Health'] || rawAnalysis.FinancialHealth || rawAnalysis.financialHealth || {},
-        cipcStatus: rawAnalysis['CIPC Registration'] || rawAnalysis.CIPCRegistration || rawAnalysis.cipcStatus || {},
-        confidence: rawAnalysis.confidence || 'MEDIUM'
+        overview: {
+          description: (typeof rawOverview?.description === 'string' ? rawOverview.description : 'No information available'),
+          industry: (typeof rawOverview?.industry === 'string' ? rawOverview.industry : 'Unknown'),
+          sector: (typeof rawOverview?.sector === 'string' ? rawOverview.sector : 'Unknown'),
+          estimatedSize: (typeof rawOverview?.estimatedSize === 'string' ? rawOverview.estimatedSize : 'Unknown'),
+          founded: (typeof rawOverview?.founded === 'string' ? rawOverview.founded : null),
+          headquarters: (typeof rawOverview?.headquarters === 'string' ? rawOverview.headquarters : null),
+          website: (typeof rawOverview?.website === 'string' ? rawOverview.website : null),
+        },
+        riskAssessment: {
+          overallRisk: (rawRisk?.overallRisk === 'LOW' || rawRisk?.overallRisk === 'MEDIUM' || rawRisk?.overallRisk === 'HIGH' ? rawRisk.overallRisk : 'UNKNOWN'),
+          riskFactors: Array.isArray(rawRisk?.riskFactors) ? rawRisk.riskFactors : [],
+          positiveIndicators: Array.isArray(rawRisk?.positiveIndicators) ? rawRisk.positiveIndicators : [],
+          concerns: Array.isArray(rawRisk?.concerns) ? rawRisk.concerns : [],
+        },
+        financialHealth: {
+          status: (rawFinancial?.status === 'HEALTHY' || rawFinancial?.status === 'STABLE' || rawFinancial?.status === 'CONCERNING' ? rawFinancial.status : 'UNKNOWN'),
+          indicators: Array.isArray(rawFinancial?.indicators) ? rawFinancial.indicators : [],
+          recentNews: Array.isArray(rawFinancial?.recentNews) ? rawFinancial.recentNews : [],
+        },
+        cipcStatus: {
+          registrationStatus: (typeof rawCipc?.registrationStatus === 'string' ? rawCipc.registrationStatus : 'No information found'),
+          companyType: (typeof rawCipc?.companyType === 'string' ? rawCipc.companyType : null),
+          registrationNumber: (typeof rawCipc?.registrationNumber === 'string' ? rawCipc.registrationNumber : null),
+          status: (typeof rawCipc?.status === 'string' ? rawCipc.status : null),
+        },
+        confidence: (rawAnalysis.confidence === 'HIGH' || rawAnalysis.confidence === 'MEDIUM' || rawAnalysis.confidence === 'LOW' ? rawAnalysis.confidence : 'MEDIUM'),
       };
 
       // Extract sources from multiple possible locations
@@ -179,10 +206,10 @@ export class CompanyResearchAgent {
       
       // 2. Try JSON embedded sources (if agent included them in response)
       if (rawAnalysis.sources && Array.isArray(rawAnalysis.sources)) {
-        sources.push(...rawAnalysis.sources.map((s: any) => ({
-          title: s.title || 'Source',
-          url: s.url || '',
-          snippet: s.snippet || '',
+        sources.push(...rawAnalysis.sources.map((s: Record<string, unknown>) => ({
+          title: (typeof s.title === 'string' ? s.title : 'Source'),
+          url: (typeof s.url === 'string' ? s.url : ''),
+          snippet: (typeof s.snippet === 'string' ? s.snippet : ''),
         })));
       }
 

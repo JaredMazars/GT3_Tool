@@ -20,10 +20,6 @@ const windSong = WindSong({
 export const metadata: Metadata = {
   title: 'Forvis Mazars - GT3',
   description: 'Professional services task management platform',
-  icons: {
-    icon: '/icon.png',
-    apple: '/apple-icon.png',
-  },
 };
 
 export default function RootLayout({

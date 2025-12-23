@@ -374,10 +374,19 @@ export const PaginationSchema = z.object({
  * Opinion Draft schemas
  */
 export const CreateOpinionDraftSchema = z.object({
-  taskId: z.number().int().positive(),
   title: z.string().min(1).max(500),
-  content: z.string().optional(),
-  version: z.number().int().positive().default(1),
+  content: z.string().max(100000).optional(),
+  status: z.enum(['DRAFT', 'IN_REVIEW', 'APPROVED', 'FINAL']).optional(),
+}).strict();
+
+export const UpdateOpinionDraftSchema = z.object({
+  title: z.string().min(1).max(500).optional(),
+  content: z.string().max(100000).optional(),
+  status: z.enum(['DRAFT', 'IN_REVIEW', 'APPROVED', 'FINAL']).optional(),
+}).strict();
+
+export const OpinionChatMessageSchema = z.object({
+  message: z.string().min(1).max(2000),
 }).strict();
 
 export const UpdateOpinionSectionSchema = z.object({

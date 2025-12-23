@@ -21,7 +21,7 @@ import { secureRoute, Feature } from '@/lib/api/secureRoute';
  * - Transaction count
  * - Latest update timestamp
  */
-export const GET = secureRoute.queryWithParams({
+export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
   feature: Feature.VIEW_WIP_DATA,
   handler: async (request, { user, params }) => {
     const { groupCode } = params;

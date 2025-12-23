@@ -92,3 +92,4 @@ export function getAllToolModules(): ToolModule[] {
 
 // Re-export types for convenience
 export type { ToolComponent, ToolComponentProps, ToolModule, ToolModuleConfig } from './types';
+

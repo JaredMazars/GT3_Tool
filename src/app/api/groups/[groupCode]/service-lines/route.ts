@@ -10,7 +10,7 @@ import { secureRoute, Feature } from '@/lib/api/secureRoute';
  * Get service line counts for tasks in a specific group
  * Used to populate service line tabs without fetching all tasks
  */
-export const GET = secureRoute.queryWithParams({
+export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
   feature: Feature.ACCESS_CLIENTS,
   handler: async (request, { user, params }) => {
     const { groupCode } = params;

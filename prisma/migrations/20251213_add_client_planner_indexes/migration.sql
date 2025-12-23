@@ -26,3 +26,4 @@ IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'idx_taskteam_task_dates' 
 CREATE INDEX idx_taskteam_task_dates ON TaskTeam(taskId, startDate, endDate) WHERE startDate IS NOT NULL AND endDate IS NOT NULL;
 
 
+

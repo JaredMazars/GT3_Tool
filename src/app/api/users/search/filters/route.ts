@@ -36,3 +36,4 @@ export const GET = secureRoute.query({
     return NextResponse.json(successResponse(filterOptions));
   },
 });
+

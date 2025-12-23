@@ -20,18 +20,18 @@ const queryParamsSchema = z.object({
  * GET /api/groups/[groupCode]
  * Get group details with clients or tasks
  */
-export const GET = secureRoute.queryWithParams({
+export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
   feature: Feature.ACCESS_CLIENTS,
   handler: async (request, { user, params }) => {
     const { groupCode } = params;
 
     const { searchParams } = new URL(request.url);
     const queryResult = queryParamsSchema.safeParse({
-      search: searchParams.get('search'),
-      page: searchParams.get('page'),
-      limit: searchParams.get('limit'),
-      type: searchParams.get('type'),
-      serviceLine: searchParams.get('serviceLine'),
+      search: searchParams.get('search') || undefined,
+      page: searchParams.get('page') || undefined,
+      limit: searchParams.get('limit') || undefined,
+      type: searchParams.get('type') || undefined,
+      serviceLine: searchParams.get('serviceLine') || undefined,
     });
 
     if (!queryResult.success) {

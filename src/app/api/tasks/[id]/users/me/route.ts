@@ -52,3 +52,4 @@ export const GET = secureRoute.queryWithParams({
     );
   },
 });
+
