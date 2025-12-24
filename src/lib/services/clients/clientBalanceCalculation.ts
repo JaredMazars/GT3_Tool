@@ -8,19 +8,24 @@
 /**
  * Transaction Type Classification
  * Based on actual database TType codes
+ * 
+ * Exported for use across all analytics endpoints to ensure consistent transaction categorization
  */
-const TTYPE_CATEGORIES = {
+export const TTYPE_CATEGORIES = {
   TIME: ['T', 'TI', 'TIM'], // Time transactions
   DISBURSEMENT: ['D', 'DI', 'DIS'], // Disbursement transactions
-  FEE: ['F', 'FEE'], // Fee transactions (reversed)
+  FEE: ['F', 'FEE'], // Fee transactions (reversed) - THIS IS KEY: recognizes both 'F' and 'FEE'
   ADJUSTMENT: ['ADJ'], // Adjustment transactions (differentiated by TranType)
   PROVISION: ['P', 'PRO'], // Provision transactions
 };
 
 /**
  * Categorize a transaction type
+ * 
+ * Exported for use across all analytics endpoints to ensure consistent transaction categorization
+ * This ensures profitability and graphs tabs show the same data
  */
-function categorizeTransaction(tType: string, tranType?: string): {
+export function categorizeTransaction(tType: string, tranType?: string): {
   isTime: boolean;
   isDisbursement: boolean;
   isFee: boolean;

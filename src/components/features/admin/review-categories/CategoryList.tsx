@@ -249,3 +249,4 @@ export function CategoryList({ onEdit }: CategoryListProps) {
   );
 }
 
+

@@ -142,6 +142,7 @@ export const GET = secureRoute.queryWithParams({
           EmpCode: true,
           updatedAt: true,
         },
+        take: 100000, // Reasonable upper bound - prevents unbounded queries
       }),
     ]);
 

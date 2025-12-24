@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { 
   ChevronRight,
   Building2,
@@ -24,10 +25,14 @@ import { useGroupServiceLines } from '@/hooks/clients/useGroupServiceLines';
 import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLineGroups';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { TaskListItem } from '@/components/features/tasks/TaskListItem';
+import { groupGraphDataKeys } from '@/hooks/groups/useGroupGraphData';
+import { groupWipKeys } from '@/hooks/groups/useGroupWip';
+import { groupDebtorsKeys } from '@/hooks/groups/useGroupDebtors';
 
 export default function GroupDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const groupCode = decodeURIComponent(params.groupCode as string);
   const serviceLine = (params.serviceLine as string)?.toUpperCase();
   const subServiceLineGroup = params.subServiceLineGroup as string;
@@ -530,6 +535,45 @@ export default function GroupDetailPage() {
               <Link
                 href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/groups/${encodeURIComponent(groupCode)}/analytics`}
                 className="card hover:shadow-lg transition-shadow cursor-pointer"
+                onMouseEnter={() => {
+                  // Prefetch all analytics data on hover for instant tab switches
+                  
+                  // Prefetch WIP data for Profitability tab
+                  queryClient.prefetchQuery({
+                    queryKey: groupWipKeys.detail(groupCode),
+                    queryFn: async () => {
+                      const response = await fetch(`/api/groups/${encodeURIComponent(groupCode)}/wip`);
+                      if (!response.ok) return null;
+                      const result = await response.json();
+                      return result.success ? result.data : null;
+                    },
+                    staleTime: 30 * 60 * 1000, // 30 minutes
+                  });
+                  
+                  // Prefetch Debtors data for Recoverability tab
+                  queryClient.prefetchQuery({
+                    queryKey: groupDebtorsKeys.detail(groupCode),
+                    queryFn: async () => {
+                      const response = await fetch(`/api/groups/${encodeURIComponent(groupCode)}/debtors`);
+                      if (!response.ok) return null;
+                      const result = await response.json();
+                      return result.success ? result.data : null;
+                    },
+                    staleTime: 30 * 60 * 1000, // 30 minutes
+                  });
+                  
+                  // Prefetch Graphs data for Graphs tab
+                  queryClient.prefetchQuery({
+                    queryKey: groupGraphDataKeys.detail(groupCode),
+                    queryFn: async () => {
+                      const response = await fetch(`/api/groups/${encodeURIComponent(groupCode)}/analytics/graphs`);
+                      if (!response.ok) return null;
+                      const result = await response.json();
+                      return result.success ? result.data : null;
+                    },
+                    staleTime: 30 * 60 * 1000, // 30 minutes
+                  });
+                }}
               >
                 <div className="p-4 text-center">
                   <div className="mx-auto h-10 w-10 rounded-lg flex items-center justify-center mb-2" style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #25488A)' }}>

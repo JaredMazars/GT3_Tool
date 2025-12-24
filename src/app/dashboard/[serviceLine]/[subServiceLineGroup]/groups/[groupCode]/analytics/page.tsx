@@ -1,20 +1,41 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, Suspense, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRight, BarChart3, Banknote } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import { useQueryClient } from '@tanstack/react-query';
+import { ChevronRight, BarChart3, Banknote, TrendingUp } from 'lucide-react';
 import { GroupHeader } from '@/components/features/clients/GroupHeader';
 import { useClientGroup } from '@/hooks/clients/useClientGroup';
 import { formatServiceLineName } from '@/lib/utils/serviceLineUtils';
-import { ProfitabilityTab } from '@/components/features/analytics/ProfitabilityTab';
-import { RecoverabilityTab } from '@/components/features/analytics/RecoverabilityTab';
 import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLineGroups';
+import { ChartSkeleton, TabLoadingSkeleton } from '@/components/features/analytics/TabLoadingSkeleton';
+import { groupGraphDataKeys } from '@/hooks/groups/useGroupGraphData';
+import { groupWipKeys } from '@/hooks/groups/useGroupWip';
+import { groupDebtorsKeys } from '@/hooks/groups/useGroupDebtors';
 
-type TabType = 'profitability' | 'recoverability';
+// Lazy load analytics tab components for better performance
+const ProfitabilityTab = dynamic(
+  () => import('@/components/features/analytics/ProfitabilityTab').then(m => ({ default: m.ProfitabilityTab })),
+  { loading: () => <TabLoadingSkeleton />, ssr: false }
+);
+
+const RecoverabilityTab = dynamic(
+  () => import('@/components/features/analytics/RecoverabilityTab').then(m => ({ default: m.RecoverabilityTab })),
+  { loading: () => <TabLoadingSkeleton />, ssr: false }
+);
+
+const GraphsTab = dynamic(
+  () => import('@/components/features/analytics/GraphsTab').then(m => ({ default: m.GraphsTab })),
+  { loading: () => <ChartSkeleton />, ssr: false }
+);
+
+type TabType = 'profitability' | 'recoverability' | 'graphs';
 
 function GroupAnalyticsContent() {
   const params = useParams();
+  const queryClient = useQueryClient();
   const groupCode = decodeURIComponent((params?.groupCode as string) || '');
   const serviceLine = (params?.serviceLine as string)?.toUpperCase();
   const subServiceLineGroup = params?.subServiceLineGroup as string;
@@ -37,6 +58,38 @@ function GroupAnalyticsContent() {
     type: 'clients',
     enabled: !!params && !!groupCode,
   });
+
+  // Sequential tab prefetching for better performance
+  // Must be called before any conditional returns (Rules of Hooks)
+  useEffect(() => {
+    if (!groupCode) return; // Ensure groupCode is available
+    
+    if (activeTab === 'profitability') {
+      // Prefetch Debtors data for Recoverability tab
+      queryClient.prefetchQuery({
+        queryKey: groupDebtorsKeys.detail(groupCode),
+        queryFn: async () => {
+          const response = await fetch(`/api/groups/${encodeURIComponent(groupCode)}/debtors`);
+          if (!response.ok) throw new Error('Failed to prefetch group debtor data');
+          const result = await response.json();
+          return result.success ? result.data : result;
+        },
+        staleTime: 30 * 60 * 1000, // 30 minutes
+      });
+    } else if (activeTab === 'recoverability') {
+      // Prefetch Graphs data when on recoverability tab
+      queryClient.prefetchQuery({
+        queryKey: groupGraphDataKeys.detail(groupCode),
+        queryFn: async () => {
+          const response = await fetch(`/api/groups/${encodeURIComponent(groupCode)}/analytics/graphs`);
+          if (!response.ok) throw new Error('Failed to prefetch group graph data');
+          const result = await response.json();
+          return result.success ? result.data : result;
+        },
+        staleTime: 30 * 60 * 1000, // 30 minutes
+      });
+    }
+  }, [activeTab, groupCode, queryClient]);
 
   if (!params) {
     return (
@@ -77,6 +130,12 @@ function GroupAnalyticsContent() {
       name: 'Recoverability',
       icon: Banknote,
       description: 'View recoverability information',
+    },
+    {
+      id: 'graphs' as TabType,
+      name: 'Graphs',
+      icon: TrendingUp,
+      description: 'View transaction trends',
     },
   ];
 
@@ -150,6 +209,7 @@ function GroupAnalyticsContent() {
         <div className="mt-6">
           {activeTab === 'profitability' && <ProfitabilityTab groupCode={groupCode} />}
           {activeTab === 'recoverability' && <RecoverabilityTab groupCode={groupCode} />}
+          {activeTab === 'graphs' && <GraphsTab groupCode={groupCode} />}
         </div>
       </div>
     </div>

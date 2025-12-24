@@ -76,6 +76,44 @@ const nextConfig = {
           },
         ],
       },
+      // Analytics API routes - optimized caching and compression
+      {
+        source: '/api/clients/:id/analytics/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'private, max-age=600', // 10 minutes cache
+          },
+        ],
+      },
+      {
+        source: '/api/clients/:id/wip',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'private, max-age=600', // 10 minutes cache
+          },
+        ],
+      },
+      {
+        source: '/api/clients/:id/debtors',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'private, max-age=600', // 10 minutes cache
+          },
+        ],
+      },
+      // Group analytics API routes - optimized caching
+      {
+        source: '/api/groups/:groupCode/analytics/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'private, max-age=600', // 10 minutes cache
+          },
+        ],
+      },
     ];
   },
 };

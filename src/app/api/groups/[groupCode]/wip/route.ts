@@ -241,6 +241,10 @@ export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
       byMasterServiceLine[masterCode] = calculateProfitabilityMetrics(data);
     });
 
+    // #region agent log - Hypothesis F: Log profitability billing data
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'wip/route.ts:245',message:'Profitability billing data',data:{groupCode,ltdFeeTime:overallTotals.ltdFeeTime,ltdFeeDisb:overallTotals.ltdFeeDisb,totalFees:overallTotals.ltdFeeTime+overallTotals.ltdFeeDisb},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'F'})}).catch(()=>{});
+    // #endregion
+
     // Calculate overall profitability metrics
     const overall = calculateProfitabilityMetrics(overallTotals);
 

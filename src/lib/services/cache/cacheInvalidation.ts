@@ -224,6 +224,42 @@ export async function invalidateOnServiceLineAccessMutation(
   }
 }
 
+/**
+ * Invalidate all caches related to a specific group
+ * Use this when group data changes or when group-related analytics are updated
+ */
+export async function invalidateGroupCache(groupCode: string): Promise<void> {
+  try {
+    await Promise.all([
+      cache.invalidate(`${CACHE_PREFIXES.ANALYTICS}graphs:group:${groupCode}`),
+      // Invalidate group list caches that might include this group
+      cache.invalidate(`${CACHE_PREFIXES.CLIENT}groups`),
+    ]);
+    logger.debug('Group cache invalidated', { groupCode });
+  } catch (error) {
+    logger.error('Failed to invalidate group cache', { groupCode, error });
+  }
+}
+
+/**
+ * Comprehensive invalidation after group mutation
+ * Use this when a group is created, updated, or when clients are added/removed from a group
+ */
+export async function invalidateOnGroupMutation(
+  groupCode: string
+): Promise<void> {
+  try {
+    await Promise.all([
+      invalidateGroupCache(groupCode),
+      // Group changes can affect workspace counts
+      invalidateWorkspaceCounts(),
+    ]);
+    logger.debug('Group mutation caches invalidated', { groupCode });
+  } catch (error) {
+    logger.error('Failed to invalidate group mutation caches', { groupCode, error });
+  }
+}
+
 
 
 

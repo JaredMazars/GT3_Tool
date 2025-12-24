@@ -1,21 +1,56 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, Suspense, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
+import { useQueryClient } from '@tanstack/react-query';
 import { ChevronRight, BarChart3, FileText, Calculator, CloudUpload, Briefcase, Banknote, TrendingUp } from 'lucide-react';
 import { ClientHeader } from '@/components/features/clients/ClientHeader';
 import { useClient } from '@/hooks/clients/useClients';
 import { formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';
-import { ProfitabilityTab } from '@/components/features/analytics/ProfitabilityTab';
-import { RecoverabilityTab } from '@/components/features/analytics/RecoverabilityTab';
-import { GraphsTab } from '@/components/features/analytics/GraphsTab';
-import { UploadAnalyzeTab } from '@/components/features/analytics/UploadAnalyzeTab';
-import { CreditRatingsTab } from '@/components/features/analytics/CreditRatingsTab';
-import { FinancialRatiosTab } from '@/components/features/analytics/FinancialRatiosTab';
-import { AnalyticsDocumentsTab } from '@/components/features/analytics/AnalyticsDocumentsTab';
 import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLineGroups';
 import { LoadingSpinner } from '@/components/ui';
+import { TabLoadingSkeleton, ChartSkeleton } from '@/components/features/analytics/TabLoadingSkeleton';
+import { clientWipKeys } from '@/hooks/clients/useClientWip';
+import { clientDebtorsKeys } from '@/hooks/clients/useClientDebtors';
+import { clientGraphDataKeys } from '@/hooks/clients/useClientGraphData';
+
+// Lazy load analytics tab components for better performance
+const ProfitabilityTab = dynamic(
+  () => import('@/components/features/analytics/ProfitabilityTab').then(m => ({ default: m.ProfitabilityTab })),
+  { loading: () => <TabLoadingSkeleton />, ssr: false }
+);
+
+const RecoverabilityTab = dynamic(
+  () => import('@/components/features/analytics/RecoverabilityTab').then(m => ({ default: m.RecoverabilityTab })),
+  { loading: () => <TabLoadingSkeleton />, ssr: false }
+);
+
+const GraphsTab = dynamic(
+  () => import('@/components/features/analytics/GraphsTab').then(m => ({ default: m.GraphsTab })),
+  { loading: () => <ChartSkeleton />, ssr: false }
+);
+
+const UploadAnalyzeTab = dynamic(
+  () => import('@/components/features/analytics/UploadAnalyzeTab').then(m => ({ default: m.UploadAnalyzeTab })),
+  { loading: () => <TabLoadingSkeleton />, ssr: false }
+);
+
+const CreditRatingsTab = dynamic(
+  () => import('@/components/features/analytics/CreditRatingsTab').then(m => ({ default: m.CreditRatingsTab })),
+  { loading: () => <TabLoadingSkeleton />, ssr: false }
+);
+
+const FinancialRatiosTab = dynamic(
+  () => import('@/components/features/analytics/FinancialRatiosTab').then(m => ({ default: m.FinancialRatiosTab })),
+  { loading: () => <TabLoadingSkeleton />, ssr: false }
+);
+
+const AnalyticsDocumentsTab = dynamic(
+  () => import('@/components/features/analytics/AnalyticsDocumentsTab').then(m => ({ default: m.AnalyticsDocumentsTab })),
+  { loading: () => <TabLoadingSkeleton />, ssr: false }
+);
 
 type TabType = 'profitability' | 'recoverability' | 'graphs' | 'upload' | 'ratings' | 'ratios' | 'documents';
 
@@ -25,6 +60,37 @@ function ClientAnalyticsContent() {
   const serviceLine = (params?.serviceLine as string)?.toUpperCase();
   const subServiceLineGroup = params?.subServiceLineGroup as string;
   const [activeTab, setActiveTab] = useState<TabType>('profitability');
+  const queryClient = useQueryClient();
+
+  // Prefetch next most likely tab data when current tab renders
+  useEffect(() => {
+    if (!GSClientID) return;
+
+    // Prefetch strategy based on current tab
+    if (activeTab === 'profitability') {
+      // User likely to view recoverability next
+      queryClient.prefetchQuery({
+        queryKey: clientDebtorsKeys.detail(GSClientID),
+        queryFn: async () => {
+          const response = await fetch(`/api/clients/${GSClientID}/debtors`);
+          if (!response.ok) return null;
+          const result = await response.json();
+          return result.success ? result.data : null;
+        },
+      });
+    } else if (activeTab === 'recoverability') {
+      // User likely to view graphs next
+      queryClient.prefetchQuery({
+        queryKey: clientGraphDataKeys.detail(GSClientID),
+        queryFn: async () => {
+          const response = await fetch(`/api/clients/${GSClientID}/analytics/graphs`);
+          if (!response.ok) return null;
+          const result = await response.json();
+          return result.success ? result.data : null;
+        },
+      });
+    }
+  }, [activeTab, GSClientID, queryClient]);
 
   // Fetch sub-service line groups to get the description
   const { data: subGroups } = useSubServiceLineGroups({

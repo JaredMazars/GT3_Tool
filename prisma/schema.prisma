@@ -337,6 +337,8 @@ model Client {
   @@index([groupDesc], map: "idx_client_group_desc")
   @@index([groupCode], map: "idx_client_groupcode")
   @@index([clientNameFull], map: "idx_client_name_full")
+  @@index([groupCode, GSClientID], map: "idx_client_groupcode_gsclientid")
+  @@index([groupCode, active], map: "idx_client_groupcode_active")
 }
 
 model ClientAcceptanceResponse {
@@ -490,6 +492,7 @@ model DrsTransactions {
   @@index([GSClientID], map: "idx_drs_gsclientid")
   @@index([ServLineCode], map: "idx_drs_servlinecode")
   @@index([TranDate], map: "idx_drs_trandate")
+  @@index([GSClientID, TranDate, EntryType], map: "idx_drs_gsclientid_trandate_entrytype")
 }
 
 model EmailLog {
@@ -1237,6 +1240,8 @@ model WIPTransactions {
   @@index([TranDate])
   @@index([GSClientID], map: "idx_wip_gsclientid")
   @@index([GSTaskID], map: "idx_wip_gstaskid")
+  @@index([GSClientID, TranDate, TType], map: "idx_wip_gsclientid_trandate_ttype")
+  @@index([GSTaskID, TranDate, TType], map: "idx_wip_gstaskid_trandate_ttype")
 }
 
 model TaskBudget {

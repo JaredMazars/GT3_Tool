@@ -5,7 +5,7 @@ import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { successResponse, parseGSClientID } from '@/lib/utils/apiUtils';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { getServiceLineMappings } from '@/lib/cache/staticDataCache';
-import { calculateWIPBalances } from '@/lib/services/clients/clientBalanceCalculation';
+import { calculateWIPBalances, categorizeTransaction } from '@/lib/services/clients/clientBalanceCalculation';
 
 interface DailyMetrics {
   date: string; // YYYY-MM-DD format
@@ -46,6 +46,60 @@ interface GraphDataResponse {
 }
 
 /**
+ * Downsample daily metrics to reduce payload size while maintaining visual fidelity
+ * Uses smart downsampling that preserves all non-zero data points
+ * @param metrics Array of daily metrics
+ * @param targetPoints Target number of data points (default: 120 for ~4 months of daily data)
+ * @returns Downsampled array
+ */
+function downsampleDailyMetrics(metrics: DailyMetrics[], targetPoints: number = 120): DailyMetrics[] {
+  if (metrics.length <= targetPoints) {
+    return metrics;
+  }
+  
+  // Separate metrics into zero and non-zero groups
+  const nonZeroMetrics: DailyMetrics[] = [];
+  const zeroMetrics: { metric: DailyMetrics; index: number }[] = [];
+  
+  metrics.forEach((metric, index) => {
+    const hasData = 
+      metric.production !== 0 ||
+      metric.adjustments !== 0 ||
+      metric.disbursements !== 0 ||
+      metric.billing !== 0 ||
+      metric.provisions !== 0;
+    
+    if (hasData) {
+      nonZeroMetrics.push(metric);
+    } else {
+      zeroMetrics.push({ metric, index });
+    }
+  });
+  
+  // Always include all non-zero metrics (these are critical data points)
+  const result = [...nonZeroMetrics];
+  
+  // Calculate how many zero points we can include
+  const remainingSlots = targetPoints - nonZeroMetrics.length;
+  
+  if (remainingSlots > 0 && zeroMetrics.length > 0) {
+    // Sample zero metrics evenly to fill remaining slots
+    const step = Math.ceil(zeroMetrics.length / remainingSlots);
+    for (let i = 0; i < zeroMetrics.length; i += step) {
+      const zeroMetric = zeroMetrics[i];
+      if (zeroMetric) {
+        result.push(zeroMetric.metric);
+      }
+    }
+  }
+  
+  // Sort by date to maintain chronological order
+  result.sort((a, b) => a.date.localeCompare(b.date));
+  
+  return result;
+}
+
+/**
  * GET /api/clients/[id]/analytics/graphs
  * Get daily transaction metrics for the last 24 months
  * 
@@ -59,6 +113,11 @@ export const GET = secureRoute.queryWithParams({
   handler: async (request, { user, params }) => {
     // Parse and validate GSClientID
     const GSClientID = parseGSClientID(params.id);
+    
+    // Get resolution parameter (default: standard, options: high, standard, low)
+    const { searchParams } = new URL(request.url);
+    const resolution = searchParams.get('resolution') || 'standard';
+    const targetPoints = resolution === 'high' ? 365 : resolution === 'low' ? 60 : 120;
 
     // Verify client exists
     const client = await prisma.client.findUnique({
@@ -142,6 +201,7 @@ export const GET = secureRoute.queryWithParams({
         TranType: true,
         TaskServLine: true,
       },
+      take: 100000, // Reasonable upper bound for opening balance calculation
     });
 
     // Calculate opening WIP balance
@@ -154,13 +214,16 @@ export const GET = secureRoute.queryWithParams({
       select: {
         TranDate: true,
         TType: true,
+        TranType: true, // Needed for transaction categorization
         Amount: true,
         TaskServLine: true,
       },
       orderBy: {
         TranDate: 'asc',
       },
+      take: 50000, // Prevent unbounded queries - reasonable limit for 24 months of data
     });
+
 
     // Get service line mappings
     const servLineToMasterMap = await getServiceLineMappings();
@@ -174,14 +237,13 @@ export const GET = secureRoute.queryWithParams({
       let totalBilling = 0;
       let totalProvisions = 0;
 
-      txns.forEach((txn) => {
+      txns.forEach((txn, idx) => {
         const amount = txn.Amount || 0;
-        const dateKey = txn.TranDate.toISOString().split('T')[0]; // YYYY-MM-DD
+        const dateKey = txn.TranDate.toISOString().split('T')[0] as string; // YYYY-MM-DD (always defined)
         
         // Get or create daily entry
-        let daily = dailyMap.get(dateKey);
-        if (!daily) {
-          daily = {
+        if (!dailyMap.has(dateKey)) {
+          dailyMap.set(dateKey, {
             date: dateKey,
             production: 0,
             adjustments: 0,
@@ -189,37 +251,34 @@ export const GET = secureRoute.queryWithParams({
             billing: 0,
             provisions: 0,
             wipBalance: 0,
-          };
-          dailyMap.set(dateKey, daily);
+          });
         }
+        
+        const daily = dailyMap.get(dateKey)!; // Safe to assert - we just created it if it didn't exist
 
-        // Categorize by TType
-        const ttype = txn.TType.toUpperCase();
-        switch (ttype) {
-          case 'T':
-            daily.production += amount;
-            totalProduction += amount;
-            break;
-          case 'ADJ':
-            daily.adjustments += amount;
-            totalAdjustments += amount;
-            break;
-          case 'D':
-            daily.disbursements += amount;
-            totalDisbursements += amount;
-            break;
-          case 'F':
-            daily.billing += amount;
-            totalBilling += amount;
-            break;
-          case 'P':
-            daily.provisions += amount;
-            totalProvisions += amount;
-            break;
-          default:
-            // Unknown types are ignored
-            break;
+        // Categorize using shared logic (same as profitability tab)
+        // This ensures consistency between graphs and profitability data
+        const category = categorizeTransaction(txn.TType, txn.TranType);
+
+
+        if (category.isTime) {
+          daily.production += amount;
+          totalProduction += amount;
+        } else if (category.isAdjustment) {
+          daily.adjustments += amount;
+          totalAdjustments += amount;
+        } else if (category.isDisbursement) {
+          daily.disbursements += amount;
+          totalDisbursements += amount;
+        } else if (category.isFee) {
+          // NOW catches 'F', 'FEE', and any fee variants
+          daily.billing += amount;
+          totalBilling += amount;
+        } else if (category.isProvision) {
+          daily.provisions += amount;
+          totalProvisions += amount;
         }
+        // No default case needed - categorization is comprehensive
       });
 
       // Convert map to sorted array
@@ -256,6 +315,7 @@ export const GET = secureRoute.queryWithParams({
     // Aggregate overall data with opening balance
     const overall = aggregateTransactions(transactions, openingWipBalance);
 
+
     // Group transactions by Master Service Line
     const transactionsByMasterServiceLine = new Map<string, typeof transactions>();
     transactions.forEach((txn) => {
@@ -290,14 +350,28 @@ export const GET = secureRoute.queryWithParams({
       take: 100,
     });
 
+    // Apply downsampling to reduce payload size
+    const downsampledOverall = {
+      ...overall,
+      dailyMetrics: downsampleDailyMetrics(overall.dailyMetrics, targetPoints),
+    };
+    
+    const downsampledByMasterServiceLine: Record<string, ServiceLineGraphData> = {};
+    Object.entries(byMasterServiceLine).forEach(([code, data]) => {
+      downsampledByMasterServiceLine[code] = {
+        ...data,
+        dailyMetrics: downsampleDailyMetrics(data.dailyMetrics, targetPoints),
+      };
+    });
+
     const responseData: GraphDataResponse = {
       GSClientID: client.GSClientID,
       clientCode: client.clientCode,
       clientName: client.clientNameFull,
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
-      overall,
-      byMasterServiceLine,
+      overall: downsampledOverall,
+      byMasterServiceLine: downsampledByMasterServiceLine,
       masterServiceLines: masterServiceLines.map(msl => ({
         code: msl.code,
         name: msl.name,

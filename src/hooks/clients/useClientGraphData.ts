@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 // Query Keys
 export const clientGraphDataKeys = {
   all: ['client-graph-data'] as const,
-  detail: (GSClientID: string) => [...clientGraphDataKeys.all, GSClientID] as const,
+  detail: (GSClientID: string) => [...clientGraphDataKeys.all, GSClientID, 'v2'] as const, // v2 = fixed downsampling
 };
 
 // Types
@@ -72,8 +72,8 @@ export function useClientGraphData(
       return result.success ? result.data : result;
     },
     enabled: enabled && !!GSClientID,
-    staleTime: 10 * 60 * 1000, // 10 minutes - aligned with API cache TTL
-    gcTime: 15 * 60 * 1000, // 15 minutes cache retention
+    staleTime: 30 * 60 * 1000, // 30 minutes - extended for analytics performance
+    gcTime: 60 * 60 * 1000, // 60 minutes cache retention
     refetchOnMount: false, // Don't refetch if data is fresh
     refetchOnWindowFocus: false, // Don't refetch on window focus
     refetchOnReconnect: false, // Don't refetch on reconnect

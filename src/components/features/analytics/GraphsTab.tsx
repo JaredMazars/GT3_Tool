@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { TrendingUp, TrendingDown, Calendar, DollarSign } from 'lucide-react';
 import { useClientGraphData, ServiceLineGraphData } from '@/hooks/clients/useClientGraphData';
+import { useGroupGraphData } from '@/hooks/groups/useGroupGraphData';
 import { LoadingSpinner } from '@/components/ui';
 import {
   LineChart,
@@ -17,7 +18,8 @@ import {
 import { format, parseISO } from 'date-fns';
 
 interface GraphsTabProps {
-  clientId: string; // GSClientID
+  clientId?: string; // GSClientID (for client analytics)
+  groupCode?: string; // Group code (for group analytics)
 }
 
 interface CustomTooltipProps {
@@ -115,10 +117,29 @@ function SummaryCard({ label, value, icon, color }: SummaryCardProps) {
   );
 }
 
-export function GraphsTab({ clientId }: GraphsTabProps) {
-  const { data, isLoading, error } = useClientGraphData(clientId);
+export function GraphsTab({ clientId, groupCode }: GraphsTabProps) {
+  // ALL HOOKS MUST BE CALLED AT THE TOP - BEFORE ANY CONDITIONAL RETURNS
+  // Use appropriate hook based on props
+  const clientQuery = useClientGraphData(clientId || '', { enabled: !!clientId });
+  const groupQuery = useGroupGraphData(groupCode || '', { enabled: !!groupCode });
+  
+  // Select the active query
+  const { data, isLoading, error } = clientId ? clientQuery : groupQuery;
   const [activeTab, setActiveTab] = useState<string>('overall');
 
+  // Get current tab data and memoize for performance
+  // Must be called before any conditional returns
+  const currentData: ServiceLineGraphData = useMemo(() => {
+    if (!data) return { dailyMetrics: [], summary: { totalProduction: 0, totalAdjustments: 0, totalDisbursements: 0, totalBilling: 0, totalProvisions: 0, currentWipBalance: 0 } };
+    return activeTab === 'overall' 
+      ? data.overall 
+      : data.byMasterServiceLine[activeTab] || data.overall;
+  }, [activeTab, data]);
+
+  // Memoize chart data to prevent unnecessary re-renders
+  const chartData = useMemo(() => currentData.dailyMetrics, [currentData.dailyMetrics]);
+
+  // NOW we can do conditional returns after all hooks are called
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-ZA', {
       style: 'currency',
@@ -161,16 +182,11 @@ export function GraphsTab({ clientId }: GraphsTabProps) {
         <Calendar className="h-12 w-12 text-forvis-gray-400 mx-auto mb-3" />
         <p className="text-forvis-gray-700 font-semibold">No transaction data available</p>
         <p className="text-forvis-gray-600 text-sm mt-2">
-          There are no transactions in the last 24 months for this client.
+          There are no transactions in the last 24 months.
         </p>
       </div>
     );
   }
-
-  // Get current tab data
-  const currentData: ServiceLineGraphData = activeTab === 'overall' 
-    ? data.overall 
-    : data.byMasterServiceLine[activeTab] || data.overall;
 
   return (
     <div className="space-y-6">
@@ -262,7 +278,7 @@ export function GraphsTab({ clientId }: GraphsTabProps) {
 
         <ResponsiveContainer width="100%" height={500}>
           <LineChart
-            data={currentData.dailyMetrics}
+            data={chartData}
             margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
@@ -293,6 +309,8 @@ export function GraphsTab({ clientId }: GraphsTabProps) {
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 6 }}
+              isAnimationActive={false}
+              connectNulls={true}
             />
             <Line
               type="monotone"
@@ -302,6 +320,8 @@ export function GraphsTab({ clientId }: GraphsTabProps) {
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 6 }}
+              isAnimationActive={false}
+              connectNulls={true}
             />
             <Line
               type="monotone"
@@ -311,6 +331,8 @@ export function GraphsTab({ clientId }: GraphsTabProps) {
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 6 }}
+              isAnimationActive={false}
+              connectNulls={true}
             />
             <Line
               type="monotone"
@@ -320,6 +342,8 @@ export function GraphsTab({ clientId }: GraphsTabProps) {
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 6 }}
+              isAnimationActive={false}
+              connectNulls={true}
             />
             <Line
               type="monotone"
@@ -329,6 +353,8 @@ export function GraphsTab({ clientId }: GraphsTabProps) {
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 6 }}
+              isAnimationActive={false}
+              connectNulls={true}
             />
             <Line
               type="monotone"
@@ -338,6 +364,8 @@ export function GraphsTab({ clientId }: GraphsTabProps) {
               strokeWidth={3}
               dot={false}
               activeDot={{ r: 6 }}
+              isAnimationActive={false}
+              connectNulls={true}
             />
           </LineChart>
         </ResponsiveContainer>

@@ -30,6 +30,9 @@ import { useLatestCreditRating } from '@/hooks/analytics/useClientAnalytics';
 import { CreditRatingGrade } from '@/types/analytics';
 import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLineGroups';
 import { TaskListItem } from '@/components/features/tasks/TaskListItem';
+import { clientWipKeys } from '@/hooks/clients/useClientWip';
+import { clientDebtorsKeys } from '@/hooks/clients/useClientDebtors';
+import { clientGraphDataKeys } from '@/hooks/clients/useClientGraphData';
 
 export default function ServiceLineClientDetailPage() {
   const params = useParams();
@@ -610,6 +613,28 @@ export default function ServiceLineClientDetailPage() {
               <Link 
                 href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${GSClientID}/analytics`}
                 className="card hover:shadow-lg hover:border-forvis-blue-500 transition-all duration-200 ease-in-out cursor-pointer group"
+                prefetch={true}
+                onMouseEnter={() => {
+                  // Prefetch analytics data on hover for instant loading
+                  queryClient.prefetchQuery({
+                    queryKey: clientWipKeys.detail(GSClientID),
+                    queryFn: async () => {
+                      const response = await fetch(`/api/clients/${GSClientID}/wip`);
+                      if (!response.ok) return null;
+                      const result = await response.json();
+                      return result.success ? result.data : null;
+                    },
+                  });
+                  queryClient.prefetchQuery({
+                    queryKey: clientDebtorsKeys.detail(GSClientID),
+                    queryFn: async () => {
+                      const response = await fetch(`/api/clients/${GSClientID}/debtors`);
+                      if (!response.ok) return null;
+                      const result = await response.json();
+                      return result.success ? result.data : null;
+                    },
+                  });
+                }}
               >
                 <div className="p-4 text-center">
                   <div 

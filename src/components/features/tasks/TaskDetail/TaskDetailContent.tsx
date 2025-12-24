@@ -30,6 +30,7 @@ import ReportingPage from '@/app/dashboard/tasks/[id]/reporting/page';
 import OpinionDraftingPage from '@/app/dashboard/tasks/[id]/opinion-drafting/page';
 import { useTask } from '@/hooks/tasks/useTaskData';
 import { useTaskTeam } from '@/hooks/tasks/useTaskTeam';
+import { useTaskWip } from '@/hooks/tasks/useTaskWip';
 import { formatDate } from '@/lib/utils/taskUtils';
 import { getTaskTypeColor, formatTaskType } from '@/lib/utils/serviceLineUtils';
 import { LoadingSpinner, Button, Card, Banner, Input } from '@/components/ui';
@@ -379,6 +380,9 @@ export function TaskDetailContent({
     refetch: refetchTeam 
   } = useTaskTeam(taskId, activeTab === 'team');
 
+  // Fetch WIP data for header badge
+  const { data: wipData, isLoading: wipLoading } = useTaskWip(parseInt(taskId));
+
   const teamMembers: TaskTeam[] = teamMembersData.map(member => ({
     id: member.id,
     taskId: parseInt(taskId),
@@ -623,6 +627,27 @@ export function TaskDetailContent({
                       {task.Active && task.Active !== 'Yes' && (
                         <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-forvis-gray-200 text-forvis-gray-700">
                           {task.Active === 'Archived' ? 'Archived' : 'Inactive'}
+                        </span>
+                      )}
+                      {wipData && wipData.metrics && (
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${
+                          wipData.metrics.balWIP > 0 
+                            ? 'bg-green-100 text-green-700 border border-green-200' 
+                            : wipData.metrics.balWIP < 0 
+                            ? 'bg-red-100 text-red-700 border border-red-200' 
+                            : 'bg-forvis-gray-100 text-forvis-gray-700 border border-forvis-gray-200'
+                        }`}>
+                          WIP: {new Intl.NumberFormat('en-ZA', {
+                            style: 'currency',
+                            currency: 'ZAR',
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 0,
+                          }).format(wipData.metrics.balWIP)}
+                        </span>
+                      )}
+                      {wipLoading && (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-forvis-gray-100 text-forvis-gray-500 animate-pulse">
+                          Loading WIP...
                         </span>
                       )}
                     </div>

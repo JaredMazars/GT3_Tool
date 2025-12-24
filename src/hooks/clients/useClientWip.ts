@@ -74,8 +74,8 @@ export function useClientWip(
       return result.success ? result.data : result;
     },
     enabled: enabled && !!GSClientID,
-    staleTime: 10 * 60 * 1000, // 10 minutes - aligned with business rules cache TTL
-    gcTime: 15 * 60 * 1000, // 15 minutes cache retention
+    staleTime: 30 * 60 * 1000, // 30 minutes - extended for analytics performance
+    gcTime: 60 * 60 * 1000, // 60 minutes cache retention
     refetchOnMount: false, // Don't refetch if data is fresh
     refetchOnWindowFocus: false, // Don't refetch on window focus
     refetchOnReconnect: false, // Don't refetch on reconnect

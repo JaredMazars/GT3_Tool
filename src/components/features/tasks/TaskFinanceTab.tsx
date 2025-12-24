@@ -2,11 +2,26 @@
 
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import dynamic from 'next/dynamic';
 import { Briefcase, DollarSign, Calendar, BarChart3, TrendingUp, TrendingDown, Clock } from 'lucide-react';
 import { useTaskWip, ProfitabilityMetrics } from '@/hooks/tasks/useTaskWip';
 import { taskTransactionsKeys } from '@/hooks/tasks/useTaskTransactions';
 import { TransactionDetailsModal } from './TransactionDetailsModal';
 import { MetricType } from '@/types';
+import { LoadingSpinner } from '@/components/ui';
+
+// Lazy load TaskGraphsTab for better performance
+const TaskGraphsTab = dynamic(
+  () => import('@/components/features/analytics/TaskGraphsTab').then(m => ({ default: m.TaskGraphsTab })),
+  { 
+    loading: () => (
+      <div className="flex items-center justify-center py-12">
+        <LoadingSpinner size="lg" />
+      </div>
+    ), 
+    ssr: false 
+  }
+);
 
 interface TaskFinanceTabProps {
   taskId: number;
@@ -77,6 +92,7 @@ function ProfitabilityCard({
 }
 
 export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
+  const [activeTab, setActiveTab] = useState<'profitability' | 'graphs'>('profitability');
   const { data: wipData, isLoading, error } = useTaskWip(taskId);
   const queryClient = useQueryClient();
   
@@ -171,7 +187,43 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
   const { metrics, taskCode, taskDesc, lastUpdated } = wipData;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
+      {/* Tab Navigation */}
+      <div className="border-b border-forvis-gray-200">
+        <nav className="flex -mb-px space-x-8 px-6">
+          <button
+            onClick={() => setActiveTab('profitability')}
+            className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+              activeTab === 'profitability'
+                ? 'border-forvis-blue-600 text-forvis-blue-600'
+                : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <Briefcase className="h-5 w-5" />
+              <span>Profitability</span>
+            </div>
+          </button>
+          
+          <button
+            onClick={() => setActiveTab('graphs')}
+            className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+              activeTab === 'graphs'
+                ? 'border-forvis-blue-600 text-forvis-blue-600'
+                : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <BarChart3 className="h-5 w-5" />
+              <span>Graphs</span>
+            </div>
+          </button>
+        </nav>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'profitability' && (
+        <div className="space-y-6 p-6">
       {/* Task Header */}
       <div className="rounded-lg p-4 border border-forvis-blue-200" style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}>
         <div className="flex items-center gap-3">
@@ -189,7 +241,7 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
       </div>
 
       {/* Key Performance Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div 
           className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100 cursor-pointer hover:shadow-lg transition-shadow"
           style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
@@ -241,6 +293,27 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
               }`}
             >
               <DollarSign className="w-5 h-5 text-white" />
+            </div>
+          </div>
+        </div>
+
+        <div 
+          className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100 cursor-pointer hover:shadow-lg transition-shadow"
+          style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+          onMouseEnter={handleCardHover}
+          onClick={() => handleCardClick('balWIP', 'WIP Balance', metrics.balWIP)}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">WIP Balance</p>
+              <p className="text-2xl font-bold mt-2 text-pink-600">{formatCurrency(metrics.balWIP)}</p>
+              <p className="text-xs text-forvis-gray-500 mt-1">Time + Disb - Provision</p>
+            </div>
+            <div
+              className="rounded-full p-2.5"
+              style={{ background: 'linear-gradient(to bottom right, #EC4899, #DB2777)' }}
+            >
+              <Briefcase className="w-5 h-5 text-white" />
             </div>
           </div>
         </div>
@@ -445,16 +518,25 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
         </div>
       </div>
 
-      {/* Transaction Details Modal - Only render when open */}
-      {modalState.isOpen && (
-        <TransactionDetailsModal
-          isOpen={true}
-          onClose={handleCloseModal}
-          taskId={taskId}
-          metricType={modalState.metricType}
-          metricLabel={modalState.metricLabel}
-          metricValue={modalState.metricValue}
-        />
+        {/* Transaction Details Modal - Only render when open */}
+        {modalState.isOpen && (
+          <TransactionDetailsModal
+            isOpen={true}
+            onClose={handleCloseModal}
+            taskId={taskId}
+            metricType={modalState.metricType}
+            metricLabel={modalState.metricLabel}
+            metricValue={modalState.metricValue}
+          />
+        )}
+        </div>
+      )}
+
+      {/* Graphs Tab */}
+      {activeTab === 'graphs' && (
+        <div className="p-6">
+          <TaskGraphsTab taskId={taskId} />
+        </div>
       )}
     </div>
   );

@@ -63,6 +63,7 @@ export const GET = secureRoute.queryWithParams({
           ServLineCode: true,
           updatedAt: true,
         },
+        take: 50000, // Reasonable upper bound - prevents unbounded queries
       }),
       prisma.serviceLineExternal.findMany({
         select: {
