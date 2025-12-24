@@ -1,139 +1,186 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@/lib/services/auth/auth';
 import { prisma } from '@/lib/db/prisma';
 import { SectionGenerator, SectionGenerationState } from '@/lib/tools/tax-opinion/agents/sectionGenerator';
 import { logger } from '@/lib/utils/logger';
 import { uploadFile } from '@/lib/services/documents/blobStorage';
 import { ragEngine } from '@/lib/tools/tax-opinion/services/ragEngine';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { parseTaskId, parseNumericId, successResponse } from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+import {
+  StartSectionSchema,
+  AnswerQuestionSchema,
+  GenerateContentSchema,
+  RegenerateSchema,
+  CreateManualSectionSchema,
+  RefreshContextSchema,
+  ReorderSectionsSchema,
+  UpdateSingleSectionSchema,
+} from '@/lib/validation/schemas';
+import { z } from 'zod';
+
+// Maximum file size for document uploads: 50MB
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
+
+// Helper to verify draft belongs to task
+async function verifyDraftBelongsToTask(draftId: number, taskId: number): Promise<void> {
+  const draft = await prisma.opinionDraft.findFirst({
+    where: { id: draftId, taskId },
+    select: { id: true },
+  });
+  
+  if (!draft) {
+    throw new AppError(404, 'Opinion draft not found or does not belong to this task', ErrorCodes.NOT_FOUND);
+  }
+}
 
 /**
  * GET /api/tasks/[id]/opinion-drafts/[draftId]/sections
  * Get all sections for an opinion draft
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string; draftId: string } }
-) {
-  try {
-    const session = await getSession();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_TASKS,
+  taskIdParam: 'id',
+  handler: async (request, { user, params }) => {
+    const taskId = parseTaskId(params.id);
+    const draftId = parseNumericId(params.draftId, 'Draft ID');
 
-    const draftId = Number.parseInt(params.draftId);
+    // Verify IDOR protection
+    await verifyDraftBelongsToTask(draftId, taskId);
 
     const sections = await prisma.opinionSection.findMany({
       where: { opinionDraftId: draftId },
-      orderBy: { order: 'asc' },
+      select: {
+        id: true,
+        opinionDraftId: true,
+        sectionType: true,
+        title: true,
+        content: true,
+        order: true,
+        aiGenerated: true,
+        reviewed: true,
+        reviewedBy: true,
+        reviewedAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: [
+        { order: 'asc' },
+        { id: 'asc' },
+      ],
+      take: 100,
     });
 
-    return NextResponse.json({ success: true, data: sections });
-  } catch (error) {
-    logger.error('Error fetching sections:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch sections' },
-      { status: 500 }
-    );
-  }
-}
+    logger.info('Opinion sections fetched', { userId: user.id, taskId, draftId, count: sections.length });
+
+    return NextResponse.json(successResponse(sections), {
+      headers: {
+        'Cache-Control': 'no-store',
+      },
+    });
+  },
+});
 
 /**
  * POST /api/tasks/[id]/opinion-drafts/[draftId]/sections
  * Handle interactive section creation with Q&A flow
+ * This endpoint handles multiple actions via the `action` field
  */
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string; draftId: string } }
-) {
-  try {
-    const session = await getSession();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const POST = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TASKS,
+  taskIdParam: 'id',
+  handler: async (request, { user, params }) => {
+    const taskId = parseTaskId(params.id);
+    const draftId = parseNumericId(params.draftId, 'Draft ID');
 
-    const draftId = Number.parseInt(params.draftId);
-    const taskId = Number.parseInt(params.id);
+    // Verify IDOR protection
+    await verifyDraftBelongsToTask(draftId, taskId);
+
+    // Parse body to determine action
     const body = await request.json();
-    const { action, sectionType, customTitle, state, answer, sectionId, title, content, order } = body;
+    const { action } = body;
 
-    // Verify draft exists
-    const draft = await prisma.opinionDraft.findFirst({
-      where: {
-        id: draftId,
-        taskId,
-      },
-    });
-
-    if (!draft) {
-      return NextResponse.json(
-        { error: 'Opinion draft not found' },
-        { status: 404 }
-      );
+    if (!action) {
+      throw new AppError(400, 'Action required', ErrorCodes.VALIDATION_ERROR);
     }
 
-    // Handle different actions
+    // Handle different actions with proper validation
     switch (action) {
       case 'start_section': {
-        // Start interactive section creation
-        if (!sectionType) {
-          return NextResponse.json(
-            { error: 'Section type required' },
-            { status: 400 }
-          );
-        }
+        // Validate input
+        const data = StartSectionSchema.parse(body);
 
         const result = await SectionGenerator.startSection(
-          sectionType,
+          data.sectionType,
           draftId,
-          customTitle
+          data.customTitle
         );
 
-        return NextResponse.json({
-          success: true,
-          question: result.question,
-          state: result.state,
-          message: 'Section creation started',
+        logger.info('Section creation started', { 
+          userId: user.id, 
+          taskId, 
+          draftId, 
+          sectionType: data.sectionType 
         });
+
+        return NextResponse.json(
+          successResponse({
+            question: result.question,
+            state: result.state,
+            message: 'Section creation started',
+          })
+        );
       }
 
       case 'answer_question': {
-        // Process user's answer to agent question
-        if (!state || !answer) {
-          return NextResponse.json(
-            { error: 'State and answer required' },
-            { status: 400 }
-          );
-        }
+        // Validate input
+        const data = AnswerQuestionSchema.parse(body);
 
         const result = await SectionGenerator.answerQuestion(
-          state as SectionGenerationState,
-          answer,
+          data.state as SectionGenerationState,
+          data.answer,
           draftId
         );
 
-        return NextResponse.json({
-          success: true,
-          question: result.question,
-          complete: result.complete,
-          state: result.state,
-          message: result.complete ? 'Questions complete' : 'Next question',
+        logger.info('Question answered', { 
+          userId: user.id, 
+          taskId, 
+          draftId, 
+          complete: result.complete 
         });
+
+        return NextResponse.json(
+          successResponse({
+            question: result.question,
+            complete: result.complete,
+            state: result.state,
+            message: result.complete ? 'Questions complete' : 'Next question',
+          })
+        );
       }
 
       case 'generate_content': {
-        // Generate final content after Q&A complete
-        if (!state) {
-          return NextResponse.json(
-            { error: 'State required' },
-            { status: 400 }
-          );
-        }
-
-        const generationState = state as SectionGenerationState;
+        // Validate input
+        const data = GenerateContentSchema.parse(body);
+        const generationState = data.state as SectionGenerationState;
         
-        // Get all existing sections
+        // Get all existing sections with explicit select
         const previousSections = await prisma.opinionSection.findMany({
           where: { opinionDraftId: draftId },
+          select: {
+            id: true,
+            opinionDraftId: true,
+            sectionType: true,
+            title: true,
+            content: true,
+            order: true,
+            aiGenerated: true,
+            reviewed: true,
+            reviewedBy: true,
+            reviewedAt: true,
+            createdAt: true,
+            updatedAt: true,
+          },
           orderBy: { order: 'asc' },
         });
 
@@ -150,7 +197,7 @@ export async function POST(
           select: { order: true },
         });
 
-        // Create the section
+        // Create the section with explicit field mapping
         const section = await prisma.opinionSection.create({
           data: {
             opinionDraftId: draftId,
@@ -161,40 +208,78 @@ export async function POST(
             aiGenerated: true,
             reviewed: false,
           },
+          select: {
+            id: true,
+            opinionDraftId: true,
+            sectionType: true,
+            title: true,
+            content: true,
+            order: true,
+            aiGenerated: true,
+            reviewed: true,
+            createdAt: true,
+          },
         });
 
-        return NextResponse.json({
-          success: true,
-          data: section,
-          message: 'Section generated successfully',
+        logger.info('Section content generated', { 
+          userId: user.id, 
+          taskId, 
+          draftId, 
+          sectionId: section.id, 
+          sectionType: generationState.sectionType 
         });
+
+        return NextResponse.json(
+          successResponse({
+            data: section,
+            message: 'Section generated successfully',
+          })
+        );
       }
 
       case 'regenerate': {
-        // Regenerate existing section with same context
-        if (!sectionId) {
-          return NextResponse.json(
-            { error: 'Section ID required' },
-            { status: 400 }
-          );
-        }
+        // Validate input
+        const data = RegenerateSchema.parse(body);
 
         const existingSection = await prisma.opinionSection.findUnique({
-          where: { id: sectionId },
+          where: { id: data.sectionId },
+          select: {
+            id: true,
+            opinionDraftId: true,
+            sectionType: true,
+            title: true,
+            order: true,
+          },
         });
 
         if (!existingSection) {
-          return NextResponse.json(
-            { error: 'Section not found' },
-            { status: 404 }
-          );
+          throw new AppError(404, 'Section not found', ErrorCodes.NOT_FOUND);
         }
 
-        // Get all previous sections (before this one)
+        // Verify IDOR - section belongs to this draft
+        if (existingSection.opinionDraftId !== draftId) {
+          throw new AppError(403, 'Section does not belong to this draft', ErrorCodes.FORBIDDEN);
+        }
+
+        // Get all previous sections (before this one) with explicit select
         const previousSections = await prisma.opinionSection.findMany({
           where: { 
             opinionDraftId: draftId,
             order: { lt: existingSection.order },
+          },
+          select: {
+            id: true,
+            opinionDraftId: true,
+            sectionType: true,
+            title: true,
+            content: true,
+            order: true,
+            aiGenerated: true,
+            reviewed: true,
+            reviewedBy: true,
+            reviewedAt: true,
+            createdAt: true,
+            updatedAt: true,
           },
           orderBy: { order: 'asc' },
         });
@@ -204,6 +289,12 @@ export async function POST(
           where: {
             opinionDraftId: draftId,
             sectionType: existingSection.sectionType,
+          },
+          select: {
+            id: true,
+            role: true,
+            content: true,
+            createdAt: true,
           },
           orderBy: { createdAt: 'desc' },
           take: 10,
@@ -228,31 +319,46 @@ export async function POST(
           previousSections
         );
 
-        // Update the section
+        // Update the section with explicit field mapping
         const updatedSection = await prisma.opinionSection.update({
-          where: { id: sectionId },
+          where: { id: data.sectionId },
           data: {
             content,
             aiGenerated: true,
             reviewed: false,
           },
+          select: {
+            id: true,
+            opinionDraftId: true,
+            sectionType: true,
+            title: true,
+            content: true,
+            order: true,
+            aiGenerated: true,
+            reviewed: true,
+            createdAt: true,
+            updatedAt: true,
+          },
         });
 
-        return NextResponse.json({
-          success: true,
-          data: updatedSection,
-          message: 'Section regenerated successfully',
+        logger.info('Section regenerated', { 
+          userId: user.id, 
+          taskId, 
+          draftId, 
+          sectionId: data.sectionId 
         });
+
+        return NextResponse.json(
+          successResponse({
+            data: updatedSection,
+            message: 'Section regenerated successfully',
+          })
+        );
       }
 
       case 'create_manual': {
-        // Create manual section without AI
-        if (!title || !content) {
-          return NextResponse.json(
-            { error: 'Title and content required' },
-            { status: 400 }
-          );
-        }
+        // Validate input
+        const data = CreateManualSectionSchema.parse(body);
 
         // Get next order if not provided
         const maxOrder = await prisma.opinionSection.findFirst({
@@ -264,230 +370,319 @@ export async function POST(
         const section = await prisma.opinionSection.create({
           data: {
             opinionDraftId: draftId,
-            sectionType: sectionType || 'Custom',
-            title,
-            content,
-            order: order ?? (maxOrder ? maxOrder.order + 1 : 1),
+            sectionType: data.sectionType || 'Custom',
+            title: data.title,
+            content: data.content,
+            order: data.order ?? (maxOrder ? maxOrder.order + 1 : 1),
             aiGenerated: false,
+          },
+          select: {
+            id: true,
+            opinionDraftId: true,
+            sectionType: true,
+            title: true,
+            content: true,
+            order: true,
+            aiGenerated: true,
+            reviewed: true,
+            createdAt: true,
           },
         });
 
-        return NextResponse.json({
-          success: true,
-          data: section,
-          message: 'Section created successfully',
+        logger.info('Manual section created', { 
+          userId: user.id, 
+          taskId, 
+          draftId, 
+          sectionId: section.id 
         });
+
+        return NextResponse.json(
+          successResponse({
+            data: section,
+            message: 'Section created successfully',
+          })
+        );
       }
 
       case 'upload_document_for_section': {
-        // Upload document during Q&A and immediately index it
-        try {
-          const formData = await request.formData();
-          const file = formData.get('file') as File;
-          const generationId = formData.get('generationId') as string;
-          const category = (formData.get('category') as string) || 'Supporting Document';
+        // This is a special file upload case within the sections POST endpoint
+        // Parse multipart form data
+        const formData = await request.formData();
+        const file = formData.get('file') as File;
+        const generationId = formData.get('generationId') as string;
+        const category = (formData.get('category') as string) || 'Supporting Document';
 
-          if (!file) {
-            return NextResponse.json(
-              { error: 'File required' },
-              { status: 400 }
-            );
-          }
+        if (!file) {
+          throw new AppError(400, 'File required', ErrorCodes.VALIDATION_ERROR);
+        }
 
-          logger.info(`📎 Uploading document for section generation: ${file.name}`);
-
-          // Upload to blob storage
-          const buffer = Buffer.from(await file.arrayBuffer());
-          const filePath = await uploadFile(
-            buffer,
-            file.name,
-            draftId
+        // Validate file size
+        if (file.size > MAX_FILE_SIZE) {
+          throw new AppError(
+            400,
+            `File size exceeds maximum allowed size of ${MAX_FILE_SIZE / 1024 / 1024}MB`,
+            ErrorCodes.VALIDATION_ERROR
           );
+        }
 
-          // Save document record
-          const document = await prisma.opinionDocument.create({
+        // Validate file type
+        const allowedTypes = [
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'text/plain',
+        ];
+
+        if (!allowedTypes.includes(file.type)) {
+          throw new AppError(
+            400,
+            'Invalid file type. Only PDF, Word, and text files are allowed.',
+            ErrorCodes.VALIDATION_ERROR
+          );
+        }
+
+        logger.info('Uploading document for section generation', { 
+          userId: user.id, 
+          taskId, 
+          draftId, 
+          fileName: file.name 
+        });
+
+        // Upload to blob storage
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const filePath = await uploadFile(buffer, file.name, draftId);
+
+        // Save document record with explicit field mapping
+        const document = await prisma.opinionDocument.create({
+          data: {
+            opinionDraftId: draftId,
+            fileName: file.name,
+            fileType: file.type,
+            fileSize: file.size,
+            filePath,
+            category,
+            uploadedBy: user.email,
+          },
+          select: {
+            id: true,
+            opinionDraftId: true,
+            fileName: true,
+            fileType: true,
+            fileSize: true,
+            filePath: true,
+            category: true,
+            vectorized: true,
+            createdAt: true,
+          },
+        });
+
+        logger.info('Document saved to database', { 
+          userId: user.id, 
+          taskId, 
+          draftId, 
+          documentId: document.id 
+        });
+
+        // Immediately index document for RAG
+        logger.info('Starting immediate indexing for document', { 
+          userId: user.id, 
+          taskId, 
+          draftId, 
+          documentId: document.id 
+        });
+        
+        const indexed = await ragEngine.indexDocument(
+          document.id,
+          draftId,
+          document.fileName,
+          category,
+          filePath,
+          file.type
+        );
+
+        if (indexed) {
+          // Update document as vectorized
+          await prisma.opinionDocument.update({
+            where: { id: document.id },
             data: {
-              opinionDraftId: draftId,
-              fileName: file.name,
-              fileType: file.type,
-              fileSize: file.size,
-              filePath,
-              category,
-              uploadedBy: session.user.email!,
+              vectorized: true,
+              extractedText: 'Processed',
             },
           });
+          logger.info('Document indexed and vectorized', { 
+            userId: user.id, 
+            taskId, 
+            draftId, 
+            documentId: document.id, 
+            fileName: document.fileName 
+          });
+        } else {
+          logger.warn('Document uploaded but indexing failed', { 
+            userId: user.id, 
+            taskId, 
+            draftId, 
+            documentId: document.id, 
+            fileName: document.fileName 
+          });
+        }
 
-          logger.info(`✅ Document saved to database: ${document.id}`);
-
-          // Immediately index document for RAG
-          logger.info(`🔍 Starting immediate indexing for document: ${document.id}`);
-          const indexed = await ragEngine.indexDocument(
-            document.id,
-            draftId,
-            document.fileName,
-            category,
-            filePath,
-            file.type
-          );
-
-          if (indexed) {
-            // Update document as vectorized
-            await prisma.opinionDocument.update({
-              where: { id: document.id },
-              data: {
-                vectorized: true,
-                extractedText: 'Processed',
-              },
-            });
-            logger.info(`✅ Document indexed and vectorized: ${document.fileName}`);
-          } else {
-            logger.warn(`⚠️ Document uploaded but indexing failed: ${document.fileName}`);
-          }
-
-          return NextResponse.json({
-            success: true,
+        return NextResponse.json(
+          successResponse({
             data: document,
             indexed,
             message: indexed 
               ? 'Document uploaded and indexed successfully' 
               : 'Document uploaded but indexing is still processing',
-          });
-        } catch (error: any) {
-          logger.error('Error uploading document for section:', error);
-          return NextResponse.json(
-            { error: 'Failed to upload document' },
-            { status: 500 }
-          );
-        }
+          })
+        );
       }
 
       case 'refresh_context': {
-        // Refresh document context after uploading a new document
-        if (!state) {
-          return NextResponse.json(
-            { error: 'State required' },
-            { status: 400 }
-          );
+        // Validate input
+        const data = RefreshContextSchema.parse(body);
+        const generationState = data.state as SectionGenerationState;
+        
+        // Get previous sections with explicit select
+        const previousSections = await prisma.opinionSection.findMany({
+          where: { opinionDraftId: draftId },
+          select: {
+            id: true,
+            opinionDraftId: true,
+            sectionType: true,
+            title: true,
+            content: true,
+            order: true,
+            aiGenerated: true,
+            reviewed: true,
+            reviewedBy: true,
+            reviewedAt: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+          orderBy: { order: 'asc' },
+        });
+
+        // Build Q&A history for search
+        const qaHistory = generationState.questions
+          .filter(q => q.answer)
+          .map(q => `${q.question} ${q.answer}`)
+          .join(' ');
+
+        // Re-search documents with current context
+        logger.info('Refreshing document context', { 
+          userId: user.id, 
+          taskId, 
+          draftId, 
+          sectionType: generationState.sectionType 
+        });
+        
+        // Dynamic import of ResearchAgent
+        const { ResearchAgent } = await import('@/lib/tools/tax-opinion/agents/researchAgent');
+        
+        let searchQuery = '';
+        switch (generationState.sectionType.toLowerCase()) {
+          case 'facts':
+            searchQuery = `factual circumstances background taxpayer details ${qaHistory}`;
+            break;
+          case 'issue':
+            searchQuery = `tax issue question dispute assessment ${qaHistory}`;
+            break;
+          case 'law':
+            searchQuery = `legislation sections regulations case law precedent ${qaHistory}`;
+            break;
+          case 'analysis':
+          case 'application':
+            const facts = previousSections.find(s => s.sectionType.toLowerCase() === 'facts')?.content || '';
+            const issue = previousSections.find(s => s.sectionType.toLowerCase() === 'issue')?.content || '';
+            searchQuery = `${issue} ${facts} ${qaHistory}`;
+            break;
+          case 'conclusion':
+            searchQuery = `conclusion position recommendation ${qaHistory}`;
+            break;
+          default:
+            searchQuery = `${generationState.sectionType} ${qaHistory}`;
         }
 
-        try {
-          const generationState = state as SectionGenerationState;
-          
-          // Get previous sections
-          const previousSections = await prisma.opinionSection.findMany({
-            where: { opinionDraftId: draftId },
-            orderBy: { order: 'asc' },
-          });
+        const searchResult = await ResearchAgent.searchDocuments(draftId, searchQuery);
+        
+        // Update document findings
+        const newFindings = searchResult.sources.map(source => ({
+          content: source.excerpt || '',
+          fileName: source.fileName,
+          category: source.category,
+          score: 0.8,
+        }));
 
-          // Build Q&A history for search
-          const qaHistory = generationState.questions
-            .filter(q => q.answer)
-            .map(q => `${q.question} ${q.answer}`)
-            .join(' ');
+        // Merge with existing findings (avoid duplicates)
+        const existingFileNames = new Set(generationState.documentFindings.map(d => d.fileName));
+        const uniqueNewFindings = newFindings.filter(d => !existingFileNames.has(d.fileName));
+        
+        const updatedState = {
+          ...generationState,
+          documentFindings: [...generationState.documentFindings, ...uniqueNewFindings],
+        };
 
-          // Re-search documents with current context
-          logger.info(`🔄 Refreshing document context for ${generationState.sectionType} section`);
-          
-          // Use the SectionGenerator's search method (we need to make it public or create a helper)
-          // For now, let's do a direct search using ResearchAgent
-          const { ResearchAgent } = await import('@/lib/tools/tax-opinion/agents/researchAgent');
-          
-          let searchQuery = '';
-          switch (generationState.sectionType.toLowerCase()) {
-            case 'facts':
-              searchQuery = `factual circumstances background taxpayer details ${qaHistory}`;
-              break;
-            case 'issue':
-              searchQuery = `tax issue question dispute assessment ${qaHistory}`;
-              break;
-            case 'law':
-              searchQuery = `legislation sections regulations case law precedent ${qaHistory}`;
-              break;
-            case 'analysis':
-            case 'application':
-              const facts = previousSections.find(s => s.sectionType.toLowerCase() === 'facts')?.content || '';
-              const issue = previousSections.find(s => s.sectionType.toLowerCase() === 'issue')?.content || '';
-              searchQuery = `${issue} ${facts} ${qaHistory}`;
-              break;
-            case 'conclusion':
-              searchQuery = `conclusion position recommendation ${qaHistory}`;
-              break;
-            default:
-              searchQuery = `${generationState.sectionType} ${qaHistory}`;
-          }
+        logger.info('Context refreshed', { 
+          userId: user.id, 
+          taskId, 
+          draftId, 
+          totalDocuments: updatedState.documentFindings.length, 
+          newDocuments: uniqueNewFindings.length 
+        });
 
-          const searchResult = await ResearchAgent.searchDocuments(draftId, searchQuery);
-          
-          // Update document findings
-          const newFindings = searchResult.sources.map(source => ({
-            content: source.excerpt || '',
-            fileName: source.fileName,
-            category: source.category,
-            score: 0.8,
-          }));
-
-          // Merge with existing findings (avoid duplicates)
-          const existingFileNames = new Set(generationState.documentFindings.map(d => d.fileName));
-          const uniqueNewFindings = newFindings.filter(d => !existingFileNames.has(d.fileName));
-          
-          const updatedState = {
-            ...generationState,
-            documentFindings: [...generationState.documentFindings, ...uniqueNewFindings],
-          };
-
-          logger.info(`✅ Context refreshed: ${updatedState.documentFindings.length} total documents`);
-
-          return NextResponse.json({
-            success: true,
+        return NextResponse.json(
+          successResponse({
             state: updatedState,
             message: `Found ${uniqueNewFindings.length} new document references`,
-          });
-        } catch (error: any) {
-          logger.error('Error refreshing context:', error);
-          return NextResponse.json(
-            { error: 'Failed to refresh context' },
-            { status: 500 }
-          );
-        }
+          })
+        );
       }
 
       default:
-        return NextResponse.json(
-          { error: 'Invalid action' },
-          { status: 400 }
-        );
+        throw new AppError(400, `Invalid action: ${action}`, ErrorCodes.VALIDATION_ERROR);
     }
-  } catch (error) {
-    logger.error('Error in sections API:', error);
-    return NextResponse.json(
-      { error: 'Failed to process request' },
-      { status: 500 }
-    );
-  }
-}
+  },
+});
 
 /**
  * PUT /api/tasks/[id]/opinion-drafts/[draftId]/sections
  * Update a section or reorder sections
  */
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string; draftId: string } }
-) {
-  try {
-    const session = await getSession();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const PUT = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TASKS,
+  taskIdParam: 'id',
+  handler: async (request, { user, params }) => {
+    const taskId = parseTaskId(params.id);
+    const draftId = parseNumericId(params.draftId, 'Draft ID');
 
-    const draftId = Number.parseInt(params.draftId);
+    // Verify IDOR protection
+    await verifyDraftBelongsToTask(draftId, taskId);
+
     const body = await request.json();
-    const { sectionId, title, content, reviewed, reorderData } = body;
 
-    if (reorderData) {
+    // Handle reorder operation
+    if (body.reorderData) {
+      const data = ReorderSectionsSchema.parse(body);
+
+      // Verify all sections belong to this draft (IDOR protection)
+      const sectionIds = data.reorderData.map(item => item.id);
+      const sections = await prisma.opinionSection.findMany({
+        where: { id: { in: sectionIds } },
+        select: { id: true, opinionDraftId: true },
+      });
+
+      if (sections.length !== sectionIds.length) {
+        throw new AppError(404, 'One or more sections not found', ErrorCodes.NOT_FOUND);
+      }
+
+      const invalidSection = sections.find(s => s.opinionDraftId !== draftId);
+      if (invalidSection) {
+        throw new AppError(403, 'One or more sections do not belong to this draft', ErrorCodes.FORBIDDEN);
+      }
+
       // Batch update order
-      await Promise.all(
-        reorderData.map((item: { id: number; order: number }) =>
+      await prisma.$transaction(
+        data.reorderData.map((item) =>
           prisma.opinionSection.update({
             where: { id: item.id },
             data: { order: item.order },
@@ -495,86 +690,146 @@ export async function PUT(
         )
       );
 
-      return NextResponse.json({
-        success: true,
-        message: 'Sections reordered successfully',
+      logger.info('Sections reordered', { 
+        userId: user.id, 
+        taskId, 
+        draftId, 
+        sectionCount: data.reorderData.length 
       });
-    }
 
-    if (!sectionId) {
       return NextResponse.json(
-        { error: 'Section ID required' },
-        { status: 400 }
+        successResponse({
+          message: 'Sections reordered successfully',
+        })
       );
     }
 
-    const updateData: any = {};
-    if (title !== undefined) updateData.title = title;
-    if (content !== undefined) updateData.content = content;
-    if (reviewed !== undefined) {
-      updateData.reviewed = reviewed;
-      if (reviewed) {
-        updateData.reviewedBy = session.user.email;
+    // Handle single section update
+    const data = UpdateSingleSectionSchema.parse(body);
+
+    // Verify section belongs to this draft (IDOR protection)
+    const existingSection = await prisma.opinionSection.findUnique({
+      where: { id: data.sectionId },
+      select: { id: true, opinionDraftId: true },
+    });
+
+    if (!existingSection) {
+      throw new AppError(404, 'Section not found', ErrorCodes.NOT_FOUND);
+    }
+
+    if (existingSection.opinionDraftId !== draftId) {
+      throw new AppError(403, 'Section does not belong to this draft', ErrorCodes.FORBIDDEN);
+    }
+
+    // Build update data with explicit field mapping
+    const updateData: {
+      title?: string;
+      content?: string;
+      reviewed?: boolean;
+      reviewedBy?: string;
+      reviewedAt?: Date;
+    } = {};
+    
+    if (data.title !== undefined) updateData.title = data.title;
+    if (data.content !== undefined) updateData.content = data.content;
+    if (data.reviewed !== undefined) {
+      updateData.reviewed = data.reviewed;
+      if (data.reviewed) {
+        updateData.reviewedBy = user.email;
         updateData.reviewedAt = new Date();
       }
     }
 
     const section = await prisma.opinionSection.update({
-      where: { id: sectionId },
+      where: { id: data.sectionId },
       data: updateData,
+      select: {
+        id: true,
+        opinionDraftId: true,
+        sectionType: true,
+        title: true,
+        content: true,
+        order: true,
+        aiGenerated: true,
+        reviewed: true,
+        reviewedBy: true,
+        reviewedAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
 
-    return NextResponse.json({
-      success: true,
-      data: section,
-      message: 'Section updated successfully',
+    logger.info('Section updated', { 
+      userId: user.id, 
+      taskId, 
+      draftId, 
+      sectionId: data.sectionId, 
+      fieldsUpdated: Object.keys(updateData) 
     });
-  } catch (error) {
-    logger.error('Error updating section:', error);
+
     return NextResponse.json(
-      { error: 'Failed to update section' },
-      { status: 500 }
+      successResponse({
+        data: section,
+        message: 'Section updated successfully',
+      })
     );
-  }
-}
+  },
+});
 
 /**
  * DELETE /api/tasks/[id]/opinion-drafts/[draftId]/sections
  * Delete a section
  */
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string; draftId: string } }
-) {
-  try {
-    const session = await getSession();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export const DELETE = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TASKS,
+  taskIdParam: 'id',
+  handler: async (request, { user, params }) => {
+    const taskId = parseTaskId(params.id);
+    const draftId = parseNumericId(params.draftId, 'Draft ID');
+
+    // Verify IDOR protection
+    await verifyDraftBelongsToTask(draftId, taskId);
+
+    // Validate query parameter
+    const { searchParams } = new URL(request.url);
+    const sectionIdParam = searchParams.get('sectionId');
+
+    if (!sectionIdParam) {
+      throw new AppError(400, 'Section ID required', ErrorCodes.VALIDATION_ERROR);
     }
 
-    const { searchParams } = new URL(request.url);
-    const sectionId = searchParams.get('sectionId');
+    const sectionId = parseNumericId(sectionIdParam, 'Section ID');
 
-    if (!sectionId) {
-      return NextResponse.json(
-        { error: 'Section ID required' },
-        { status: 400 }
-      );
+    // Verify section belongs to this draft (IDOR protection)
+    const section = await prisma.opinionSection.findUnique({
+      where: { id: sectionId },
+      select: { id: true, opinionDraftId: true, title: true },
+    });
+
+    if (!section) {
+      throw new AppError(404, 'Section not found', ErrorCodes.NOT_FOUND);
+    }
+
+    if (section.opinionDraftId !== draftId) {
+      throw new AppError(403, 'Section does not belong to this draft', ErrorCodes.FORBIDDEN);
     }
 
     await prisma.opinionSection.delete({
-      where: { id: Number.parseInt(sectionId) },
+      where: { id: sectionId },
     });
 
-    return NextResponse.json({
-      success: true,
-      message: 'Section deleted successfully',
+    logger.info('Section deleted', { 
+      userId: user.id, 
+      taskId, 
+      draftId, 
+      sectionId, 
+      sectionTitle: section.title 
     });
-  } catch (error) {
-    logger.error('Error deleting section:', error);
+
     return NextResponse.json(
-      { error: 'Failed to delete section' },
-      { status: 500 }
+      successResponse({
+        message: 'Section deleted successfully',
+      })
     );
-  }
-}
+  },
+});

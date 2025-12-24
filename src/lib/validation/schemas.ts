@@ -396,6 +396,61 @@ export const UpdateOpinionSectionSchema = z.object({
   order: z.number().int().positive().optional(),
 }).strict();
 
+export const ExportOpinionSchema = z.object({
+  format: z.enum(['pdf', 'docx']).default('pdf'),
+}).strict();
+
+export const StartSectionSchema = z.object({
+  action: z.literal('start_section'),
+  sectionType: z.string().min(1).max(100),
+  customTitle: z.string().min(1).max(500).optional(),
+}).strict();
+
+export const AnswerQuestionSchema = z.object({
+  action: z.literal('answer_question'),
+  state: z.any(), // Complex nested state object
+  answer: z.string().min(1).max(5000),
+}).strict();
+
+export const GenerateContentSchema = z.object({
+  action: z.literal('generate_content'),
+  state: z.any(), // Complex nested state object
+}).strict();
+
+export const RegenerateSchema = z.object({
+  action: z.literal('regenerate'),
+  sectionId: z.number().int().positive(),
+}).strict();
+
+export const CreateManualSectionSchema = z.object({
+  action: z.literal('create_manual'),
+  title: z.string().min(1).max(500),
+  content: z.string().min(1),
+  sectionType: z.string().max(100).optional(),
+  order: z.number().int().positive().optional(),
+}).strict();
+
+export const RefreshContextSchema = z.object({
+  action: z.literal('refresh_context'),
+  state: z.any(), // Complex nested state object
+}).strict();
+
+export const ReorderSectionsSchema = z.object({
+  reorderData: z.array(
+    z.object({
+      id: z.number().int().positive(),
+      order: z.number().int().positive(),
+    })
+  ).min(1),
+}).strict();
+
+export const UpdateSingleSectionSchema = z.object({
+  sectionId: z.number().int().positive(),
+  title: z.string().min(1).max(500).optional(),
+  content: z.string().optional(),
+  reviewed: z.boolean().optional(),
+}).strict();
+
 /**
  * Notification Preference schemas
  */
@@ -1248,6 +1303,7 @@ export const CreateReviewNoteSchema = z.object({
   categoryId: z.number().int().positive().optional(),
   dueDate: z.coerce.date().optional(),
   assignedTo: safeIdentifier(1000).optional(),
+  assignees: z.array(safeIdentifier(1000)).max(50).optional(),
 }).strict();
 
 // Update review note schema
@@ -1291,14 +1347,14 @@ export const ReviewNoteFilterSchema = z.object({
   status: z.union([ReviewNoteStatusEnum, z.array(ReviewNoteStatusEnum)]).optional(),
   priority: z.union([ReviewNotePriorityEnum, z.array(ReviewNotePriorityEnum)]).optional(),
   categoryId: z.union([z.number().int().positive(), z.array(z.number().int().positive())]).optional(),
-  assignedTo: z.string().max(1000).optional(),
-  raisedBy: z.string().max(1000).optional(),
+  assignedTo: z.union([safeIdentifier(1000), z.array(safeIdentifier(1000))]).optional(),
+  raisedBy: z.union([safeIdentifier(1000), z.array(safeIdentifier(1000))]).optional(),
   dueDateFrom: z.coerce.date().optional(),
   dueDateTo: z.coerce.date().optional(),
   overdue: z.boolean().optional(),
   search: safeString(500).optional(),
   page: z.number().int().positive().default(1),
-  limit: z.number().int().min(1).max(100).default(20),
+  limit: z.number().int().min(1).max(1000).default(20),
   sortBy: z.enum(['dueDate', 'priority', 'createdAt', 'updatedAt']).default('createdAt'),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
 }).strict();
@@ -1309,6 +1365,7 @@ export const CreateReviewCategorySchema = z.object({
   description: safeString(500).optional(),
   serviceLine: safeIdentifier(50).optional(),
   sortOrder: z.number().int().min(0).max(9999).default(0),
+  active: z.boolean().default(true),
 }).strict();
 
 // Update review category schema

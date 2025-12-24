@@ -3,12 +3,13 @@
 import { useState, Suspense } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRight, BarChart3, FileText, Calculator, CloudUpload, Briefcase, Banknote } from 'lucide-react';
+import { ChevronRight, BarChart3, FileText, Calculator, CloudUpload, Briefcase, Banknote, TrendingUp } from 'lucide-react';
 import { ClientHeader } from '@/components/features/clients/ClientHeader';
 import { useClient } from '@/hooks/clients/useClients';
 import { formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';
 import { ProfitabilityTab } from '@/components/features/analytics/ProfitabilityTab';
 import { RecoverabilityTab } from '@/components/features/analytics/RecoverabilityTab';
+import { GraphsTab } from '@/components/features/analytics/GraphsTab';
 import { UploadAnalyzeTab } from '@/components/features/analytics/UploadAnalyzeTab';
 import { CreditRatingsTab } from '@/components/features/analytics/CreditRatingsTab';
 import { FinancialRatiosTab } from '@/components/features/analytics/FinancialRatiosTab';
@@ -16,7 +17,7 @@ import { AnalyticsDocumentsTab } from '@/components/features/analytics/Analytics
 import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLineGroups';
 import { LoadingSpinner } from '@/components/ui';
 
-type TabType = 'profitability' | 'recoverability' | 'upload' | 'ratings' | 'ratios' | 'documents';
+type TabType = 'profitability' | 'recoverability' | 'graphs' | 'upload' | 'ratings' | 'ratios' | 'documents';
 
 function ClientAnalyticsContent() {
   const params = useParams();
@@ -94,6 +95,12 @@ function ClientAnalyticsContent() {
       name: 'Recoverability',
       icon: Banknote,
       description: 'View recoverability information',
+    },
+    {
+      id: 'graphs' as TabType,
+      name: 'Graphs',
+      icon: TrendingUp,
+      description: 'View revenue and billing trends',
     },
     {
       id: 'upload' as TabType,
@@ -187,6 +194,7 @@ function ClientAnalyticsContent() {
         <div className="mt-6">
           {activeTab === 'profitability' && <ProfitabilityTab clientId={GSClientID} />}
           {activeTab === 'recoverability' && <RecoverabilityTab clientId={GSClientID} />}
+          {activeTab === 'graphs' && <GraphsTab clientId={GSClientID} />}
           {activeTab === 'upload' && (
             <UploadAnalyzeTab clientId={GSClientID} onGenerateComplete={() => setActiveTab('ratings')} />
           )}

@@ -74,8 +74,8 @@ export const GET = secureRoute.queryWithParams({
       fileBuffer = await readFile(fullPath);
     }
 
-    // Return file
-    return new NextResponse(fileBuffer, {
+    // Return file (convert Buffer to Uint8Array for NextResponse)
+    return new NextResponse(new Uint8Array(fileBuffer), {
       headers: {
         'Content-Type': attachment.fileType,
         'Content-Disposition': `attachment; filename="${attachment.fileName}"`,

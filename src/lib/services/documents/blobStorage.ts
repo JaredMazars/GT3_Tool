@@ -427,3 +427,96 @@ export async function generateNewsBulletinDocumentSasUrl(
   }
 }
 
+/**
+ * Upload review note attachment to Azure Blob Storage
+ * @param buffer - File buffer
+ * @param fileName - File name
+ * @param reviewNoteId - Review note ID for folder organization
+ * @returns Blob path
+ */
+export async function uploadReviewNoteAttachment(
+  buffer: Buffer,
+  fileName: string,
+  reviewNoteId: number
+): Promise<string> {
+  try {
+    const containerClient = getContainerClient();
+    const timestamp = Date.now();
+    const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const blobName = `review-notes/${reviewNoteId}/${timestamp}_${sanitizedFileName}`;
+
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    // Determine content type based on file extension
+    const contentType = getContentType(fileName);
+
+    await blockBlobClient.upload(buffer, buffer.length, {
+      blobHTTPHeaders: {
+        blobContentType: contentType,
+      },
+    });
+
+    logger.info(`Uploaded review note attachment to blob storage: ${blobName}`);
+    return blobName;
+  } catch (error) {
+    logger.error('Failed to upload review note attachment to blob storage:', error);
+    throw error;
+  }
+}
+
+/**
+ * Download review note attachment from Azure Blob Storage
+ * @param blobName - Blob name/path
+ * @returns File buffer
+ */
+export async function downloadReviewNoteAttachment(blobName: string): Promise<Buffer> {
+  try {
+    const containerClient = getContainerClient();
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    const downloadResponse = await blockBlobClient.download();
+    const downloaded = await streamToBuffer(
+      downloadResponse.readableStreamBody!
+    );
+
+    logger.info(`Downloaded review note attachment from blob storage: ${blobName}`);
+    return downloaded;
+  } catch (error) {
+    logger.error('Failed to download review note attachment from blob storage:', error);
+    throw error;
+  }
+}
+
+/**
+ * Delete review note attachment from Azure Blob Storage
+ * @param blobName - Blob name/path
+ */
+export async function deleteReviewNoteAttachment(blobName: string): Promise<void> {
+  try {
+    const containerClient = getContainerClient();
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    await blockBlobClient.delete();
+    logger.info(`Deleted review note attachment from blob storage: ${blobName}`);
+  } catch (error) {
+    logger.error('Failed to delete review note attachment from blob storage:', error);
+    throw error;
+  }
+}
+
+/**
+ * Check if review note attachment exists in blob storage
+ * @param blobName - Blob name/path
+ * @returns True if exists
+ */
+export async function reviewNoteAttachmentExists(blobName: string): Promise<boolean> {
+  try {
+    const containerClient = getContainerClient();
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+    return await blockBlobClient.exists();
+  } catch (error) {
+    logger.error('Failed to check review note attachment existence:', error);
+    return false;
+  }
+}
+

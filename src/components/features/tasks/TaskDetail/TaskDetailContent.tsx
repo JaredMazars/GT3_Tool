@@ -152,7 +152,7 @@ function SettingsTab({ task, onUpdate, onArchive }: SettingsTabProps) {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="space-y-8">
       {/* Task Information */}
       <Card variant="standard" className="overflow-hidden">
         <div className="px-4 py-2 border-b border-forvis-gray-200 flex items-center justify-between">
@@ -568,7 +568,7 @@ export function TaskDetailContent({
   if (isLoading) {
     return (
       <div className="min-h-screen bg-forvis-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center justify-center py-12">
             <LoadingSpinner size="lg" />
           </div>
@@ -580,7 +580,7 @@ export function TaskDetailContent({
   if (!task) {
     return (
       <div className="min-h-screen bg-forvis-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
           <Banner
             variant="error"
             title="Task Not Found"
@@ -593,7 +593,7 @@ export function TaskDetailContent({
 
   return (
     <div className="min-h-screen bg-forvis-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
         {/* Workflow Status Banner */}
         {task && isClientTask(task) && !canAccessWorkTabs(task) && (
           <Banner
@@ -908,6 +908,7 @@ export function TaskDetailContent({
     </div>
   );
 }
+
 
 
 

@@ -63,26 +63,19 @@ export function AttachmentManager({
 
   // Handle clipboard paste
   const handlePaste = useCallback((e: ClipboardEvent) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AttachmentManager.tsx:handlePaste:entry',message:'Paste event fired',data:{disabled:disabled,hasClipboardData:!!e.clipboardData,itemsLength:e.clipboardData?.items?.length||0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H6,H8'})}).catch(()=>{});
-    // #endregion
-    
     if (disabled) return;
     
     const items = e.clipboardData?.items;
     if (!items) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AttachmentManager.tsx:handlePaste:noItems',message:'No clipboard items',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H8'})}).catch(()=>{});
-      // #endregion
       return;
     }
 
     const files: File[] = [];
-    const itemTypes: string[] = [];
     
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      itemTypes.push(item.type);
+      
+      if (!item) continue;
       
       // Check if it's an image
       if (item.type.startsWith('image/')) {
@@ -93,10 +86,6 @@ export function AttachmentManager({
       }
     }
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AttachmentManager.tsx:handlePaste:processed',message:'Clipboard items processed',data:{itemTypes:itemTypes,filesFound:files.length,fileNames:files.map(f=>f.name)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H8'})}).catch(()=>{});
-    // #endregion
-
     if (files.length > 0) {
       e.preventDefault();
       handleFiles(files);
@@ -105,22 +94,11 @@ export function AttachmentManager({
 
   // Set up paste listener on document level to catch paste events regardless of focus
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AttachmentManager.tsx:useEffect:setup',message:'Setting up document-level paste listener',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H7,H9',runId:'post-fix'})}).catch(()=>{});
-    // #endregion
-    
     // Listen on document for paste events
     document.addEventListener('paste', handlePaste as EventListener);
     
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AttachmentManager.tsx:useEffect:attached',message:'Document paste listener attached',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H9',runId:'post-fix'})}).catch(()=>{});
-    // #endregion
-    
     return () => {
       document.removeEventListener('paste', handlePaste as EventListener);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AttachmentManager.tsx:useEffect:cleanup',message:'Document paste listener removed',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H9',runId:'post-fix'})}).catch(()=>{});
-      // #endregion
     };
   }, [handlePaste]);
 

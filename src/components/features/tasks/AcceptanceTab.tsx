@@ -114,7 +114,7 @@ export function AcceptanceTab({ task, currentUserRole, onApprovalComplete }: Acc
 
   return (
     <div className="p-6 bg-forvis-gray-50 min-h-screen">
-      <div className="max-w-6xl mx-auto space-y-6">
+      <div className="space-y-6">
         {/* Header */}
         <div className="bg-white rounded-lg border-2 border-forvis-gray-200 shadow-corporate p-6">
           <div className="flex items-start justify-between">

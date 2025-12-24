@@ -44,20 +44,6 @@ export async function getReviewNoteAnalytics(taskId: number): Promise<ReviewNote
       },
     });
 
-    // #region agent log
-    logger.info('[DEBUG_ANALYTICS] Notes fetched from database', {
-      taskId,
-      totalNotes: allNotes.length,
-      notesSample: allNotes.map(n => ({
-        id: n.id,
-        status: n.status,
-        createdAt: n.createdAt?.toISOString(),
-        clearedAt: n.clearedAt?.toISOString()
-      })),
-      hypothesisId: 'A,B,C,D'
-    });
-    // #endregion
-
     // Calculate summary metrics
     const summary = {
       total: allNotes.length,
@@ -120,7 +106,7 @@ async function getOverdueCount(taskId: number): Promise<number> {
  * Calculate average resolution time in hours
  * Only considers notes with status='CLEARED' and valid timestamps
  * @param notes - Array of review notes with status, createdAt, and clearedAt fields
- * @returns Average resolution time in hours (rounded), or null if no cleared notes
+ * @returns Average resolution time in hours (rounded up), or null if no cleared notes
  */
 function calculateAverageResolutionTime(
   notes: Array<{ 
@@ -129,49 +115,12 @@ function calculateAverageResolutionTime(
     clearedAt: Date | null;
   }>
 ): number | null {
-  // #region agent log
-  logger.info('[DEBUG_ANALYTICS] calculateAverageResolutionTime entry', {
-    totalNotesReceived: notes.length,
-    notesData: notes.map(n => ({
-      status: n.status,
-      createdAt: n.createdAt?.toISOString(),
-      clearedAt: n.clearedAt?.toISOString()
-    })),
-    hypothesisId: 'D,E'
-  });
-  // #endregion
-
   // Filter for cleared notes with valid timestamps
   const clearedNotes = notes.filter(
     (n) => n.status === 'CLEARED' && n.clearedAt && n.createdAt
   );
 
-  // #region agent log
-  logger.info('[DEBUG_ANALYTICS] After filtering for CLEARED notes', {
-    clearedNotesCount: clearedNotes.length,
-    clearedStatusOnly: notes.filter(n => n.status === 'CLEARED').length,
-    hasTimestamps: notes.filter(n => n.status === 'CLEARED' && n.clearedAt).length,
-    hasCreatedAt: notes.filter(n => n.status === 'CLEARED' && n.createdAt).length,
-    clearedNotesData: clearedNotes.map(n => ({
-      status: n.status,
-      createdAt: n.createdAt?.toISOString(),
-      clearedAt: n.clearedAt?.toISOString()
-    })),
-    hypothesisId: 'A,B,C'
-  });
-  // #endregion
-
   if (clearedNotes.length === 0) {
-    // #region agent log
-    logger.info('[DEBUG_ANALYTICS] Returning null - no cleared notes', {
-      totalNotes: notes.length,
-      statusBreakdown: notes.reduce((acc, n) => {
-        acc[n.status] = (acc[n.status] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>),
-      hypothesisId: 'A,B,C,D'
-    });
-    // #endregion
     return null;
   }
 
@@ -186,48 +135,65 @@ function calculateAverageResolutionTime(
   // This prevents displaying N/A for notes cleared in < 30 minutes
   const average = Math.ceil(totalHours / clearedNotes.length);
 
-  // #region agent log
-  logger.info('[DEBUG_ANALYTICS] Returning average', {
-    average,
-    totalHours,
-    clearedNotesCount: clearedNotes.length,
-    hypothesisId: 'E'
-  });
-  // #endregion
-
   return average;
 }
 
 /**
- * Get notes grouped by category
+ * Get notes grouped by category with status breakdown
  */
 function getByCategory(
   notes: Array<{
+    status: string;
     categoryId: number | null;
     ReviewCategory?: { name: string } | null;
   }>
 ): Array<{
   categoryId: number | null;
   categoryName: string;
-  count: number;
+  total: number;
+  open: number;
+  cleared: number;
 }> {
-  const categoryMap = new Map<number | null, { name: string; count: number }>();
+  const categoryMap = new Map<number | null, { 
+    name: string; 
+    total: number;
+    open: number;
+    cleared: number;
+  }>();
 
   notes.forEach((note) => {
     const categoryId = note.categoryId;
     const categoryName = note.ReviewCategory?.name || 'Uncategorized';
 
-    if (categoryMap.has(categoryId)) {
-      categoryMap.get(categoryId)!.count++;
-    } else {
-      categoryMap.set(categoryId, { name: categoryName, count: 1 });
+    if (!categoryMap.has(categoryId)) {
+      categoryMap.set(categoryId, { 
+        name: categoryName, 
+        total: 0,
+        open: 0,
+        cleared: 0
+      });
+    }
+
+    const category = categoryMap.get(categoryId)!;
+    category.total++;
+    
+    // Count open statuses (OPEN, IN_PROGRESS, ADDRESSED)
+    if (['OPEN', 'IN_PROGRESS', 'ADDRESSED'].includes(note.status)) {
+      category.open++;
+    }
+    
+    // Count cleared notes
+    if (note.status === 'CLEARED') {
+      category.cleared++;
     }
   });
 
-  return Array.from(categoryMap.entries()).map(([categoryId, { name, count }]) => ({
+  return Array.from(categoryMap.entries()).map(([categoryId, data]) => ({
     categoryId,
-    categoryName: name,
-    count,
+    categoryName: data.name,
+    total: data.total,
+    open: data.open,
+    cleared: data.cleared,
   }));
 }
 
@@ -240,7 +206,7 @@ function getByAssignee(
     assignedTo: string | null;
     createdAt: Date;
     clearedAt: Date | null;
-    User_ReviewNote_assignedToToUser?: { name: string } | null;
+    User_ReviewNote_assignedToToUser?: { name: string | null } | null;
   }>
 ): Array<{
   userId: string;

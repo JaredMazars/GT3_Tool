@@ -134,6 +134,33 @@ const reviewNoteSelect = {
       ReviewNoteAssignee: true,
     },
   },
+  ReviewNoteAssignee: {
+    select: {
+      id: true,
+      reviewNoteId: true,
+      userId: true,
+      assignedBy: true,
+      assignedAt: true,
+      isForwarded: true,
+      User_ReviewNoteAssignee_userId: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+      User_ReviewNoteAssignee_assignedBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
+    orderBy: {
+      assignedAt: 'asc' as const,
+    },
+  },
 };
 
 /**
@@ -200,10 +227,13 @@ export async function createReviewNote(
 
     // Create the review note and assignees in a transaction
     const result = await prisma.$transaction(async (tx) => {
+      // Extract assignees from data (not a ReviewNote field - handled separately)
+      const { assignees, ...reviewNoteData } = data;
+      
       // Create the review note
       const reviewNote = await tx.reviewNote.create({
         data: {
-          ...data,
+          ...reviewNoteData,
           raisedBy,
           dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
         },
@@ -211,7 +241,7 @@ export async function createReviewNote(
       });
 
       // Create assignee records for the new workflow system
-      const assigneesList = data.assignees || (data.assignedTo ? [data.assignedTo] : []);
+      const assigneesList = assignees || (data.assignedTo ? [data.assignedTo] : []);
       
       if (assigneesList.length > 0) {
         await tx.reviewNoteAssignee.createMany({
@@ -358,12 +388,23 @@ export async function listReviewNotes(
       where.categoryId = Array.isArray(categoryId) ? { in: categoryId } : categoryId;
     }
 
+    // Assignee filter - check ReviewNoteAssignee table for multiple assignees support
     if (assignedTo) {
-      where.assignedTo = assignedTo;
+      const assigneeIds = Array.isArray(assignedTo) ? assignedTo : [assignedTo];
+      where.ReviewNoteAssignee = {
+        some: {
+          userId: { in: assigneeIds },
+        },
+      };
     }
 
+    // Raised by filter - supports array
     if (raisedBy) {
-      where.raisedBy = raisedBy;
+      if (Array.isArray(raisedBy)) {
+        where.raisedBy = { in: raisedBy };
+      } else {
+        where.raisedBy = raisedBy;
+      }
     }
 
     if (dueDateFrom || dueDateTo) {

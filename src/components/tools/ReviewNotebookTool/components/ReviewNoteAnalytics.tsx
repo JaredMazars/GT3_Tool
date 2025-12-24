@@ -129,13 +129,41 @@ export default function ReviewNoteAnalytics({ taskId }: ReviewNoteAnalyticsProps
       {byCategory.length > 0 && (
         <div className="bg-white rounded-lg shadow-corporate p-6">
           <h4 className="text-lg font-semibold text-forvis-gray-900 mb-4">Notes by Category</h4>
-          <div className="space-y-2">
-            {byCategory.map((category: { categoryId: number | null; categoryName: string; count: number }) => (
-              <div key={category.categoryId || 'uncategorized'} className="flex justify-between items-center">
-                <span className="text-sm text-forvis-gray-700">{category.categoryName}</span>
-                <span className="text-sm font-medium text-forvis-blue-600">{category.count}</span>
-              </div>
-            ))}
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-forvis-gray-200 table-fixed">
+              <thead>
+                <tr className="bg-forvis-gray-50">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-forvis-gray-600 uppercase w-2/3">
+                    Category
+                  </th>
+                  <th className="px-4 py-2 text-center text-xs font-medium text-forvis-gray-600 uppercase w-24">
+                    Total
+                  </th>
+                  <th className="px-4 py-2 text-center text-xs font-medium text-forvis-gray-600 uppercase w-24">
+                    Open
+                  </th>
+                  <th className="px-4 py-2 text-center text-xs font-medium text-forvis-gray-600 uppercase w-24">
+                    Cleared
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-forvis-gray-200">
+                {byCategory.map((category: { categoryId: number | null; categoryName: string; total: number; open: number; cleared: number }) => (
+                  <tr key={category.categoryId || 'uncategorized'} className="hover:bg-forvis-gray-50">
+                    <td className="px-4 py-2 text-sm text-forvis-gray-900 truncate">{category.categoryName}</td>
+                    <td className="px-4 py-2 text-sm text-center text-forvis-gray-700 tabular-nums">
+                      {category.total}
+                    </td>
+                    <td className="px-4 py-2 text-sm text-center text-forvis-gray-700 tabular-nums">
+                      {category.open}
+                    </td>
+                    <td className="px-4 py-2 text-sm text-center text-forvis-gray-700 tabular-nums">
+                      {category.cleared}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
@@ -145,19 +173,19 @@ export default function ReviewNoteAnalytics({ taskId }: ReviewNoteAnalyticsProps
         <div className="bg-white rounded-lg shadow-corporate p-6">
           <h4 className="text-lg font-semibold text-forvis-gray-900 mb-4">Notes by Assignee</h4>
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-forvis-gray-200">
+            <table className="min-w-full divide-y divide-forvis-gray-200 table-fixed">
               <thead>
                 <tr className="bg-forvis-gray-50">
-                  <th className="px-4 py-2 text-left text-xs font-medium text-forvis-gray-600 uppercase">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-forvis-gray-600 uppercase w-2/3">
                     Assignee
                   </th>
-                  <th className="px-4 py-2 text-center text-xs font-medium text-forvis-gray-600 uppercase">
+                  <th className="px-4 py-2 text-center text-xs font-medium text-forvis-gray-600 uppercase w-24">
                     Total
                   </th>
-                  <th className="px-4 py-2 text-center text-xs font-medium text-forvis-gray-600 uppercase">
+                  <th className="px-4 py-2 text-center text-xs font-medium text-forvis-gray-600 uppercase w-24">
                     Open
                   </th>
-                  <th className="px-4 py-2 text-center text-xs font-medium text-forvis-gray-600 uppercase">
+                  <th className="px-4 py-2 text-center text-xs font-medium text-forvis-gray-600 uppercase w-24">
                     Cleared
                   </th>
                 </tr>
@@ -165,14 +193,14 @@ export default function ReviewNoteAnalytics({ taskId }: ReviewNoteAnalyticsProps
               <tbody className="divide-y divide-forvis-gray-200">
                 {byAssignee.map((assignee: { userId: string; userName: string; open: number; inProgress: number; addressed: number; cleared: number; total: number }) => (
                   <tr key={assignee.userId} className="hover:bg-forvis-gray-50">
-                    <td className="px-4 py-2 text-sm text-forvis-gray-900">{assignee.userName}</td>
-                    <td className="px-4 py-2 text-sm text-center text-forvis-gray-700">
+                    <td className="px-4 py-2 text-sm text-forvis-gray-900 truncate">{assignee.userName}</td>
+                    <td className="px-4 py-2 text-sm text-center text-forvis-gray-700 tabular-nums">
                       {assignee.total}
                     </td>
-                    <td className="px-4 py-2 text-sm text-center text-forvis-gray-700">
+                    <td className="px-4 py-2 text-sm text-center text-forvis-gray-700 tabular-nums">
                       {assignee.open + assignee.inProgress}
                     </td>
-                    <td className="px-4 py-2 text-sm text-center text-forvis-gray-700">
+                    <td className="px-4 py-2 text-sm text-center text-forvis-gray-700 tabular-nums">
                       {assignee.cleared}
                     </td>
                   </tr>

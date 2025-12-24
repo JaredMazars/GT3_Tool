@@ -12,6 +12,7 @@ import { getReviewNoteById } from '@/lib/services/review-notes/reviewNoteService
 import { successResponse, parseTaskId, parseNumericId } from '@/lib/utils/apiUtils';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { prisma } from '@/lib/db/prisma';
+import { logger } from '@/lib/utils/logger';
 
 const AddAssigneeSchema = z
   .object({
@@ -53,14 +54,14 @@ export const GET = secureRoute.queryWithParams({
         assignedAt: true,
         assignedBy: true,
         isForwarded: true,
-        User_ReviewNoteAssignee_userId: {
+        User_ReviewNoteAssignee_userIdToUser: {
           select: {
             id: true,
             name: true,
             email: true,
           },
         },
-        User_ReviewNoteAssignee_assignedBy: {
+        User_ReviewNoteAssignee_assignedByToUser: {
           select: {
             id: true,
             name: true,
@@ -69,6 +70,14 @@ export const GET = secureRoute.queryWithParams({
         },
       },
       orderBy: [{ assignedAt: 'asc' }, { id: 'asc' }],
+      take: 50, // Reasonable limit for assignees per note
+    });
+
+    logger.info('Review note assignees fetched', { 
+      userId: user.id, 
+      taskId, 
+      noteId, 
+      count: assignees.length 
     });
 
     const response = NextResponse.json(successResponse(assignees));
@@ -124,62 +133,76 @@ export const POST = secureRoute.mutationWithParams({
       );
     }
 
-    // Add the assignee
-    const assignee = await prisma.reviewNoteAssignee.create({
-      data: {
-        reviewNoteId: noteId,
-        userId: data.userId,
-        assignedBy: user.id,
-        isForwarded: data.isForwarded || false,
-      },
-      select: {
-        id: true,
-        reviewNoteId: true,
-        userId: true,
-        assignedAt: true,
-        assignedBy: true,
-        isForwarded: true,
-        User_ReviewNoteAssignee_userId: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        User_ReviewNoteAssignee_assignedBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
-    });
-
-    // If this is a forward, create a system comment
-    if (data.isForwarded) {
-      await prisma.reviewNoteComment.create({
+    // Use transaction to ensure atomicity
+    const assignee = await prisma.$transaction(async (tx) => {
+      // Add the assignee
+      const newAssignee = await tx.reviewNoteAssignee.create({
         data: {
           reviewNoteId: noteId,
-          userId: user.id,
-          comment: `Forwarded to ${targetUser.name || targetUser.email}`,
-          isInternal: true,
+          userId: data.userId,
+          assignedBy: user.id,
+          isForwarded: data.isForwarded || false,
+        },
+        select: {
+          id: true,
+          reviewNoteId: true,
+          userId: true,
+          assignedAt: true,
+          assignedBy: true,
+          isForwarded: true,
+          User_ReviewNoteAssignee_userIdToUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          User_ReviewNoteAssignee_assignedByToUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
         },
       });
-    }
 
-    // Update the assignedTo field for backward compatibility (set to first assignee)
-    const firstAssignee = await prisma.reviewNoteAssignee.findFirst({
-      where: { reviewNoteId: noteId },
-      orderBy: { assignedAt: 'asc' },
+      // If this is a forward, create a system comment
+      if (data.isForwarded) {
+        await tx.reviewNoteComment.create({
+          data: {
+            reviewNoteId: noteId,
+            userId: user.id,
+            comment: `Forwarded to ${targetUser.name || targetUser.email}`,
+            isInternal: true,
+          },
+        });
+      }
+
+      // Update the assignedTo field for backward compatibility (set to first assignee)
+      const firstAssignee = await tx.reviewNoteAssignee.findFirst({
+        where: { reviewNoteId: noteId },
+        orderBy: { assignedAt: 'asc' },
+        select: { userId: true },
+      });
+
+      if (firstAssignee) {
+        await tx.reviewNote.update({
+          where: { id: noteId },
+          data: { assignedTo: firstAssignee.userId },
+        });
+      }
+
+      return newAssignee;
     });
 
-    if (firstAssignee) {
-      await prisma.reviewNote.update({
-        where: { id: noteId },
-        data: { assignedTo: firstAssignee.userId },
-      });
-    }
+    logger.info('Review note assignee added', { 
+      userId: user.id, 
+      taskId, 
+      noteId, 
+      assigneeUserId: data.userId, 
+      isForwarded: data.isForwarded 
+    });
 
     return NextResponse.json(successResponse(assignee), { status: 201 });
   },
@@ -230,28 +253,39 @@ export const DELETE = secureRoute.mutationWithParams({
       );
     }
 
-    // Remove the assignee
-    await prisma.reviewNoteAssignee.delete({
-      where: {
-        reviewNoteId_userId: {
-          reviewNoteId: noteId,
-          userId: data.userId,
+    // Use transaction to ensure atomicity
+    await prisma.$transaction(async (tx) => {
+      // Remove the assignee
+      await tx.reviewNoteAssignee.delete({
+        where: {
+          reviewNoteId_userId: {
+            reviewNoteId: noteId,
+            userId: data.userId,
+          },
         },
-      },
-    });
-
-    // Update the assignedTo field for backward compatibility (set to first remaining assignee)
-    const firstAssignee = await prisma.reviewNoteAssignee.findFirst({
-      where: { reviewNoteId: noteId },
-      orderBy: { assignedAt: 'asc' },
-    });
-
-    if (firstAssignee) {
-      await prisma.reviewNote.update({
-        where: { id: noteId },
-        data: { assignedTo: firstAssignee.userId },
       });
-    }
+
+      // Update the assignedTo field for backward compatibility (set to first remaining assignee)
+      const firstAssignee = await tx.reviewNoteAssignee.findFirst({
+        where: { reviewNoteId: noteId },
+        orderBy: { assignedAt: 'asc' },
+        select: { userId: true },
+      });
+
+      if (firstAssignee) {
+        await tx.reviewNote.update({
+          where: { id: noteId },
+          data: { assignedTo: firstAssignee.userId },
+        });
+      }
+    });
+
+    logger.info('Review note assignee removed', { 
+      userId: user.id, 
+      taskId, 
+      noteId, 
+      removedUserId: data.userId 
+    });
 
     return NextResponse.json(successResponse({ success: true }));
   },

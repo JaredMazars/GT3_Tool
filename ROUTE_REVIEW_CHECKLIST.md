@@ -166,20 +166,20 @@ For routes that call external APIs or services:
 
 ## Progress Summary
 
-| Category | Total | Reviewed |
-|----------|-------|----------|
-| Admin | 28 | 28 |
-| Auth | 6 | 6 |
-| BD | 29 | 29 |
-| Clients | 21 | 21 |
-| Tasks | 90 | 81 |
-| Service Lines | 12 | 12 |
-| Groups | 6 | 6 |
-| Notifications | 7 | 7 |
-| Users | 6 | 6 |
-| Tools | 14 | 14 |
-| Utility | 85 | 85 |
-| **Total** | **229** | **211** |
+| Category | Total | Reviewed | Status |
+|----------|-------|----------|--------|
+| Admin | 34 | 34 | ✅ Complete |
+| Auth | 6 | 6 | ✅ Complete |
+| BD | 29 | 29 | ✅ Complete |
+| Clients | 21 | 21 | ✅ Complete |
+| Tasks | 107 | 107 | ✅ Complete (15 NOT YET IMPLEMENTED routes documented) |
+| Service Lines | 12 | 12 | ✅ Complete |
+| Groups | 6 | 6 | ✅ Complete |
+| Notifications | 7 | 7 | ✅ Complete |
+| Users | 6 | 6 | ✅ Complete |
+| Tools | 14 | 14 | ✅ Complete |
+| Utility | 85 | 85 | ✅ Complete |
+| **Total** | **327** | **327** | ✅ **ALL ROUTES REVIEWED** |
 
 ---
 
@@ -333,7 +333,51 @@ For routes that call external APIs or services:
   - **Reviewed**: 2024-12-19
   - **Notes**: Route already properly secured with `Feature.MANAGE_SERVICE_LINES`. Uses `getMappingStatistics()` which calls `getAllExternalServiceLines()` (already updated with explicit select and limits). No changes needed.
 
+### Review Categories
+
+- [x] `GET /api/admin/review-categories` - List review categories
+  - **File**: `src/app/api/admin/review-categories/route.ts`
+  - **Frontend**: 
+    - Page: `src/app/dashboard/admin/tools/page.tsx`
+  - **Reviewed**: 2024-12-24
+  - **Fix Applied**: Added Zod validation schema `ListCategoriesQuerySchema` for query params with `.strict()`. Added `take: 200` limit. Added deterministic tertiary sort (`id`). Schema `CreateReviewCategorySchema` already has `.strict()`.
+
+- [x] `POST /api/admin/review-categories` - Create review category
+  - **File**: `src/app/api/admin/review-categories/route.ts`
+  - **Frontend**: 
+    - Page: `src/app/dashboard/admin/tools/page.tsx`
+  - **Reviewed**: 2024-12-24
+  - **Fix Applied**: Replaced ad-hoc error response with `AppError` for duplicate name validation. Added explicit `select` to duplicate check query. Schema already has `.strict()`, explicit field mapping, and explicit `select` on create.
+
+- [x] `GET /api/admin/review-categories/[id]` - Get category details
+  - **File**: `src/app/api/admin/review-categories/[id]/route.ts`
+  - **Frontend**: 
+    - Page: `src/app/dashboard/admin/tools/page.tsx`
+  - **Reviewed**: 2024-12-24
+  - **Fix Applied**: Replaced inline `parseInt` with `parseNumericId()` utility. Already has explicit `select` fields including `_count` for related notes.
+
+- [x] `PUT /api/admin/review-categories/[id]` - Update category
+  - **File**: `src/app/api/admin/review-categories/[id]/route.ts`
+  - **Frontend**: 
+    - Page: `src/app/dashboard/admin/tools/page.tsx`
+  - **Reviewed**: 2024-12-24
+  - **Fix Applied**: Replaced inline `parseInt` with `parseNumericId()`. Replaced ad-hoc error response with `AppError` for duplicate validation. Added explicit `select` to existence check and duplicate check queries. Schema already has `.strict()`.
+
+- [x] `DELETE /api/admin/review-categories/[id]` - Delete category
+  - **File**: `src/app/api/admin/review-categories/[id]/route.ts`
+  - **Frontend**: 
+    - Page: `src/app/dashboard/admin/tools/page.tsx`
+  - **Reviewed**: 2024-12-24
+  - **Fix Applied**: Replaced inline `parseInt` with `parseNumericId()`. Replaced ad-hoc error response with `AppError`. Orphan prevention logic already in place (prevents deletion if notes exist).
+
 ### Service Line Master
+
+- [x] `GET /api/admin/service-lines` - List active service lines
+  - **File**: `src/app/api/admin/service-lines/route.ts`
+  - **Frontend**: 
+    - Page: `src/app/dashboard/admin/tools/page.tsx`
+  - **Reviewed**: 2024-12-24
+  - **Fix Applied**: Updated `getActiveServiceLines()` utility function in `src/lib/utils/serviceLine.ts` to include explicit `select` fields, `take: 100` limit, and deterministic secondary sort (`code`). Route already uses secureRoute.query with Feature.MANAGE_TOOLS and successResponse wrapper.
 
 - [x] `GET /api/admin/service-line-master` - List master service lines
   - **File**: `src/app/api/admin/service-line-master/route.ts`
@@ -1572,37 +1616,69 @@ For routes that call external APIs or services:
   - **Reviewed**: 2024-12-23
   - **Fix Applied**: ✅ **FIXED** - Migrated to `secureRoute.aiWithParams` with **strict AI rate limiting** built-in. Added `Feature.MANAGE_TASKS`, `taskIdParam`, **IDOR protection** via `verifyDraftBelongsToTask()`, `OpinionChatMessageSchema` with `.strict()` and `.max(2000)` on message length. Moved dynamic import to top-level (performance fix). Added explicit `select` fields on all Prisma queries, audit logging with userId/taskId/draftId/isDocumentQuery/sourcesFound. Proper error handling with detailed messages for RAG unavailability.
 
-- [x] `GET /api/tasks/[id]/opinion-drafts/[draftId]/documents` - Draft docs
+- [x] `GET /api/tasks/[id]/opinion-drafts/[draftId]/documents` - List draft documents
   - **File**: `src/app/api/tasks/[id]/opinion-drafts/[draftId]/documents/route.ts`
   - **Frontend**: 
     - Component: `src/components/tools/tax-opinion/components/DocumentManager.tsx`
     - Page: `src/app/dashboard/tasks/[id]/opinion-drafting/page.tsx`
-  - **Reviewed**: 2024-12-23
-  - **Notes**: Route file exists but needs review (deferred to next batch - focus on critical routes first).
+  - **Reviewed**: 2024-12-24
+  - **Fix Applied**: ✅ **FIXED** - Migrated to `secureRoute.queryWithParams` with `Feature.ACCESS_TASKS` and `taskIdParam` for automatic task access validation. Added IDOR protection via `verifyDraftBelongsToTask()` helper. Added explicit `select` fields, deterministic ordering (`createdAt desc`, `id desc`), `take: 100` limit, `parseTaskId()`, `parseNumericId()`, `successResponse`, `Cache-Control: no-store` header, and audit logging. Supports RAG indexing status.
 
-- [x] `GET /api/tasks/[id]/opinion-drafts/[draftId]/export` - Export draft
+- [x] `POST /api/tasks/[id]/opinion-drafts/[draftId]/documents` - Upload document
+  - **File**: `src/app/api/tasks/[id]/opinion-drafts/[draftId]/documents/route.ts`
+  - **Frontend**: 
+    - Component: `src/components/tools/tax-opinion/components/DocumentManager.tsx`
+    - Page: `src/app/dashboard/tasks/[id]/opinion-drafting/page.tsx`
+  - **Reviewed**: 2024-12-24
+  - **Fix Applied**: ✅ **FIXED** - Migrated to `secureRoute.fileUploadWithParams` with `Feature.MANAGE_TASKS`, `taskIdParam`. Added **file size validation** (50MB max), MIME type allowlist (PDF, Word, text), IDOR protection via `verifyDraftBelongsToTask()`. Explicit field mapping (no data spread), explicit `select` on response. Integrates with RAG for async indexing with proper error handling. Comprehensive audit logging with userId/taskId/draftId/documentId.
+
+- [x] `DELETE /api/tasks/[id]/opinion-drafts/[draftId]/documents` - Delete document
+  - **File**: `src/app/api/tasks/[id]/opinion-drafts/[draftId]/documents/route.ts`
+  - **Frontend**: 
+    - Component: `src/components/tools/tax-opinion/components/DocumentManager.tsx`
+    - Page: `src/app/dashboard/tasks/[id]/opinion-drafting/page.tsx`
+  - **Reviewed**: 2024-12-24
+  - **Fix Applied**: ✅ **FIXED** - Migrated to `secureRoute.mutationWithParams` with `Feature.MANAGE_TASKS`, `taskIdParam`. Added query parameter validation for documentId, `parseTaskId()`, `parseNumericId()`. Added **IDOR protection** - verifies draft belongs to task AND document belongs to draft. Explicit `select` fields. Deletes from blob storage and vector index with graceful error handling. Audit logging.
+
+- [x] `POST /api/tasks/[id]/opinion-drafts/[draftId]/export` - Export draft (PDF/DOCX)
   - **File**: `src/app/api/tasks/[id]/opinion-drafts/[draftId]/export/route.ts`
   - **Frontend**: 
     - Component: `src/components/tools/tax-opinion/components/OpinionPreview.tsx`
     - Page: `src/app/dashboard/tasks/[id]/opinion-drafting/page.tsx`
-  - **Reviewed**: 2024-12-23
-  - **Notes**: Route file exists but needs review (deferred to next batch).
+  - **Reviewed**: 2024-12-24
+  - **Fix Applied**: ✅ **FIXED** - Migrated to `secureRoute.mutationWithParams` with `Feature.MANAGE_TASKS`, `taskIdParam`, `ExportOpinionSchema` for format validation (PDF/DOCX enum with default). Added IDOR protection, `parseTaskId()`, `parseNumericId()`, explicit `select` fields on all Prisma queries. Added filename sanitization to prevent path traversal, `X-Content-Type-Options: nosniff` header. Audit logging. Validates sections exist before export.
 
 - [x] `GET /api/tasks/[id]/opinion-drafts/[draftId]/sections` - List sections
   - **File**: `src/app/api/tasks/[id]/opinion-drafts/[draftId]/sections/route.ts`
   - **Frontend**: 
     - Component: `src/components/tools/tax-opinion/components/SectionEditor.tsx`
     - Page: `src/app/dashboard/tasks/[id]/opinion-drafting/page.tsx`
-  - **Reviewed**: 2024-12-23
-  - **Notes**: Route file exists but needs review (deferred to next batch).
+  - **Reviewed**: 2024-12-24
+  - **Fix Applied**: ✅ **FIXED** - Migrated to `secureRoute.queryWithParams` with `Feature.ACCESS_TASKS`, `taskIdParam`. Added IDOR protection, explicit `select` fields, deterministic ordering (`order asc`, `id asc`), `take: 100` limit, `parseTaskId()`, `parseNumericId()`, `successResponse`, `Cache-Control: no-store` header, audit logging.
 
-- [x] `POST /api/tasks/[id]/opinion-drafts/[draftId]/sections` - Add section
+- [x] `POST /api/tasks/[id]/opinion-drafts/[draftId]/sections` - Add/generate section
   - **File**: `src/app/api/tasks/[id]/opinion-drafts/[draftId]/sections/route.ts`
   - **Frontend**: 
     - Component: `src/components/tools/tax-opinion/components/SectionEditor.tsx`
     - Page: `src/app/dashboard/tasks/[id]/opinion-drafting/page.tsx`
-  - **Reviewed**: 2024-12-23
-  - **Notes**: Route file exists but needs review (deferred to next batch).
+  - **Reviewed**: 2024-12-24
+  - **Fix Applied**: ✅ **FIXED** - Migrated to `secureRoute.mutationWithParams` with `Feature.MANAGE_TASKS`, `taskIdParam`. Added **individual Zod schemas** for all 6 actions: `StartSectionSchema`, `AnswerQuestionSchema`, `GenerateContentSchema`, `RegenerateSchema`, `CreateManualSectionSchema`, `RefreshContextSchema`. Added IDOR protection for all operations, explicit field mapping (no data spread), explicit `select` on all Prisma queries. For `upload_document_for_section` action: added file size validation (50MB max), MIME type allowlist, proper RAG indexing. Comprehensive audit logging for all actions. Uses `AppError` for consistent error handling.
+
+- [x] `PUT /api/tasks/[id]/opinion-drafts/[draftId]/sections` - Update/reorder sections
+  - **File**: `src/app/api/tasks/[id]/opinion-drafts/[draftId]/sections/route.ts`
+  - **Frontend**: 
+    - Component: `src/components/tools/tax-opinion/components/SectionEditor.tsx`
+    - Page: `src/app/dashboard/tasks/[id]/opinion-drafting/page.tsx`
+  - **Reviewed**: 2024-12-24
+  - **Fix Applied**: ✅ **FIXED** - Migrated to `secureRoute.mutationWithParams` with `Feature.MANAGE_TASKS`, `taskIdParam`. Added **dual Zod schemas**: `ReorderSectionsSchema` for batch reorder, `UpdateSingleSectionSchema` for single updates. Added IDOR protection for both operations (verifies all sections belong to draft). Replaced mass assignment spread with explicit field mapping. Uses transaction for batch reorder. Explicit `select` on response. Audit logging with fieldsUpdated tracking.
+
+- [x] `DELETE /api/tasks/[id]/opinion-drafts/[draftId]/sections` - Delete section
+  - **File**: `src/app/api/tasks/[id]/opinion-drafts/[draftId]/sections/route.ts`
+  - **Frontend**: 
+    - Component: `src/components/tools/tax-opinion/components/SectionEditor.tsx`
+    - Page: `src/app/dashboard/tasks/[id]/opinion-drafting/page.tsx`
+  - **Reviewed**: 2024-12-24
+  - **Fix Applied**: ✅ **FIXED** - Migrated to `secureRoute.mutationWithParams` with `Feature.MANAGE_TASKS`, `taskIdParam`. Added query parameter validation for sectionId, `parseTaskId()`, `parseNumericId()`. Added **IDOR protection** - verifies section belongs to draft. Explicit `select` fields. Audit logging with section title. Uses `AppError` for consistent error handling.
 
 ### Task Review Notebook
 
@@ -1661,6 +1737,30 @@ For routes that call external APIs or services:
     - Component: `src/components/tools/ReviewNotebookTool/components/ReviewNoteDetailModal.tsx`
   - **Reviewed**: 2024-12-23
   - **Fix Applied**: Added `parseNumericId()`, IDOR protection, replaced ad-hoc errors with `AppError`. Sends notification to assignee.
+
+- [x] `GET /api/tasks/[id]/review-notes/[noteId]/assignees` - List assignees
+  - **File**: `src/app/api/tasks/[id]/review-notes/[noteId]/assignees/route.ts`
+  - **Frontend**: 
+    - Hook: `src/components/tools/ReviewNotebookTool/hooks/useReviewNoteActions.ts`
+    - Component: `src/components/tools/ReviewNotebookTool/components/ReviewNoteDetailModal.tsx`
+  - **Reviewed**: 2024-12-24
+  - **Fix Applied**: ✅ **ENHANCED** - Already used `secureRoute.queryWithParams` with `taskIdParam`, `Feature.ACCESS_TASKS`, IDOR protection, explicit select fields, and deterministic ordering. Added `take: 50` limit for performance, audit logging, and `Cache-Control: no-store` header. Supports multi-assignee workflow.
+
+- [x] `POST /api/tasks/[id]/review-notes/[noteId]/assignees` - Add assignee
+  - **File**: `src/app/api/tasks/[id]/review-notes/[noteId]/assignees/route.ts`
+  - **Frontend**: 
+    - Hook: `src/components/tools/ReviewNotebookTool/hooks/useReviewNoteActions.ts`
+    - Component: `src/components/tools/ReviewNotebookTool/components/ReviewNoteDetailModal.tsx`
+  - **Reviewed**: 2024-12-24
+  - **Fix Applied**: ✅ **ENHANCED** - Already used `secureRoute.mutationWithParams` with `taskIdParam`, `Feature.MANAGE_TASKS`, `AddAssigneeSchema` with `.strict()`, IDOR protection, explicit select fields. Wrapped assignee creation, comment creation (for forwards), and backward-compatible `assignedTo` update in **transaction for atomicity**. Added audit logging. Prevents duplicate assignments with user-friendly error. Supports forwarding with `isForwarded` flag and creates system comment.
+
+- [x] `DELETE /api/tasks/[id]/review-notes/[noteId]/assignees` - Remove assignee
+  - **File**: `src/app/api/tasks/[id]/review-notes/[noteId]/assignees/route.ts`
+  - **Frontend**: 
+    - Hook: `src/components/tools/ReviewNotebookTool/hooks/useReviewNoteActions.ts`
+    - Component: `src/components/tools/ReviewNotebookTool/components/ReviewNoteDetailModal.tsx`
+  - **Reviewed**: 2024-12-24
+  - **Fix Applied**: ✅ **ENHANCED** - Already used `secureRoute.mutationWithParams` with `taskIdParam`, `Feature.MANAGE_TASKS`, `RemoveAssigneeSchema` with `.strict()`, IDOR protection. Wrapped deletion and backward-compatible `assignedTo` update in **transaction for atomicity**. Added audit logging. Prevents removal of last assignee (business rule: must have at least one).
 
 - [x] `GET /api/tasks/[id]/review-notes/[noteId]/attachments` - List attachments
   - **File**: `src/app/api/tasks/[id]/review-notes/[noteId]/attachments/route.ts`
@@ -1749,95 +1849,123 @@ For routes that call external APIs or services:
 
 ### Task Research & AI
 
-- [ ] `GET /api/tasks/[id]/research-notes` - List research notes
-  - **File**: `src/app/api/tasks/[id]/research-notes/route.ts`
+- [x] `GET /api/tasks/[id]/research-notes` - List research notes
+  - **File**: `src/app/api/tasks/[id]/research-notes/route.ts` *(NOT YET IMPLEMENTED)*
   - **Frontend**: 
     - Component: `src/components/tools/tax-opinion/components/ChatInterface.tsx`
     - Used in Tax Opinion Tool for research context
+  - **Reviewed**: 2024-12-24
+  - **Notes**: ⏸️ **NOT IMPLEMENTED** - Route file does not exist yet. Planned feature for storing research notes during tax opinion drafting. When implemented, should use `secureRoute.queryWithParams` with `taskIdParam` and `Feature.ACCESS_TASKS`.
 
-- [ ] `POST /api/tasks/[id]/research-notes` - Create research note
-  - **File**: `src/app/api/tasks/[id]/research-notes/route.ts`
+- [x] `POST /api/tasks/[id]/research-notes` - Create research note
+  - **File**: `src/app/api/tasks/[id]/research-notes/route.ts` *(NOT YET IMPLEMENTED)*
   - **Frontend**: 
     - Component: `src/components/tools/tax-opinion/components/ChatInterface.tsx`
     - Used in Tax Opinion Tool for research context
+  - **Reviewed**: 2024-12-24
+  - **Notes**: ⏸️ **NOT IMPLEMENTED** - Route file does not exist yet. When implemented, should use `secureRoute.mutationWithParams` with `Feature.MANAGE_TASKS`, Zod schema with `.strict()`, IDOR protection.
 
-- [ ] `PUT /api/tasks/[id]/research-notes/[noteId]` - Update note
-  - **File**: `src/app/api/tasks/[id]/research-notes/[noteId]/route.ts`
+- [x] `PUT /api/tasks/[id]/research-notes/[noteId]` - Update note
+  - **File**: `src/app/api/tasks/[id]/research-notes/[noteId]/route.ts` *(NOT YET IMPLEMENTED)*
   - **Frontend**: 
     - Component: `src/components/tools/tax-opinion/components/ChatInterface.tsx`
     - Used in Tax Opinion Tool for research context
+  - **Reviewed**: 2024-12-24
+  - **Notes**: ⏸️ **NOT IMPLEMENTED** - Route file does not exist yet. When implemented, should use `secureRoute.mutationWithParams` with IDOR protection, `parseTaskId()`, `parseNumericId()`.
 
-- [ ] `DELETE /api/tasks/[id]/research-notes/[noteId]` - Delete note
-  - **File**: `src/app/api/tasks/[id]/research-notes/[noteId]/route.ts`
+- [x] `DELETE /api/tasks/[id]/research-notes/[noteId]` - Delete note
+  - **File**: `src/app/api/tasks/[id]/research-notes/[noteId]/route.ts` *(NOT YET IMPLEMENTED)*
   - **Frontend**: 
     - Component: `src/components/tools/tax-opinion/components/ChatInterface.tsx`
     - Used in Tax Opinion Tool for research context
+  - **Reviewed**: 2024-12-24
+  - **Notes**: ⏸️ **NOT IMPLEMENTED** - Route file does not exist yet. When implemented, should use `secureRoute.mutationWithParams` with IDOR protection, audit logging.
 
-- [ ] `POST /api/tasks/[id]/ai-tax-report` - Generate AI tax report
-  - **File**: `src/app/api/tasks/[id]/ai-tax-report/route.ts`
+- [x] `POST /api/tasks/[id]/ai-tax-report` - Generate AI tax report
+  - **File**: `src/app/api/tasks/[id]/ai-tax-report/route.ts` *(NOT YET IMPLEMENTED)*
   - **Frontend**: 
     - Component: `src/components/tools/tax-opinion/components/AITaxReport.tsx`
     - Page: `src/app/dashboard/tasks/[id]/reporting/page.tsx`
     - Component: `src/components/pdf/ReportingPackPDF.tsx`
+  - **Reviewed**: 2024-12-24
+  - **Notes**: ⏸️ **NOT IMPLEMENTED** - Route file does not exist yet. When implemented, should use `secureRoute.aiWithParams` (AI rate limiting) with `Feature.MANAGE_TASKS`, Zod schema, IDOR protection. Will generate comprehensive tax report using AI based on mapped accounts and adjustments.
 
-- [ ] `GET /api/tasks/[id]/legal-precedents` - Get legal precedents
-  - **File**: `src/app/api/tasks/[id]/legal-precedents/route.ts`
+- [x] `GET /api/tasks/[id]/legal-precedents` - Get legal precedents
+  - **File**: `src/app/api/tasks/[id]/legal-precedents/route.ts` *(NOT YET IMPLEMENTED)*
   - **Frontend**: 
     - Component: `src/components/tools/tax-opinion/components/ChatInterface.tsx`
     - Used in Tax Opinion Tool for legal research
+  - **Reviewed**: 2024-12-24
+  - **Notes**: ⏸️ **NOT IMPLEMENTED** - Route file does not exist yet. When implemented, should use `secureRoute.queryWithParams` with `Feature.ACCESS_TASKS`, IDOR protection. Likely integrates with external legal database or RAG system.
 
-- [ ] `GET /api/tasks/[id]/sars-responses` - Get SARS responses
-  - **File**: `src/app/api/tasks/[id]/sars-responses/route.ts`
+- [x] `GET /api/tasks/[id]/sars-responses` - Get SARS responses
+  - **File**: `src/app/api/tasks/[id]/sars-responses/route.ts` *(NOT YET IMPLEMENTED)*
   - **Frontend**: 
     - Component: `src/components/tools/TaxComplianceTool/index.tsx`
     - Page: `src/app/dashboard/tasks/[id]/sars-responses/page.tsx`
+  - **Reviewed**: 2024-12-24
+  - **Notes**: ⏸️ **NOT IMPLEMENTED** - Route file does not exist yet. When implemented, should use `secureRoute.queryWithParams` with `taskIdParam` and `Feature.ACCESS_TASKS`, explicit selects, `take` limits.
 
-- [ ] `POST /api/tasks/[id]/sars-responses` - Create SARS response
-  - **File**: `src/app/api/tasks/[id]/sars-responses/route.ts`
+- [x] `POST /api/tasks/[id]/sars-responses` - Create SARS response
+  - **File**: `src/app/api/tasks/[id]/sars-responses/route.ts` *(NOT YET IMPLEMENTED)*
   - **Frontend**: 
     - Component: `src/components/tools/TaxComplianceTool/index.tsx`
     - Page: `src/app/dashboard/tasks/[id]/sars-responses/page.tsx`
+  - **Reviewed**: 2024-12-24
+  - **Notes**: ⏸️ **NOT IMPLEMENTED** - Route file does not exist yet. When implemented, should use `secureRoute.mutationWithParams` or `secureRoute.fileUploadWithParams` (if file upload needed) with `taskIdParam` and `Feature.MANAGE_TASKS`, Zod schema, IDOR protection.
 
 ### Task Engagement Letters
 
-- [ ] `GET /api/tasks/[id]/engagement-letter` - Get engagement letter
-  - **File**: `src/app/api/tasks/[id]/engagement-letter/route.ts`
+- [x] `GET /api/tasks/[id]/engagement-letter` - Get engagement letter
+  - **File**: `src/app/api/tasks/[id]/engagement-letter/route.ts` *(NOT YET IMPLEMENTED)*
   - **Frontend**: 
     - Component: `src/components/features/tasks/EngagementLetterTab.tsx`
     - Component: `src/components/features/tasks/TaskDetail/TaskDetailContent.tsx`
     - Component: `src/components/features/clients/ClientDocuments.tsx`
+  - **Reviewed**: 2024-12-24
+  - **Notes**: ⏸️ **NOT IMPLEMENTED** - Route file does not exist yet. When implemented, should use `secureRoute.queryWithParams` with `taskIdParam` and `Feature.ACCESS_TASKS`, explicit selects, `Cache-Control: no-store`.
 
-- [ ] `POST /api/tasks/[id]/engagement-letter/generate` - Generate letter
-  - **File**: `src/app/api/tasks/[id]/engagement-letter/generate/route.ts`
+- [x] `POST /api/tasks/[id]/engagement-letter/generate` - Generate letter
+  - **File**: `src/app/api/tasks/[id]/engagement-letter/generate/route.ts` *(NOT YET IMPLEMENTED)*
   - **Frontend**: 
     - Component: `src/components/features/tasks/EngagementLetterTab.tsx`
     - Component: `src/components/features/tasks/TaskDetail/TaskDetailContent.tsx`
+  - **Reviewed**: 2024-12-24
+  - **Notes**: ⏸️ **NOT IMPLEMENTED** - Route file does not exist yet. When implemented, should use `secureRoute.aiWithParams` (if AI generation) or `secureRoute.mutationWithParams` with `taskIdParam` and `Feature.MANAGE_TASKS`, Zod schema, IDOR protection. Generates engagement letter based on task/client details and template.
 
-- [ ] `GET /api/tasks/[id]/engagement-letter/download` - Download letter
-  - **File**: `src/app/api/tasks/[id]/engagement-letter/download/route.ts`
+- [x] `GET /api/tasks/[id]/engagement-letter/download` - Download letter
+  - **File**: `src/app/api/tasks/[id]/engagement-letter/download/route.ts` *(NOT YET IMPLEMENTED)*
   - **Frontend**: 
     - Component: `src/components/features/tasks/EngagementLetterTab.tsx`
     - Component: `src/components/features/clients/ClientDocuments.tsx`
+  - **Reviewed**: 2024-12-24
+  - **Notes**: ⏸️ **NOT IMPLEMENTED** - Route file does not exist yet. When implemented, should use `secureRoute.queryWithParams` with `taskIdParam` and `Feature.ACCESS_TASKS`, IDOR protection. Returns PDF/DOCX file. Add `X-Content-Type-Options: nosniff` header for file downloads.
 
 ### Task Reporting & Notifications
 
-- [ ] `GET /api/tasks/[id]/reporting/export` - Export report
-  - **File**: `src/app/api/tasks/[id]/reporting/export/route.ts`
+- [x] `GET /api/tasks/[id]/reporting/export` - Export report
+  - **File**: `src/app/api/tasks/[id]/reporting/export/route.ts` *(NOT YET IMPLEMENTED)*
   - **Frontend**: 
     - Page: `src/app/dashboard/tasks/[id]/reporting/page.tsx`
     - Component: `src/components/pdf/ReportingPackPDF.tsx`
+  - **Reviewed**: 2024-12-24
+  - **Notes**: ⏸️ **NOT IMPLEMENTED** - Route file does not exist yet. When implemented, should use `secureRoute.queryWithParams` or `secureRoute.mutationWithParams` (if POST) with `taskIdParam` and `Feature.ACCESS_TASKS`, IDOR protection. Exports comprehensive reporting pack (financial statements, notes, adjustments). Supports PDF format. Add `X-Content-Type-Options: nosniff` header.
 
-- [ ] `GET /api/tasks/[id]/notification-preferences` - Get preferences
-  - **File**: `src/app/api/tasks/[id]/notification-preferences/route.ts`
+- [x] `GET /api/tasks/[id]/notification-preferences` - Get preferences
+  - **File**: `src/app/api/tasks/[id]/notification-preferences/route.ts` *(NOT YET IMPLEMENTED)*
   - **Frontend**: 
     - API endpoint for task-specific notification settings
     - Used for configuring per-task email notifications
+  - **Reviewed**: 2024-12-24
+  - **Notes**: ⏸️ **NOT IMPLEMENTED** - Route file does not exist yet. When implemented, should use `secureRoute.queryWithParams` with `taskIdParam` and `Feature.ACCESS_TASKS`, explicit selects, IDOR protection. Returns task-specific notification preferences for current user. Add `Cache-Control: no-store` header.
 
-- [ ] `PUT /api/tasks/[id]/notification-preferences` - Update preferences
-  - **File**: `src/app/api/tasks/[id]/notification-preferences/route.ts`
+- [x] `PUT /api/tasks/[id]/notification-preferences` - Update preferences
+  - **File**: `src/app/api/tasks/[id]/notification-preferences/route.ts` *(NOT YET IMPLEMENTED)*
   - **Frontend**: 
     - API endpoint for task-specific notification settings
     - Used for configuring per-task email notifications
+  - **Reviewed**: 2024-12-24
+  - **Notes**: ⏸️ **NOT IMPLEMENTED** - Route file does not exist yet. When implemented, should use `secureRoute.mutationWithParams` with `taskIdParam` and `Feature.ACCESS_TASKS`, Zod schema with `.strict()` for validation, IDOR protection, explicit field mapping.
 
 ---
 

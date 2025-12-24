@@ -7,7 +7,7 @@
 export function AcceptanceTabSkeleton() {
   return (
     <div className="p-6 bg-forvis-gray-50 min-h-screen">
-      <div className="max-w-6xl mx-auto space-y-6">
+      <div className="space-y-6">
         {/* Header Skeleton */}
         <div className="bg-white rounded-lg border-2 border-forvis-gray-200 shadow-corporate p-6 animate-pulse">
           <div className="flex items-start justify-between">
@@ -72,7 +72,7 @@ export function AcceptanceTabSkeleton() {
 export function AcceptanceTabRefetchSkeleton() {
   return (
     <div className="p-6 bg-forvis-gray-50">
-      <div className="max-w-6xl mx-auto">
+      <div>
         <div className="bg-white rounded-lg border-2 border-forvis-gray-200 shadow-corporate p-6">
           <div className="flex items-center space-x-2 text-sm text-forvis-gray-600">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-forvis-blue-500"></div>
@@ -83,6 +83,7 @@ export function AcceptanceTabRefetchSkeleton() {
     </div>
   );
 }
+
 
 
 

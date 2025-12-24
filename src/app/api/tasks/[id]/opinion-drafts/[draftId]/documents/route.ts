@@ -1,72 +1,86 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@/lib/services/auth/auth';
 import { prisma } from '@/lib/db/prisma';
 import { uploadFile, deleteFile } from '@/lib/services/documents/blobStorage';
 import { ragEngine } from '@/lib/tools/tax-opinion/services/ragEngine';
 import { logger } from '@/lib/utils/logger';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { parseTaskId, parseNumericId, successResponse } from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+
+// Maximum file size: 50MB
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
+
+// Helper to verify draft belongs to task
+async function verifyDraftBelongsToTask(draftId: number, taskId: number): Promise<void> {
+  const draft = await prisma.opinionDraft.findFirst({
+    where: { id: draftId, taskId },
+    select: { id: true },
+  });
+  
+  if (!draft) {
+    throw new AppError(404, 'Opinion draft not found or does not belong to this task', ErrorCodes.NOT_FOUND);
+  }
+}
 
 /**
  * GET /api/tasks/[id]/opinion-drafts/[draftId]/documents
  * List all documents for an opinion draft
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string; draftId: string } }
-) {
-  try {
-    const session = await getSession();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_TASKS,
+  taskIdParam: 'id',
+  handler: async (request, { user, params }) => {
+    const taskId = parseTaskId(params.id);
+    const draftId = parseNumericId(params.draftId, 'Draft ID');
 
-    const draftId = Number.parseInt(params.draftId);
+    // Verify IDOR protection
+    await verifyDraftBelongsToTask(draftId, taskId);
 
     const documents = await prisma.opinionDocument.findMany({
       where: { opinionDraftId: draftId },
-      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        opinionDraftId: true,
+        fileName: true,
+        fileType: true,
+        fileSize: true,
+        filePath: true,
+        category: true,
+        vectorized: true,
+        extractedText: true,
+        uploadedBy: true,
+        createdAt: true,
+      },
+      orderBy: [
+        { createdAt: 'desc' },
+        { id: 'desc' },
+      ],
+      take: 100,
     });
 
-    return NextResponse.json({ success: true, data: documents });
-  } catch (error) {
-    logger.error('Error fetching opinion documents:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch documents' },
-      { status: 500 }
-    );
-  }
-}
+    logger.info('Opinion documents fetched', { userId: user.id, taskId, draftId, count: documents.length });
+
+    return NextResponse.json(successResponse(documents), {
+      headers: {
+        'Cache-Control': 'no-store',
+      },
+    });
+  },
+});
 
 /**
  * POST /api/tasks/[id]/opinion-drafts/[draftId]/documents
  * Upload a new document
  */
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string; draftId: string } }
-) {
-  try {
-    const session = await getSession();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const POST = secureRoute.fileUploadWithParams({
+  feature: Feature.MANAGE_TASKS,
+  taskIdParam: 'id',
+  handler: async (request, { user, params }) => {
+    const taskId = parseTaskId(params.id);
+    const draftId = parseNumericId(params.draftId, 'Draft ID');
 
-    const draftId = Number.parseInt(params.draftId);
-    const taskId = Number.parseInt(params.id);
-
-    // Verify draft exists and belongs to project
-    const draft = await prisma.opinionDraft.findFirst({
-      where: {
-        id: draftId,
-        taskId,
-      },
-    });
-
-    if (!draft) {
-      return NextResponse.json(
-        { error: 'Opinion draft not found' },
-        { status: 404 }
-      );
-    }
+    // Verify IDOR protection
+    await verifyDraftBelongsToTask(draftId, taskId);
 
     // Parse multipart form data
     const formData = await request.formData();
@@ -74,10 +88,19 @@ export async function POST(
     const category = (formData.get('category') as string) || 'Other';
 
     if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+      throw new AppError(400, 'No file provided', ErrorCodes.VALIDATION_ERROR);
     }
 
-    // Validate file type
+    // Validate file size
+    if (file.size > MAX_FILE_SIZE) {
+      throw new AppError(
+        400,
+        `File size exceeds maximum allowed size of ${MAX_FILE_SIZE / 1024 / 1024}MB`,
+        ErrorCodes.VALIDATION_ERROR
+      );
+    }
+
+    // Validate file type (MIME type allowlist)
     const allowedTypes = [
       'application/pdf',
       'application/msword',
@@ -86,9 +109,10 @@ export async function POST(
     ];
 
     if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json(
-        { error: 'Invalid file type. Only PDF, Word, and text files are allowed.' },
-        { status: 400 }
+      throw new AppError(
+        400,
+        'Invalid file type. Only PDF, Word, and text files are allowed.',
+        ErrorCodes.VALIDATION_ERROR
       );
     }
 
@@ -101,7 +125,7 @@ export async function POST(
     // Get file extension
     const fileType = file.name.split('.').pop() || 'unknown';
 
-    // Create document record
+    // Create document record with explicit field mapping
     const document = await prisma.opinionDocument.create({
       data: {
         opinionDraftId: draftId,
@@ -111,7 +135,19 @@ export async function POST(
         filePath,
         category,
         vectorized: false,
-        uploadedBy: session.user.email,
+        uploadedBy: user.email,
+      },
+      select: {
+        id: true,
+        opinionDraftId: true,
+        fileName: true,
+        fileType: true,
+        fileSize: true,
+        filePath: true,
+        category: true,
+        vectorized: true,
+        uploadedBy: true,
+        createdAt: true,
       },
     });
 
@@ -143,73 +179,112 @@ export async function POST(
               vectorized: true,
             },
           });
-          logger.info(`✅ Document ${document.id} (${file.name}) indexed successfully`);
+          logger.info('Document indexed successfully', { 
+            userId: user.id, 
+            taskId, 
+            draftId, 
+            documentId: document.id, 
+            fileName: file.name 
+          });
         })
         .catch((error) => {
-          logger.error(`❌ Failed to index document ${document.id} (${file.name}):`, error);
+          logger.error('Failed to index document', { 
+            error, 
+            userId: user.id, 
+            taskId, 
+            draftId, 
+            documentId: document.id, 
+            fileName: file.name 
+          });
         });
     } else {
       // RAG not configured - document uploaded but won't be searchable
-      logger.warn(`⚠️ Document ${document.id} (${file.name}) uploaded but Azure AI Search is not configured - document search disabled`);
+      logger.warn('Document uploaded but Azure AI Search not configured', { 
+        userId: user.id, 
+        taskId, 
+        draftId, 
+        documentId: document.id, 
+        fileName: file.name 
+      });
       warning = 'Azure AI Search is not configured. Document uploaded but AI won\'t be able to search it. Configure AZURE_SEARCH_ENDPOINT and AZURE_SEARCH_API_KEY to enable document search.';
     }
 
-    return NextResponse.json({
-      success: true,
-      data: document,
-      message: responseMessage,
-      warning,
-      ragEnabled: isRagReady,
+    logger.info('Document uploaded', { 
+      userId: user.id, 
+      taskId, 
+      draftId, 
+      documentId: document.id, 
+      fileName: file.name, 
+      fileSize: file.size,
+      ragEnabled: isRagReady 
     });
-  } catch (error) {
-    logger.error('Error uploading document:', error);
+
     return NextResponse.json(
-      { error: 'Failed to upload document' },
-      { status: 500 }
+      successResponse({
+        ...document,
+        message: responseMessage,
+        warning,
+        ragEnabled: isRagReady,
+      })
     );
-  }
-}
+  },
+});
 
 /**
  * DELETE /api/tasks/[id]/opinion-drafts/[draftId]/documents
  * Delete a document
  */
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string; draftId: string } }
-) {
-  try {
-    const session = await getSession();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const DELETE = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TASKS,
+  taskIdParam: 'id',
+  handler: async (request, { user, params }) => {
+    const taskId = parseTaskId(params.id);
+    const draftId = parseNumericId(params.draftId, 'Draft ID');
 
+    // Verify IDOR protection
+    await verifyDraftBelongsToTask(draftId, taskId);
+
+    // Validate query parameter
     const { searchParams } = new URL(request.url);
-    const documentId = searchParams.get('documentId');
+    const documentIdParam = searchParams.get('documentId');
 
-    if (!documentId) {
-      return NextResponse.json(
-        { error: 'Document ID required' },
-        { status: 400 }
-      );
+    if (!documentIdParam) {
+      throw new AppError(400, 'Document ID required', ErrorCodes.VALIDATION_ERROR);
     }
 
-    const docId = Number.parseInt(documentId);
+    const docId = parseNumericId(documentIdParam, 'Document ID');
 
-    // Get document
+    // Get document with IDOR check
     const document = await prisma.opinionDocument.findUnique({
       where: { id: docId },
+      select: {
+        id: true,
+        opinionDraftId: true,
+        fileName: true,
+        filePath: true,
+      },
     });
 
     if (!document) {
-      return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+      throw new AppError(404, 'Document not found', ErrorCodes.NOT_FOUND);
+    }
+
+    // Verify document belongs to the draft (IDOR protection)
+    if (document.opinionDraftId !== draftId) {
+      throw new AppError(403, 'Document does not belong to this draft', ErrorCodes.FORBIDDEN);
     }
 
     // Delete from blob storage
     try {
       await deleteFile(document.filePath);
     } catch (error) {
-      logger.warn('Failed to delete file from blob storage:', error);
+      logger.warn('Failed to delete file from blob storage', { 
+        error, 
+        userId: user.id, 
+        taskId, 
+        draftId, 
+        documentId: docId 
+      });
       // Continue with database deletion even if blob deletion fails
     }
 
@@ -218,7 +293,13 @@ export async function DELETE(
       try {
         await ragEngine.deleteDocument(docId);
       } catch (error) {
-        logger.warn('Failed to delete document from vector index:', error);
+        logger.warn('Failed to delete document from vector index', { 
+          error, 
+          userId: user.id, 
+          taskId, 
+          draftId, 
+          documentId: docId 
+        });
       }
     }
 
@@ -227,16 +308,15 @@ export async function DELETE(
       where: { id: docId },
     });
 
-    return NextResponse.json({
-      success: true,
-      message: 'Document deleted successfully',
+    logger.info('Document deleted', { 
+      userId: user.id, 
+      taskId, 
+      draftId, 
+      documentId: docId, 
+      fileName: document.fileName 
     });
-  } catch (error) {
-    logger.error('Error deleting document:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete document' },
-      { status: 500 }
-    );
-  }
-}
+
+    return NextResponse.json(successResponse({ success: true, message: 'Document deleted successfully' }));
+  },
+});
 

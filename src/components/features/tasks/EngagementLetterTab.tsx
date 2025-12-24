@@ -185,7 +185,7 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
   if (!acceptanceApproved) {
     return (
       <div className="p-6 bg-forvis-gray-50 min-h-screen">
-        <div className="max-w-4xl mx-auto">
+        <div>
           <div className="bg-yellow-50 rounded-lg border-2 border-yellow-200 shadow-corporate p-6">
             <div className="flex items-start">
               <AlertTriangle className="h-6 w-6 text-yellow-600 mt-1 mr-3" />
@@ -209,7 +209,7 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
 
   return (
     <div className="p-6 bg-forvis-gray-50 min-h-screen">
-      <div className="max-w-6xl mx-auto space-y-6">
+      <div className="space-y-6">
         {/* Header */}
         <div className="bg-white rounded-lg border-2 border-forvis-gray-200 shadow-corporate p-6">
           <div className="flex items-start justify-between">

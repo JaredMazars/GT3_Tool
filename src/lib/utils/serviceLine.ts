@@ -27,7 +27,18 @@ export async function getActiveServiceLines(): Promise<ServiceLineMaster[]> {
   try {
     return await prisma.serviceLineMaster.findMany({
       where: { active: true },
-      orderBy: { sortOrder: 'asc' },
+      select: {
+        code: true,
+        name: true,
+        description: true,
+        active: true,
+        sortOrder: true,
+      },
+      orderBy: [
+        { sortOrder: 'asc' },
+        { code: 'asc' }, // Deterministic secondary sort
+      ],
+      take: 100, // Reasonable limit for service lines
     });
   } catch (error) {
     logger.error('Error fetching active service lines', { error });

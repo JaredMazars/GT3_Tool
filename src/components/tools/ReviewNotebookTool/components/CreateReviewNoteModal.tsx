@@ -11,6 +11,7 @@ import { Button } from '@/components/ui';
 import { TaskTeamSelector } from './TaskTeamSelector';
 import { AttachmentManager } from './AttachmentManager';
 import { useCreateReviewNote } from '../hooks/useReviewNoteActions';
+import { useReviewCategories } from '../hooks/useReviewCategories';
 import { ReviewNotePriority, ReviewReferenceType } from '@/types/review-notes';
 import type { CreateReviewNoteDTO } from '@/types/review-notes';
 
@@ -28,6 +29,7 @@ export function CreateReviewNoteModal({ isOpen, onClose, taskId }: CreateReviewN
     referenceType: ReviewReferenceType.EXTERNAL,
     priority: ReviewNotePriority.MEDIUM,
     assignees: [],
+    categoryId: undefined,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -35,6 +37,7 @@ export function CreateReviewNoteModal({ isOpen, onClose, taskId }: CreateReviewN
   const [uploadProgress, setUploadProgress] = useState<string>('');
   
   const createMutation = useCreateReviewNote(taskId);
+  const { data: categories, isLoading: categoriesLoading } = useReviewCategories(taskId);
 
   if (!isOpen) return null;
 
@@ -90,6 +93,7 @@ export function CreateReviewNoteModal({ isOpen, onClose, taskId }: CreateReviewN
         priority: formData.priority || ReviewNotePriority.MEDIUM,
         assignees: formData.assignees,
         assignedTo: formData.assignees && formData.assignees.length > 0 ? formData.assignees[0] : undefined,
+        categoryId: formData.categoryId || undefined,
       } as CreateReviewNoteDTO);
 
       // Upload attachments if any
@@ -98,6 +102,9 @@ export function CreateReviewNoteModal({ isOpen, onClose, taskId }: CreateReviewN
         
         for (let i = 0; i < attachments.length; i++) {
           const file = attachments[i];
+          
+          if (!file) continue;
+          
           setUploadProgress(`Uploading ${i + 1} of ${attachments.length}...`);
           
           const formData = new FormData();
@@ -129,6 +136,7 @@ export function CreateReviewNoteModal({ isOpen, onClose, taskId }: CreateReviewN
         referenceType: ReviewReferenceType.EXTERNAL,
         priority: ReviewNotePriority.MEDIUM,
         assignees: [],
+        categoryId: undefined,
       });
       setAttachments([]);
       setErrors({});
@@ -150,6 +158,7 @@ export function CreateReviewNoteModal({ isOpen, onClose, taskId }: CreateReviewN
         referenceType: ReviewReferenceType.EXTERNAL,
         priority: ReviewNotePriority.MEDIUM,
         assignees: [],
+        categoryId: undefined,
       });
       setAttachments([]);
       setErrors({});
@@ -260,11 +269,35 @@ export function CreateReviewNoteModal({ isOpen, onClose, taskId }: CreateReviewN
             </select>
           </div>
 
+          {/* Category */}
+          <div>
+            <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
+              Category
+            </label>
+            <select
+              value={formData.categoryId || ''}
+              onChange={(e) => setFormData({ ...formData, categoryId: e.target.value ? Number(e.target.value) : undefined })}
+              className="w-full px-3 py-2 border border-forvis-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-forvis-blue-500"
+              disabled={createMutation.isPending || categoriesLoading}
+            >
+              <option value="">No Category</option>
+              {categories?.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                  {category.description ? ` - ${category.description.substring(0, 50)}` : ''}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-forvis-gray-500">
+              Optional: Categorize this review note for better organization
+            </p>
+          </div>
+
           {/* Assigned To - Multiple Selection */}
           <TaskTeamSelector
             taskId={taskId}
             value={formData.assignees || []}
-            onChange={(userIds) => setFormData({ ...formData, assignees: userIds })}
+            onChange={(userIds: string[]) => setFormData({ ...formData, assignees: userIds })}
             label="Assign To"
             required={true}
             multiple={true}

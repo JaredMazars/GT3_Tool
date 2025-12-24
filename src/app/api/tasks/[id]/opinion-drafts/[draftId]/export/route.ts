@@ -1,66 +1,109 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@/lib/services/auth/auth';
 import { prisma } from '@/lib/db/prisma';
 import { WordExporter } from '@/lib/services/export/wordExporter';
 import { logger } from '@/lib/utils/logger';
 import React from 'react';
 import { pdf } from '@react-pdf/renderer';
 import { OpinionPDF } from '@/components/pdf/OpinionPDF';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { parseTaskId, parseNumericId } from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+import { ExportOpinionSchema } from '@/lib/validation/schemas';
+
+// Helper to verify draft belongs to task
+async function verifyDraftBelongsToTask(draftId: number, taskId: number): Promise<void> {
+  const draft = await prisma.opinionDraft.findFirst({
+    where: { id: draftId, taskId },
+    select: { id: true },
+  });
+  
+  if (!draft) {
+    throw new AppError(404, 'Opinion draft not found or does not belong to this task', ErrorCodes.NOT_FOUND);
+  }
+}
 
 /**
  * POST /api/tasks/[id]/opinion-drafts/[draftId]/export
  * Export opinion as PDF or Word document
  */
-export async function POST(
-  request: NextRequest,
-  context: { params: Promise<{ id: string; draftId: string }> }
-) {
-  try {
-    const session = await getSession();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const POST = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TASKS,
+  taskIdParam: 'id',
+  schema: ExportOpinionSchema,
+  handler: async (request, { user, params, data }) => {
+    const taskId = parseTaskId(params.id);
+    const draftId = parseNumericId(params.draftId, 'Draft ID');
+    const { format } = data;
 
-    const params = await context.params;
-    const draftId = parseInt(params.draftId);
-    const taskId = parseInt(params.id);
-    const body = await request.json();
-    const { format = 'pdf' } = body;
+    // Verify IDOR protection
+    await verifyDraftBelongsToTask(draftId, taskId);
 
-    // Get draft with sections
-    const draft = await prisma.opinionDraft.findFirst({
-      where: {
-        id: draftId,
-        taskId,
+    // Get draft with explicit select
+    const draft = await prisma.opinionDraft.findUnique({
+      where: { id: draftId },
+      select: {
+        id: true,
+        title: true,
+        taskId: true,
       },
     });
 
     if (!draft) {
-      return NextResponse.json(
-        { error: 'Opinion draft not found' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Opinion draft not found', ErrorCodes.NOT_FOUND);
     }
 
-    // Get sections
+    // Get sections with explicit select
     const sections = await prisma.opinionSection.findMany({
       where: { opinionDraftId: draftId },
+      select: {
+        id: true,
+        opinionDraftId: true,
+        sectionType: true,
+        title: true,
+        content: true,
+        order: true,
+        aiGenerated: true,
+        reviewed: true,
+        reviewedBy: true,
+        reviewedAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
       orderBy: { order: 'asc' },
     });
 
     if (sections.length === 0) {
-      return NextResponse.json(
-        { error: 'No sections found. Generate sections before exporting.' },
-        { status: 400 }
+      throw new AppError(
+        400,
+        'No sections found. Generate sections before exporting.',
+        ErrorCodes.VALIDATION_ERROR
       );
     }
 
-    // Get project details for metadata
+    // Get task details for metadata with explicit select
     const task = await prisma.task.findUnique({
       where: { id: taskId },
-      include: {
-        Client: true,
+      select: {
+        id: true,
+        TaskDesc: true,
+        Client: {
+          select: {
+            clientCode: true,
+            clientNameFull: true,
+          },
+        },
       },
+    });
+
+    // Sanitize filename (remove special characters)
+    const sanitizedTitle = draft.title.replace(/[^a-z0-9_-]/gi, '_');
+
+    logger.info('Exporting opinion draft', { 
+      userId: user.id, 
+      taskId, 
+      draftId, 
+      format, 
+      sectionCount: sections.length 
     });
 
     if (format === 'docx') {
@@ -72,12 +115,9 @@ export async function POST(
 
       return new NextResponse(new Uint8Array(buffer), {
         headers: {
-          'Content-Type':
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          'Content-Disposition': `attachment; filename="${draft.title.replace(
-            /\s+/g,
-            '_'
-          )}.docx"`,
+          'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'Content-Disposition': `attachment; filename="${sanitizedTitle}.docx"`,
+          'X-Content-Type-Options': 'nosniff',
         },
       });
     } else {
@@ -94,21 +134,13 @@ export async function POST(
       return new NextResponse(new Uint8Array(pdfBuffer), {
         headers: {
           'Content-Type': 'application/pdf',
-          'Content-Disposition': `attachment; filename="${draft.title.replace(
-            /\s+/g,
-            '_'
-          )}.pdf"`,
+          'Content-Disposition': `attachment; filename="${sanitizedTitle}.pdf"`,
+          'X-Content-Type-Options': 'nosniff',
         },
       });
     }
-  } catch (error) {
-    logger.error('Error exporting opinion:', error);
-    return NextResponse.json(
-      { error: 'Failed to export opinion' },
-      { status: 500 }
-    );
-  }
-}
+  },
+});
 
 /**
  * Generate PDF from opinion sections

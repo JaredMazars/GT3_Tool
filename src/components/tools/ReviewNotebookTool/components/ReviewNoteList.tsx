@@ -5,14 +5,17 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Plus, Filter, User, Users } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Plus, Filter, User, Users, List, Folder, Tag, X } from 'lucide-react';
 import { useReviewNotes } from '../hooks/useReviewNotes';
+import { useReviewCategories } from '../hooks/useReviewCategories';
+import { useTaskTeamMembers } from '@/hooks/tasks/useTaskTeamMembers';
 import type { ReviewNoteStatus } from '@/types/review-notes';
 import { Button } from '@/components/ui';
 import { LoadingSpinner } from '@/components/ui';
 import { CreateReviewNoteModal } from './CreateReviewNoteModal';
 import { ReviewNoteDetailModal } from './ReviewNoteDetailModal';
+import { ReviewNoteGroupedList } from './ReviewNoteGroupedList';
 
 interface ReviewNoteListProps {
   taskId: number;
@@ -25,6 +28,24 @@ export default function ReviewNoteList({ taskId, statusFilter }: ReviewNoteListP
   const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [filterAssignedToMe, setFilterAssignedToMe] = useState(false);
+  const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
+  const [showCategoryFilter, setShowCategoryFilter] = useState(false);
+  const categoryFilterRef = useRef<HTMLDivElement>(null);
+  const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
+  const [selectedRaisers, setSelectedRaisers] = useState<string[]>([]);
+  const [showAssigneeFilter, setShowAssigneeFilter] = useState(false);
+  const [showRaisedByFilter, setShowRaisedByFilter] = useState(false);
+  const assigneeFilterRef = useRef<HTMLDivElement>(null);
+  const raisedByFilterRef = useRef<HTMLDivElement>(null);
+  
+  // View mode with localStorage persistence
+  const [viewMode, setViewMode] = useState<'list' | 'grouped'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('reviewNotesViewMode');
+      return (saved === 'grouped' ? 'grouped' : 'list') as 'list' | 'grouped';
+    }
+    return 'list';
+  });
 
   // Fetch current user
   useEffect(() => {
@@ -44,14 +65,48 @@ export default function ReviewNoteList({ taskId, statusFilter }: ReviewNoteListP
       fetchCurrentUser();
     }
   }, [taskId]);
+  
+  // Save view mode to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('reviewNotesViewMode', viewMode);
+    }
+  }, [viewMode]);
+  
+  // Close filter dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (categoryFilterRef.current && !categoryFilterRef.current.contains(event.target as Node)) {
+        setShowCategoryFilter(false);
+      }
+      if (assigneeFilterRef.current && !assigneeFilterRef.current.contains(event.target as Node)) {
+        setShowAssigneeFilter(false);
+      }
+      if (raisedByFilterRef.current && !raisedByFilterRef.current.contains(event.target as Node)) {
+        setShowRaisedByFilter(false);
+      }
+    };
+    
+    if (showCategoryFilter || showAssigneeFilter || showRaisedByFilter) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+    
+    return undefined;
+  }, [showCategoryFilter, showAssigneeFilter, showRaisedByFilter]);
 
   const { data, isLoading, error } = useReviewNotes({
     taskId,
     status: statusFilter,
-    assignedTo: filterAssignedToMe ? currentUserId : undefined,
+    assignedTo: filterAssignedToMe ? currentUserId : (selectedAssignees.length > 0 ? selectedAssignees : undefined),
+    raisedBy: selectedRaisers.length > 0 ? selectedRaisers : undefined,
+    categoryId: selectedCategories.length > 0 ? selectedCategories : undefined,
     page,
-    limit: 20,
+    limit: viewMode === 'list' ? 20 : 1000, // Fetch all for grouped view
   });
+  
+  const { data: categories, isLoading: categoriesLoading } = useReviewCategories(taskId);
+  const { data: teamMembers = [], isLoading: teamLoading } = useTaskTeamMembers({ taskId, enabled: !!taskId });
 
   if (isLoading) {
     return <LoadingSpinner />;
@@ -70,11 +125,39 @@ export default function ReviewNoteList({ taskId, statusFilter }: ReviewNoteListP
   return (
     <div className="space-y-4">
       {/* Header with Filter and Add Button */}
-      <div className="flex justify-between items-center">
-        <div className="flex items-center space-x-4">
+      <div className="flex justify-between items-center flex-wrap gap-3">
+        <div className="flex items-center space-x-4 flex-wrap gap-3">
           <h4 className="text-sm font-medium text-forvis-gray-700">
             {notes.length} Note{notes.length !== 1 ? 's' : ''}
           </h4>
+          
+          {/* View Mode Toggle */}
+          <div className="flex items-center border border-forvis-gray-300 rounded-md overflow-hidden">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors flex items-center space-x-1 ${
+                viewMode === 'list'
+                  ? 'bg-forvis-blue-600 text-white'
+                  : 'bg-white text-forvis-gray-700 hover:bg-forvis-gray-50'
+              }`}
+              title="List View"
+            >
+              <List className="h-3 w-3" />
+              <span>List</span>
+            </button>
+            <button
+              onClick={() => setViewMode('grouped')}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors flex items-center space-x-1 border-l border-forvis-gray-300 ${
+                viewMode === 'grouped'
+                  ? 'bg-forvis-blue-600 text-white'
+                  : 'bg-white text-forvis-gray-700 hover:bg-forvis-gray-50'
+              }`}
+              title="Grouped View"
+            >
+              <Folder className="h-3 w-3" />
+              <span>Grouped</span>
+            </button>
+          </div>
           
           {/* Filter Toggle */}
           <div className="flex items-center border border-forvis-gray-300 rounded-md overflow-hidden">
@@ -101,6 +184,226 @@ export default function ReviewNoteList({ taskId, statusFilter }: ReviewNoteListP
               <span>My Items</span>
             </button>
           </div>
+          
+          {/* Category Filter */}
+          <div className="relative" ref={categoryFilterRef}>
+            <button
+              onClick={() => setShowCategoryFilter(!showCategoryFilter)}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors flex items-center space-x-1 border rounded-md ${
+                selectedCategories.length > 0
+                  ? 'bg-forvis-blue-600 text-white border-forvis-blue-600'
+                  : 'bg-white text-forvis-gray-700 border-forvis-gray-300 hover:bg-forvis-gray-50'
+              }`}
+            >
+              <Tag className="h-3 w-3" />
+              <span>
+                {selectedCategories.length > 0 
+                  ? `${selectedCategories.length} ${selectedCategories.length === 1 ? 'Category' : 'Categories'}` 
+                  : 'Categories'}
+              </span>
+              {selectedCategories.length > 0 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedCategories([]);
+                  }}
+                  className="ml-1 hover:bg-white/20 rounded-full p-0.5"
+                  title="Clear category filter"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </button>
+            
+            {/* Category Dropdown */}
+            {showCategoryFilter && (
+              <div className="absolute top-full left-0 mt-1 bg-white border border-forvis-gray-300 rounded-md shadow-lg z-10 min-w-[200px] max-h-[300px] overflow-y-auto">
+                {categoriesLoading ? (
+                  <div className="p-3 text-xs text-forvis-gray-500">Loading categories...</div>
+                ) : categories && categories.length > 0 ? (
+                  <div className="py-1">
+                    {categories.map((category) => (
+                      <label
+                        key={category.id}
+                        className="flex items-center px-3 py-2 hover:bg-forvis-gray-50 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedCategories.includes(category.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedCategories([...selectedCategories, category.id]);
+                            } else {
+                              setSelectedCategories(selectedCategories.filter((id) => id !== category.id));
+                            }
+                          }}
+                          className="mr-2 rounded border-forvis-gray-300 text-forvis-blue-600 focus:ring-forvis-blue-500"
+                        />
+                        <div className="flex-1">
+                          <div className="text-xs font-medium text-forvis-gray-900">{category.name}</div>
+                          {category.description && (
+                            <div className="text-xs text-forvis-gray-500 truncate">{category.description}</div>
+                          )}
+                        </div>
+                      </label>
+                    ))}
+                    <button
+                      onClick={() => setSelectedCategories([])}
+                      className="w-full text-left px-3 py-2 text-xs text-forvis-blue-600 hover:bg-forvis-gray-50 border-t border-forvis-gray-200"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                ) : (
+                  <div className="p-3 text-xs text-forvis-gray-500">No categories available</div>
+                )}
+              </div>
+            )}
+          </div>
+          
+          {/* Assignee Filter */}
+          <div className="relative" ref={assigneeFilterRef}>
+            <button
+              onClick={() => setShowAssigneeFilter(!showAssigneeFilter)}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors flex items-center space-x-1 border rounded-md ${
+                selectedAssignees.length > 0
+                  ? 'bg-forvis-blue-600 text-white border-forvis-blue-600'
+                  : 'bg-white text-forvis-gray-700 border-forvis-gray-300 hover:bg-forvis-gray-50'
+              }`}
+            >
+              <User className="h-3 w-3" />
+              <span>
+                {selectedAssignees.length > 0 
+                  ? `${selectedAssignees.length} Assignee${selectedAssignees.length === 1 ? '' : 's'}` 
+                  : 'Assignee'}
+              </span>
+              {selectedAssignees.length > 0 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedAssignees([]);
+                  }}
+                  className="ml-1 hover:bg-white/20 rounded-full p-0.5"
+                  title="Clear assignee filter"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </button>
+            
+            {showAssigneeFilter && (
+              <div className="absolute top-full left-0 mt-1 bg-white border border-forvis-gray-300 rounded-md shadow-lg z-10 min-w-[200px] max-h-[300px] overflow-y-auto">
+                {teamLoading ? (
+                  <div className="p-3 text-xs text-forvis-gray-500">Loading team members...</div>
+                ) : teamMembers && teamMembers.length > 0 ? (
+                  <div className="py-1">
+                    {teamMembers.map((member) => (
+                      <label
+                        key={member.userId}
+                        className="flex items-center px-3 py-2 hover:bg-forvis-gray-50 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedAssignees.includes(member.userId)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedAssignees([...selectedAssignees, member.userId]);
+                            } else {
+                              setSelectedAssignees(selectedAssignees.filter((id) => id !== member.userId));
+                            }
+                          }}
+                          className="mr-2 rounded border-forvis-gray-300 text-forvis-blue-600 focus:ring-forvis-blue-500"
+                        />
+                        <div className="text-xs font-medium text-forvis-gray-900">
+                          {member.User.name || member.User.email}
+                        </div>
+                      </label>
+                    ))}
+                    <button
+                      onClick={() => setSelectedAssignees([])}
+                      className="w-full text-left px-3 py-2 text-xs text-forvis-blue-600 hover:bg-forvis-gray-50 border-t border-forvis-gray-200"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                ) : (
+                  <div className="p-3 text-xs text-forvis-gray-500">No team members available</div>
+                )}
+              </div>
+            )}
+          </div>
+          
+          {/* Raised By Filter */}
+          <div className="relative" ref={raisedByFilterRef}>
+            <button
+              onClick={() => setShowRaisedByFilter(!showRaisedByFilter)}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors flex items-center space-x-1 border rounded-md ${
+                selectedRaisers.length > 0
+                  ? 'bg-forvis-blue-600 text-white border-forvis-blue-600'
+                  : 'bg-white text-forvis-gray-700 border-forvis-gray-300 hover:bg-forvis-gray-50'
+              }`}
+            >
+              <Users className="h-3 w-3" />
+              <span>
+                {selectedRaisers.length > 0 
+                  ? `${selectedRaisers.length} Raiser${selectedRaisers.length === 1 ? '' : 's'}` 
+                  : 'Raised By'}
+              </span>
+              {selectedRaisers.length > 0 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedRaisers([]);
+                  }}
+                  className="ml-1 hover:bg-white/20 rounded-full p-0.5"
+                  title="Clear raised by filter"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </button>
+            
+            {showRaisedByFilter && (
+              <div className="absolute top-full left-0 mt-1 bg-white border border-forvis-gray-300 rounded-md shadow-lg z-10 min-w-[200px] max-h-[300px] overflow-y-auto">
+                {teamLoading ? (
+                  <div className="p-3 text-xs text-forvis-gray-500">Loading team members...</div>
+                ) : teamMembers && teamMembers.length > 0 ? (
+                  <div className="py-1">
+                    {teamMembers.map((member) => (
+                      <label
+                        key={member.userId}
+                        className="flex items-center px-3 py-2 hover:bg-forvis-gray-50 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedRaisers.includes(member.userId)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedRaisers([...selectedRaisers, member.userId]);
+                            } else {
+                              setSelectedRaisers(selectedRaisers.filter((id) => id !== member.userId));
+                            }
+                          }}
+                          className="mr-2 rounded border-forvis-gray-300 text-forvis-blue-600 focus:ring-forvis-blue-500"
+                        />
+                        <div className="text-xs font-medium text-forvis-gray-900">
+                          {member.User.name || member.User.email}
+                        </div>
+                      </label>
+                    ))}
+                    <button
+                      onClick={() => setSelectedRaisers([])}
+                      className="w-full text-left px-3 py-2 text-xs text-forvis-blue-600 hover:bg-forvis-gray-50 border-t border-forvis-gray-200"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                ) : (
+                  <div className="p-3 text-xs text-forvis-gray-500">No team members available</div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
         
         <Button
@@ -120,7 +423,19 @@ export default function ReviewNoteList({ taskId, statusFilter }: ReviewNoteListP
             Click "Add Review Note" to create your first review note.
           </p>
         </div>
+      ) : viewMode === 'grouped' ? (
+        /* Grouped View */
+        categoriesLoading ? (
+          <LoadingSpinner />
+        ) : (
+          <ReviewNoteGroupedList
+            notes={notes}
+            categories={categories || []}
+            onNoteClick={(noteId) => setSelectedNoteId(noteId)}
+          />
+        )
       ) : (
+        /* List View */
         <div className="space-y-2">
           {notes.map((note) => {
             const getPriorityColor = (priority: string) => {
@@ -181,23 +496,39 @@ export default function ReviewNoteList({ taskId, statusFilter }: ReviewNoteListP
                       </p>
                     )}
                     
-                    <div className="flex items-center space-x-4 mt-3 text-xs text-forvis-gray-500">
+                    {/* Category Badge */}
+                    {note.categoryId && categories && (
+                      <div className="mt-2">
+                        {(() => {
+                          const category = categories.find((c) => c.id === note.categoryId);
+                          return category ? (
+                            <span className="inline-flex items-center space-x-1 px-2 py-0.5 text-xs font-medium rounded border bg-forvis-gray-100 text-forvis-gray-700 border-forvis-gray-300">
+                              <Tag className="w-3 h-3" />
+                              <span>{category.name}</span>
+                            </span>
+                          ) : null;
+                        })()}
+                      </div>
+                    )}
+                    
+                    <div className="flex items-center flex-wrap gap-x-4 gap-y-2 mt-3 text-xs text-forvis-gray-500">
+                      {/* Assignees */}
+                      {note.ReviewNoteAssignee && note.ReviewNoteAssignee.length > 0 && (
+                        <div className="flex items-center space-x-1 flex-wrap gap-1">
+                          <Users className="w-3 h-3 flex-shrink-0" />
+                          <span>Assigned:</span>
+                          {note.ReviewNoteAssignee.map((assignee) => (
+                            <span key={assignee.id} className="inline-flex items-center px-1.5 py-0.5 rounded bg-forvis-blue-100 text-forvis-blue-800 text-xs">
+                              {assignee.User_ReviewNoteAssignee_userId.name || assignee.User_ReviewNoteAssignee_userId.email}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                       {/* Sitting With Indicator */}
-                      {note.User_ReviewNote_currentOwnerToUser ? (
+                      {note.User_ReviewNote_currentOwnerToUser && (
                         <span className="flex items-center space-x-1 font-medium text-forvis-blue-700">
                           <User className="w-3 h-3" />
                           <span>Sitting with: {note.User_ReviewNote_currentOwnerToUser.name || note.User_ReviewNote_currentOwnerToUser.email}</span>
-                        </span>
-                      ) : note._count && note._count.ReviewNoteAssignee > 0 && (
-                        <span className="flex items-center space-x-1 font-medium text-forvis-blue-700">
-                          <Users className="w-3 h-3" />
-                          <span>Sitting with: All Assignees ({note._count.ReviewNoteAssignee})</span>
-                        </span>
-                      )}
-                      {note.User_ReviewNote_assignedToToUser && (
-                        <span className="flex items-center space-x-1">
-                          <User className="w-3 h-3" />
-                          <span>Assigned: {note.User_ReviewNote_assignedToToUser.name || note.User_ReviewNote_assignedToToUser.email}</span>
                         </span>
                       )}
                       {note.dueDate && (
@@ -222,8 +553,8 @@ export default function ReviewNoteList({ taskId, statusFilter }: ReviewNoteListP
         </div>
       )}
 
-      {/* Pagination */}
-      {data && data.pagination.totalPages > 1 && (
+      {/* Pagination (List View Only) */}
+      {viewMode === 'list' && data && data.pagination.totalPages > 1 && (
         <div className="flex justify-center space-x-2 mt-4">
           <Button
             onClick={() => setPage(p => Math.max(1, p - 1))}

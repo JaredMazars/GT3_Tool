@@ -199,8 +199,8 @@ export interface ReviewNoteFilterDTO {
   status?: ReviewNoteStatus | ReviewNoteStatus[];
   priority?: ReviewNotePriority | ReviewNotePriority[];
   categoryId?: number | number[];
-  assignedTo?: string;
-  raisedBy?: string;
+  assignedTo?: string | string[]; // Support single or multiple
+  raisedBy?: string | string[]; // Support single or multiple
   dueDateFrom?: Date | string;
   dueDateTo?: Date | string;
   overdue?: boolean;
@@ -226,7 +226,9 @@ export interface ReviewNoteAnalytics {
   byCategory: Array<{
     categoryId: number | null;
     categoryName: string;
-    count: number;
+    total: number;
+    open: number;
+    cleared: number;
   }>;
   byAssignee: Array<{
     userId: string;

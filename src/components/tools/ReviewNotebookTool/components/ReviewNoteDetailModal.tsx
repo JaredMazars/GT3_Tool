@@ -6,11 +6,12 @@
 'use client';
 
 import { useState } from 'react';
-import { X, ExternalLink, Loader2, MessageSquare, CheckCircle, XCircle, AlertCircle, Paperclip } from 'lucide-react';
+import { X, ExternalLink, Loader2, MessageSquare, CheckCircle, XCircle, AlertCircle, Paperclip, Tag, Users } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { AttachmentManager } from './AttachmentManager';
 import { AttachmentLightbox } from './AttachmentLightbox';
 import { useReviewNote } from '../hooks/useReviewNotes';
+import { useReviewCategories } from '../hooks/useReviewCategories';
 import { useChangeReviewNoteStatus } from '../hooks/useReviewNoteActions';
 import { useReviewNoteComments, useAddReviewNoteComment } from '../hooks/useReviewNoteComments';
 import { useReviewNoteAttachments } from '../hooks/useReviewNoteAttachments';
@@ -51,31 +52,19 @@ export function ReviewNoteDetailModal({
 
   const { data: comments = [] } = useReviewNoteComments(taskId, noteId);
   const { data: attachments = [] } = useReviewNoteAttachments(taskId, noteId);
+  const { data: categories } = useReviewCategories(taskId);
   const addCommentMutation = useAddReviewNoteComment(taskId, noteId);
   const changeStatusMutation = useChangeReviewNoteStatus(taskId, noteId);
   const queryClient = useQueryClient();
 
   if (!isOpen) return null;
 
-  // #region agent log
-  if (attachments.length > 0) {
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReviewNoteDetailModal.tsx:rendering',message:'Attachments array',data:{totalAttachments:attachments.length,attachments:attachments.map(a=>({id:a.id,fileName:a.fileName,commentId:a.commentId}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4,H5'})}).catch(()=>{});
-  }
-  // #endregion
-  
   // Filter note-level attachments (not associated with any comment)
-  const noteLevelAttachments = attachments.filter(att => !att.commentId);
-  
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReviewNoteDetailModal.tsx:filterNoteLevel',message:'Note-level attachments filtered',data:{noteLevelCount:noteLevelAttachments.length,noteLevelAttachments:noteLevelAttachments.map(a=>({id:a.id,fileName:a.fileName,commentId:a.commentId}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H5'})}).catch(()=>{});
-  // #endregion
+  const noteLevelAttachments = attachments.filter((att: any) => !att.commentId);
   
   // Function to get attachments for a specific comment
   const getCommentAttachments = (commentId: number) => {
-    const filtered = attachments.filter(att => att.commentId === commentId);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReviewNoteDetailModal.tsx:getCommentAttachments',message:'Filtering for comment',data:{commentId:commentId,foundCount:filtered.length,filtered:filtered.map(a=>({id:a.id,fileName:a.fileName,commentId:a.commentId}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H5'})}).catch(()=>{});
-    // #endregion
+    const filtered = attachments.filter((att: any) => att.commentId === commentId);
     return filtered;
   };
 
@@ -85,7 +74,7 @@ export function ReviewNoteDetailModal({
       key={attachment.id}
       className="border border-forvis-gray-200 rounded-lg p-2 bg-white hover:shadow-sm transition-shadow cursor-pointer"
       onClick={() => {
-        const globalIndex = attachments.findIndex(a => a.id === attachment.id);
+        const globalIndex = attachments.findIndex((a: any) => a.id === attachment.id);
         setLightboxIndex(globalIndex);
         setLightboxOpen(true);
       }}
@@ -125,38 +114,25 @@ export function ReviewNoteDetailModal({
     if (!newComment.trim()) return;
 
     try {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReviewNoteDetailModal.tsx:handleAddComment:entry',message:'Starting comment creation',data:{hasAttachments:commentAttachments.length>0,attachmentCount:commentAttachments.length,newComment:newComment.substring(0,50)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-      // #endregion
-      
       // Add the comment first
       const result = await addCommentMutation.mutateAsync({
         comment: newComment,
       });
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReviewNoteDetailModal.tsx:handleAddComment:afterCreate',message:'Comment created',data:{result:result,resultId:result?.id,hasResultId:!!result?.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-      // #endregion
-      
       // Upload attachments if any
       if (commentAttachments.length > 0 && result.id) {
         setIsUploadingAttachments(true);
         
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReviewNoteDetailModal.tsx:handleAddComment:beforeUpload',message:'Starting attachment upload',data:{commentId:result.id,attachmentCount:commentAttachments.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
-        // #endregion
-        
         for (let i = 0; i < commentAttachments.length; i++) {
           const file = commentAttachments[i];
+          
+          if (!file) continue;
+          
           setUploadProgress(`Uploading ${i + 1} of ${commentAttachments.length}...`);
           
           const formData = new FormData();
           formData.append('file', file);
           formData.append('commentId', result.id.toString());
-          
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReviewNoteDetailModal.tsx:handleAddComment:beforeFetch',message:'Sending attachment to API',data:{fileName:file.name,fileSize:file.size,commentId:result.id.toString(),url:`/api/tasks/${taskId}/review-notes/${noteId}/attachments`},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
-          // #endregion
           
           const response = await fetch(
             `/api/tasks/${taskId}/review-notes/${noteId}/attachments`,
@@ -166,34 +142,16 @@ export function ReviewNoteDetailModal({
             }
           );
 
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReviewNoteDetailModal.tsx:handleAddComment:afterFetch',message:'Attachment upload response',data:{ok:response.ok,status:response.status,statusText:response.statusText},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
-          // #endregion
-
           if (!response.ok) {
             const error = await response.json();
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReviewNoteDetailModal.tsx:handleAddComment:uploadError',message:'Attachment upload failed',data:{error:error},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
-            // #endregion
             throw new Error(error.error || 'Failed to upload attachment');
           }
           
           const uploadResult = await response.json();
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReviewNoteDetailModal.tsx:handleAddComment:uploadSuccess',message:'Attachment uploaded successfully',data:{uploadResult:uploadResult},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3,H4',runId:'post-fix'})}).catch(()=>{});
-          // #endregion
         }
-        
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReviewNoteDetailModal.tsx:handleAddComment:beforeInvalidate',message:'Invalidating attachments cache',data:{taskId:taskId,noteId:noteId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4',runId:'post-fix'})}).catch(()=>{});
-        // #endregion
         
         // Invalidate attachments query to refresh the list
         await queryClient.invalidateQueries({ queryKey: ['review-note-attachments', taskId, noteId] });
-        
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReviewNoteDetailModal.tsx:handleAddComment:afterInvalidate',message:'Cache invalidated',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4',runId:'post-fix'})}).catch(()=>{});
-        // #endregion
         
         setIsUploadingAttachments(false);
         setUploadProgress('');
@@ -203,9 +161,6 @@ export function ReviewNoteDetailModal({
       setCommentAttachments([]);
     } catch (error) {
       console.error('Failed to add comment:', error);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReviewNoteDetailModal.tsx:handleAddComment:error',message:'Comment/upload error',data:{error:error instanceof Error?error.message:String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H2,H3'})}).catch(()=>{});
-      // #endregion
       setIsUploadingAttachments(false);
       setUploadProgress('');
     }
@@ -338,12 +293,25 @@ export function ReviewNoteDetailModal({
               </p>
             </div>
             
-            {note.User_ReviewNote_assignedToToUser && (
-              <div>
-                <h3 className="text-xs font-medium text-forvis-gray-500 uppercase mb-1">Assigned To</h3>
-                <p className="text-sm text-forvis-gray-900">
-                  {note.User_ReviewNote_assignedToToUser.name || note.User_ReviewNote_assignedToToUser.email}
-                </p>
+            {note.ReviewNoteAssignee && note.ReviewNoteAssignee.length > 0 && (
+              <div className="col-span-2">
+                <h3 className="text-xs font-medium text-forvis-gray-500 uppercase mb-2 flex items-center space-x-1">
+                  <Users className="w-3 h-3" />
+                  <span>Assigned To ({note.ReviewNoteAssignee.length})</span>
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {note.ReviewNoteAssignee.map((assignee: any) => (
+                    <span
+                      key={assignee.id}
+                      className="inline-flex items-center px-2 py-1 bg-forvis-blue-100 text-forvis-blue-800 rounded-md text-xs font-medium"
+                    >
+                      {assignee.User_ReviewNoteAssignee_userIdToUser.name || assignee.User_ReviewNoteAssignee_userIdToUser.email}
+                      {assignee.isForwarded && (
+                        <span className="ml-1 text-forvis-blue-600">(Forwarded)</span>
+                      )}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -360,6 +328,24 @@ export function ReviewNoteDetailModal({
               <h3 className="text-xs font-medium text-forvis-gray-500 uppercase mb-1">Created</h3>
               <p className="text-sm text-forvis-gray-900">
                 {new Date(note.createdAt).toLocaleString()}
+              </p>
+            </div>
+
+            {/* Category */}
+            <div>
+              <h3 className="text-xs font-medium text-forvis-gray-500 uppercase mb-1 flex items-center space-x-1">
+                <Tag className="w-3 h-3" />
+                <span>Category</span>
+              </h3>
+              <p className="text-sm text-forvis-gray-900">
+                {note.categoryId && categories ? (
+                  (() => {
+                    const category = categories.find((c) => c.id === note.categoryId);
+                    return category ? category.name : 'No Category';
+                  })()
+                ) : (
+                  'No Category'
+                )}
               </p>
             </div>
 
@@ -407,7 +393,7 @@ export function ReviewNoteDetailModal({
               </h3>
               
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {noteLevelAttachments.map((attachment, index) => 
+                {noteLevelAttachments.map((attachment: any, index: number) => 
                   renderAttachmentThumbnail(attachment, index, noteLevelAttachments)
                 )}
               </div>
@@ -443,7 +429,7 @@ export function ReviewNoteDetailModal({
                       {/* Comment Attachments - Inline */}
                       {commentAttachments.length > 0 && (
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-2 pt-2">
-                          {commentAttachments.map((attachment, index) => 
+                          {commentAttachments.map((attachment: any, index: number) => 
                             renderAttachmentThumbnail(attachment, index, commentAttachments)
                           )}
                         </div>

@@ -149,6 +149,13 @@ export default function DashboardNav() {
       description: 'Manage tools and service line assignments',
     });
   }
+  if (hasToolsAccess) {
+    adminMenuItems.push({
+      label: 'Review Note Categories',
+      href: '/dashboard/admin/review-categories',
+      description: 'Manage review note categories',
+    });
+  }
   if (hasExternalLinksAccess) {
     adminMenuItems.push({
       label: 'External Links',

@@ -97,10 +97,6 @@ export const POST = secureRoute.fileUploadWithParams({
     const file = formData.get('file') as File;
     const commentIdStr = formData.get('commentId') as string | null;
 
-    // #region agent log
-    await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'attachments/route.ts:POST:parseFormData',message:'Received form data',data:{hasFile:!!file,fileName:file?.name,commentIdStr:commentIdStr,commentIdType:typeof commentIdStr},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2,H3'})}).catch(()=>{});
-    // #endregion
-
     if (!file) {
       throw new AppError(400, 'No file provided', ErrorCodes.VALIDATION_ERROR);
     }
@@ -120,19 +116,11 @@ export const POST = secureRoute.fileUploadWithParams({
     if (commentIdStr) {
       commentId = parseNumericId(commentIdStr, 'Comment ID');
       
-      // #region agent log
-      await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'attachments/route.ts:POST:parseCommentId',message:'Parsed commentId',data:{commentIdStr:commentIdStr,commentId:commentId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
-      // #endregion
-      
       // Verify comment belongs to this note
       const comment = await prisma.reviewNoteComment.findUnique({
         where: { id: commentId },
         select: { reviewNoteId: true },
       });
-      
-      // #region agent log
-      await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'attachments/route.ts:POST:verifyComment',message:'Comment verification',data:{commentFound:!!comment,commentReviewNoteId:comment?.reviewNoteId,expectedNoteId:noteId,matches:comment?.reviewNoteId===noteId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
-      // #endregion
       
       if (!comment || comment.reviewNoteId !== noteId) {
         throw new AppError(404, 'Comment not found', ErrorCodes.NOT_FOUND);
@@ -142,10 +130,6 @@ export const POST = secureRoute.fileUploadWithParams({
     // Upload to blob storage
     const buffer = Buffer.from(await file.arrayBuffer());
     const blobPath = await uploadReviewNoteAttachment(buffer, file.name, noteId);
-
-    // #region agent log
-    await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'attachments/route.ts:POST:beforeCreate',message:'Creating attachment record',data:{reviewNoteId:noteId,commentId:commentId,fileName:file.name,blobPath:blobPath},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
-    // #endregion
     
     // Save to database
     const attachment = await prisma.reviewNoteAttachment.create({
@@ -177,10 +161,6 @@ export const POST = secureRoute.fileUploadWithParams({
         },
       },
     });
-
-    // #region agent log
-    await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'attachments/route.ts:POST:afterCreate',message:'Attachment created',data:{attachmentId:attachment.id,commentId:attachment.commentId,fileName:attachment.fileName},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
-    // #endregion
 
     return NextResponse.json(successResponse(attachment), { status: 201 });
   },

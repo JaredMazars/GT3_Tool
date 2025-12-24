@@ -68,6 +68,9 @@ export function AttachmentLightbox({
   if (!isOpen || attachments.length === 0) return null;
 
   const currentAttachment = attachments[currentIndex];
+  
+  if (!currentAttachment) return null;
+  
   const isImage = currentAttachment.fileType.startsWith('image/');
   const attachmentUrl = `/api/tasks/${taskId}/review-notes/${noteId}/attachments/${currentAttachment.id}`;
 
@@ -225,5 +228,6 @@ export function AttachmentLightbox({
     </div>
   );
 }
+
 
 
