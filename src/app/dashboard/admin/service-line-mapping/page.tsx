@@ -21,6 +21,7 @@ interface ExternalServiceLine {
   masterCode: string | null;
   SubServlineGroupCode: string | null;
   SubServlineGroupDesc: string | null;
+  taskCount?: number;
   masterServiceLine: {
     code: string;
     name: string;
@@ -451,7 +452,7 @@ export default function ServiceLineMappingPage() {
                               </span>
                             </div>
                           </div>
-                          <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="grid grid-cols-3 gap-2 text-xs">
                             <div>
                               <span className="text-forvis-gray-500">SL Description:</span>{' '}
                               <span className="font-medium text-forvis-gray-800">
@@ -462,6 +463,12 @@ export default function ServiceLineMappingPage() {
                               <span className="text-forvis-gray-500">GL Prefix:</span>{' '}
                               <span className="font-medium text-forvis-gray-800">
                                 {external.GLPrefix || 'N/A'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-forvis-gray-500">Tasks:</span>{' '}
+                              <span className="font-medium text-forvis-blue-600">
+                                {external.taskCount || 0}
                               </span>
                             </div>
                           </div>
