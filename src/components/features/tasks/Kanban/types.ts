@@ -25,6 +25,9 @@ export interface KanbanTask {
   }[];
   userRole: string | null;
   isUserInvolved: boolean; // True if user is partner, manager, or team member
+  wip?: {
+    netWip: number;
+  } | null;
   createdAt: Date | string;
   updatedAt: Date | string;
 }
@@ -113,6 +116,7 @@ export interface KanbanMetricsProps {
     count: number;
     loaded?: number;
   };
+  myTasksOnly?: boolean;
 }
 
 

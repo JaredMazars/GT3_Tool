@@ -10,6 +10,7 @@ import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { logger } from '@/lib/utils/logger';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { hasServiceLineRole } from '@/lib/utils/roleHierarchy';
+import { categorizeTransaction } from '@/lib/services/clients/clientBalanceCalculation';
 import { z } from 'zod';
 
 // Zod schema for query params validation
@@ -301,12 +302,59 @@ export const GET = secureRoute.query({
           id: true, TaskDesc: true, TaskCode: true, ServLineCode: true, ServLineDesc: true,
           TaskPartner: true, TaskPartnerName: true, TaskManager: true, TaskManagerName: true,
           TaskDateOpen: true, TaskDateTerminate: true, Active: true, createdAt: true, updatedAt: true,
+          GSTaskID: myTasksOnly, // Include GSTaskID for WIP lookup when myTasksOnly is true
           Client: { select: { id: true, GSClientID: true, clientCode: true, clientNameFull: true } },
           TaskTeam: { select: { userId: true, role: true, User: { select: { id: true, name: true, email: true } } } },
           TaskStage: { orderBy: { createdAt: 'desc' }, take: 1, select: { stage: true, createdAt: true } },
         },
         orderBy: { updatedAt: 'desc' },
       });
+
+      // Fetch WIP transactions for all tasks if myTasksOnly mode
+      let wipByTask = new Map<string, number>();
+      if (myTasksOnly && tasks.length > 0) {
+        const gsTaskIDs = tasks.map(t => t.GSTaskID).filter(Boolean) as string[];
+        
+        if (gsTaskIDs.length > 0) {
+          const wipTransactions = await prisma.wIPTransactions.findMany({
+            where: { GSTaskID: { in: gsTaskIDs } },
+            select: { GSTaskID: true, Amount: true, TType: true },
+          });
+
+          // Calculate WIP balance per task
+          const wipAggregation = new Map<string, { time: number; adjustments: number; disbursements: number; fees: number; provision: number }>();
+          
+          wipTransactions.forEach((transaction) => {
+            const gsTaskID = transaction.GSTaskID;
+            if (!wipAggregation.has(gsTaskID)) {
+              wipAggregation.set(gsTaskID, { time: 0, adjustments: 0, disbursements: 0, fees: 0, provision: 0 });
+            }
+            
+            const agg = wipAggregation.get(gsTaskID)!;
+            const amount = transaction.Amount || 0;
+            const category = categorizeTransaction(transaction.TType);
+
+            if (category.isProvision) {
+              agg.provision += amount;
+            } else if (category.isFee) {
+              agg.fees += amount;
+            } else if (category.isAdjustment) {
+              agg.adjustments += amount;
+            } else if (category.isTime) {
+              agg.time += amount;
+            } else if (category.isDisbursement) {
+              agg.disbursements += amount;
+            }
+          });
+
+          // Calculate net WIP for each task
+          wipAggregation.forEach((agg, gsTaskID) => {
+            const grossWip = agg.time + agg.adjustments + agg.disbursements - agg.fees;
+            const netWip = grossWip + agg.provision;
+            wipByTask.set(gsTaskID, netWip);
+          });
+        }
+      }
 
       const partnerCodes = [...new Set(tasks.map(t => t.TaskPartner).filter(Boolean))];
       const managerCodes = [...new Set(tasks.map(t => t.TaskManager).filter(Boolean))];
@@ -354,6 +402,13 @@ export const GET = secureRoute.query({
         const isManager = userEmpCodes.includes(task.TaskManager);
         const isUserInvolved = isTeamMember || isPartner || isManager;
 
+        // Get Net WIP from calculated wipByTask map (myTasksOnly mode)
+        let wipData = null;
+        if (myTasksOnly) {
+          const netWip = task.GSTaskID ? (wipByTask.get(task.GSTaskID) ?? 0) : 0;
+          wipData = { netWip };
+        }
+
         return {
           id: task.id,
           name: task.TaskDesc,
@@ -369,6 +424,7 @@ export const GET = secureRoute.query({
           team: task.TaskTeam.map(member => ({ userId: member.userId, role: member.role, name: member.User.name, email: member.User.email })),
           userRole,
           isUserInvolved,
+          wip: wipData,
           createdAt: task.createdAt,
           updatedAt: task.updatedAt,
         };

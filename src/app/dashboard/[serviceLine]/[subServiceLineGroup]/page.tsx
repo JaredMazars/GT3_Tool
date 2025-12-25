@@ -1244,11 +1244,12 @@ export default function SubServiceLineWorkspacePage() {
                 <div className="overflow-x-auto">
                   <table className="w-full" style={{ tableLayout: 'fixed' }}>
                     <colgroup>
-                      <col style={{ width: '35%' }} />
-                      <col style={{ width: '25%' }} />
+                      <col style={{ width: activeTab === 'my-tasks' ? '30%' : '35%' }} />
+                      <col style={{ width: activeTab === 'my-tasks' ? '20%' : '25%' }} />
                       <col style={{ width: '15%' }} />
                       <col style={{ width: '15%' }} />
-                      <col style={{ width: '10%' }} />
+                      {activeTab === 'my-tasks' && <col style={{ width: '12%' }} />}
+                      <col style={{ width: activeTab === 'my-tasks' ? '8%' : '10%' }} />
                     </colgroup>
                     <thead>
                       <tr style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}>
@@ -1264,6 +1265,11 @@ export default function SubServiceLineWorkspacePage() {
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                           Manager
                         </th>
+                        {activeTab === 'my-tasks' && (
+                          <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-white uppercase tracking-wider">
+                            WIP Balance
+                          </th>
+                        )}
                         <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">
                           Actions
                         </th>
@@ -1313,6 +1319,18 @@ export default function SubServiceLineWorkspacePage() {
                                 {task.taskManagerName || task.taskManager || '-'}
                               </div>
                             </td>
+                            {activeTab === 'my-tasks' && (
+                              <td className="px-6 py-4 text-right">
+                                <span className="text-sm font-semibold text-forvis-blue-600">
+                                  {new Intl.NumberFormat('en-ZA', {
+                                    style: 'currency',
+                                    currency: 'ZAR',
+                                    minimumFractionDigits: 0,
+                                    maximumFractionDigits: 0,
+                                  }).format(task.wip?.netWip ?? 0)}
+                                </span>
+                              </td>
+                            )}
                             <td className="px-6 py-4 text-center">
                               <Link
                                 href={task.client?.GSClientID 

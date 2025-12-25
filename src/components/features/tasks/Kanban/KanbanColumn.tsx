@@ -64,7 +64,7 @@ export function KanbanColumn({
           </div>
         </div>
 
-        {!isCollapsed && <KanbanMetrics metrics={column.metrics} />}
+        {!isCollapsed && <KanbanMetrics metrics={column.metrics} myTasksOnly={myTasksOnly} />}
       </div>
 
       {/* Column Content */}

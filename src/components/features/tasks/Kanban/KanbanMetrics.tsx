@@ -2,7 +2,7 @@
 
 import { KanbanMetricsProps } from './types';
 
-export function KanbanMetrics({ metrics }: KanbanMetricsProps) {
+export function KanbanMetrics({ metrics, myTasksOnly = false }: KanbanMetricsProps) {
   const hasPartialLoad = metrics.loaded !== undefined && metrics.loaded < metrics.count;
   
   return (
@@ -12,7 +12,7 @@ export function KanbanMetrics({ metrics }: KanbanMetricsProps) {
         <span className="text-white opacity-90">Tasks</span>
         <div className="flex flex-col items-end">
           <span className="font-semibold text-white">{metrics.count}</span>
-          {hasPartialLoad && (
+          {!myTasksOnly && hasPartialLoad && (
             <span className="text-white opacity-75 text-[10px]">
               (showing {metrics.loaded})
             </span>

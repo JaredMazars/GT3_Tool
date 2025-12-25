@@ -14,6 +14,7 @@ import { getUserSubServiceLineGroups } from '@/lib/services/service-lines/servic
 import { logger } from '@/lib/utils/logger';
 import { secureRoute } from '@/lib/api/secureRoute';
 import { TaskStage } from '@/types/task-stages';
+import { categorizeTransaction } from '@/lib/services/clients/clientBalanceCalculation';
 
 // Zod schema for GET query params validation
 const TaskListQuerySchema = z.object({
@@ -251,6 +252,7 @@ export const GET = secureRoute.query({
         select: {
           id: true,
           GSClientID: true,
+          GSTaskID: myTasksOnly, // Include GSTaskID for WIP lookup when myTasksOnly is true
           TaskDesc: true,
           TaskCode: true,
           ServLineCode: true,
@@ -279,6 +281,52 @@ export const GET = secureRoute.query({
         },
       }),
     ]);
+
+    // Fetch WIP transactions for all tasks if myTasksOnly mode
+    let wipByTask = new Map<string, number>();
+    if (myTasksOnly && tasks.length > 0) {
+      const gsTaskIDs = tasks.map(t => t.GSTaskID).filter(Boolean) as string[];
+      
+      if (gsTaskIDs.length > 0) {
+        const wipTransactions = await prisma.wIPTransactions.findMany({
+          where: { GSTaskID: { in: gsTaskIDs } },
+          select: { GSTaskID: true, Amount: true, TType: true },
+        });
+
+        // Calculate WIP balance per task
+        const wipAggregation = new Map<string, { time: number; adjustments: number; disbursements: number; fees: number; provision: number }>();
+        
+        wipTransactions.forEach((transaction) => {
+          const gsTaskID = transaction.GSTaskID;
+          if (!wipAggregation.has(gsTaskID)) {
+            wipAggregation.set(gsTaskID, { time: 0, adjustments: 0, disbursements: 0, fees: 0, provision: 0 });
+          }
+          
+          const agg = wipAggregation.get(gsTaskID)!;
+          const amount = transaction.Amount || 0;
+          const category = categorizeTransaction(transaction.TType);
+
+          if (category.isProvision) {
+            agg.provision += amount;
+          } else if (category.isFee) {
+            agg.fees += amount;
+          } else if (category.isAdjustment) {
+            agg.adjustments += amount;
+          } else if (category.isTime) {
+            agg.time += amount;
+          } else if (category.isDisbursement) {
+            agg.disbursements += amount;
+          }
+        });
+
+        // Calculate net WIP for each task
+        wipAggregation.forEach((agg, gsTaskID) => {
+          const grossWip = agg.time + agg.adjustments + agg.disbursements - agg.fees;
+          const netWip = grossWip + agg.provision;
+          wipByTask.set(gsTaskID, netWip);
+        });
+      }
+    }
     
     const uniquePartnerCodes = [...new Set(tasks.map(t => t.TaskPartner).filter(Boolean))];
     const uniqueManagerCodes = [...new Set(tasks.map(t => t.TaskManager).filter(Boolean))];
@@ -291,32 +339,42 @@ export const GET = secureRoute.query({
     
     const employeeNameMap = new Map(employees.map(emp => [emp.EmpCode, emp.EmpName]));
     
-    const tasksWithCounts = tasks.map(task => ({
-      id: task.id,
-      name: task.TaskDesc,
-      taskCode: task.TaskCode,
-      description: null,
-      serviceLine: task.ServLineCode,
-      status: task.Active === 'Yes' ? 'ACTIVE' : 'INACTIVE',
-      archived: task.Active !== 'Yes',
-      clientId: task.Client?.id || null,
-      GSClientID: task.GSClientID,
-      taxYear: null,
-      taskPartner: task.TaskPartner,
-      taskPartnerName: employeeNameMap.get(task.TaskPartner) || task.TaskPartnerName,
-      taskManager: task.TaskManager,
-      taskManagerName: employeeNameMap.get(task.TaskManager) || task.TaskManagerName,
-      createdAt: task.createdAt.toISOString(),
-      updatedAt: task.updatedAt.toISOString(),
-      client: task.Client ? {
-        id: task.Client.id,
-        GSClientID: task.Client.GSClientID,
-        clientNameFull: task.Client.clientNameFull,
-        clientCode: task.Client.clientCode,
-      } : null,
-      userRole: myTasksOnly && 'TaskTeam' in task ? (task.TaskTeam as Array<{role: string}>)[0]?.role || null : null,
-      canAccess: true,
-    }));
+    const tasksWithCounts = tasks.map(task => {
+      // Get Net WIP from calculated wipByTask map (myTasksOnly mode)
+      let wipData = null;
+      if (myTasksOnly) {
+        const netWip = task.GSTaskID ? (wipByTask.get(task.GSTaskID) ?? 0) : 0;
+        wipData = { netWip };
+      }
+
+      return {
+        id: task.id,
+        name: task.TaskDesc,
+        taskCode: task.TaskCode,
+        description: null,
+        serviceLine: task.ServLineCode,
+        status: task.Active === 'Yes' ? 'ACTIVE' : 'INACTIVE',
+        archived: task.Active !== 'Yes',
+        clientId: task.Client?.id || null,
+        GSClientID: task.GSClientID,
+        taxYear: null,
+        taskPartner: task.TaskPartner,
+        taskPartnerName: employeeNameMap.get(task.TaskPartner) || task.TaskPartnerName,
+        taskManager: task.TaskManager,
+        taskManagerName: employeeNameMap.get(task.TaskManager) || task.TaskManagerName,
+        createdAt: task.createdAt.toISOString(),
+        updatedAt: task.updatedAt.toISOString(),
+        client: task.Client ? {
+          id: task.Client.id,
+          GSClientID: task.Client.GSClientID,
+          clientNameFull: task.Client.clientNameFull,
+          clientCode: task.Client.clientCode,
+        } : null,
+        userRole: myTasksOnly && 'TaskTeam' in task ? (task.TaskTeam as Array<{role: string}>)[0]?.role || null : null,
+        wip: wipData,
+        canAccess: true,
+      };
+    });
     
     const responseData = {
       tasks: tasksWithCounts,

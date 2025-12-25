@@ -116,7 +116,7 @@ export function KanbanCard({ task, displayMode, canDrag, onClick }: KanbanCardPr
 
       {/* Team Members - moved to where dates were */}
       {task.team.length > 0 && (
-        <div className={`flex items-center gap-1.5 ${displayMode === 'compact' ? 'mb-0' : 'mb-0'}`}>
+        <div className={`flex items-center gap-1.5 ${displayMode === 'compact' ? 'mb-0' : task.wip?.netWip !== undefined ? 'mb-2' : 'mb-0'}`}>
           <Users className={`text-forvis-gray-500 flex-shrink-0 ${
             displayMode === 'compact' ? 'h-2.5 w-2.5' : 'h-3 w-3'
           }`} />
@@ -146,6 +146,34 @@ export function KanbanCard({ task, displayMode, canDrag, onClick }: KanbanCardPr
                 +{task.team.length - (displayMode === 'compact' ? 2 : 5)}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* WIP Balance - Only shown in My Tasks view (when wip property exists, even if 0) */}
+      {task.wip !== undefined && task.wip !== null && (
+        <div 
+          className={`rounded border border-forvis-blue-100 ${
+            displayMode === 'compact' ? 'mt-1 px-1.5 py-1' : 'mt-2 px-2 py-1.5'
+          }`}
+          style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+        >
+          <div className="flex items-center justify-between">
+            <span className={`font-medium text-forvis-gray-600 uppercase tracking-wider ${
+              displayMode === 'compact' ? 'text-[8px]' : 'text-[9px]'
+            }`}>
+              WIP Balance
+            </span>
+            <span className={`font-semibold text-forvis-blue-600 ${
+              displayMode === 'compact' ? 'text-[9px]' : 'text-xs'
+            }`}>
+              {new Intl.NumberFormat('en-ZA', {
+                style: 'currency',
+                currency: 'ZAR',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0,
+              }).format(task.wip.netWip ?? 0)}
+            </span>
           </div>
         </div>
       )}
