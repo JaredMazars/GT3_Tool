@@ -78,16 +78,23 @@ export function KanbanBoard({
   // Update task stage mutation
   const updateStageMutation = useUpdateTaskStage();
 
-  // Check if user can drag (has SUPERVISOR role or higher on at least one task)
+  // Check if user can drag
+  // For myTasksOnly view: allow if user is involved with any task (partner/manager/team member)
+  // For all tasks view: require SUPERVISOR role or higher
   const canDrag = useMemo(() => {
     if (!data?.columns) return false;
     
     return data.columns.some(column =>
-      column.tasks.some(task => 
-        task.userRole && hasServiceLineRole(task.userRole, 'SUPERVISOR')
-      )
+      column.tasks.some(task => {
+        // In My Tasks view, allow drag if user is involved with the task
+        if (myTasksOnly && task.isUserInvolved) {
+          return true;
+        }
+        // Otherwise, require SUPERVISOR role or higher
+        return task.userRole && hasServiceLineRole(task.userRole, 'SUPERVISOR');
+      })
     );
-  }, [data]);
+  }, [data, myTasksOnly]);
 
   // Filter options are now provided by parent through TasksFilters component
   // No need for client-side extraction
@@ -182,8 +189,13 @@ export function KanbanBoard({
     }
 
     // Validation 6: Check user permissions
-    // Only users with SUPERVISOR role or higher can move tasks
-    if (!task.userRole || !hasServiceLineRole(task.userRole, 'SUPERVISOR')) {
+    // In My Tasks view: allow if user is involved with the task (partner/manager/team member)
+    // In all tasks view: require SUPERVISOR role or higher
+    const canMoveTask = myTasksOnly 
+      ? task.isUserInvolved 
+      : (task.userRole && hasServiceLineRole(task.userRole, 'SUPERVISOR'));
+    
+    if (!canMoveTask) {
       setActiveTask(null);
       return;
     }
@@ -207,7 +219,7 @@ export function KanbanBoard({
               .find(t => t.id === taskId);
             
             if (taskToMove) {
-              const newTasks = [...filteredTasks, { ...taskToMove, stage: newStage }];
+              const newTasks = [{ ...taskToMove, stage: newStage }, ...filteredTasks];
               const newTaskCount = newTasks.length;
               const newLoaded = column.metrics.loaded !== undefined
                 ? Math.min(newTaskCount, column.totalCount)
@@ -349,17 +361,26 @@ export function KanbanBoard({
             }}
           >
             <div className="flex gap-3 h-full w-full">
-              {data.columns.map(column => (
-                <KanbanColumn
-                  key={column.stage}
-                  column={column}
-                  isCollapsed={collapsedColumns.has(column.stage)}
-                  onToggleCollapse={() => toggleColumnCollapse(column.stage)}
-                  canDrag={canDrag && column.stage !== TaskStage.ARCHIVED}
-                  displayMode={displayMode}
-                  onTaskClick={handleTaskClick}
-                />
-              ))}
+              {data.columns.map(column => {
+                // In My Tasks view, allow dragging from ARCHIVED if user is involved with tasks
+                // Otherwise, disable dragging from ARCHIVED column
+                const columnCanDrag = column.stage === TaskStage.ARCHIVED
+                  ? canDrag && myTasksOnly // Only allow in My Tasks view
+                  : canDrag;
+                
+                return (
+                  <KanbanColumn
+                    key={column.stage}
+                    column={column}
+                    isCollapsed={collapsedColumns.has(column.stage)}
+                    onToggleCollapse={() => toggleColumnCollapse(column.stage)}
+                    canDrag={columnCanDrag}
+                    myTasksOnly={myTasksOnly}
+                    displayMode={displayMode}
+                    onTaskClick={handleTaskClick}
+                  />
+                );
+              })}
             </div>
           </div>
 

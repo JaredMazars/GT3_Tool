@@ -9,6 +9,7 @@ import { TaskStage } from '@/types/task-stages';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { logger } from '@/lib/utils/logger';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { hasServiceLineRole } from '@/lib/utils/roleHierarchy';
 import { z } from 'zod';
 
 // Zod schema for query params validation
@@ -146,7 +147,30 @@ export const GET = secureRoute.query({
     }
 
     if (myTasksOnly) {
-      where.TaskTeam = { some: { userId: user.id } };
+      // Get user's employee code(s) by matching email to Employee.WinLogon
+      const userEmail = user.email.toLowerCase();
+      const emailPrefix = userEmail.split('@')[0];
+      
+      const userEmployees = await prisma.employee.findMany({
+        where: {
+          OR: [
+            { WinLogon: { equals: userEmail } },
+            { WinLogon: { startsWith: `${emailPrefix}@` } },
+          ],
+        },
+        select: { EmpCode: true },
+      });
+      
+      const empCodes = userEmployees.map(e => e.EmpCode);
+      
+      // Include tasks where user is team member, partner, or manager
+      where.OR = [
+        { TaskTeam: { some: { userId: user.id } } },
+        ...(empCodes.length > 0 ? [
+          { TaskPartner: { in: empCodes } },
+          { TaskManager: { in: empCodes } },
+        ] : []),
+      ];
     }
 
     const hasFilters = !!(
@@ -172,7 +196,10 @@ export const GET = secureRoute.query({
       ? Prisma.sql`t.ServLineCode IN (${Prisma.join(servLineCodes.map(code => Prisma.sql`${code}`))})` 
       : Prisma.sql`1=1`;
     
-    const activeFilter = !includeArchived ? Prisma.sql`AND t.Active = 'Yes'` : Prisma.empty;
+    // ALWAYS filter for Active = 'Yes' in main stage query
+    // Inactive tasks are handled separately and placed in ARCHIVED column
+    const activeFilter = Prisma.sql`AND t.Active = 'Yes'`;
+    
     const partnerFilter = partnerCodes.length > 0
       ? Prisma.sql`AND t.TaskPartner IN (${Prisma.join(partnerCodes.map(p => Prisma.sql`${p}`))})`
       : Prisma.empty;
@@ -188,9 +215,46 @@ export const GET = secureRoute.query({
     const searchFilter = search
       ? Prisma.sql`AND (t.TaskDesc LIKE ${`%${search}%`} OR t.TaskCode LIKE ${`%${search}%`})`
       : Prisma.empty;
-    const myTasksFilter = myTasksOnly
-      ? Prisma.sql`AND EXISTS (SELECT 1 FROM TaskTeam tt WHERE tt.taskId = t.id AND tt.userId = ${user.id})`
-      : Prisma.empty;
+    
+    // Build myTasksFilter - must check TaskTeam, TaskPartner, and TaskManager
+    let myTasksFilter = Prisma.empty;
+    if (myTasksOnly) {
+      // Get user's employee code(s) by matching email to Employee.WinLogon
+      const userEmail = user.email.toLowerCase();
+      const emailPrefix = userEmail.split('@')[0];
+      
+      const userEmployees = await prisma.employee.findMany({
+        where: {
+          OR: [
+            { WinLogon: { equals: userEmail } },
+            { WinLogon: { startsWith: `${emailPrefix}@` } },
+          ],
+        },
+        select: { EmpCode: true },
+      });
+      
+      const empCodes = userEmployees.map(e => e.EmpCode);
+      
+      // Add myTasksOnly filter to WHERE object (for archived Prisma query)
+      where.OR = [
+        { TaskTeam: { some: { userId: user.id } } },
+        ...(empCodes.length > 0 ? [
+          { TaskPartner: { in: empCodes } },
+          { TaskManager: { in: empCodes } },
+        ] : []),
+      ];
+      
+      // Include tasks where user is team member, partner, or manager (for raw SQL query)
+      if (empCodes.length > 0) {
+        myTasksFilter = Prisma.sql`AND (
+          EXISTS (SELECT 1 FROM TaskTeam tt WHERE tt.taskId = t.id AND tt.userId = ${user.id})
+          OR t.TaskPartner IN (${Prisma.join(empCodes.map(code => Prisma.sql`${code}`))})
+          OR t.TaskManager IN (${Prisma.join(empCodes.map(code => Prisma.sql`${code}`))})
+        )`;
+      } else {
+        myTasksFilter = Prisma.sql`AND EXISTS (SELECT 1 FROM TaskTeam tt WHERE tt.taskId = t.id AND tt.userId = ${user.id})`;
+      }
+    }
 
     const tasksWithLatestStage = await prisma.$queryRaw<Array<{ id: number; latestStage: string | null }>>`
       WITH LatestStages AS (
@@ -255,10 +319,40 @@ export const GET = secureRoute.query({
 
       const employeeNameMap = new Map(employees.map(emp => [emp.EmpCode, emp.EmpName]));
 
+      // Get user's employee codes for checking if they're partner or manager
+      const userEmail = user.email.toLowerCase();
+      const emailPrefix = userEmail.split('@')[0];
+      const userEmployees = await prisma.employee.findMany({
+        where: {
+          OR: [
+            { WinLogon: { equals: userEmail } },
+            { WinLogon: { startsWith: `${emailPrefix}@` } },
+          ],
+        },
+        select: { EmpCode: true },
+      });
+      const userEmpCodes = userEmployees.map(e => e.EmpCode);
+
       const transformedTasks = tasks.map(task => {
         const currentStage = task.TaskStage.length > 0 ? task.TaskStage[0]?.stage ?? TaskStage.ENGAGE : TaskStage.ENGAGE;
         const taskTeamRole = task.TaskTeam.find(member => member.userId === user.id)?.role;
-        const userRole = taskTeamRole || userServiceLineRole;
+        
+        // Use the higher of the two roles to ensure users get maximum privilege
+        const userRole = (() => {
+          if (!taskTeamRole) return userServiceLineRole;
+          if (!userServiceLineRole) return taskTeamRole;
+          
+          // Both exist - return the higher role
+          return hasServiceLineRole(taskTeamRole, userServiceLineRole) 
+            ? taskTeamRole 
+            : userServiceLineRole;
+        })();
+
+        // Check if user is involved with this task (partner, manager, or team member)
+        const isTeamMember = task.TaskTeam.some(member => member.userId === user.id);
+        const isPartner = userEmpCodes.includes(task.TaskPartner);
+        const isManager = userEmpCodes.includes(task.TaskManager);
+        const isUserInvolved = isTeamMember || isPartner || isManager;
 
         return {
           id: task.id,
@@ -274,6 +368,7 @@ export const GET = secureRoute.query({
           client: task.Client ? { id: task.Client.id, GSClientID: task.Client.GSClientID, code: task.Client.clientCode, name: task.Client.clientNameFull } : null,
           team: task.TaskTeam.map(member => ({ userId: member.userId, role: member.role, name: member.User.name, email: member.User.email })),
           userRole,
+          isUserInvolved,
           createdAt: task.createdAt,
           updatedAt: task.updatedAt,
         };

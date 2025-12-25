@@ -129,7 +129,30 @@ export const GET = secureRoute.query({
     const where: Prisma.TaskWhereInput = {};
 
     if (myTasksOnly) {
-      where.TaskTeam = { some: { userId: user.id } };
+      // Get user's employee code(s) by matching email to Employee.WinLogon
+      const userEmail = user.email.toLowerCase();
+      const emailPrefix = userEmail.split('@')[0];
+      
+      const userEmployees = await prisma.employee.findMany({
+        where: {
+          OR: [
+            { WinLogon: { equals: userEmail } },
+            { WinLogon: { startsWith: `${emailPrefix}@` } },
+          ],
+        },
+        select: { EmpCode: true },
+      });
+      
+      const empCodes = userEmployees.map(e => e.EmpCode);
+      
+      // Include tasks where user is team member, partner, or manager
+      where.OR = [
+        { TaskTeam: { some: { userId: user.id } } },
+        ...(empCodes.length > 0 ? [
+          { TaskPartner: { in: empCodes } },
+          { TaskManager: { in: empCodes } },
+        ] : []),
+      ];
     }
 
     if (!includeArchived) {

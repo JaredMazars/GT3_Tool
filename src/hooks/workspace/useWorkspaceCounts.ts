@@ -2,9 +2,9 @@
 
 import { useQuery } from '@tanstack/react-query';
 
-// Query Keys
+// Query Keys (v2: includes partner/manager tasks in myTasks count)
 export const workspaceCountsKeys = {
-  all: ['workspace-counts'] as const,
+  all: ['workspace-counts', 'v2'] as const,
   counts: (serviceLine: string, subServiceLineGroup: string) => 
     [...workspaceCountsKeys.all, serviceLine, subServiceLineGroup] as const,
 };

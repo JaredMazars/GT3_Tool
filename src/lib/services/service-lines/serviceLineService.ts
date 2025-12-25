@@ -153,9 +153,11 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
     const subGroupCodes = Array.from(new Set(subGroupAssignments.map(a => a.subServiceLineGroup)));
 
     // Map sub-groups to master codes
+    // CRITICAL FIX: Filter out rows where masterCode is NULL to ensure proper mapping
     const subGroupMapping = await prisma.serviceLineExternal.findMany({
       where: {
         SubServlineGroupCode: { in: subGroupCodes },
+        masterCode: { not: null }, // Only get rows with valid masterCode
       },
       select: {
         SubServlineGroupCode: true,

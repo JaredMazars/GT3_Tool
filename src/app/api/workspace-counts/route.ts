@@ -39,7 +39,8 @@ export const GET = secureRoute.query({
       return NextResponse.json({ success: false, error: 'serviceLine and subServiceLineGroup are required' }, { status: 400 });
     }
 
-    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}counts:${serviceLine}:${subServiceLineGroup}`;
+    // Cache key includes user ID to ensure counts are user-specific (partner/manager tasks)
+    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}counts:${serviceLine}:${subServiceLineGroup}:${user.id}`;
     const cached = await cache.get<WorkspaceCountsResponse>(cacheKey);
     if (cached) {
       return NextResponse.json(successResponse(cached));
@@ -47,11 +48,40 @@ export const GET = secureRoute.query({
 
     const servLineCodes = await getServLineCodesBySubGroup(subServiceLineGroup);
     
+    // Get user's employee code(s) to check for partner/manager tasks
+    const userEmail = user.email.toLowerCase();
+    const emailPrefix = userEmail.split('@')[0];
+    
+    const userEmployees = await prisma.employee.findMany({
+      where: {
+        OR: [
+          { WinLogon: { equals: userEmail } },
+          { WinLogon: { startsWith: `${emailPrefix}@` } },
+        ],
+      },
+      select: { EmpCode: true },
+    });
+    
+    const empCodes = userEmployees.map(e => e.EmpCode);
+    
     const [groupsCount, clientsCount, tasksCount, myTasksCount] = await Promise.all([
       prisma.client.groupBy({ by: ['groupCode'] }).then(r => r.length),
       prisma.client.count(),
       prisma.task.count({ where: { Active: 'Yes', ServLineCode: { in: servLineCodes } } }),
-      prisma.taskTeam.count({ where: { userId: user.id, Task: { Active: 'Yes', ServLineCode: { in: servLineCodes } } } }),
+      // Count tasks where user is team member, partner, or manager
+      prisma.task.count({
+        where: {
+          Active: 'Yes',
+          ServLineCode: { in: servLineCodes },
+          OR: [
+            { TaskTeam: { some: { userId: user.id } } },
+            ...(empCodes.length > 0 ? [
+              { TaskPartner: { in: empCodes } },
+              { TaskManager: { in: empCodes } },
+            ] : []),
+          ],
+        },
+      }),
     ]);
 
     const responseData: WorkspaceCountsResponse = {

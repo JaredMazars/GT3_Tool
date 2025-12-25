@@ -105,7 +105,7 @@ function updateTaskStageInCache(
         .find(task => task.id === taskId);
       
       if (taskToMove) {
-        const newTasks = [...filteredTasks, { ...taskToMove, stage: newStage }];
+        const newTasks = [{ ...taskToMove, stage: newStage }, ...filteredTasks];
         const newTaskCount = newTasks.length;
         const newLoaded = column.metrics.loaded !== undefined 
           ? Math.min(newTaskCount, column.totalCount)

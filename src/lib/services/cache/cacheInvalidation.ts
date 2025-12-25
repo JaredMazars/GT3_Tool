@@ -19,7 +19,7 @@ export async function invalidateTaskCache(taskId: number): Promise<void> {
     ]);
     logger.debug('Task cache invalidated', { taskId });
   } catch (error) {
-    logger.error('Failed to invalidate task cache', { taskId, error });
+    // Silent fail - cache invalidation errors are not critical
   }
 }
 
@@ -31,7 +31,7 @@ export async function invalidateClientCache(clientId: number | string): Promise<
     await cache.invalidate(`${CACHE_PREFIXES.CLIENT}${clientId}`);
     logger.debug('Client cache invalidated', { clientId });
   } catch (error) {
-    logger.error('Failed to invalidate client cache', { clientId, error });
+    // Silent fail - cache invalidation errors are not critical
   }
 }
 
@@ -52,7 +52,7 @@ export async function invalidateWorkspaceCounts(
     }
     logger.debug('Workspace counts cache invalidated', { serviceLine, subServiceLineGroup });
   } catch (error) {
-    logger.error('Failed to invalidate workspace counts cache', { serviceLine, subServiceLineGroup, error });
+    // Silent fail - cache invalidation errors are not critical
   }
 }
 
@@ -68,7 +68,7 @@ export async function invalidateStandardTasksCache(serviceLine?: string): Promis
     }
     logger.debug('Standard tasks cache invalidated', { serviceLine });
   } catch (error) {
-    logger.error('Failed to invalidate standard tasks cache', { serviceLine, error });
+    // Silent fail - cache invalidation errors are not critical
   }
 }
 
@@ -95,7 +95,7 @@ export async function invalidateServiceLineCache(
     await Promise.all(promises);
     logger.debug('Service line cache invalidated', { masterCode, subGroupCode });
   } catch (error) {
-    logger.error('Failed to invalidate service line cache', { masterCode, subGroupCode, error });
+    // Silent fail - cache invalidation errors are not critical
   }
 }
 
@@ -110,7 +110,7 @@ export async function invalidateUserCache(userId: string): Promise<void> {
     ]);
     logger.debug('User cache invalidated', { userId });
   } catch (error) {
-    logger.error('Failed to invalidate user cache', { userId, error });
+    // Silent fail - cache invalidation errors are not critical
   }
 }
 
@@ -131,7 +131,7 @@ export async function invalidateAnalyticsCache(
     }
     logger.debug('Analytics cache invalidated', { clientId, type });
   } catch (error) {
-    logger.error('Failed to invalidate analytics cache', { clientId, type, error });
+    // Silent fail - cache invalidation errors are not critical
   }
 }
 
@@ -151,7 +151,7 @@ export async function invalidateOnTaskMutation(
     ]);
     logger.debug('Task mutation caches invalidated', { taskId, serviceLine, subServiceLineGroup });
   } catch (error) {
-    logger.error('Failed to invalidate task mutation caches', { taskId, error });
+    // Silent fail - cache invalidation errors are not critical
   }
 }
 
@@ -170,7 +170,7 @@ export async function invalidateOnClientMutation(
     ]);
     logger.debug('Client mutation caches invalidated', { clientId });
   } catch (error) {
-    logger.error('Failed to invalidate client mutation caches', { clientId, error });
+    // Silent fail - cache invalidation errors are not critical
   }
 }
 
@@ -183,7 +183,7 @@ export async function invalidateUserServiceLines(userId: string): Promise<void> 
     await cache.delete(`${CACHE_PREFIXES.SERVICE_LINE}user:${userId}`);
     logger.info('Invalidated user service line cache', { userId });
   } catch (error) {
-    logger.error('Failed to invalidate user service line cache', { userId, error });
+    // Silent fail - cache invalidation errors are not critical
   }
 }
 
@@ -196,7 +196,7 @@ export async function invalidateSubGroupsCache(masterCode: string): Promise<void
     await cache.delete(`${CACHE_PREFIXES.SERVICE_LINE}subgroups:${masterCode}`);
     logger.debug('Invalidated subgroups cache', { masterCode });
   } catch (error) {
-    logger.error('Failed to invalidate subgroups cache', { masterCode, error });
+    // Silent fail - cache invalidation errors are not critical
   }
 }
 
@@ -220,7 +220,7 @@ export async function invalidateOnServiceLineAccessMutation(
     await Promise.all(promises);
     logger.debug('Service line access mutation caches invalidated', { userId, masterCode });
   } catch (error) {
-    logger.error('Failed to invalidate service line access mutation caches', { userId, masterCode, error });
+    // Silent fail - cache invalidation errors are not critical
   }
 }
 
@@ -237,7 +237,7 @@ export async function invalidateGroupCache(groupCode: string): Promise<void> {
     ]);
     logger.debug('Group cache invalidated', { groupCode });
   } catch (error) {
-    logger.error('Failed to invalidate group cache', { groupCode, error });
+    // Silent fail - cache invalidation errors are not critical
   }
 }
 
@@ -256,7 +256,7 @@ export async function invalidateOnGroupMutation(
     ]);
     logger.debug('Group mutation caches invalidated', { groupCode });
   } catch (error) {
-    logger.error('Failed to invalidate group mutation caches', { groupCode, error });
+    // Silent fail - cache invalidation errors are not critical
   }
 }
 

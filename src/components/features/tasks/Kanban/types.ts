@@ -24,6 +24,7 @@ export interface KanbanTask {
     email: string;
   }[];
   userRole: string | null;
+  isUserInvolved: boolean; // True if user is partner, manager, or team member
   createdAt: Date | string;
   updatedAt: Date | string;
 }
@@ -81,6 +82,7 @@ export interface KanbanColumnProps {
   isCollapsed: boolean;
   onToggleCollapse: () => void;
   canDrag: boolean;
+  myTasksOnly: boolean;
   displayMode: CardDisplayMode;
   onTaskClick?: (taskId: number) => void;
 }

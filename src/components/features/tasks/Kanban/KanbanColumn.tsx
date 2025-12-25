@@ -7,12 +7,14 @@ import { KanbanColumnProps } from './types';
 import { KanbanCard } from './KanbanCard';
 import { KanbanMetrics } from './KanbanMetrics';
 import { formatTaskStage, getTaskStageColor } from '@/lib/utils/taskStages';
+import { hasServiceLineRole } from '@/lib/utils/roleHierarchy';
 
 export function KanbanColumn({
   column,
   isCollapsed,
   onToggleCollapse,
   canDrag,
+  myTasksOnly,
   displayMode,
   onTaskClick,
 }: KanbanColumnProps) {
@@ -79,15 +81,27 @@ export function KanbanColumn({
                   No tasks in this stage
                 </div>
               ) : (
-                column.tasks.map(task => (
-                  <KanbanCard
-                    key={task.id}
-                    task={task}
-                    displayMode={displayMode}
-                    canDrag={canDrag}
-                    onClick={() => onTaskClick?.(task.id)}
-                  />
-                ))
+                column.tasks.map(task => {
+                  // Calculate per-task drag permission
+                  const taskCanDrag = Boolean(canDrag && (() => {
+                    // In My Tasks view, allow drag if user is involved with the task
+                    if (myTasksOnly && task.isUserInvolved) {
+                      return true;
+                    }
+                    // Otherwise, require SUPERVISOR role or higher
+                    return task.userRole && hasServiceLineRole(task.userRole, 'SUPERVISOR');
+                  })());
+
+                  return (
+                    <KanbanCard
+                      key={task.id}
+                      task={task}
+                      displayMode={displayMode}
+                      canDrag={taskCanDrag}
+                      onClick={() => onTaskClick?.(task.id)}
+                    />
+                  );
+                })
               )}
             </div>
           </SortableContext>
