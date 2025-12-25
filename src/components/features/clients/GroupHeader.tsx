@@ -52,7 +52,7 @@ export function GroupHeader({ groupCode, groupDesc, clientCount }: GroupHeaderPr
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">WIP Balance</p>
-                    <p className="text-2xl font-bold mt-2 text-forvis-blue-600">{formatCurrency(wipData.overall.balWIP + wipData.overall.wipProvision)}</p>
+                    <p className="text-2xl font-bold mt-2 text-forvis-blue-600">{formatCurrency(wipData.overall.balWIP)}</p>
                   </div>
                   <div
                     className="rounded-full p-2.5 ml-3"

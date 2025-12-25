@@ -27,12 +27,15 @@ interface ProfitabilityMetrics {
   wipProvision: number;
   ltdTime: number;
   ltdDisb: number;
+  ltdAdj: number; // Merged adjustments
+  ltdFee: number; // Merged fees
+  ltdHours: number;
+  taskCount: number;
+  // Legacy fields for backwards compatibility
   ltdAdjTime: number;
   ltdAdjDisb: number;
   ltdFeeTime: number;
   ltdFeeDisb: number;
-  ltdHours: number;
-  taskCount: number;
 }
 
 /**
@@ -40,21 +43,19 @@ interface ProfitabilityMetrics {
  */
 function calculateProfitabilityMetrics(data: {
   ltdTime: number;
-  ltdAdjTime: number;
-  ltdAdjDisb: number;
+  ltdAdj: number;
   ltdCost: number;
   balWIP: number;
   balTime: number;
   balDisb: number;
   wipProvision: number;
   ltdDisb: number;
-  ltdFeeTime: number;
-  ltdFeeDisb: number;
+  ltdFee: number;
   ltdHours: number;
   taskCount: number;
 }): ProfitabilityMetrics {
   const grossProduction = data.ltdTime + data.ltdDisb;
-  const ltdAdjustment = data.ltdAdjTime + data.ltdAdjDisb;
+  const ltdAdjustment = data.ltdAdj;
   const netRevenue = grossProduction + ltdAdjustment;
   const adjustmentPercentage = grossProduction !== 0 ? (ltdAdjustment / grossProduction) * 100 : 0;
   const grossProfit = netRevenue - data.ltdCost;
@@ -78,12 +79,15 @@ function calculateProfitabilityMetrics(data: {
     wipProvision: data.wipProvision,
     ltdTime: data.ltdTime,
     ltdDisb: data.ltdDisb,
-    ltdAdjTime: data.ltdAdjTime,
-    ltdAdjDisb: data.ltdAdjDisb,
-    ltdFeeTime: data.ltdFeeTime,
-    ltdFeeDisb: data.ltdFeeDisb,
+    ltdAdj: data.ltdAdj,
+    ltdFee: data.ltdFee,
     ltdHours: data.ltdHours,
     taskCount: data.taskCount,
+    // Legacy fields for backwards compatibility - set to 0
+    ltdAdjTime: 0,
+    ltdAdjDisb: 0,
+    ltdFeeTime: 0,
+    ltdFeeDisb: 0,
   };
 }
 
@@ -142,7 +146,6 @@ export const GET = secureRoute.queryWithParams({
           Cost: true,
           Hour: true,
           TType: true,
-          TranType: true,
           EmpCode: true,
           updatedAt: true,
         },

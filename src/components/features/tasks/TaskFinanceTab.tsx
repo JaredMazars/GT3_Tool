@@ -285,6 +285,27 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
           className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100 cursor-pointer hover:shadow-lg transition-shadow"
           style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
           onMouseEnter={handleCardHover}
+          onClick={() => handleCardClick('balWIP', 'WIP Balance', metrics.balWIP)}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">WIP Balance</p>
+              <p className="text-2xl font-bold mt-2 text-pink-600">{formatCurrency(metrics.balWIP)}</p>
+              <p className="text-xs text-forvis-gray-500 mt-1">Net WIP (incl. provisions)</p>
+            </div>
+            <div
+              className="rounded-full p-2.5"
+              style={{ background: 'linear-gradient(to bottom right, #EC4899, #DB2777)' }}
+            >
+              <Briefcase className="w-5 h-5 text-white" />
+            </div>
+          </div>
+        </div>
+
+        <div 
+          className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100 cursor-pointer hover:shadow-lg transition-shadow"
+          style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+          onMouseEnter={handleCardHover}
           onClick={() => handleCardClick('grossProfitPercentage', 'Gross Profit %', metrics.grossProfitPercentage)}
         >
           <div className="flex items-center justify-between">
@@ -441,30 +462,18 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
           {/* Additional Details */}
           <div>
             <h3 className="text-md font-bold text-forvis-gray-900 mb-4">Additional Metrics</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <ProfitabilityCard 
-                label="LTD Adj Time" 
-                value={metrics.ltdAdjTime}
-                onClick={() => handleCardClick('ltdAdjTime', 'LTD Adj Time', metrics.ltdAdjTime)}
-                metricType="ltdAdjTime"
+                label="LTD Adjustments" 
+                value={metrics.ltdAdj}
+                onClick={() => handleCardClick('ltdAdj', 'LTD Adjustments', metrics.ltdAdj)}
+                metricType="ltdAdj"
               />
               <ProfitabilityCard 
-                label="LTD Adj Disb" 
-                value={metrics.ltdAdjDisb}
-                onClick={() => handleCardClick('ltdAdjDisb', 'LTD Adj Disb', metrics.ltdAdjDisb)}
-                metricType="ltdAdjDisb"
-              />
-              <ProfitabilityCard 
-                label="LTD Fee Time" 
-                value={metrics.ltdFeeTime}
-                onClick={() => handleCardClick('ltdFeeTime', 'LTD Fee Time', metrics.ltdFeeTime)}
-                metricType="ltdFeeTime"
-              />
-              <ProfitabilityCard 
-                label="LTD Fee Disb" 
-                value={metrics.ltdFeeDisb}
-                onClick={() => handleCardClick('ltdFeeDisb', 'LTD Fee Disb', metrics.ltdFeeDisb)}
-                metricType="ltdFeeDisb"
+                label="LTD Fees" 
+                value={metrics.ltdFee}
+                onClick={() => handleCardClick('ltdFee', 'LTD Fees', metrics.ltdFee)}
+                metricType="ltdFee"
               />
             </div>
           </div>

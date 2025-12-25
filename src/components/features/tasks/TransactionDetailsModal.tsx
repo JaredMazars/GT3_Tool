@@ -21,11 +21,13 @@ type SortDirection = 'asc' | 'desc';
 const METRIC_TTYPE_FILTERS: Record<MetricType, string[] | null> = {
   grossProduction: ['T', 'D'],
   ltdAdjustment: ['ADJ'],
-  ltdAdjTime: ['ADJ'], // Will use TranType check
-  ltdAdjDisb: ['ADJ'], // Will use TranType check
+  ltdAdj: ['ADJ'], // Merged adjustments
+  ltdAdjTime: ['ADJ'], // Legacy - will use TranType check
+  ltdAdjDisb: ['ADJ'], // Legacy - will use TranType check
   ltdCost: null, // All non-provision (handled by special case)
-  ltdFeeTime: ['F'], // Will use TranType check
-  ltdFeeDisb: ['F'], // Will use TranType check
+  ltdFee: ['F'], // Merged fees
+  ltdFeeTime: ['F'], // Legacy - will use TranType check
+  ltdFeeDisb: ['F'], // Legacy - will use TranType check
   balWIP: null, // All transactions
   balTime: ['T', 'ADJ', 'F'],
   balDisb: ['D', 'ADJ', 'F'],
@@ -97,6 +99,12 @@ export function TransactionDetailsModal({
         const tranTypeUpper = txn.tranType.toUpperCase();
         return tTypeUpper === 'ADJ' && (tranTypeUpper.includes('DISBURSEMENT') || tranTypeUpper.includes('DISB'));
       });
+    } else if (metricType === 'ltdAdj') {
+      // Merged adjustments - all ADJ transactions regardless of TranType
+      filtered = filtered.filter(txn => txn.tType.toUpperCase() === 'ADJ');
+    } else if (metricType === 'ltdFee') {
+      // Merged fees - all F transactions regardless of TranType
+      filtered = filtered.filter(txn => txn.tType.toUpperCase() === 'F');
     } else if (metricType === 'ltdAdjustment') {
       filtered = filtered.filter(txn => txn.tType.toUpperCase() === 'ADJ');
     } else if (ttypeFilters && ttypeFilters.length > 0) {

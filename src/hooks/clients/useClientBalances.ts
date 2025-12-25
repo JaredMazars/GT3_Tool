@@ -15,9 +15,8 @@ export interface ClientBalances {
   clientName: string | null;
   // Breakdown components
   time: number;
-  timeAdjustments: number;
+  adjustments: number; // Single category for all adjustments
   disbursements: number;
-  disbursementAdjustments: number;
   fees: number;
   provision: number;
   // Calculated totals
@@ -33,20 +32,17 @@ export interface UseClientBalancesParams {
 
 /**
  * Fetch WIP and Debtor balances for a client with detailed breakdown
- * Returns balances calculated from transaction tables:
  * 
- * Breakdown Components:
- * - time: Time transactions
- * - timeAdjustments: Time adjustments
- * - disbursements: Disbursement transactions
- * - disbursementAdjustments: Disbursement adjustments
- * - fees: Fee transactions (reversed/subtracted)
- * - provision: Provision transactions
+ * Uses exact TType matching:
+ * - time: TType = 'T'
+ * - adjustments: TType = 'ADJ' (single category)
+ * - disbursements: TType = 'D'
+ * - fees: TType = 'F' (subtracted)
+ * - provision: TType = 'P'
  * 
- * Calculated Totals:
- * - grossWip: Time + Adjustments + Disbursements - Fees
- * - netWip: Gross WIP + Provision
- * - debtorBalance: Sum of debtor transactions
+ * Formula:
+ * - grossWip = Time + Adjustments + Disbursements - Fees
+ * - netWip = Gross WIP + Provision
  */
 export function useClientBalances(
   GSClientID: string,

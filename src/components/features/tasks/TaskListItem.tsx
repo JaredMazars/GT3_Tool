@@ -36,9 +36,8 @@ interface TaskListItemProps {
       netWip?: number;
       grossWip?: number;
       time?: number;
-      timeAdjustments?: number;
+      adjustments?: number;
       disbursements?: number;
-      disbursementAdjustments?: number;
       fees?: number;
       provision?: number;
     };
@@ -199,12 +198,12 @@ export function TaskListItem({
               <span className={`ml-1 font-medium ${isAccessible ? 'text-forvis-gray-900' : 'text-forvis-gray-500'}`}>
                 {formatCurrency(balancesData.time ?? 0)}
               </span>
-              {balancesData.timeAdjustments !== 0 && (
+              {balancesData.adjustments !== 0 && (
                 <>
                   <span className={`mx-1 ${isAccessible ? 'text-forvis-gray-500' : 'text-forvis-gray-400'}`}>+</span>
                   <span className={`${isAccessible ? 'text-forvis-gray-600' : 'text-forvis-gray-400'}`}>Adj:</span>
                   <span className={`ml-1 font-medium ${isAccessible ? 'text-forvis-gray-900' : 'text-forvis-gray-500'}`}>
-                    {formatCurrency(balancesData.timeAdjustments ?? 0)}
+                    {formatCurrency(balancesData.adjustments ?? 0)}
                   </span>
                 </>
               )}
@@ -213,15 +212,6 @@ export function TaskListItem({
               <span className={`ml-1 font-medium ${isAccessible ? 'text-forvis-gray-900' : 'text-forvis-gray-500'}`}>
                 {formatCurrency(balancesData.disbursements ?? 0)}
               </span>
-              {balancesData.disbursementAdjustments !== 0 && (
-                <>
-                  <span className={`mx-1 ${isAccessible ? 'text-forvis-gray-500' : 'text-forvis-gray-400'}`}>+</span>
-                  <span className={`${isAccessible ? 'text-forvis-gray-600' : 'text-forvis-gray-400'}`}>Adj:</span>
-                  <span className={`ml-1 font-medium ${isAccessible ? 'text-forvis-gray-900' : 'text-forvis-gray-500'}`}>
-                    {formatCurrency(balancesData.disbursementAdjustments ?? 0)}
-                  </span>
-                </>
-              )}
             </div>
             
             <div className="flex items-center text-xs">

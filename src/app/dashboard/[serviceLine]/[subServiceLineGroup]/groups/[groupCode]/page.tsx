@@ -8,23 +8,18 @@ import {
   ChevronRight,
   Building2,
   Search,
-  Clock,
   FileText,
   BarChart3,
   Users,
   Presentation,
-  Folder,
 } from 'lucide-react';
-import { formatDate } from '@/lib/utils/taskUtils';
 import { formatServiceLineName, isValidServiceLine, isSharedService } from '@/lib/utils/serviceLineUtils';
 import { ServiceLine } from '@/types';
 import { GroupHeader } from '@/components/features/clients/GroupHeader';
 import { ClientListItem } from '@/components/features/clients/ClientListItem';
 import { useClientGroup } from '@/hooks/clients/useClientGroup';
-import { useGroupServiceLines } from '@/hooks/clients/useGroupServiceLines';
 import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLineGroups';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
-import { TaskListItem } from '@/components/features/tasks/TaskListItem';
 import { groupGraphDataKeys } from '@/hooks/groups/useGroupGraphData';
 import { groupWipKeys } from '@/hooks/groups/useGroupWip';
 import { groupDebtorsKeys } from '@/hooks/groups/useGroupDebtors';
@@ -38,8 +33,6 @@ export default function GroupDetailPage() {
   const subServiceLineGroup = params.subServiceLineGroup as string;
   const { setCurrentServiceLine } = useServiceLine();
   
-  const [activeMainTab, setActiveMainTab] = useState<'clients' | 'tasks'>('clients');
-  const [activeServiceLineTab, setActiveServiceLineTab] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -63,72 +56,24 @@ export default function GroupDetailPage() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  // Reset to first page when tab changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [activeMainTab]);
-
-  // Fetch service line tab counts (lightweight query)
-  const { data: serviceLineCountsData } = useGroupServiceLines(
-    groupCode,
-    true // Always enabled to populate tabs
-  );
-
   // Fetch group with clients
   const { data: clientsData, isLoading: isLoadingClients, isFetching: isFetchingClients } = useClientGroup(groupCode, {
     search: debouncedSearch,
     page: currentPage,
     limit: itemsPerPage,
     type: 'clients',
-    enabled: activeMainTab === 'clients',
+    enabled: true,
   });
 
-  // Fetch group with tasks - no service line filtering (done on frontend)
-  const { data: tasksData, isLoading: isLoadingTasks, isFetching: isFetchingTasks } = useClientGroup(groupCode, {
-    search: debouncedSearch,
-    page: currentPage,
-    limit: itemsPerPage,
-    type: 'tasks',
-    enabled: activeMainTab === 'tasks', // Only fetch when tasks tab is active
-  });
-
-  const isLoading = activeMainTab === 'clients' ? isLoadingClients : isLoadingTasks;
-  const isFetching = activeMainTab === 'clients' ? isFetchingClients : isFetchingTasks;
+  const isLoading = isLoadingClients;
+  const isFetching = isFetchingClients;
 
   // Extract data before any conditional returns
   const clients = clientsData?.clients || [];
-  const tasks = tasksData?.tasks || []; // No need to filter - already filtered server-side
   const totalClients = clientsData?.pagination?.total || 0;
 
-  // Build service line tabs from the lightweight counts query
-  const serviceLineTabs = useMemo(() => {
-    const serviceLines = serviceLineCountsData?.serviceLines || [];
-    return serviceLines.map(sl => ({
-      code: sl.code,
-      desc: sl.name,
-      count: sl.taskCount,
-    }));
-  }, [serviceLineCountsData]);
-  
-  // Calculate total tasks from all service line tabs
-  const totalTasks = useMemo(() => {
-    return serviceLineTabs.reduce((sum, tab) => sum + tab.count, 0);
-  }, [serviceLineTabs]);
-
-  // Set initial active service line tab when service line tabs are populated
-  useEffect(() => {
-    if (serviceLineTabs.length > 0 && !activeServiceLineTab) {
-      setActiveServiceLineTab(serviceLineTabs[0]?.code || '');
-    }
-  }, [serviceLineTabs, activeServiceLineTab]);
-
-  // Reset to first page when service line tab changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [activeServiceLineTab]);
-
   // Get pagination for current view
-  const pagination = activeMainTab === 'clients' ? clientsData?.pagination : tasksData?.pagination;
+  const pagination = clientsData?.pagination;
 
   // Validate service line
   useEffect(() => {
@@ -246,13 +191,13 @@ export default function GroupDetailPage() {
             {subServiceLineGroupDescription}
           </Link>
           <ChevronRight className="h-4 w-4" />
-          <span className="text-forvis-gray-900 font-medium">{clientsData?.groupDesc || tasksData?.groupDesc || ''}</span>
+          <span className="text-forvis-gray-900 font-medium">{clientsData?.groupDesc || ''}</span>
         </nav>
 
         {/* Group Header */}
         <GroupHeader 
           groupCode={clientsData?.groupCode || groupCode}
-          groupDesc={clientsData?.groupDesc || tasksData?.groupDesc || ''}
+          groupDesc={clientsData?.groupDesc || ''}
           clientCount={totalClients}
         />
 
@@ -274,15 +219,11 @@ export default function GroupDetailPage() {
                       </div>
                       <div>
                         <dt className="text-xs font-medium text-forvis-gray-500">Group Name</dt>
-                        <dd className="mt-0.5 text-sm text-forvis-gray-900">{clientsData?.groupDesc || tasksData?.groupDesc || ''}</dd>
+                        <dd className="mt-0.5 text-sm text-forvis-gray-900">{clientsData?.groupDesc || ''}</dd>
                       </div>
                       <div>
                         <dt className="text-xs font-medium text-forvis-gray-500">Total Clients</dt>
                         <dd className="mt-0.5 text-sm text-forvis-gray-900">{totalClients}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-xs font-medium text-forvis-gray-500">Total Tasks</dt>
-                        <dd className="mt-0.5 text-sm text-forvis-gray-900">{totalTasks}</dd>
                       </div>
                     </div>
                   </div>
@@ -291,91 +232,15 @@ export default function GroupDetailPage() {
             </div>
           </div>
 
-          {/* Right Column - Clients/Tasks List and 4-Card Grid */}
+          {/* Right Column - Clients List and 4-Card Grid */}
           <div className="lg:col-span-2 space-y-6 flex flex-col">
-            {/* Clients/Tasks Section with Fixed Height */}
+            {/* Clients Section with Fixed Height */}
             <div className="card flex-shrink-0" style={{ height: '600px', display: 'flex', flexDirection: 'column' }}>
               <div className="px-4 py-3 border-b border-forvis-gray-200 flex items-center justify-between flex-shrink-0">
                 <h2 className="text-base font-semibold text-forvis-gray-900">
-                  {activeMainTab === 'clients' ? (
-                    <>Clients ({totalClients})</>
-                  ) : (
-                    <>
-                      Tasks ({totalTasks})
-                    </>
-                  )}
+                  Clients ({totalClients})
                 </h2>
               </div>
-
-              {/* Main Tabs - Clients and Tasks */}
-              <div className="border-b border-forvis-gray-200 flex-shrink-0">
-                <nav className="flex -mb-px px-4" aria-label="Main Tabs">
-                  <button
-                    onClick={() => setActiveMainTab('clients')}
-                    className={`flex items-center space-x-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                      activeMainTab === 'clients'
-                        ? 'border-forvis-blue-600 text-forvis-blue-600'
-                        : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
-                    }`}
-                  >
-                    <Building2 className="h-5 w-5" />
-                    <span>Clients</span>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                      activeMainTab === 'clients'
-                        ? 'bg-forvis-blue-100 text-forvis-blue-700'
-                        : 'bg-forvis-gray-100 text-forvis-gray-600'
-                    }`}>
-                      {totalClients}
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => setActiveMainTab('tasks')}
-                    className={`flex items-center space-x-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                      activeMainTab === 'tasks'
-                        ? 'border-forvis-blue-600 text-forvis-blue-600'
-                        : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
-                    }`}
-                  >
-                    <Folder className="h-5 w-5" />
-                    <span>Tasks</span>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                      activeMainTab === 'tasks'
-                        ? 'bg-forvis-blue-100 text-forvis-blue-700'
-                        : 'bg-forvis-gray-100 text-forvis-gray-600'
-                    }`}>
-                      {totalTasks}
-                    </span>
-                  </button>
-                </nav>
-              </div>
-
-              {/* Service Line Sub-Tabs - Only shown when Tasks tab is active */}
-              {activeMainTab === 'tasks' && serviceLineTabs.length > 0 && (
-                <div className="border-b border-forvis-gray-200 flex-shrink-0 bg-forvis-gray-50">
-                  <nav className="flex -mb-px px-4 overflow-x-auto" aria-label="Service Line Tabs">
-                    {serviceLineTabs.map(({ code, desc, count }) => (
-                      <button
-                        key={code}
-                        onClick={() => setActiveServiceLineTab(code)}
-                        className={`flex items-center space-x-2 px-3 py-2 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
-                          activeServiceLineTab === code
-                            ? 'border-forvis-blue-600 text-forvis-blue-600 bg-white'
-                            : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
-                        }`}
-                      >
-                        <span>{desc}</span>
-                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${
-                          activeServiceLineTab === code
-                            ? 'bg-forvis-blue-100 text-forvis-blue-700'
-                            : 'bg-forvis-gray-100 text-forvis-gray-600'
-                        }`}>
-                          {count}
-                        </span>
-                      </button>
-                    ))}
-                  </nav>
-                </div>
-              )}
 
               {/* Search Bar */}
               <div className="px-4 pt-4 flex-shrink-0">
@@ -383,108 +248,55 @@ export default function GroupDetailPage() {
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
                   <input
                     type="text"
-                    placeholder={activeMainTab === 'clients' 
-                      ? "Search clients by name, code, or partner..." 
-                      : "Search projects by name, code, or client..."}
+                    placeholder="Search clients by name, code, or partner..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10 pr-4 py-2 w-full border border-forvis-gray-300 rounded-lg focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent text-sm"
                   />
                 </div>
-                {searchTerm && (
+                {searchTerm && pagination && (
                   <div className="mt-2 text-sm text-forvis-gray-600">
-                    {activeMainTab === 'clients' ? (
-                      pagination ? (
-                        <>
-                          Found <span className="font-medium">{pagination.total}</span>{' '}
-                          client{pagination.total !== 1 ? 's' : ''} matching "{searchTerm}"
-                        </>
-                      ) : null
-                    ) : (
-                      <>
-                        Showing <span className="font-medium">{tasks.length}</span>{' '}
-                        project{tasks.length !== 1 ? 's' : ''} matching "{searchTerm}"
-                        {activeServiceLineTab && serviceLineTabs.find(t => t.code === activeServiceLineTab) && (
-                          <> in {serviceLineTabs.find(t => t.code === activeServiceLineTab)?.desc}</>
-                        )}
-                      </>
-                    )}
+                    Found <span className="font-medium">{pagination.total}</span>{' '}
+                    client{pagination.total !== 1 ? 's' : ''} matching "{searchTerm}"
                   </div>
                 )}
               </div>
 
-              {/* Scrollable Content - Clients or Projects */}
+              {/* Scrollable Content - Clients */}
               <div className="p-4 overflow-y-auto flex-1">
-                {activeMainTab === 'clients' ? (
-                  /* Clients List */
-                  isFetchingClients && !isLoadingClients ? (
-                    <div className="text-center py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-600 mx-auto"></div>
-                      <p className="mt-2 text-sm text-forvis-gray-600">Loading clients...</p>
-                    </div>
-                  ) : clients.length === 0 ? (
-                    <div className="text-center py-8">
-                      <Building2 className="mx-auto h-12 w-12 text-forvis-gray-400" />
-                      <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">
-                        {searchTerm ? 'No clients found' : 'No clients in this group'}
-                      </h3>
-                      <p className="mt-1 text-sm text-forvis-gray-600">
-                        {searchTerm 
-                          ? `No clients match your search "${searchTerm}".`
-                          : 'This group doesn\'t have any clients yet.'}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {clients.map((client: any) => (
-                        <ClientListItem
-                          key={client.id}
-                          client={client}
-                          serviceLine={serviceLine}
-                          subServiceLineGroup={subServiceLineGroup}
-                        />
-                      ))}
-                    </div>
-                  )
+                {isFetchingClients && !isLoadingClients ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-600 mx-auto"></div>
+                    <p className="mt-2 text-sm text-forvis-gray-600">Loading clients...</p>
+                  </div>
+                ) : clients.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Building2 className="mx-auto h-12 w-12 text-forvis-gray-400" />
+                    <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">
+                      {searchTerm ? 'No clients found' : 'No clients in this group'}
+                    </h3>
+                    <p className="mt-1 text-sm text-forvis-gray-600">
+                      {searchTerm 
+                        ? `No clients match your search "${searchTerm}".`
+                        : 'This group doesn\'t have any clients yet.'}
+                    </p>
+                  </div>
                 ) : (
-                  /* Projects List */
-                  isFetchingTasks && !isLoadingTasks ? (
-                    <div className="text-center py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-600 mx-auto"></div>
-                      <p className="mt-2 text-sm text-forvis-gray-600">Loading projects...</p>
-                    </div>
-                  ) : tasks.length === 0 ? (
-                    <div className="text-center py-8">
-                      <Folder className="mx-auto h-12 w-12 text-forvis-gray-400" />
-                      <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">
-                        {searchTerm ? 'No projects found' : 'No projects available'}
-                      </h3>
-                      <p className="mt-1 text-sm text-forvis-gray-600">
-                        {searchTerm 
-                          ? `No projects match your search "${searchTerm}".`
-                          : activeServiceLineTab && serviceLineTabs.find(t => t.code === activeServiceLineTab)
-                            ? `There are no projects for ${serviceLineTabs.find(t => t.code === activeServiceLineTab)?.desc} in this group.`
-                            : 'Select a service line to view projects.'}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {tasks.map((task: any) => (
-                        <TaskListItem
-                          key={task.id}
-                          task={task}
-                          currentSubServiceLineGroup={subServiceLineGroup}
-                          serviceLine={serviceLine}
-                          currentSubServiceLineGroupDescription={subServiceLineGroupDescription}
-                        />
-                      ))}
-                    </div>
-                  )
+                  <div className="space-y-2">
+                    {clients.map((client: any) => (
+                      <ClientListItem
+                        key={client.id}
+                        client={client}
+                        serviceLine={serviceLine}
+                        subServiceLineGroup={subServiceLineGroup}
+                      />
+                    ))}
+                  </div>
                 )}
               </div>
 
-              {/* Pagination - only show for clients tab */}
-              {pagination && pagination.totalPages > 1 && activeMainTab === 'clients' && (
+              {/* Pagination */}
+              {pagination && pagination.totalPages > 1 && (
                 <div className="px-4 pb-4 flex-shrink-0">
                   <div className="flex items-center justify-between">
                     <div className="text-sm text-forvis-gray-700">

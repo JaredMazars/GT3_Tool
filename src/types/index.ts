@@ -791,11 +791,13 @@ export const NON_CLIENT_EVENT_CONFIG: Record<NonClientEventType, {
 export type MetricType = 
   | 'grossProduction'
   | 'ltdAdjustment'
-  | 'ltdAdjTime'
-  | 'ltdAdjDisb'
+  | 'ltdAdj'  // Merged adjustments
+  | 'ltdAdjTime'  // Legacy - for backwards compatibility
+  | 'ltdAdjDisb'  // Legacy - for backwards compatibility
   | 'ltdCost'
-  | 'ltdFeeTime'
-  | 'ltdFeeDisb'
+  | 'ltdFee'  // Merged fees
+  | 'ltdFeeTime'  // Legacy - for backwards compatibility
+  | 'ltdFeeDisb'  // Legacy - for backwards compatibility
   | 'balWIP'
   | 'balTime'
   | 'balDisb'

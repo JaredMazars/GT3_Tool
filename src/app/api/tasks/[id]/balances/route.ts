@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db/prisma';
 import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+import { categorizeTransaction } from '@/lib/services/clients/clientBalanceCalculation';
 
 interface TaskBalances {
   taskId: number;
@@ -10,40 +11,13 @@ interface TaskBalances {
   taskCode: string;
   taskDesc: string;
   time: number;
-  timeAdjustments: number;
+  adjustments: number; // Single category for all adjustments
   disbursements: number;
-  disbursementAdjustments: number;
   fees: number;
   provision: number;
   grossWip: number;
   netWip: number;
   lastUpdated: string | null;
-}
-
-const TTYPE_CATEGORIES = {
-  TIME: ['T', 'TI', 'TIM'],
-  DISBURSEMENT: ['D', 'DI', 'DIS'],
-  FEE: ['F', 'FEE'],
-  ADJUSTMENT: ['ADJ'],
-  PROVISION: ['P', 'PRO'],
-};
-
-function categorizeTransaction(tType: string): {
-  isTime: boolean;
-  isDisbursement: boolean;
-  isFee: boolean;
-  isAdjustment: boolean;
-  isProvision: boolean;
-} {
-  const tTypeUpper = tType.toUpperCase();
-  
-  return {
-    isTime: TTYPE_CATEGORIES.TIME.includes(tTypeUpper) || (tTypeUpper.startsWith('T') && tTypeUpper !== 'ADJ'),
-    isDisbursement: TTYPE_CATEGORIES.DISBURSEMENT.includes(tTypeUpper) || (tTypeUpper.startsWith('D') && tTypeUpper !== 'ADJ'),
-    isFee: TTYPE_CATEGORIES.FEE.includes(tTypeUpper) || tTypeUpper === 'F',
-    isAdjustment: TTYPE_CATEGORIES.ADJUSTMENT.includes(tTypeUpper) || tTypeUpper === 'ADJ',
-    isProvision: TTYPE_CATEGORIES.PROVISION.includes(tTypeUpper) || tTypeUpper === 'P',
-  };
 }
 
 /**
@@ -66,42 +40,34 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
 
     const wipTransactions = await prisma.wIPTransactions.findMany({
       where: { GSTaskID: task.GSTaskID },
-      select: { Amount: true, TType: true, TranType: true, updatedAt: true },
+      select: { Amount: true, TType: true, updatedAt: true },
       take: 50000,
     });
 
     let time = 0;
-    let timeAdjustments = 0;
+    let adjustments = 0;
     let disbursements = 0;
-    let disbursementAdjustments = 0;
     let fees = 0;
     let provision = 0;
 
     wipTransactions.forEach((transaction) => {
       const amount = transaction.Amount || 0;
       const category = categorizeTransaction(transaction.TType);
-      const tranTypeUpper = transaction.TranType.toUpperCase();
 
       if (category.isProvision) {
         provision += amount;
       } else if (category.isFee) {
         fees += amount;
       } else if (category.isAdjustment) {
-        if (tranTypeUpper.includes('TIME')) {
-          timeAdjustments += amount;
-        } else if (tranTypeUpper.includes('DISBURSEMENT') || tranTypeUpper.includes('DISB')) {
-          disbursementAdjustments += amount;
-        }
+        adjustments += amount;
       } else if (category.isTime) {
         time += amount;
       } else if (category.isDisbursement) {
         disbursements += amount;
-      } else {
-        time += amount;
       }
     });
 
-    const grossWip = time + timeAdjustments + disbursements + disbursementAdjustments - fees;
+    const grossWip = time + adjustments + disbursements - fees;
     const netWip = grossWip + provision;
 
     const latestTransaction = wipTransactions.length > 0
@@ -116,9 +82,8 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
       taskCode: task.TaskCode,
       taskDesc: task.TaskDesc,
       time,
-      timeAdjustments,
+      adjustments,
       disbursements,
-      disbursementAdjustments,
       fees,
       provision,
       grossWip,

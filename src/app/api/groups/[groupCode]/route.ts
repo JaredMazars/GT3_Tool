@@ -4,7 +4,7 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { getCachedList, setCachedList } from '@/lib/services/cache/listCache';
 import { enrichRecordsWithEmployeeNames } from '@/lib/services/employees/employeeQueries';
-import { calculateWIPByTask } from '@/lib/services/clients/clientBalanceCalculation';
+import { calculateWIPByTask, categorizeTransaction } from '@/lib/services/clients/clientBalanceCalculation';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { z } from 'zod';
 
@@ -95,7 +95,7 @@ export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
       const taskGSTaskIDs = tasksRaw.map(t => t.GSTaskID);
       const wipTransactions = taskGSTaskIDs.length > 0 ? await prisma.wIPTransactions.findMany({
         where: { GSTaskID: { in: taskGSTaskIDs } },
-        select: { GSTaskID: true, Amount: true, TType: true, TranType: true },
+        select: { GSTaskID: true, Amount: true, TType: true },
       }) : [];
 
       const wipByGSTaskID = calculateWIPByTask(wipTransactions);
@@ -177,20 +177,25 @@ export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
       if (!wipByClient.has(transaction.GSClientID)) wipByClient.set(transaction.GSClientID, { balWIP: 0, balTime: 0, balDisb: 0 });
       const clientWip = wipByClient.get(transaction.GSClientID)!;
       const amount = transaction.Amount || 0;
-      const tType = transaction.TType.toUpperCase();
       
-      if (tType === 'P' || tType === 'PRO') {
+      // Use standardized categorization
+      const category = categorizeTransaction(transaction.TType);
+      
+      // balWIP = Net WIP = Time + Adj + Disb - Fees + Provision
+      if (category.isProvision) {
         clientWip.balWIP += amount;
-      } else if (tType === 'F' || tType === 'FEE') {
+      } else if (category.isFee) {
         clientWip.balWIP -= amount;
-        if (tType.includes('T') || tType === 'F') clientWip.balTime -= amount;
-        else clientWip.balDisb -= amount;
-      } else if (tType.startsWith('T') || tType === 'TI' || tType === 'TIM' || tType === 'AT' || tType === 'ADT') {
-        clientWip.balWIP += amount; clientWip.balTime += amount;
-      } else if (tType.startsWith('D') || tType === 'DI' || tType === 'DIS' || tType === 'AD' || tType === 'ADD') {
-        clientWip.balWIP += amount; clientWip.balDisb += amount;
-      } else {
-        clientWip.balWIP += amount; clientWip.balTime += amount;
+        clientWip.balTime -= amount;
+      } else if (category.isAdjustment) {
+        clientWip.balWIP += amount;
+        clientWip.balTime += amount;
+      } else if (category.isTime) {
+        clientWip.balWIP += amount;
+        clientWip.balTime += amount;
+      } else if (category.isDisbursement) {
+        clientWip.balWIP += amount;
+        clientWip.balDisb += amount;
       }
     });
 

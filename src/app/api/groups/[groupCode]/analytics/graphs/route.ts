@@ -120,9 +120,6 @@ export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
   feature: Feature.ACCESS_CLIENTS,
   handler: async (request, { user, params }) => {
     try {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'groups/[groupCode]/analytics/graphs/route.ts:122',message:'Handler entry',data:{groupCode:params.groupCode,userId:user.id},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'H1'})}).catch(()=>{});
-      // #endregion
       const { groupCode } = params;
       
       // Validate query parameters
@@ -201,75 +198,64 @@ export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
       },
     };
 
-    // BATCH 2: Fetch service line mappings, opening balance aggregates, and WIP transactions in parallel
-    // OPTIMIZATION: Use database aggregation for opening balance instead of fetching all records
-    const [servLineToMasterMap, openingBalanceAggregates, actualTransactions] = await Promise.all([
+    // BATCH 2: Fetch service line mappings, opening balance aggregates, and period transaction aggregates in parallel
+    // OPTIMIZATION: Use database aggregation for both opening balance AND period transactions
+    const [servLineToMasterMap, openingBalanceAggregates, periodTransactionAggregates] = await Promise.all([
       getServiceLineMappings(),
       prisma.wIPTransactions.groupBy({
-        by: ['TType', 'TranType'],
+        by: ['TType', 'TaskServLine'],
         where: openingWhereClause,
         _sum: {
           Amount: true,
         },
       }),
-      prisma.wIPTransactions.findMany({
+      prisma.wIPTransactions.groupBy({
+        by: ['TranDate', 'TType', 'TaskServLine'],
         where: wipWhereClause,
-        select: {
-          TranDate: true,
-          TType: true,
-          TranType: true, // Needed for transaction categorization
+        _sum: {
           Amount: true,
-          TaskServLine: true,
-          GSClientID: true, // For debugging
-          GSTaskID: true, // For debugging
         },
         orderBy: {
           TranDate: 'asc',
         },
-        take: 50000, // CRITICAL: Prevent unbounded queries - reduced from 250k to 50k for performance
+        // No take limit needed - aggregating by day/type, not individual transactions
       }),
     ]);
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'groups/[groupCode]/analytics/graphs/route.ts:259',message:'After parallel queries',data:{aggregatesCount:openingBalanceAggregates?.length,aggregatesSample:openingBalanceAggregates?.[0],transactionsCount:actualTransactions?.length,hasServLineMap:!!servLineToMasterMap},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'H2,H5'})}).catch(()=>{});
-    // #endregion
-
-    // Warn if transaction limits are hit
-    if (actualTransactions.length >= 50000) {
-      logger.warn('Period transactions limit reached', {
-        groupCode,
-        limit: 50000,
-        dateRange: { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
-        message: 'Some transaction data may be excluded',
-      });
-    }
-
-    // Log transaction counts by type for debugging
-    const transactionsByType = actualTransactions.reduce((acc, txn) => {
-      acc[txn.TType] = (acc[txn.TType] || 0) + 1;
+    // Log aggregate counts by type for debugging
+    const aggregatesByType = periodTransactionAggregates.reduce((acc, agg) => {
+      acc[agg.TType] = (acc[agg.TType] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
-    logger.info('Group graphs transactions fetched', {
+    logger.info('Group graphs aggregates fetched', {
       groupCode,
-      totalTransactions: actualTransactions.length,
+      totalAggregates: periodTransactionAggregates.length,
       openingAggregateGroups: openingBalanceAggregates.length,
-      byType: transactionsByType,
-      transactionsWithClientID: actualTransactions.filter(t => t.GSClientID).length,
-      transactionsOnlyWithTaskID: actualTransactions.filter(t => !t.GSClientID && t.GSTaskID).length,
+      aggregatesByType: aggregatesByType,
+      dateRange: { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
     });
 
-    // Calculate opening WIP balance from aggregates (much faster than processing individual records)
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'groups/[groupCode]/analytics/graphs/route.ts:289',message:'Before calculateOpeningBalanceFromAggregates',data:{aggregates:openingBalanceAggregates,aggregatesType:typeof openingBalanceAggregates,isArray:Array.isArray(openingBalanceAggregates)},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'H3,H5'})}).catch(()=>{});
-    // #endregion
-    const openingWipBalance = calculateOpeningBalanceFromAggregates(openingBalanceAggregates);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'groups/[groupCode]/analytics/graphs/route.ts:291',message:'After calculateOpeningBalanceFromAggregates',data:{openingWipBalance,openingWipBalanceType:typeof openingWipBalance},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'H3'})}).catch(()=>{});
-    // #endregion
+    // Group opening balance aggregates by Master Service Line
+    const openingAggregatesByMasterServiceLine = new Map<string, typeof openingBalanceAggregates>();
+    openingBalanceAggregates.forEach((agg) => {
+      const masterCode = servLineToMasterMap.get(agg.TaskServLine) || 'UNKNOWN';
+      const existing = openingAggregatesByMasterServiceLine.get(masterCode) || [];
+      existing.push(agg);
+      openingAggregatesByMasterServiceLine.set(masterCode, existing);
+    });
 
-    // Helper function to aggregate transactions
-    const aggregateTransactions = (txns: typeof actualTransactions, openingBalance: number = 0) => {
+    // Calculate opening WIP balance per service line
+    const openingBalancesByServiceLine = new Map<string, number>();
+    openingAggregatesByMasterServiceLine.forEach((aggs, masterCode) => {
+      openingBalancesByServiceLine.set(masterCode, calculateOpeningBalanceFromAggregates(aggs));
+    });
+
+    // Calculate overall opening WIP balance from all aggregates
+    const openingWipBalance = calculateOpeningBalanceFromAggregates(openingBalanceAggregates);
+
+    // Helper function to aggregate transactions from database aggregates
+    const aggregateTransactions = (aggregates: typeof periodTransactionAggregates, openingBalance: number = 0) => {
       const dailyMap = new Map<string, DailyMetrics>();
       let totalProduction = 0;
       let totalAdjustments = 0;
@@ -277,9 +263,9 @@ export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
       let totalBilling = 0;
       let totalProvisions = 0;
 
-      txns.forEach((txn, idx) => {
-        const amount = txn.Amount || 0;
-        const dateKey = txn.TranDate.toISOString().split('T')[0] as string; // YYYY-MM-DD (always defined)
+      aggregates.forEach((agg) => {
+        const amount = agg._sum.Amount || 0;
+        const dateKey = agg.TranDate.toISOString().split('T')[0] as string; // YYYY-MM-DD (always defined)
         
         // Get or create daily entry
         let daily = dailyMap.get(dateKey);
@@ -298,7 +284,7 @@ export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
 
         // Categorize using shared logic (same as profitability tab)
         // This ensures consistency between graphs and profitability data
-        const category = categorizeTransaction(txn.TType, txn.TranType);
+        const category = categorizeTransaction(agg.TType);
 
         if (category.isTime) {
           daily.production += amount;
@@ -352,37 +338,29 @@ export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
     };
 
     // Aggregate overall data with opening balance
-    const overall = aggregateTransactions(actualTransactions, openingWipBalance);
+    const overall = aggregateTransactions(periodTransactionAggregates, openingWipBalance);
 
-    // Group transactions by Master Service Line
-    const transactionsByMasterServiceLine = new Map<string, typeof actualTransactions>();
-    actualTransactions.forEach((txn) => {
-      const masterCode = servLineToMasterMap.get(txn.TaskServLine) || 'UNKNOWN';
-      const existing = transactionsByMasterServiceLine.get(masterCode) || [];
-      existing.push(txn);
-      transactionsByMasterServiceLine.set(masterCode, existing);
+    // Group aggregates by Master Service Line
+    const aggregatesByMasterServiceLine = new Map<string, typeof periodTransactionAggregates>();
+    periodTransactionAggregates.forEach((agg) => {
+      const masterCode = servLineToMasterMap.get(agg.TaskServLine) || 'UNKNOWN';
+      const existing = aggregatesByMasterServiceLine.get(masterCode) || [];
+      existing.push(agg);
+      aggregatesByMasterServiceLine.set(masterCode, existing);
     });
 
-    // Aggregate by Master Service Line with opening balances
-    // Note: Using overall opening balance for all service lines since aggregates don't include TaskServLine
+    // Aggregate by Master Service Line with service-line-specific opening balances
     const byMasterServiceLine: Record<string, ServiceLineGraphData> = {};
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'groups/[groupCode]/analytics/graphs/route.ts:397',message:'Before service line aggregation',data:{serviceLineCount:transactionsByMasterServiceLine.size,serviceLineCodes:Array.from(transactionsByMasterServiceLine.keys()),openingWipBalance},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'H4'})}).catch(()=>{});
-    // #endregion
-    transactionsByMasterServiceLine.forEach((txns, masterCode) => {
-      // Use overall opening balance as starting point for each service line
-      // This is acceptable since opening balance is just the starting WIP value
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'groups/[groupCode]/analytics/graphs/route.ts:400',message:'Processing service line',data:{masterCode,txnsCount:txns.length,openingWipBalance},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'H4'})}).catch(()=>{});
-      // #endregion
-      byMasterServiceLine[masterCode] = aggregateTransactions(txns, openingWipBalance);
+    aggregatesByMasterServiceLine.forEach((aggs, masterCode) => {
+      const serviceLineOpeningBalance = openingBalancesByServiceLine.get(masterCode) || 0;
+      byMasterServiceLine[masterCode] = aggregateTransactions(aggs, serviceLineOpeningBalance);
     });
 
     // Fetch Master Service Line names
     const masterServiceLines = await prisma.serviceLineMaster.findMany({
       where: {
         code: {
-          in: Array.from(transactionsByMasterServiceLine.keys()).filter(code => code !== 'UNKNOWN'),
+          in: Array.from(aggregatesByMasterServiceLine.keys()).filter(code => code !== 'UNKNOWN'),
         },
       },
       select: {
@@ -429,7 +407,7 @@ export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
       groupCode,
       resolution: queryParams.resolution,
       clientCount: clients.length,
-      transactionCount: actualTransactions.length,
+      periodAggregateGroups: periodTransactionAggregates.length,
       openingAggregateGroups: openingBalanceAggregates.length,
       dateRange: { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
     });
@@ -438,10 +416,6 @@ export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
     response.headers.set('Cache-Control', 'no-store'); // User-specific analytics
     return response;
     } catch (error) {
-      // #region agent log
-      const err = error as any;
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'groups/[groupCode]/analytics/graphs/route.ts:473',message:'Handler error',data:{errorName:err?.name,errorMessage:err?.message,errorStack:err?.stack,groupCode:params.groupCode},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'H1,H2,H3,H4,H5'})}).catch(()=>{});
-      // #endregion
       throw error;
     }
   },

@@ -140,7 +140,7 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
     const taskGSTaskIDs = tasks.map(t => t.GSTaskID);
     const wipTransactions = taskGSTaskIDs.length > 0 ? await prisma.wIPTransactions.findMany({
       where: { OR: [{ GSClientID: client.GSClientID }, { GSTaskID: { in: taskGSTaskIDs } }] },
-      select: { GSTaskID: true, Amount: true, TType: true, TranType: true },
+      select: { GSTaskID: true, Amount: true, TType: true },
     }) : [];
 
     const wipByTask = calculateWIPByTask(wipTransactions);
@@ -156,7 +156,7 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
         subServiceLineGroupCode: servLineToSubGroupMapping[task.ServLineCode] || task.SLGroup,
         subServiceLineGroupDesc: subGroupDescMapping[task.ServLineCode] || null,
         ServLineDesc: servLineDescMapping[task.ServLineCode] || null,
-        wip: taskWip || { balWIP: 0, balTime: 0, balDisb: 0, netWip: 0, grossWip: 0, time: 0, timeAdjustments: 0, disbursements: 0, disbursementAdjustments: 0, fees: 0, provision: 0 },
+        wip: taskWip || { balWIP: 0, balTime: 0, balDisb: 0, netWip: 0, grossWip: 0, time: 0, adjustments: 0, disbursements: 0, fees: 0, provision: 0 },
       };
     });
 

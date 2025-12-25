@@ -4,6 +4,7 @@ import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { successResponse, parseGSClientID } from '@/lib/utils/apiUtils';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
+import { categorizeTransaction } from '@/lib/services/clients/clientBalanceCalculation';
 
 interface ClientBalances {
   GSClientID: string;
@@ -11,9 +12,8 @@ interface ClientBalances {
   clientName: string | null;
   // Breakdown components
   time: number;
-  timeAdjustments: number;
+  adjustments: number; // Single category for all adjustments
   disbursements: number;
-  disbursementAdjustments: number;
   fees: number;
   provision: number;
   // Calculated totals
@@ -24,55 +24,20 @@ interface ClientBalances {
 }
 
 /**
- * Transaction Type Classification
- */
-const TTYPE_CATEGORIES = {
-  TIME: ['T', 'TI', 'TIM'], // Time transactions
-  DISBURSEMENT: ['D', 'DI', 'DIS'], // Disbursement transactions
-  FEE: ['F', 'FEE'], // Fee transactions (reversed)
-  ADJUSTMENT: ['ADJ'], // Adjustment transactions (differentiated by TranType)
-  PROVISION: ['P', 'PRO'], // Provision transactions
-};
-
-/**
- * Categorize a transaction type
- */
-function categorizeTransaction(tType: string, tranType?: string): {
-  isTime: boolean;
-  isDisbursement: boolean;
-  isFee: boolean;
-  isAdjustment: boolean;
-  isProvision: boolean;
-} {
-  const tTypeUpper = tType.toUpperCase();
-  
-  return {
-    isTime: TTYPE_CATEGORIES.TIME.includes(tTypeUpper) || (tTypeUpper.startsWith('T') && tTypeUpper !== 'ADJ'),
-    isDisbursement: TTYPE_CATEGORIES.DISBURSEMENT.includes(tTypeUpper) || (tTypeUpper.startsWith('D') && tTypeUpper !== 'ADJ'),
-    isFee: TTYPE_CATEGORIES.FEE.includes(tTypeUpper) || tTypeUpper === 'F',
-    isAdjustment: TTYPE_CATEGORIES.ADJUSTMENT.includes(tTypeUpper) || tTypeUpper === 'ADJ',
-    isProvision: TTYPE_CATEGORIES.PROVISION.includes(tTypeUpper) || tTypeUpper === 'P',
-  };
-}
-
-/**
  * GET /api/clients/[id]/balances
  * Get WIP and Debtor balances for a client with detailed breakdown
  * 
- * Returns:
- * Breakdown Components:
- * - Time: Sum of time transactions (TTYPE 'T', 'TI', 'TIM')
- * - Time Adjustments: Sum of time adjustments (TTYPE 'AT', 'ADT')
- * - Disbursements: Sum of disbursements (TTYPE 'D', 'DI', 'DIS')
- * - Disbursement Adjustments: Sum of disbursement adjustments (TTYPE 'AD', 'ADD')
- * - Fees: Sum of fees (TTYPE 'F') - reversed/subtracted
- * - Provision: Sum of provisions (TTYPE 'P')
+ * Uses exact TType matching:
+ * - Time: TType = 'T'
+ * - Adjustments: TType = 'ADJ' (single category)
+ * - Disbursements: TType = 'D'
+ * - Fees: TType = 'F' (subtracted)
+ * - Provision: TType = 'P'
  * 
- * Calculated Totals:
- * - Gross WIP: Time + Time Adj + Disbursements + Disb Adj - Fees
- * - Net WIP: Gross WIP + Provision
+ * Formula:
+ * - Gross WIP = Time + Adjustments + Disbursements - Fees
+ * - Net WIP = Gross WIP + Provision
  * - Debtor Balance: Sum of Total from DrsTransactions
- * - Latest update timestamp
  */
 export const GET = secureRoute.queryWithParams({
   feature: Feature.ACCESS_CLIENTS,
@@ -114,44 +79,35 @@ export const GET = secureRoute.queryWithParams({
       select: {
         Amount: true,
         TType: true,
-        TranType: true,
       },
     });
 
-    // Calculate balances with detailed breakdown
+    // Calculate balances using exact TType matching
     let time = 0;
-    let timeAdjustments = 0;
+    let adjustments = 0;
     let disbursements = 0;
-    let disbursementAdjustments = 0;
     let fees = 0;
     let provision = 0;
 
     wipTransactions.forEach((transaction) => {
       const amount = transaction.Amount || 0;
-      const category = categorizeTransaction(transaction.TType, transaction.TranType);
-      const tranTypeUpper = transaction.TranType.toUpperCase();
+      const category = categorizeTransaction(transaction.TType);
 
       if (category.isProvision) {
         provision += amount;
       } else if (category.isFee) {
         fees += amount;
       } else if (category.isAdjustment) {
-        if (tranTypeUpper.includes('TIME')) {
-          timeAdjustments += amount;
-        } else if (tranTypeUpper.includes('DISBURSEMENT') || tranTypeUpper.includes('DISB')) {
-          disbursementAdjustments += amount;
-        }
+        adjustments += amount;
       } else if (category.isTime) {
         time += amount;
       } else if (category.isDisbursement) {
         disbursements += amount;
-      } else {
-        time += amount;
       }
     });
 
-    // Gross WIP = Time + Time Adjustments + Disbursements + Disbursement Adjustments - Fees
-    const grossWip = time + timeAdjustments + disbursements + disbursementAdjustments - fees;
+    // Gross WIP = Time + Adjustments + Disbursements - Fees
+    const grossWip = time + adjustments + disbursements - fees;
     
     // Net WIP = Gross WIP + Provision
     const netWip = grossWip + provision;
@@ -191,9 +147,8 @@ export const GET = secureRoute.queryWithParams({
       clientCode: client.clientCode,
       clientName: client.clientNameFull,
       time,
-      timeAdjustments,
+      adjustments,
       disbursements,
-      disbursementAdjustments,
       fees,
       provision,
       grossWip,

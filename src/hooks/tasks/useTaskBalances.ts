@@ -16,9 +16,8 @@ export interface TaskBalances {
   taskDesc: string;
   // Breakdown components
   time: number;
-  timeAdjustments: number;
+  adjustments: number; // Single category for all adjustments (TType === 'ADJ')
   disbursements: number;
-  disbursementAdjustments: number;
   fees: number;
   provision: number;
   // Calculated totals
@@ -33,15 +32,14 @@ export interface UseTaskBalancesParams {
 
 /**
  * Fetch WIP balances for a task with detailed breakdown
- * Returns balances calculated from WIPTransactions:
+ * Returns balances calculated from WIPTransactions using exact TType matching:
  * 
  * Breakdown Components:
- * - time: Time transactions
- * - timeAdjustments: Time adjustments
- * - disbursements: Disbursement transactions
- * - disbursementAdjustments: Disbursement adjustments
- * - fees: Fee transactions (reversed/subtracted)
- * - provision: Provision transactions
+ * - time: Time transactions (TType === 'T')
+ * - adjustments: All adjustment transactions (TType === 'ADJ')
+ * - disbursements: Disbursement transactions (TType === 'D')
+ * - fees: Fee transactions (TType === 'F', reversed/subtracted)
+ * - provision: Provision transactions (TType === 'P')
  * 
  * Calculated Totals:
  * - grossWip: Time + Adjustments + Disbursements - Fees

@@ -27,12 +27,15 @@ interface ProfitabilityMetrics {
   wipProvision: number;
   ltdTime: number;
   ltdDisb: number;
+  ltdAdj: number; // Merged adjustments
+  ltdFee: number; // Merged fees
+  ltdHours: number;
+  taskCount: number;
+  // Legacy fields for backwards compatibility
   ltdAdjTime: number;
   ltdAdjDisb: number;
   ltdFeeTime: number;
   ltdFeeDisb: number;
-  ltdHours: number;
-  taskCount: number;
 }
 
 interface MasterServiceLineInfo {
@@ -45,21 +48,19 @@ interface MasterServiceLineInfo {
  */
 function calculateProfitabilityMetrics(data: {
   ltdTime: number;
-  ltdAdjTime: number;
-  ltdAdjDisb: number;
+  ltdAdj: number;
   ltdCost: number;
   balWIP: number;
   balTime: number;
   balDisb: number;
   wipProvision: number;
   ltdDisb: number;
-  ltdFeeTime: number;
-  ltdFeeDisb: number;
+  ltdFee: number;
   ltdHours: number;
   taskCount: number;
 }): ProfitabilityMetrics {
   const grossProduction = data.ltdTime + data.ltdDisb;
-  const ltdAdjustment = data.ltdAdjTime + data.ltdAdjDisb;
+  const ltdAdjustment = data.ltdAdj;
   const netRevenue = grossProduction + ltdAdjustment;
   const adjustmentPercentage = grossProduction !== 0 ? (ltdAdjustment / grossProduction) * 100 : 0;
   const grossProfit = netRevenue - data.ltdCost;
@@ -83,12 +84,15 @@ function calculateProfitabilityMetrics(data: {
     wipProvision: data.wipProvision,
     ltdTime: data.ltdTime,
     ltdDisb: data.ltdDisb,
-    ltdAdjTime: data.ltdAdjTime,
-    ltdAdjDisb: data.ltdAdjDisb,
-    ltdFeeTime: data.ltdFeeTime,
-    ltdFeeDisb: data.ltdFeeDisb,
+    ltdAdj: data.ltdAdj,
+    ltdFee: data.ltdFee,
     ltdHours: data.ltdHours,
     taskCount: data.taskCount,
+    // Legacy fields for backwards compatibility - set to 0
+    ltdAdjTime: 0,
+    ltdAdjDisb: 0,
+    ltdFeeTime: 0,
+    ltdFeeDisb: 0,
   };
 }
 
@@ -158,16 +162,14 @@ export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
           groupDesc: groupInfo.groupDesc,
           overall: calculateProfitabilityMetrics({
             ltdTime: 0,
-            ltdAdjTime: 0,
-            ltdAdjDisb: 0,
+            ltdAdj: 0,
             ltdCost: 0,
             balWIP: 0,
             balTime: 0,
             balDisb: 0,
             wipProvision: 0,
             ltdDisb: 0,
-            ltdFeeTime: 0,
-            ltdFeeDisb: 0,
+            ltdFee: 0,
             ltdHours: 0,
             taskCount: 0,
           }),
@@ -196,7 +198,6 @@ export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
         Cost: true,
         Hour: true,
         TType: true,
-        TranType: true,
         EmpCode: true,
         updatedAt: true,
       },
@@ -244,10 +245,6 @@ export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
     groupedData.forEach((data, masterCode) => {
       byMasterServiceLine[masterCode] = calculateProfitabilityMetrics(data);
     });
-
-    // #region agent log - Hypothesis F: Log profitability billing data
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'wip/route.ts:245',message:'Profitability billing data',data:{groupCode,ltdFeeTime:overallTotals.ltdFeeTime,ltdFeeDisb:overallTotals.ltdFeeDisb,totalFees:overallTotals.ltdFeeTime+overallTotals.ltdFeeDisb},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'F'})}).catch(()=>{});
-    // #endregion
 
     // Calculate overall profitability metrics
     const overall = calculateProfitabilityMetrics(overallTotals);

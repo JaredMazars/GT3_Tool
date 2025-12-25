@@ -10,9 +10,8 @@ interface ClientHeaderProps {
       grossWip: number;
       debtorBalance: number;
       time: number;
-      timeAdjustments: number;
+      adjustments: number;
       disbursements: number;
-      disbursementAdjustments: number;
       fees: number;
       provision: number;
     };

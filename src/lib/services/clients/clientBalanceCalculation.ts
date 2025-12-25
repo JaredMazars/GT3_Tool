@@ -6,26 +6,18 @@
  */
 
 /**
- * Transaction Type Classification
- * Based on actual database TType codes
+ * Categorize a transaction type using exact TType matching
+ * 
+ * Simplified logic using ONLY the TType field:
+ * - T = Time
+ * - D = Disbursement
+ * - ADJ = Adjustment
+ * - P = Provision
+ * - F = Fee
  * 
  * Exported for use across all analytics endpoints to ensure consistent transaction categorization
  */
-export const TTYPE_CATEGORIES = {
-  TIME: ['T', 'TI', 'TIM'], // Time transactions
-  DISBURSEMENT: ['D', 'DI', 'DIS'], // Disbursement transactions
-  FEE: ['F', 'FEE'], // Fee transactions (reversed) - THIS IS KEY: recognizes both 'F' and 'FEE'
-  ADJUSTMENT: ['ADJ'], // Adjustment transactions (differentiated by TranType)
-  PROVISION: ['P', 'PRO'], // Provision transactions
-};
-
-/**
- * Categorize a transaction type
- * 
- * Exported for use across all analytics endpoints to ensure consistent transaction categorization
- * This ensures profitability and graphs tabs show the same data
- */
-export function categorizeTransaction(tType: string, tranType?: string): {
+export function categorizeTransaction(tType: string): {
   isTime: boolean;
   isDisbursement: boolean;
   isFee: boolean;
@@ -35,26 +27,24 @@ export function categorizeTransaction(tType: string, tranType?: string): {
   const tTypeUpper = tType.toUpperCase();
   
   return {
-    isTime: TTYPE_CATEGORIES.TIME.includes(tTypeUpper) || (tTypeUpper.startsWith('T') && tTypeUpper !== 'ADJ'),
-    isDisbursement: TTYPE_CATEGORIES.DISBURSEMENT.includes(tTypeUpper) || (tTypeUpper.startsWith('D') && tTypeUpper !== 'ADJ'),
-    isFee: TTYPE_CATEGORIES.FEE.includes(tTypeUpper) || tTypeUpper === 'F',
-    isAdjustment: TTYPE_CATEGORIES.ADJUSTMENT.includes(tTypeUpper) || tTypeUpper === 'ADJ',
-    isProvision: TTYPE_CATEGORIES.PROVISION.includes(tTypeUpper) || tTypeUpper === 'P',
+    isTime: tTypeUpper === 'T',
+    isDisbursement: tTypeUpper === 'D',
+    isFee: tTypeUpper === 'F',
+    isAdjustment: tTypeUpper === 'ADJ',
+    isProvision: tTypeUpper === 'P',
   };
 }
 
 export interface WIPTransaction {
   Amount: number | null;
   TType: string;
-  TranType: string;
   GSTaskID?: string; // Optional for task-level grouping
 }
 
 export interface WIPBalances {
   time: number;
-  timeAdjustments: number;
+  adjustments: number; // Single category for all adjustments
   disbursements: number;
-  disbursementAdjustments: number;
   fees: number;
   provision: number;
   grossWip: number;
@@ -67,65 +57,54 @@ export interface WIPBalances {
 /**
  * Calculate WIP balances from WIPTransactions
  * 
+ * Uses exact TType matching with single adjustments category
+ * Formula: Gross WIP = Time + Adjustments + Disbursements - Fees
+ *          Net WIP = Gross WIP + Provision
+ * 
  * @param transactions - Array of WIP transaction records
  * @returns Aggregated WIP balances with detailed breakdown
  */
 export function calculateWIPBalances(transactions: WIPTransaction[]): WIPBalances {
   let time = 0;
-  let timeAdjustments = 0;
+  let adjustments = 0;
   let disbursements = 0;
-  let disbursementAdjustments = 0;
   let fees = 0;
   let provision = 0;
 
   transactions.forEach((transaction) => {
     const amount = transaction.Amount || 0;
-    const category = categorizeTransaction(transaction.TType, transaction.TranType);
-    const tranTypeUpper = transaction.TranType?.toUpperCase() || '';
+    const category = categorizeTransaction(transaction.TType);
 
     if (category.isProvision) {
-      // Provision tracked separately
       provision += amount;
     } else if (category.isFee) {
-      // Fees are reversed (subtracted)
       fees += amount;
     } else if (category.isAdjustment) {
-      // Adjustment transactions - differentiate by TranType
-      if (tranTypeUpper.includes('TIME')) {
-        timeAdjustments += amount;
-      } else if (tranTypeUpper.includes('DISBURSEMENT') || tranTypeUpper.includes('DISB')) {
-        disbursementAdjustments += amount;
-      }
+      adjustments += amount; // All ADJ in single category
     } else if (category.isTime) {
-      // Time transactions
       time += amount;
     } else if (category.isDisbursement) {
-      // Disbursement transactions
       disbursements += amount;
-    } else {
-      // Other transactions default to time-like behavior
-      time += amount;
     }
   });
 
-  // Gross WIP = Time + Time Adjustments + Disbursements + Disbursement Adjustments - Fees
-  const grossWip = time + timeAdjustments + disbursements + disbursementAdjustments - fees;
+  // Gross WIP = Time + Adjustments + Disbursements - Fees
+  const grossWip = time + adjustments + disbursements - fees;
   
   // Net WIP = Gross WIP + Provision
   const netWip = grossWip + provision;
 
   return {
     time,
-    timeAdjustments,
+    adjustments,
     disbursements,
-    disbursementAdjustments,
     fees,
     provision,
     grossWip,
     netWip,
-    balWIP: netWip, // Alias for backwards compatibility
-    balTime: time + timeAdjustments - fees,
-    balDisb: disbursements + disbursementAdjustments,
+    balWIP: netWip,
+    balTime: time + adjustments - fees, // Time-related balances
+    balDisb: disbursements,
   };
 }
 

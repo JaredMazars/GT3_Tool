@@ -43,6 +43,30 @@ const team = await prisma.taskTeam.findMany({ where: { taskId: task.id } });
 const clients = await prisma.client.findMany({ where: { clientCode: { contains: term } } });
 ```
 
+**Data Model Relationships (CRITICAL):**
+- **Clients are unique to Groups**: Each client belongs to exactly one group (`groupCode`). When creating/updating APIs that work with clients, always validate that the client belongs to the specified group.
+- **Tasks are unique to Clients**: Each task belongs to exactly one client (`GSClientID`). When creating/updating APIs that work with tasks, always validate that the task belongs to the specified client.
+
+```typescript
+// Example: Validate task belongs to client in API
+const task = await prisma.task.findUnique({
+  where: { id: taskId },
+  select: { GSClientID: true }
+});
+if (task?.GSClientID !== clientId) {
+  throw new AppError(404, 'Task not found', ErrorCodes.NOT_FOUND);
+}
+
+// Example: Validate client belongs to group in API
+const client = await prisma.client.findUnique({
+  where: { GSClientID: clientId },
+  select: { groupCode: true }
+});
+if (client?.groupCode !== groupCode) {
+  throw new AppError(404, 'Client not found', ErrorCodes.NOT_FOUND);
+}
+```
+
 ## Service Lines
 
 **Client-Facing:** TAX, AUDIT, ACCOUNTING, ADVISORY

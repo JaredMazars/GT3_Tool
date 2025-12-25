@@ -12,7 +12,7 @@ interface ProfitabilityTabProps {
 
 interface ProfitabilityCardProps {
   label: string;
-  value: number;
+  value: number | null | undefined;
   isCurrency?: boolean;
   isPercentage?: boolean;
   showTrend?: boolean;
@@ -29,7 +29,12 @@ function ProfitabilityCard({
   customBgColor,
   customTextColor
 }: ProfitabilityCardProps) {
-  const formatValue = (val: number) => {
+  const formatValue = (val: number | null | undefined) => {
+    // Handle null/undefined values
+    if (val === null || val === undefined || isNaN(val)) {
+      return isCurrency ? 'R 0' : isPercentage ? '0.00%' : '0';
+    }
+    
     if (isPercentage) {
       return `${val.toFixed(2)}%`;
     }
@@ -44,7 +49,8 @@ function ProfitabilityCard({
     return val.toLocaleString('en-ZA', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   };
 
-  const isPositive = value >= 0;
+  const safeValue = value ?? 0;
+  const isPositive = safeValue >= 0;
   const trendColor = customTextColor || (isPositive ? 'text-green-600' : 'text-red-600');
   const bgColor = customBgColor || (showTrend ? (isPositive ? 'bg-green-50' : 'bg-red-50') : 'bg-forvis-gray-50');
 
@@ -81,20 +87,22 @@ export function ProfitabilityTab({ clientId, groupCode }: ProfitabilityTabProps)
   
   const [activeTab, setActiveTab] = useState<string>('overall');
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number | null | undefined) => {
+    const safeAmount = amount ?? 0;
     return new Intl.NumberFormat('en-ZA', {
       style: 'currency',
       currency: 'ZAR',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    }).format(amount);
+    }).format(safeAmount);
   };
 
-  const formatHours = (hours: number) => {
+  const formatHours = (hours: number | null | undefined) => {
+    const safeHours = hours ?? 0;
     return new Intl.NumberFormat('en-ZA', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    }).format(hours);
+    }).format(safeHours);
   };
 
   if (isLoading) {
@@ -135,6 +143,15 @@ export function ProfitabilityTab({ clientId, groupCode }: ProfitabilityTabProps)
   const currentMetrics: ProfitabilityMetrics = activeTab === 'overall' 
     ? overall 
     : byMasterServiceLine[activeTab] || overall;
+
+  // Safety check for metrics
+  if (!currentMetrics || currentMetrics.grossProfitPercentage === null || currentMetrics.grossProfitPercentage === undefined) {
+    return (
+      <div className="card p-6 text-center">
+        <p className="text-forvis-gray-600">No profitability metrics available for this {entityType}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -185,9 +202,9 @@ export function ProfitabilityTab({ clientId, groupCode }: ProfitabilityTabProps)
         <div className="card p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-              currentMetrics.grossProfitPercentage >= 60
+              (currentMetrics.grossProfitPercentage ?? 0) >= 60
                 ? 'bg-green-600'
-                : currentMetrics.grossProfitPercentage >= 50
+                : (currentMetrics.grossProfitPercentage ?? 0) >= 50
                 ? 'bg-yellow-600'
                 : 'bg-red-600'
             }`}>
@@ -196,13 +213,13 @@ export function ProfitabilityTab({ clientId, groupCode }: ProfitabilityTabProps)
             <h3 className="text-lg font-bold text-forvis-gray-900">Gross Profit</h3>
           </div>
           <p className={`text-3xl font-bold ${
-            currentMetrics.grossProfitPercentage >= 60
+            (currentMetrics.grossProfitPercentage ?? 0) >= 60
               ? 'text-green-600'
-              : currentMetrics.grossProfitPercentage >= 50
+              : (currentMetrics.grossProfitPercentage ?? 0) >= 50
               ? 'text-yellow-600'
               : 'text-red-600'
           }`}>
-            {formatCurrency(currentMetrics.grossProfit)}
+            {formatCurrency(currentMetrics.grossProfit ?? 0)}
           </p>
           <p className="text-xs text-forvis-gray-600 mt-2">Net Revenue - Costs</p>
         </div>
@@ -210,9 +227,9 @@ export function ProfitabilityTab({ clientId, groupCode }: ProfitabilityTabProps)
         <div className="card p-6 relative">
           <div className="flex items-center gap-3 mb-4">
             <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-              currentMetrics.grossProfitPercentage >= 60
+              (currentMetrics.grossProfitPercentage ?? 0) >= 60
                 ? 'bg-green-600'
-                : currentMetrics.grossProfitPercentage >= 50
+                : (currentMetrics.grossProfitPercentage ?? 0) >= 50
                 ? 'bg-yellow-600'
                 : 'bg-red-600'
             }`}>
@@ -221,25 +238,25 @@ export function ProfitabilityTab({ clientId, groupCode }: ProfitabilityTabProps)
             <h3 className="text-lg font-bold text-forvis-gray-900">Gross Profit %</h3>
           </div>
           <p className={`text-3xl font-bold ${
-            currentMetrics.grossProfitPercentage >= 60
+            (currentMetrics.grossProfitPercentage ?? 0) >= 60
               ? 'text-green-600'
-              : currentMetrics.grossProfitPercentage >= 50
+              : (currentMetrics.grossProfitPercentage ?? 0) >= 50
               ? 'text-yellow-600'
               : 'text-red-600'
           }`}>
-            {currentMetrics.grossProfitPercentage.toFixed(2)}%
+            {(currentMetrics.grossProfitPercentage ?? 0).toFixed(2)}%
           </p>
           <div className="mt-3">
             <div className={`inline-flex items-center text-xs font-bold px-3 py-1.5 rounded-full ${
-              currentMetrics.grossProfitPercentage >= 60
+              (currentMetrics.grossProfitPercentage ?? 0) >= 60
                 ? 'bg-green-100 text-green-700 border border-green-200'
-                : currentMetrics.grossProfitPercentage >= 50
+                : (currentMetrics.grossProfitPercentage ?? 0) >= 50
                 ? 'bg-yellow-100 text-yellow-700 border border-yellow-200'
                 : 'bg-red-100 text-red-700 border border-red-200'
             }`}>
-              {currentMetrics.grossProfitPercentage >= 60
+              {(currentMetrics.grossProfitPercentage ?? 0) >= 60
                 ? '✓ Above 60% Benchmark'
-                : currentMetrics.grossProfitPercentage >= 50
+                : (currentMetrics.grossProfitPercentage ?? 0) >= 50
                 ? '⚠ Near 60% Benchmark'
                 : '✗ Below 60% Benchmark'}
             </div>
@@ -315,11 +332,9 @@ export function ProfitabilityTab({ clientId, groupCode }: ProfitabilityTabProps)
           {/* Additional Details */}
           <div>
             <h3 className="text-md font-bold text-forvis-gray-900 mb-4">Additional Metrics</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <ProfitabilityCard label="LTD Adj Time" value={currentMetrics.ltdAdjTime} />
-              <ProfitabilityCard label="LTD Adj Disb" value={currentMetrics.ltdAdjDisb} />
-              <ProfitabilityCard label="LTD Fee Time" value={currentMetrics.ltdFeeTime} />
-              <ProfitabilityCard label="LTD Fee Disb" value={currentMetrics.ltdFeeDisb} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <ProfitabilityCard label="LTD Adjustments" value={currentMetrics.ltdAdj} />
+              <ProfitabilityCard label="LTD Fees" value={currentMetrics.ltdFee} />
             </div>
           </div>
 

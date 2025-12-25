@@ -89,12 +89,12 @@ export function ClientListItem({ client, serviceLine, subServiceLineGroup }: Cli
               <span className="ml-1 font-medium text-forvis-gray-900">
                 {formatCurrency(balancesData.time)}
               </span>
-              {balancesData.timeAdjustments !== 0 && (
+              {balancesData.adjustments !== 0 && (
                 <>
                   <span className="mx-1 text-forvis-gray-500">+</span>
                   <span className="text-forvis-gray-600">Adj:</span>
                   <span className="ml-1 font-medium text-forvis-gray-900">
-                    {formatCurrency(balancesData.timeAdjustments)}
+                    {formatCurrency(balancesData.adjustments)}
                   </span>
                 </>
               )}
@@ -103,15 +103,6 @@ export function ClientListItem({ client, serviceLine, subServiceLineGroup }: Cli
               <span className="ml-1 font-medium text-forvis-gray-900">
                 {formatCurrency(balancesData.disbursements)}
               </span>
-              {balancesData.disbursementAdjustments !== 0 && (
-                <>
-                  <span className="mx-1 text-forvis-gray-500">+</span>
-                  <span className="text-forvis-gray-600">Adj:</span>
-                  <span className="ml-1 font-medium text-forvis-gray-900">
-                    {formatCurrency(balancesData.disbursementAdjustments)}
-                  </span>
-                </>
-              )}
             </div>
             
             <div className="flex items-center text-xs">

@@ -25,11 +25,14 @@ export interface ProfitabilityMetrics {
   wipProvision: number;
   ltdTime: number;
   ltdDisb: number;
+  ltdAdj: number; // Merged adjustments
+  ltdFee: number; // Merged fees
+  ltdHours: number;
+  // Legacy fields for backwards compatibility
   ltdAdjTime: number;
   ltdAdjDisb: number;
   ltdFeeTime: number;
   ltdFeeDisb: number;
-  ltdHours: number;
 }
 
 export interface TaskWipData {
