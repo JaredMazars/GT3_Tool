@@ -19,7 +19,7 @@ import {
   Maximize2,
   Filter,
 } from 'lucide-react';
-import { isValidServiceLine, formatServiceLineName, isSharedService, formatTaskType, getTaskTypeColor } from '@/lib/utils/serviceLineUtils';
+import { isValidServiceLine, formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { ServiceLine } from '@/types';
 import { useClients, type Client } from '@/hooks/clients/useClients';

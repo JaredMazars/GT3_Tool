@@ -24,50 +24,6 @@ export enum ServiceLine {
   COUNTRY_MANAGEMENT = 'COUNTRY_MANAGEMENT',
 }
 
-export enum TaskType {
-  // Tax Service Line
-  TAX_CALCULATION = 'TAX_CALCULATION',
-  TAX_OPINION = 'TAX_OPINION',
-  TAX_ADMINISTRATION = 'TAX_ADMINISTRATION',
-  // Audit Service Line
-  AUDIT_ENGAGEMENT = 'AUDIT_ENGAGEMENT',
-  AUDIT_REVIEW = 'AUDIT_REVIEW',
-  AUDIT_REPORT = 'AUDIT_REPORT',
-  // Accounting Service Line
-  FINANCIAL_STATEMENTS = 'FINANCIAL_STATEMENTS',
-  BOOKKEEPING = 'BOOKKEEPING',
-  MANAGEMENT_ACCOUNTS = 'MANAGEMENT_ACCOUNTS',
-  // Advisory Service Line
-  ADVISORY_PROJECT = 'ADVISORY_PROJECT',
-  CONSULTING_ENGAGEMENT = 'CONSULTING_ENGAGEMENT',
-  STRATEGY_REVIEW = 'STRATEGY_REVIEW',
-  // QRM Service Line
-  QRM_AUDIT = 'QRM_AUDIT',
-  QRM_COMPLIANCE = 'QRM_COMPLIANCE',
-  QRM_RISK_ASSESSMENT = 'QRM_RISK_ASSESSMENT',
-  // Business Development Service Line
-  BD_CAMPAIGN = 'BD_CAMPAIGN',
-  BD_PROPOSAL = 'BD_PROPOSAL',
-  BD_MARKET_RESEARCH = 'BD_MARKET_RESEARCH',
-  // IT Service Line
-  IT_IMPLEMENTATION = 'IT_IMPLEMENTATION',
-  IT_SUPPORT = 'IT_SUPPORT',
-  IT_INFRASTRUCTURE = 'IT_INFRASTRUCTURE',
-  // Finance Service Line
-  FINANCE_REPORTING = 'FINANCE_REPORTING',
-  FINANCE_BUDGETING = 'FINANCE_BUDGETING',
-  FINANCE_ANALYSIS = 'FINANCE_ANALYSIS',
-  // HR Service Line
-  HR_RECRUITMENT = 'HR_RECRUITMENT',
-  HR_TRAINING = 'HR_TRAINING',
-  HR_POLICY = 'HR_POLICY',
-  // Country Management Service Line
-  COUNTRY_REPORT = 'COUNTRY_REPORT',
-  COUNTRY_ANALYSIS = 'COUNTRY_ANALYSIS',
-  COUNTRY_DASHBOARD = 'COUNTRY_DASHBOARD',
-  COUNTRY_METRICS = 'COUNTRY_METRICS',
-}
-
 // System-level roles (User.role)
 // SYSTEM_ADMIN: System-wide access to all features and service lines
 // USER: Regular user, requires service line access
@@ -203,7 +159,6 @@ export interface Task {
   archived: boolean;
   serviceLine?: string | null;
   assessmentYear?: string | null;
-  projectType: TaskType;
   submissionDeadline?: Date | null;
   taxPeriodStart?: Date | null;
   taxPeriodEnd?: Date | null;

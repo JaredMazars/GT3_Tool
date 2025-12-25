@@ -12,7 +12,6 @@ interface Template {
   description: string | null;
   type: string;
   serviceLine: string | null;
-  projectType: string | null;
   content: string;
   active: boolean;
   sections?: TemplateSection[];
@@ -47,7 +46,6 @@ export default function TemplateEditorPage() {
     description: '',
     type: 'ENGAGEMENT_LETTER',
     serviceLine: null,
-    projectType: null,
     content: '',
     active: true,
     sections: [],
@@ -101,7 +99,6 @@ export default function TemplateEditorPage() {
           description: template.description || undefined,
           type: template.type,
           serviceLine: template.serviceLine || undefined,
-          projectType: template.projectType || undefined,
           content: template.content,
           active: template.active,
         }),
@@ -338,21 +335,6 @@ export default function TemplateEditorPage() {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-forvis-gray-700 mb-1">
-                      Project Type (Optional)
-                    </label>
-                    <select
-                      value={template.projectType || ''}
-                      onChange={(e) => setTemplate({ ...template, projectType: e.target.value || null })}
-                      className="input-field"
-                    >
-                      <option value="">All Project Types</option>
-                      <option value="TAX_CALCULATION">Tax Calculation</option>
-                      <option value="TAX_OPINION">Tax Opinion</option>
-                      <option value="TAX_ADMINISTRATION">Tax Administration</option>
-                    </select>
-                  </div>
                 </div>
               </div>
             </div>
@@ -394,9 +376,6 @@ export default function TemplateEditorPage() {
                 </div>
                 <div className="p-2 bg-forvis-gray-50 rounded">
                   {'{{taskName}}'}
-                </div>
-                <div className="p-2 bg-forvis-gray-50 rounded">
-                  {'{{projectType}}'}
                 </div>
                 <div className="p-2 bg-forvis-gray-50 rounded">
                   {'{{serviceLine}}'}

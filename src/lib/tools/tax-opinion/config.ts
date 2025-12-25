@@ -1,4 +1,3 @@
-import { TaskType } from '@/types';
 import type { ToolConfig } from '../registry/types';
 
 export const taxOpinionToolConfig: ToolConfig = {
@@ -6,7 +5,7 @@ export const taxOpinionToolConfig: ToolConfig = {
   name: 'Tax Opinion Tool',
   description:
     'AI-powered tax opinion drafting and analysis with multi-agent workflow for South African tax law',
-  taskTypes: [TaskType.TAX_OPINION],
+  serviceLines: ['TAX'],
   apiRoutes: {
     basePath: '/api/tasks/[id]',
     endpoints: [
@@ -29,42 +28,3 @@ export const taxOpinionToolConfig: ToolConfig = {
   enabled: true,
   version: '1.0.0',
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -224,24 +224,8 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
       {/* Tab Content */}
       {activeTab === 'profitability' && (
         <div className="space-y-6 p-6">
-      {/* Task Header */}
-      <div className="rounded-lg p-4 border border-forvis-blue-200" style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}>
-        <div className="flex items-center gap-3">
-          <div 
-            className="w-10 h-10 rounded-lg flex items-center justify-center shadow-sm"
-            style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
-          >
-            <Briefcase className="h-5 w-5 text-white" />
-          </div>
-          <div>
-            <h2 className="text-lg font-bold text-forvis-gray-900">{taskCode}</h2>
-            <p className="text-sm text-forvis-gray-600">{taskDesc}</p>
-          </div>
-        </div>
-      </div>
-
       {/* Key Performance Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div 
           className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100 cursor-pointer hover:shadow-lg transition-shadow"
           style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
@@ -293,27 +277,6 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
               }`}
             >
               <DollarSign className="w-5 h-5 text-white" />
-            </div>
-          </div>
-        </div>
-
-        <div 
-          className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100 cursor-pointer hover:shadow-lg transition-shadow"
-          style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
-          onMouseEnter={handleCardHover}
-          onClick={() => handleCardClick('balWIP', 'WIP Balance', metrics.balWIP)}
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">WIP Balance</p>
-              <p className="text-2xl font-bold mt-2 text-pink-600">{formatCurrency(metrics.balWIP)}</p>
-              <p className="text-xs text-forvis-gray-500 mt-1">Time + Disb - Provision</p>
-            </div>
-            <div
-              className="rounded-full p-2.5"
-              style={{ background: 'linear-gradient(to bottom right, #EC4899, #DB2777)' }}
-            >
-              <Briefcase className="w-5 h-5 text-white" />
             </div>
           </div>
         </div>
@@ -541,6 +504,7 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
     </div>
   );
 }
+
 
 
 

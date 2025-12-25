@@ -3,7 +3,7 @@
  * Define the shape of data transferred between client and server
  */
 
-import { TaskType, ServiceLine, ServiceLineRole } from './index';
+import { ServiceLine, ServiceLineRole } from './index';
 
 /**
  * DTO for updating a task
@@ -14,7 +14,6 @@ export interface UpdateTaskDTO {
   status?: string;
   archived?: boolean;
   assessmentYear?: string | null;
-  projectType?: TaskType;
   submissionDeadline?: Date | null;
   taxPeriodStart?: Date | null;
   taxPeriodEnd?: Date | null;
@@ -27,7 +26,6 @@ export interface UpdateTaskDTO {
 export interface CreateTaskDTO {
   name: string;
   description?: string | null;
-  projectType: TaskType;
   taxYear?: number | null;
   taxPeriodStart?: Date | null;
   taxPeriodEnd?: Date | null;

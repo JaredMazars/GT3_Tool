@@ -2,113 +2,8 @@
  * Service Line Utility Functions
  */
 
-import { ServiceLine, TaskType, ServiceLineRole } from '@/types';
-import { SERVICE_LINE_CONFIGS, getServiceLineForTaskType } from '@/types/service-line';
-
-/**
- * Format task type name for display
- */
-export function formatTaskType(taskType: TaskType | string): string {
-  const typeMap: Record<string, string> = {
-    // Tax
-    TAX_CALCULATION: 'Tax Calculation',
-    TAX_OPINION: 'Tax Opinion',
-    TAX_ADMINISTRATION: 'Tax Administration',
-    // Audit
-    AUDIT_ENGAGEMENT: 'Audit Engagement',
-    AUDIT_REVIEW: 'Audit Review',
-    AUDIT_REPORT: 'Audit Report',
-    // Accounting
-    FINANCIAL_STATEMENTS: 'Financial Statements',
-    BOOKKEEPING: 'Bookkeeping',
-    MANAGEMENT_ACCOUNTS: 'Management Accounts',
-    // Advisory
-    ADVISORY_PROJECT: 'Advisory Project',
-    CONSULTING_ENGAGEMENT: 'Consulting Engagement',
-    STRATEGY_REVIEW: 'Strategy Review',
-    // QRM
-    QRM_AUDIT: 'QRM Audit',
-    QRM_COMPLIANCE: 'QRM Compliance',
-    QRM_RISK_ASSESSMENT: 'Risk Assessment',
-    // Business Development
-    BD_CAMPAIGN: 'Marketing Campaign',
-    BD_PROPOSAL: 'Proposal',
-    BD_MARKET_RESEARCH: 'Market Research',
-    // IT
-    IT_IMPLEMENTATION: 'IT Implementation',
-    IT_SUPPORT: 'IT Support',
-    IT_INFRASTRUCTURE: 'IT Infrastructure',
-    // Finance
-    FINANCE_REPORTING: 'Financial Reporting',
-    FINANCE_BUDGETING: 'Budgeting',
-    FINANCE_ANALYSIS: 'Financial Analysis',
-    // HR
-    HR_RECRUITMENT: 'Recruitment',
-    HR_TRAINING: 'Training',
-    HR_POLICY: 'Policy Development',
-    // Country Management
-    COUNTRY_REPORT: 'Country Reporting',
-    COUNTRY_ANALYSIS: 'Business Analysis',
-    COUNTRY_DASHBOARD: 'Dashboard Development',
-    COUNTRY_METRICS: 'Metrics & KPIs',
-  };
-
-  return typeMap[taskType] || taskType;
-}
-
-/**
- * Get color classes for task type badge
- */
-export function getTaskTypeColor(taskType: TaskType | string): string {
-  // Determine service line from task type
-  const serviceLine = getServiceLineForTaskType(taskType as TaskType);
-  
-  if (!serviceLine) {
-    return 'bg-gray-100 text-gray-700 border-gray-200';
-  }
-
-  const colorMap: Record<ServiceLine, string> = {
-    [ServiceLine.TAX]: 'bg-blue-100 text-blue-700 border-blue-200',
-    [ServiceLine.AUDIT]: 'bg-green-100 text-green-700 border-green-200',
-    [ServiceLine.ACCOUNTING]: 'bg-slate-100 text-slate-700 border-slate-200',
-    [ServiceLine.ADVISORY]: 'bg-orange-100 text-orange-700 border-orange-200',
-    [ServiceLine.QRM]: 'bg-red-100 text-red-700 border-red-200',
-    [ServiceLine.BUSINESS_DEV]: 'bg-teal-100 text-teal-700 border-teal-200',
-    [ServiceLine.IT]: 'bg-indigo-100 text-indigo-700 border-indigo-200',
-    [ServiceLine.FINANCE]: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-    [ServiceLine.HR]: 'bg-pink-100 text-pink-700 border-pink-200',
-    [ServiceLine.COUNTRY_MANAGEMENT]: 'bg-purple-100 text-purple-700 border-purple-200',
-  };
-
-  return colorMap[serviceLine] || 'bg-gray-100 text-gray-700 border-gray-200';
-}
-
-/**
- * Get border color classes for task type
- */
-export function getTaskTypeBorderColor(taskType: TaskType | string): string {
-  const serviceLine = getServiceLineForTaskType(taskType as TaskType);
-  
-  if (!serviceLine) {
-    return 'border-gray-200';
-  }
-
-  const colorMap: Record<ServiceLine, string> = {
-    [ServiceLine.TAX]: 'border-blue-200',
-    [ServiceLine.AUDIT]: 'border-green-200',
-    [ServiceLine.ACCOUNTING]: 'border-slate-200',
-    [ServiceLine.ADVISORY]: 'border-orange-200',
-    [ServiceLine.QRM]: 'border-red-200',
-    [ServiceLine.BUSINESS_DEV]: 'border-teal-200',
-    [ServiceLine.IT]: 'border-indigo-200',
-    [ServiceLine.FINANCE]: 'border-yellow-200',
-    [ServiceLine.HR]: 'border-pink-200',
-    [ServiceLine.COUNTRY_MANAGEMENT]: 'border-purple-200',
-  };
-
-  return colorMap[serviceLine] || 'border-gray-200';
-}
-
+import { ServiceLine } from '@/types';
+import { SERVICE_LINE_CONFIGS } from '@/types/service-line';
 
 /**
  * Get color classes for service line
@@ -186,27 +81,6 @@ export function isValidServiceLine(serviceLine: string): serviceLine is ServiceL
 }
 
 /**
- * Validate task type for service line
- */
-export function isValidTaskTypeForServiceLine(
-  taskType: TaskType | string,
-  serviceLine: ServiceLine | string
-): boolean {
-  const config = SERVICE_LINE_CONFIGS[serviceLine as ServiceLine];
-  if (!config) return false;
-  
-  return config.taskTypes.includes(taskType as TaskType);
-}
-
-/**
- * Get all task types for a service line
- */
-export function getTaskTypesForServiceLine(serviceLine: ServiceLine | string): TaskType[] {
-  const config = SERVICE_LINE_CONFIGS[serviceLine as ServiceLine];
-  return config?.taskTypes || [];
-}
-
-/**
  * Check if a service line is a shared service
  */
 export function isSharedService(serviceLine: ServiceLine | string): boolean {
@@ -258,4 +132,3 @@ export function mapEmployeeCategoryToRole(empCatDesc: string | null): string {
   // Default to viewer for unknown categories
   return 'VIEWER';
 }
-

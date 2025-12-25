@@ -13,7 +13,6 @@ import {
 const TemplateQueryParamsSchema = z.object({
   type: z.enum(['ENGAGEMENT_LETTER', 'PROPOSAL', 'AGREEMENT']).optional(),
   serviceLine: z.string().max(50).optional(),
-  projectType: z.string().max(50).optional(),
   active: z.enum(['true', 'false']).optional(),
   search: z.string().max(100).optional(),
 }).strict();
@@ -33,7 +32,6 @@ export const GET = secureRoute.query({
     const queryResult = TemplateQueryParamsSchema.safeParse({
       type: searchParams.get('type') || undefined,
       serviceLine: searchParams.get('serviceLine') || undefined,
-      projectType: searchParams.get('projectType') || undefined,
       active: searchParams.get('active') || undefined,
       search: searchParams.get('search') || undefined,
     });
@@ -43,7 +41,6 @@ export const GET = secureRoute.query({
     const filter: TemplateFilter = {
       type: validParams.type,
       serviceLine: validParams.serviceLine,
-      projectType: validParams.projectType,
       active: validParams.active ? validParams.active === 'true' : undefined,
       search: validParams.search,
     };
@@ -69,7 +66,6 @@ export const POST = secureRoute.mutation({
       description: data.description,
       type: data.type,
       serviceLine: data.serviceLine,
-      projectType: data.projectType,
       content: data.content,
       active: data.active,
       createdBy: user.id,

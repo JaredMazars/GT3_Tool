@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { ServiceLine, TaskType } from './index';
+import { ServiceLine } from './index';
 import {
   FileText,
   ClipboardCheck,
@@ -28,7 +28,6 @@ export interface ServiceLineConfig {
   color: string;
   borderColor: string;
   bgColor: string;
-  taskTypes: TaskType[];
 }
 
 /**
@@ -43,11 +42,6 @@ export const SERVICE_LINE_CONFIGS: Record<ServiceLine, ServiceLineConfig> = {
     color: 'text-blue-600',
     borderColor: 'border-blue-200',
     bgColor: 'bg-blue-50',
-    taskTypes: [
-      TaskType.TAX_CALCULATION,
-      TaskType.TAX_OPINION,
-      TaskType.TAX_ADMINISTRATION,
-    ],
   },
   [ServiceLine.AUDIT]: {
     id: ServiceLine.AUDIT,
@@ -57,11 +51,6 @@ export const SERVICE_LINE_CONFIGS: Record<ServiceLine, ServiceLineConfig> = {
     color: 'text-green-600',
     borderColor: 'border-green-200',
     bgColor: 'bg-green-50',
-    taskTypes: [
-      TaskType.AUDIT_ENGAGEMENT,
-      TaskType.AUDIT_REVIEW,
-      TaskType.AUDIT_REPORT,
-    ],
   },
   [ServiceLine.ACCOUNTING]: {
     id: ServiceLine.ACCOUNTING,
@@ -71,11 +60,6 @@ export const SERVICE_LINE_CONFIGS: Record<ServiceLine, ServiceLineConfig> = {
     color: 'text-slate-700',
     borderColor: 'border-slate-200',
     bgColor: 'bg-slate-50',
-    taskTypes: [
-      TaskType.FINANCIAL_STATEMENTS,
-      TaskType.BOOKKEEPING,
-      TaskType.MANAGEMENT_ACCOUNTS,
-    ],
   },
   [ServiceLine.ADVISORY]: {
     id: ServiceLine.ADVISORY,
@@ -85,11 +69,6 @@ export const SERVICE_LINE_CONFIGS: Record<ServiceLine, ServiceLineConfig> = {
     color: 'text-orange-600',
     borderColor: 'border-orange-200',
     bgColor: 'bg-orange-50',
-    taskTypes: [
-      TaskType.ADVISORY_PROJECT,
-      TaskType.CONSULTING_ENGAGEMENT,
-      TaskType.STRATEGY_REVIEW,
-    ],
   },
   [ServiceLine.QRM]: {
     id: ServiceLine.QRM,
@@ -99,11 +78,6 @@ export const SERVICE_LINE_CONFIGS: Record<ServiceLine, ServiceLineConfig> = {
     color: 'text-red-600',
     borderColor: 'border-red-200',
     bgColor: 'bg-red-50',
-    taskTypes: [
-      TaskType.QRM_AUDIT,
-      TaskType.QRM_COMPLIANCE,
-      TaskType.QRM_RISK_ASSESSMENT,
-    ],
   },
   [ServiceLine.BUSINESS_DEV]: {
     id: ServiceLine.BUSINESS_DEV,
@@ -113,11 +87,6 @@ export const SERVICE_LINE_CONFIGS: Record<ServiceLine, ServiceLineConfig> = {
     color: 'text-teal-600',
     borderColor: 'border-teal-200',
     bgColor: 'bg-teal-50',
-    taskTypes: [
-      TaskType.BD_CAMPAIGN,
-      TaskType.BD_PROPOSAL,
-      TaskType.BD_MARKET_RESEARCH,
-    ],
   },
   [ServiceLine.IT]: {
     id: ServiceLine.IT,
@@ -127,11 +96,6 @@ export const SERVICE_LINE_CONFIGS: Record<ServiceLine, ServiceLineConfig> = {
     color: 'text-indigo-600',
     borderColor: 'border-indigo-200',
     bgColor: 'bg-indigo-50',
-    taskTypes: [
-      TaskType.IT_IMPLEMENTATION,
-      TaskType.IT_SUPPORT,
-      TaskType.IT_INFRASTRUCTURE,
-    ],
   },
   [ServiceLine.FINANCE]: {
     id: ServiceLine.FINANCE,
@@ -141,11 +105,6 @@ export const SERVICE_LINE_CONFIGS: Record<ServiceLine, ServiceLineConfig> = {
     color: 'text-yellow-600',
     borderColor: 'border-yellow-200',
     bgColor: 'bg-yellow-50',
-    taskTypes: [
-      TaskType.FINANCE_REPORTING,
-      TaskType.FINANCE_BUDGETING,
-      TaskType.FINANCE_ANALYSIS,
-    ],
   },
   [ServiceLine.HR]: {
     id: ServiceLine.HR,
@@ -155,11 +114,6 @@ export const SERVICE_LINE_CONFIGS: Record<ServiceLine, ServiceLineConfig> = {
     color: 'text-pink-600',
     borderColor: 'border-pink-200',
     bgColor: 'bg-pink-50',
-    taskTypes: [
-      TaskType.HR_RECRUITMENT,
-      TaskType.HR_TRAINING,
-      TaskType.HR_POLICY,
-    ],
   },
   [ServiceLine.COUNTRY_MANAGEMENT]: {
     id: ServiceLine.COUNTRY_MANAGEMENT,
@@ -169,26 +123,8 @@ export const SERVICE_LINE_CONFIGS: Record<ServiceLine, ServiceLineConfig> = {
     color: 'text-purple-600',
     borderColor: 'border-purple-200',
     bgColor: 'bg-purple-50',
-    taskTypes: [
-      TaskType.COUNTRY_REPORT,
-      TaskType.COUNTRY_ANALYSIS,
-      TaskType.COUNTRY_DASHBOARD,
-      TaskType.COUNTRY_METRICS,
-    ],
   },
 };
-
-/**
- * Get service line for a task type
- */
-export function getServiceLineForTaskType(taskType: TaskType): ServiceLine | null {
-  for (const [line, config] of Object.entries(SERVICE_LINE_CONFIGS)) {
-    if (config.taskTypes.includes(taskType)) {
-      return line as ServiceLine;
-    }
-  }
-  return null;
-}
 
 /**
  * Get service line config
@@ -221,7 +157,6 @@ export interface ServiceLineDetails {
   name: string;
   description: string;
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  taskTypes: TaskType[];
   colorClass: string;
   bgColorClass: string;
   borderColorClass: string;
@@ -246,7 +181,6 @@ export function getServiceLineDetails(serviceLine: ServiceLine): ServiceLineDeta
     name: config.name,
     description: config.description,
     icon: iconComponent,
-    taskTypes: config.taskTypes,
     colorClass: config.color,
     bgColorClass: config.bgColor,
     borderColorClass: config.borderColor,
@@ -271,4 +205,3 @@ export const SERVICE_LINE_DETAILS: Record<ServiceLine, ServiceLineDetails> = {
   [ServiceLine.HR]: getServiceLineDetails(ServiceLine.HR),
   [ServiceLine.COUNTRY_MANAGEMENT]: getServiceLineDetails(ServiceLine.COUNTRY_MANAGEMENT),
 };
-

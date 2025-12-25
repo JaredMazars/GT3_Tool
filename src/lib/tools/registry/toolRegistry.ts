@@ -1,4 +1,3 @@
-import { TaskType } from '@/types';
 import type { ToolConfig, ToolMetadata, ToolAvailability, IToolRegistry } from './types';
 
 /**
@@ -34,15 +33,15 @@ class ToolRegistry implements IToolRegistry {
   }
 
   /**
-   * Get all tools available for a specific task type
+   * Get all tools available for a specific service line
    */
-  getToolsForTaskType(taskType: TaskType): ToolConfig[] {
+  getToolsForServiceLine(serviceLine: string): ToolConfig[] {
     const tools: ToolConfig[] = [];
 
     for (const metadata of this.tools.values()) {
       if (
         metadata.config.enabled &&
-        metadata.config.taskTypes.includes(taskType)
+        metadata.config.serviceLines.includes(serviceLine)
       ) {
         tools.push(metadata.config);
       }
@@ -52,9 +51,9 @@ class ToolRegistry implements IToolRegistry {
   }
 
   /**
-   * Check if a tool is available for a specific task type
+   * Check if a tool is available for a specific service line
    */
-  isToolAvailable(toolId: string, taskType: TaskType): ToolAvailability {
+  isToolAvailable(toolId: string, serviceLine: string): ToolAvailability {
     const tool = this.getTool(toolId);
 
     if (!tool) {
@@ -72,10 +71,10 @@ class ToolRegistry implements IToolRegistry {
       };
     }
 
-    if (!tool.taskTypes.includes(taskType)) {
+    if (!tool.serviceLines.includes(serviceLine)) {
       return {
         available: false,
-        reason: `Tool "${toolId}" is not available for task type "${taskType}"`,
+        reason: `Tool "${toolId}" is not available for service line "${serviceLine}"`,
         tool,
       };
     }
@@ -115,11 +114,11 @@ export { toolRegistry };
 export default toolRegistry;
 
 /**
- * Utility function to check if a tool is available for a task
+ * Utility function to check if a tool is available for a service line
  * Throws an error if the tool is not available
  */
-export function requireTool(toolId: string, taskType: TaskType): ToolConfig {
-  const availability = toolRegistry.isToolAvailable(toolId, taskType);
+export function requireTool(toolId: string, serviceLine: string): ToolConfig {
+  const availability = toolRegistry.isToolAvailable(toolId, serviceLine);
 
   if (!availability.available) {
     throw new Error(
@@ -131,10 +130,10 @@ export function requireTool(toolId: string, taskType: TaskType): ToolConfig {
 }
 
 /**
- * Utility function to get all tools for a task type
+ * Utility function to get all tools for a service line
  */
-export function getTaskTools(taskType: TaskType): ToolConfig[] {
-  return toolRegistry.getToolsForTaskType(taskType);
+export function getServiceLineTools(serviceLine: string): ToolConfig[] {
+  return toolRegistry.getToolsForServiceLine(serviceLine);
 }
 
 /**
@@ -161,42 +160,3 @@ export function getToolForRoute(route: string): ToolConfig | undefined {
 
   return undefined;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

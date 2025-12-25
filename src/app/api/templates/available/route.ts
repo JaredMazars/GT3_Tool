@@ -5,16 +5,15 @@ import { secureRoute } from '@/lib/api/secureRoute';
 
 /**
  * GET /api/templates/available
- * Get templates applicable to a service line and project type
+ * Get templates applicable to a service line
  */
 export const GET = secureRoute.query({
   handler: async (request, { user }) => {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'ENGAGEMENT_LETTER';
     const serviceLine = searchParams.get('serviceLine') || undefined;
-    const projectType = searchParams.get('projectType') || undefined;
 
-    const templates = await getApplicableTemplates(type, serviceLine, projectType);
+    const templates = await getApplicableTemplates(type, serviceLine);
 
     return NextResponse.json(successResponse(templates));
   },

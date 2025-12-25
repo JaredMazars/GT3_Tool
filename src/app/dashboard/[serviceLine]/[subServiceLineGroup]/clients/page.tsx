@@ -11,7 +11,7 @@ import {
   Folder,
   Clock,
 } from 'lucide-react';
-import { isValidServiceLine, formatServiceLineName, isSharedService, formatTaskType, getTaskTypeColor } from '@/lib/utils/serviceLineUtils';
+import { isValidServiceLine, formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { ServiceLine } from '@/types';
 import { useClients, type Client, clientKeys } from '@/hooks/clients/useClients';
@@ -612,7 +612,7 @@ export default function ServiceLineClientsPage() {
                             </td>
                             <td className="px-6 py-4">
                               <span className="text-sm text-forvis-gray-600">
-                                {task.projectType || task.serviceLine}
+                                {task.serviceLine}
                               </span>
                             </td>
                             <td className="px-6 py-4">

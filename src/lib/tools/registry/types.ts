@@ -1,5 +1,3 @@
-import { TaskType } from '@/types';
-
 /**
  * Tool Configuration
  * Defines metadata and configuration for a task tool
@@ -14,8 +12,8 @@ export interface ToolConfig {
   /** Description of what the tool does */
   description: string;
   
-  /** Task types that can use this tool */
-  taskTypes: TaskType[];
+  /** Service lines that can use this tool */
+  serviceLines: string[];
   
   /** API routes associated with this tool */
   apiRoutes: {
@@ -81,11 +79,11 @@ export interface IToolRegistry {
   /** Get a tool by ID */
   getTool(id: string): ToolConfig | undefined;
   
-  /** Get all tools for a task type */
-  getToolsForTaskType(taskType: TaskType): ToolConfig[];
+  /** Get all tools for a service line */
+  getToolsForServiceLine(serviceLine: string): ToolConfig[];
   
-  /** Check if a tool is available for a task type */
-  isToolAvailable(toolId: string, taskType: TaskType): ToolAvailability;
+  /** Check if a tool is available for a service line */
+  isToolAvailable(toolId: string, serviceLine: string): ToolAvailability;
   
   /** Get all registered tools */
   getAllTools(): ToolConfig[];
@@ -93,42 +91,3 @@ export interface IToolRegistry {
   /** Unregister a tool */
   unregister(id: string): boolean;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

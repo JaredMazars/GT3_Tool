@@ -1,30 +1,3 @@
-import { TaskType, ServiceLineRole } from '@/types';
-
-/**
- * Get border color for task type
- */
-export function getTaskTypeBorderColor(type: string): string {
-  // Tax types
-  if (type.startsWith('TAX_')) {
-    return 'border-blue-500';
-  }
-  // Audit types
-  if (type.startsWith('AUDIT_')) {
-    return 'border-green-500';
-  }
-  // Accounting types
-  if (type === 'FINANCIAL_STATEMENTS' || type === 'BOOKKEEPING' || type === 'MANAGEMENT_ACCOUNTS') {
-    return 'border-purple-500';
-  }
-  // Advisory types
-  if (type.startsWith('ADVISORY_') || type === 'CONSULTING_ENGAGEMENT' || type === 'STRATEGY_REVIEW') {
-    return 'border-orange-500';
-  }
-  
-  return 'border-gray-300';
-}
-
-
 /**
  * Format role for display
  */

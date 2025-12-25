@@ -14,21 +14,18 @@ interface Template {
   description: string | null;
   type: string;
   serviceLine: string | null;
-  projectType: string | null;
   sections?: TemplateSection[];
   TemplateSection?: TemplateSection[];
 }
 
 interface TemplateSelectorProps {
   serviceLine: string;
-  projectType: string;
   selectedTemplateId: number | null;
   onSelect: (templateId: number | null) => void;
 }
 
 export function TemplateSelector({
   serviceLine,
-  projectType,
   selectedTemplateId,
   onSelect,
 }: TemplateSelectorProps) {
@@ -37,7 +34,7 @@ export function TemplateSelector({
 
   useEffect(() => {
     fetchTemplates();
-  }, [serviceLine, projectType]);
+  }, [serviceLine]);
 
   const fetchTemplates = async () => {
     setLoading(true);
@@ -45,7 +42,6 @@ export function TemplateSelector({
       const params = new URLSearchParams({
         type: 'ENGAGEMENT_LETTER',
         serviceLine,
-        projectType,
       });
 
       const response = await fetch(`/api/templates/available?${params}`);
@@ -84,7 +80,7 @@ export function TemplateSelector({
       <div className="rounded-lg border-2 border-dashed border-forvis-gray-300 p-6 text-center">
         <FileText className="h-12 w-12 mx-auto text-forvis-gray-400 mb-3" />
         <p className="text-sm text-forvis-gray-600">
-          No engagement letter templates available for this project type.
+          No engagement letter templates available for this service line.
         </p>
         <p className="text-xs text-forvis-gray-500 mt-2">
           Contact an administrator to create a template.
@@ -123,9 +119,6 @@ export function TemplateSelector({
                 <div className="flex items-center gap-4 text-xs text-forvis-gray-500">
                   <span>{(template.sections || template.TemplateSection || []).length} sections</span>
                   {template.serviceLine && <span>• {template.serviceLine}</span>}
-                  {template.projectType && (
-                    <span>• {template.projectType.replace(/_/g, ' ')}</span>
-                  )}
                 </div>
               </div>
               
@@ -155,16 +148,3 @@ export function TemplateSelector({
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

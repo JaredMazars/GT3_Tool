@@ -273,7 +273,6 @@ export const GET = secureRoute.query({
       name: task.TaskDesc,
       taskCode: task.TaskCode,
       description: null,
-      projectType: task.ServLineDesc,
       serviceLine: task.ServLineCode,
       status: task.Active === 'Yes' ? 'ACTIVE' : 'INACTIVE',
       archived: task.Active !== 'Yes',

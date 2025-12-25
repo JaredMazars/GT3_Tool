@@ -151,11 +151,10 @@ export async function getBestTemplateForTask(
       throw new Error('Task not found');
     }
 
-    // Get applicable templates (projectType is not available on Task model)
+    // Get applicable templates for this service line
     const templates = await getApplicableTemplates(
       templateType,
-      task.ServLineCode,
-      undefined // Task model doesn't have projectType field
+      task.ServLineCode
     );
 
     if (templates.length === 0) {
@@ -167,12 +166,12 @@ export async function getBestTemplateForTask(
     // 2. Global template
 
     const serviceLineMatch = templates.find(
-      (t) => t.serviceLine === task.ServLineCode && !t.projectType
+      (t) => t.serviceLine === task.ServLineCode
     );
     if (serviceLineMatch) return serviceLineMatch.id;
 
     // Return first global template
-    const globalTemplate = templates.find((t) => !t.serviceLine && !t.projectType);
+    const globalTemplate = templates.find((t) => !t.serviceLine);
     if (globalTemplate) return globalTemplate.id;
 
     // Return first template if available
@@ -196,7 +195,6 @@ function buildContextData(context: TaskContext): Record<string, string> {
   return {
     taskName: context.taskName || '',
     taskType: context.taskType?.replace(/_/g, ' ') || '',
-    projectType: context.taskType?.replace(/_/g, ' ') || '', // Map taskType to projectType for template compatibility
     serviceLine: context.serviceLine || '',
     taxYear: context.taxYear?.toString() || '',
     taxPeriodStart: context.taxPeriodStart

@@ -27,7 +27,6 @@ interface TemplateResponse {
   description: string | null;
   type: string;
   serviceLine: string | null;
-  projectType: string | null;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -40,7 +39,6 @@ interface Template {
   description: string | null;
   type: string;
   serviceLine: string | null;
-  projectType: string | null;
   active: boolean;
   createdAt: string;
   updatedAt: string;

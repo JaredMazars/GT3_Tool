@@ -1087,7 +1087,6 @@ model Template {
   description     String?
   type            String
   serviceLine     String?
-  projectType     String?
   content         String            @db.NVarChar(Max)
   active          Boolean           @default(true)
   createdBy       String
@@ -1096,7 +1095,6 @@ model Template {
   TemplateSection TemplateSection[]
 
   @@index([active])
-  @@index([projectType])
   @@index([serviceLine])
   @@index([type])
 }

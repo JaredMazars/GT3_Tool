@@ -50,15 +50,7 @@ export function ClientHeader({ client, tasks }: ClientHeaderProps) {
               </h1>
               <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-forvis-gray-600">
                 <span><span className="font-medium">Client Code:</span> {client.clientCode}</span>
-                {client.industry && (
-                  <span><span className="font-medium">Industry:</span> {client.industry}</span>
-                )}
                 <span><span className="font-medium">Group:</span> {client.groupDesc}</span>
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  client.active === 'YES' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                }`}>
-                  {client.active === 'YES' ? 'Active' : 'Inactive'}
-                </span>
               </div>
             </div>
           </div>

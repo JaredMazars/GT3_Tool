@@ -21,7 +21,6 @@ export interface TaskListResult {
     name: string | null;
     description: string | null;
     TaskDesc: string;
-    projectType: string;
     ServLineDesc: string;
     status: string;
     archived: boolean;
@@ -176,7 +175,6 @@ export async function getTasksWithPagination(
         name: task.TaskDesc,
         description: null,
         TaskDesc: task.TaskDesc,
-        projectType: '',
         ServLineDesc: task.ServLineDesc,
         status: task.Active,
         archived: false,
@@ -216,7 +214,6 @@ export async function getTasksWithCounts(
   name: string | null;
   description: string | null;
   TaskDesc: string;
-  projectType: string;
   ServLineDesc: string;
   status: string;
   archived: boolean;
@@ -293,7 +290,6 @@ export async function getTasksWithCounts(
         name: task.TaskDesc,
         description: null,
         TaskDesc: task.TaskDesc,
-        projectType: '',
         ServLineDesc: task.ServLineDesc,
         status: task.Active,
         archived: false,
@@ -320,7 +316,6 @@ export async function getTaskWithCounts(taskId: TaskId): Promise<{
   name: string | null;
   description: string | null;
   TaskDesc: string;
-  projectType: string;
   ServLineCode: string;
   ServLineDesc: string;
   status: string;
@@ -367,7 +362,6 @@ export async function getTaskWithCounts(taskId: TaskId): Promise<{
         name: rawTask.TaskDesc,
         description: null,
         TaskDesc: rawTask.TaskDesc,
-        projectType: '',
         ServLineCode: rawTask.ServLineCode,
         ServLineDesc: rawTask.ServLineDesc,
         status: rawTask.Active,
@@ -433,7 +427,6 @@ export async function getTaskById(taskId: TaskId) {
         TaskCode: rawTask.TaskCode,
         ServLineCode: rawTask.ServLineCode,
         ServLineDesc: rawTask.ServLineDesc,
-        projectType: '',
         status: rawTask.Active,
         Active: rawTask.Active,
         taxYear: null,
@@ -465,7 +458,6 @@ export async function createTask(data: {
   TaskCode: string;
   name: string;
   description?: string | null;
-  projectType: string;
   taxYear?: number | null;
   taxPeriodStart?: Date | null;
   taxPeriodEnd?: Date | null;
@@ -521,7 +513,6 @@ export async function updateTask(
     status?: string;
     archived?: boolean;
     assessmentYear?: string | null;
-    projectType?: string;
     submissionDeadline?: Date | null;
     taxPeriodStart?: Date | null;
     taxPeriodEnd?: Date | null;

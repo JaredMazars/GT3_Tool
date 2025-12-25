@@ -145,7 +145,7 @@ async function checkLiteEligibility(task: {
   // In production, this would check additional data
   const isLessComplex = true; // Would need additional task complexity data
 
-  // Return true if meets basic criteria (removed PIE check since projectType doesn't exist)
+  // Return true if meets basic criteria
   return isStandalone && isLessComplex;
 }
 

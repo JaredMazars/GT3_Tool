@@ -82,7 +82,7 @@ export const GET = secureRoute.query({
           id: tt.Task.id,
           name: tt.Task.TaskDesc,
           taskCode: tt.Task.TaskCode,
-          projectType: tt.Task.ServLineDesc,
+          serviceLine: tt.Task.ServLineDesc,
           client: tt.Task.Client ? {
             id: tt.Task.Client.id,
             GSClientID: tt.Task.Client.GSClientID,

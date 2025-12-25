@@ -172,18 +172,6 @@ export const UpdateTaskSchema = z.object({
   status: z.string().max(50).optional(),
   archived: z.boolean().optional(),
   assessmentYear: z.string().max(50).optional(),
-  projectType: z.enum([
-    'TAX_CALCULATION', 'TAX_OPINION', 'TAX_ADMINISTRATION',
-    'AUDIT_ENGAGEMENT', 'AUDIT_REVIEW', 'AUDIT_REPORT',
-    'FINANCIAL_STATEMENTS', 'BOOKKEEPING', 'MANAGEMENT_ACCOUNTS',
-    'ADVISORY_PROJECT', 'CONSULTING_ENGAGEMENT', 'STRATEGY_REVIEW',
-    'QRM_AUDIT', 'QRM_COMPLIANCE', 'QRM_RISK_ASSESSMENT',
-    'BD_CAMPAIGN', 'BD_PROPOSAL', 'BD_MARKET_RESEARCH',
-    'IT_IMPLEMENTATION', 'IT_SUPPORT', 'IT_INFRASTRUCTURE',
-    'FINANCE_REPORTING', 'FINANCE_BUDGETING', 'FINANCE_ANALYSIS',
-    'HR_RECRUITMENT', 'HR_TRAINING', 'HR_POLICY',
-    'COUNTRY_REPORT', 'COUNTRY_ANALYSIS', 'COUNTRY_DASHBOARD', 'COUNTRY_METRICS'
-  ]).optional(),
   submissionDeadline: z.coerce.date().nullable().optional(),
   taxPeriodStart: z.coerce.date().nullable().optional(),
   taxPeriodEnd: z.coerce.date().nullable().optional(),
@@ -494,7 +482,6 @@ export const CreateTemplateSchema = z.object({
   description: z.string().optional(),
   type: z.enum(['ENGAGEMENT_LETTER', 'PROPOSAL', 'AGREEMENT']),
   serviceLine: z.string().optional(),
-  projectType: z.string().optional(),
   content: z.string(),
   active: z.boolean().default(true),
 }).strict();
@@ -504,7 +491,6 @@ export const UpdateTemplateSchema = z.object({
   description: z.string().optional(),
   type: z.enum(['ENGAGEMENT_LETTER', 'PROPOSAL', 'AGREEMENT']).optional(),
   serviceLine: z.string().nullable().optional(),
-  projectType: z.string().nullable().optional(),
   content: z.string().optional(),
   active: z.boolean().optional(),
 }).strict();

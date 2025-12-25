@@ -23,7 +23,6 @@ interface Template {
   description: string | null;
   type: string;
   serviceLine: string | null;
-  projectType: string | null;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -135,14 +134,6 @@ export function TemplateList({ templates, onDelete, onToggleActive, onCopy }: Te
                 </div>
               )}
 
-              {template.projectType && (
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-forvis-gray-600">Project Type:</span>
-                  <span className="font-medium text-forvis-gray-900">
-                    {template.projectType.replace(/_/g, ' ')}
-                  </span>
-                </div>
-              )}
 
               <div className="flex items-center justify-between text-sm">
                 <span className="text-forvis-gray-600">Sections:</span>

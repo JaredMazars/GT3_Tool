@@ -45,7 +45,7 @@ interface SystemUser {
     task: {
       id: number;
       name: string;
-      projectType: string;
+      serviceLine: string;
       client?: {
         id: number;
         clientCode: string;

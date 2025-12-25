@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { TaskType, Task, TaskTeam, ServiceLineRole } from '@/types';
+import { Task, TaskTeam, ServiceLineRole } from '@/types';
 import { 
   Table,
   FileText,
@@ -32,10 +32,8 @@ import { useTask } from '@/hooks/tasks/useTaskData';
 import { useTaskTeam } from '@/hooks/tasks/useTaskTeam';
 import { useTaskWip } from '@/hooks/tasks/useTaskWip';
 import { formatDate } from '@/lib/utils/taskUtils';
-import { getTaskTypeColor, formatTaskType } from '@/lib/utils/serviceLineUtils';
 import { LoadingSpinner, Button, Card, Banner, Input } from '@/components/ui';
 import { ClientSelector } from '@/components/features/clients/ClientSelector';
-import { TaskTypeSelector } from '@/components/features/tasks/TaskTypeSelector';
 import { TaxYearInput } from '@/components/shared/TaxYearInput';
 import { UserSearchModal } from '@/components/features/tasks/UserManagement/UserSearchModal';
 import { AcceptanceTab } from '@/components/features/tasks/AcceptanceTab';
@@ -45,7 +43,7 @@ import { WorkSpaceTab } from '@/components/features/tasks/WorkSpaceTab';
 import { TaskWorkspaceTab } from '@/components/features/tasks/TaskWorkspaceTab';
 import { TaskFinanceTab } from '@/components/features/tasks/TaskFinanceTab';
 import { canAccessWorkTabs, isClientTask, getBlockedTabMessage } from '@/lib/utils/taskWorkflow';
-import { DollarSign, Briefcase, FolderOpen } from 'lucide-react';
+import { DollarSign, Briefcase, FolderOpen, FileClock } from 'lucide-react';
 
 interface TabProps {
   selected: boolean;
@@ -104,7 +102,6 @@ function SettingsTab({ task, onUpdate, onArchive }: SettingsTabProps) {
     name: task.name,
     description: task.description || '',
     clientId: task.client?.id || null,
-    projectType: task.projectType as TaskType,
     taxYear: task.taxYear || new Date().getFullYear(),
     taxPeriodStart: task.taxPeriodStart instanceof Date ? task.taxPeriodStart : (task.taxPeriodStart ? new Date(task.taxPeriodStart) : null),
     taxPeriodEnd: task.taxPeriodEnd instanceof Date ? task.taxPeriodEnd : (task.taxPeriodEnd ? new Date(task.taxPeriodEnd) : null),
@@ -196,15 +193,6 @@ function SettingsTab({ task, onUpdate, onArchive }: SettingsTabProps) {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
-                  Task Type
-                </label>
-                <TaskTypeSelector
-                  value={editData.projectType}
-                  onChange={(projectType) => setEditData({ ...editData, projectType })}
-                />
-              </div>
-              <div>
                 <TaxYearInput
                   taxYear={editData.taxYear}
                   taxPeriodStart={editData.taxPeriodStart}
@@ -224,7 +212,6 @@ function SettingsTab({ task, onUpdate, onArchive }: SettingsTabProps) {
                       name: task.name,
                       description: task.description || '',
                       clientId: task.client?.id || null,
-                      projectType: task.projectType as TaskType,
                       taxYear: task.taxYear || new Date().getFullYear(),
                       taxPeriodStart: task.taxPeriodStart instanceof Date ? task.taxPeriodStart : (task.taxPeriodStart ? new Date(task.taxPeriodStart) : null),
                       taxPeriodEnd: task.taxPeriodEnd instanceof Date ? task.taxPeriodEnd : (task.taxPeriodEnd ? new Date(task.taxPeriodEnd) : null),
@@ -357,16 +344,7 @@ export function TaskDetailContent({
       }
     }
     
-    switch (task.projectType) {
-      case 'TAX_CALCULATION':
-        return 'mapping';
-      case 'TAX_OPINION':
-        return 'tax-opinion';
-      case 'TAX_ADMINISTRATION':
-        return 'sars-responses';
-      default:
-        return 'team';
-    }
+    return 'team';
   };
 
   const [activeTab, setActiveTab] = useState(getDefaultTab());
@@ -621,33 +599,9 @@ export function TaskDetailContent({
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center space-x-3">
                       <h1 className="text-2xl font-semibold text-forvis-gray-900">{task.name}</h1>
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getTaskTypeColor(task.projectType)}`}>
-                        {formatTaskType(task.projectType)}
-                      </span>
                       {task.Active && task.Active !== 'Yes' && (
                         <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-forvis-gray-200 text-forvis-gray-700">
                           {task.Active === 'Archived' ? 'Archived' : 'Inactive'}
-                        </span>
-                      )}
-                      {wipData && wipData.metrics && (
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${
-                          wipData.metrics.balWIP > 0 
-                            ? 'bg-green-100 text-green-700 border border-green-200' 
-                            : wipData.metrics.balWIP < 0 
-                            ? 'bg-red-100 text-red-700 border border-red-200' 
-                            : 'bg-forvis-gray-100 text-forvis-gray-700 border border-forvis-gray-200'
-                        }`}>
-                          WIP: {new Intl.NumberFormat('en-ZA', {
-                            style: 'currency',
-                            currency: 'ZAR',
-                            minimumFractionDigits: 0,
-                            maximumFractionDigits: 0,
-                          }).format(wipData.metrics.balWIP)}
-                        </span>
-                      )}
-                      {wipLoading && (
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-forvis-gray-100 text-forvis-gray-500 animate-pulse">
-                          Loading WIP...
                         </span>
                       )}
                     </div>
@@ -674,11 +628,16 @@ export function TaskDetailContent({
                   {task.client && (
                     <p className="text-sm text-forvis-blue-600 font-medium">
                       {task.client.clientNameFull || task.client.clientCode}
+                      {task.client.clientCode && task.client.clientNameFull && (
+                        <span className="text-forvis-gray-600 ml-2">({task.client.clientCode})</span>
+                      )}
                     </p>
                   )}
                   
-                  {task.description && (
-                    <p className="mt-1 text-sm font-normal text-forvis-gray-600">{task.description}</p>
+                  {(task.TaskCode || wipData?.taskCode) && (
+                    <p className="text-xs text-forvis-gray-600 mt-1">
+                      <span className="font-medium">Task Code:</span> {task.TaskCode || wipData?.taskCode}
+                    </p>
                   )}
                   
                   <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-forvis-gray-600">
@@ -714,14 +673,52 @@ export function TaskDetailContent({
                         <span className="ml-1">{task.TaskManagerName || task.TaskManager}</span>
                       </div>
                     )}
-                    <span>•</span>
-                    <span>{task._count?.mappings ?? 0} accounts</span>
-                    <span>{task._count?.taxAdjustments ?? 0} adjustments</span>
                     {task.users && (
-                      <span>{task.users.length} team members</span>
+                      <>
+                        <span>•</span>
+                        <span>{task.users.length} team members</span>
+                      </>
                     )}
                   </div>
                 </div>
+
+                {/* WIP Balance Card */}
+                {wipData && wipData.metrics && (
+                  <div className="ml-6 flex-shrink-0">
+                    <div
+                      className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100"
+                      style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">WIP Balance</p>
+                          <p className="text-2xl font-bold mt-2 text-forvis-blue-600">
+                            {new Intl.NumberFormat('en-ZA', {
+                              style: 'currency',
+                              currency: 'ZAR',
+                              minimumFractionDigits: 0,
+                              maximumFractionDigits: 0,
+                            }).format(wipData.metrics.balWIP)}
+                          </p>
+                        </div>
+                        <div
+                          className="rounded-full p-2.5 ml-3"
+                          style={{ background: 'linear-gradient(135deg, #5B93D7, #2E5AAC)' }}
+                        >
+                          <FileClock className="w-5 h-5 text-white" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {wipLoading && (
+                  <div className="ml-6 flex-shrink-0">
+                    <div className="rounded-lg p-4 border border-forvis-gray-200 bg-forvis-gray-50 animate-pulse">
+                      <div className="h-4 w-20 bg-forvis-gray-200 rounded mb-2"></div>
+                      <div className="h-6 w-24 bg-forvis-gray-200 rounded"></div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -806,109 +803,6 @@ export function TaskDetailContent({
                       icon={FolderOpen}
                     >
                       Documents
-                    </Tab>
-                  </>
-                )}
-                
-                {task.projectType === 'TAX_CALCULATION' && (!task.serviceLine || task.serviceLine === 'TAX') && (
-                  <>
-                    <Tab
-                      onClick={() => setActiveTab('mapping')}
-                      selected={activeTab === 'mapping'}
-                      icon={Table}
-                      disabled={!canAccessWorkTabs(task)}
-                      tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
-                    >
-                      Mapping
-                    </Tab>
-                    <Tab
-                      onClick={() => setActiveTab('balance-sheet')}
-                      selected={activeTab === 'balance-sheet'}
-                      icon={FileText}
-                      disabled={!canAccessWorkTabs(task)}
-                      tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
-                    >
-                      Balance Sheet
-                    </Tab>
-                    <Tab
-                      onClick={() => setActiveTab('income-statement')}
-                      selected={activeTab === 'income-statement'}
-                      icon={FileText}
-                      disabled={!canAccessWorkTabs(task)}
-                      tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
-                    >
-                      Income Statement
-                    </Tab>
-                    <Tab
-                      onClick={() => setActiveTab('tax-calculation')}
-                      selected={activeTab === 'tax-calculation'}
-                      icon={Calculator}
-                      disabled={!canAccessWorkTabs(task)}
-                      tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
-                    >
-                      Tax Calculation
-                    </Tab>
-                    <Tab
-                      onClick={() => setActiveTab('reporting')}
-                      selected={activeTab === 'reporting'}
-                      icon={ClipboardList}
-                      disabled={!canAccessWorkTabs(task)}
-                      tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
-                    >
-                      Reporting
-                    </Tab>
-                  </>
-                )}
-                
-                {task.projectType === 'TAX_OPINION' && (!task.serviceLine || task.serviceLine === 'TAX') && (
-                  <Tab
-                    onClick={() => setActiveTab('tax-opinion')}
-                    selected={activeTab === 'tax-opinion'}
-                    icon={BookOpen}
-                    disabled={!canAccessWorkTabs(task)}
-                    tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
-                  >
-                    Tax Opinion
-                  </Tab>
-                )}
-                
-                {task.projectType === 'TAX_ADMINISTRATION' && (!task.serviceLine || task.serviceLine === 'TAX') && (
-                  <>
-                    <Tab
-                      onClick={() => setActiveTab('sars-responses')}
-                      selected={activeTab === 'sars-responses'}
-                      icon={Mail}
-                      disabled={!canAccessWorkTabs(task)}
-                      tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
-                    >
-                      SARS Responses
-                    </Tab>
-                    <Tab
-                      onClick={() => setActiveTab('document-management')}
-                      selected={activeTab === 'document-management'}
-                      icon={Folder}
-                      disabled={!canAccessWorkTabs(task)}
-                      tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
-                    >
-                      Document Management
-                    </Tab>
-                    <Tab
-                      onClick={() => setActiveTab('compliance-checklist')}
-                      selected={activeTab === 'compliance-checklist'}
-                      icon={ClipboardCheck}
-                      disabled={!canAccessWorkTabs(task)}
-                      tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
-                    >
-                      Compliance Checklist
-                    </Tab>
-                    <Tab
-                      onClick={() => setActiveTab('filing-status')}
-                      selected={activeTab === 'filing-status'}
-                      icon={FileCheck}
-                      disabled={!canAccessWorkTabs(task)}
-                      tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
-                    >
-                      Filing Status
                     </Tab>
                   </>
                 )}

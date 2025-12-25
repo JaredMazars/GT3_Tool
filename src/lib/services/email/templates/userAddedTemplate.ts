@@ -1,5 +1,4 @@
 import { UserAddedEmailData } from '@/types/email';
-import { formatTaskType } from '@/lib/utils/serviceLineUtils';
 import { formatRole } from '@/lib/utils/taskUtils';
 
 /**
@@ -102,7 +101,6 @@ export function generateUserAddedHtml(data: UserAddedEmailData): string {
         <strong>Project Details:</strong>
         <p style="margin: 5px 0 0 0;">
           <strong>Name:</strong> ${data.task.name}<br>
-          <strong>Type:</strong> ${formatTaskType(data.task.taskType)}<br>
           <strong>Your Role:</strong> <span class="role-badge">${formatRole(data.role)}</span><br>
           <strong>Added By:</strong> ${data.addedBy.name || data.addedBy.email}
         </p>
@@ -144,7 +142,6 @@ You have been added to a project on the Mazars Tax Platform.
 
 Project Details:
 - Name: ${data.task.name}
-- Type: ${formatTaskType(data.task.taskType)}
 - Your Role: ${formatRole(data.role)}
 - Added By: ${data.addedBy.name || data.addedBy.email}
 

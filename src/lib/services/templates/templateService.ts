@@ -4,7 +4,6 @@ import { logger } from '@/lib/utils/logger';
 export interface TemplateFilter {
   type?: string;
   serviceLine?: string;
-  projectType?: string;
   active?: boolean;
   search?: string;
 }
@@ -14,7 +13,6 @@ export interface CreateTemplateData {
   description?: string;
   type: string;
   serviceLine?: string;
-  projectType?: string;
   content: string;
   active?: boolean;
   createdBy: string;
@@ -25,7 +23,6 @@ export interface UpdateTemplateData {
   description?: string;
   type?: string;
   serviceLine?: string | null;
-  projectType?: string | null;
   content?: string;
   active?: boolean;
 }
@@ -61,7 +58,6 @@ export async function getTemplates(filter?: TemplateFilter) {
     interface TemplateWhere {
       type?: string;
       serviceLine?: string;
-      projectType?: string;
       active?: boolean;
       OR?: Array<{
         name?: { contains: string };
@@ -77,10 +73,6 @@ export async function getTemplates(filter?: TemplateFilter) {
 
     if (filter?.serviceLine) {
       where.serviceLine = filter.serviceLine;
-    }
-
-    if (filter?.projectType) {
-      where.projectType = filter.projectType;
     }
 
     if (filter?.active !== undefined) {
@@ -103,7 +95,6 @@ export async function getTemplates(filter?: TemplateFilter) {
         description: true,
         type: true,
         serviceLine: true,
-        projectType: true,
         content: true,
         active: true,
         createdBy: true,
@@ -147,7 +138,6 @@ export async function getTemplateById(id: number) {
         description: true,
         type: true,
         serviceLine: true,
-        projectType: true,
         content: true,
         active: true,
         createdBy: true,
@@ -188,7 +178,6 @@ export async function createTemplate(data: CreateTemplateData) {
         description: data.description,
         type: data.type,
         serviceLine: data.serviceLine,
-        projectType: data.projectType,
         content: data.content,
         active: data.active ?? true,
         createdBy: data.createdBy,
@@ -199,7 +188,6 @@ export async function createTemplate(data: CreateTemplateData) {
         description: true,
         type: true,
         serviceLine: true,
-        projectType: true,
         content: true,
         active: true,
         createdBy: true,
@@ -242,7 +230,6 @@ export async function updateTemplate(id: number, data: UpdateTemplateData) {
         ...(data.description !== undefined && { description: data.description }),
         ...(data.type && { type: data.type }),
         ...(data.serviceLine !== undefined && { serviceLine: data.serviceLine }),
-        ...(data.projectType !== undefined && { projectType: data.projectType }),
         ...(data.content && { content: data.content }),
         ...(data.active !== undefined && { active: data.active }),
       },
@@ -252,7 +239,6 @@ export async function updateTemplate(id: number, data: UpdateTemplateData) {
         description: true,
         type: true,
         serviceLine: true,
-        projectType: true,
         content: true,
         active: true,
         createdBy: true,
@@ -500,12 +486,11 @@ export function validateMarkdown(content: string): boolean {
 }
 
 /**
- * Get templates applicable to a specific service line and project type
+ * Get templates applicable to a specific service line
  */
 export async function getApplicableTemplates(
   type: string,
-  serviceLine?: string,
-  projectType?: string
+  serviceLine?: string
 ) {
   try {
     interface ApplicableTemplateWhere {
@@ -513,7 +498,6 @@ export async function getApplicableTemplates(
       active: boolean;
       OR: Array<{
         serviceLine?: string | null;
-        projectType?: string | null;
       }>;
     }
 
@@ -521,14 +505,10 @@ export async function getApplicableTemplates(
       type,
       active: true,
       OR: [
-        // Template with no specific service line/project type (global)
-        { serviceLine: null, projectType: null },
-        // Template matching service line only
-        { serviceLine, projectType: null },
-        // Template matching project type only
-        { serviceLine: null, projectType },
-        // Template matching both
-        { serviceLine, projectType },
+        // Global template (no specific service line)
+        { serviceLine: null },
+        // Template matching service line
+        ...(serviceLine ? [{ serviceLine }] : []),
       ],
     };
 
@@ -562,7 +542,6 @@ export async function copyTemplate(id: number, createdBy: string) {
         description: true,
         type: true,
         serviceLine: true,
-        projectType: true,
         content: true,
         TemplateSection: {
           select: {
@@ -591,7 +570,6 @@ export async function copyTemplate(id: number, createdBy: string) {
         description: originalTemplate.description,
         type: originalTemplate.type,
         serviceLine: originalTemplate.serviceLine,
-        projectType: originalTemplate.projectType,
         content: originalTemplate.content,
         active: false, // Set to inactive by default
         createdBy,
@@ -614,7 +592,6 @@ export async function copyTemplate(id: number, createdBy: string) {
         description: true,
         type: true,
         serviceLine: true,
-        projectType: true,
         content: true,
         active: true,
         createdBy: true,

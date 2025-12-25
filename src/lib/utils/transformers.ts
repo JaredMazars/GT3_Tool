@@ -28,7 +28,6 @@ export interface TransformedProject {
   id: number;
   name: string;
   description?: string | null;
-  projectType: string;
   serviceLine: string;
   status: string;
   archived: boolean;
@@ -67,7 +66,6 @@ export function transformProjectResponse(
     id: task.id!,
     name: task.TaskDesc || '',
     description: null,
-    projectType: '',
     serviceLine: task.ServLineCode || '',
     status: task.Active || 'No',
     archived: false,

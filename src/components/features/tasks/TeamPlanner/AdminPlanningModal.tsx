@@ -21,7 +21,6 @@ interface Client {
 interface Task {
   id: number;
   name: string;
-  projectType: string;
   serviceLine: string;
   status: string;
   client: {
@@ -556,7 +555,7 @@ export function AdminPlanningModal({
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-medium text-forvis-gray-900 truncate">{task.name}</div>
                           <div className="text-xs text-forvis-gray-600">
-                            {(task as any).TaskCode || 'No code'} • {task.projectType}
+                            {(task as unknown as { TaskCode?: string }).TaskCode || 'No code'} • {task.serviceLine}
                           </div>
                         </div>
                       </div>
@@ -588,7 +587,7 @@ export function AdminPlanningModal({
                   <div>
                     <div className="text-sm font-medium text-green-900">{selectedTask.name}</div>
                     <div className="text-xs text-green-700">
-                      {(selectedTask as any).TaskCode || 'No code'} • {selectedClient?.clientCode} • {selectedTask.projectType}
+                      {(selectedTask as unknown as { TaskCode?: string }).TaskCode || 'No code'} • {selectedClient?.clientCode} • {selectedTask.serviceLine}
                     </div>
                   </div>
                 </div>

@@ -15,7 +15,6 @@ export interface TaskListItem {
   id: number;
   name: string;
   description: string | null;
-  projectType: string;
   serviceLine: string;
   status: string;
   archived: boolean;

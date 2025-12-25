@@ -10,7 +10,7 @@ import {
   ChevronRight,
   Plus,
 } from 'lucide-react';
-import { isValidServiceLine, formatServiceLineName, formatTaskType } from '@/lib/utils/serviceLineUtils';
+import { isValidServiceLine, formatServiceLineName } from '@/lib/utils/serviceLineUtils';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { ServiceLine } from '@/types';
 import { useTasks, type TaskListItem, taskListKeys } from '@/hooks/tasks/useTasks';
@@ -58,7 +58,6 @@ export default function InternalTasksPage() {
     return projects.filter(project =>
       project.name?.toLowerCase().includes(searchLower) ||
       project.description?.toLowerCase().includes(searchLower) ||
-      project.projectType?.toLowerCase().includes(searchLower) ||
       project.status?.toLowerCase().includes(searchLower)
     );
   }, [searchTerm, projects]);
@@ -223,9 +222,6 @@ export default function InternalTasksPage() {
                         Task Name
                       </th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
-                        Type
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
                         Status
                       </th>
                       <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
@@ -258,9 +254,6 @@ export default function InternalTasksPage() {
                               )}
                             </div>
                           </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-forvis-gray-600">
-                          {formatTaskType(project.projectType)}
                         </td>
                         <td className="px-6 py-4">
                           <StatusBadge status={project.status} />

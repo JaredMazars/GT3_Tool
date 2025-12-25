@@ -742,7 +742,6 @@ export async function getUserProjects(
   id: number;
   name: string;
   description: string | null;
-  projectType: string;
   serviceLine: string;
   status: string;
   archived: boolean;

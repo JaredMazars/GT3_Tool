@@ -290,7 +290,6 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
                       <div className="border-2 border-forvis-gray-200 rounded-lg p-4">
                         <TemplateSelector
                           serviceLine={task.serviceLine || task.ServLineCode}
-                          projectType={task.projectType}
                           selectedTemplateId={selectedTemplateId}
                           onSelect={setSelectedTemplateId}
                         />

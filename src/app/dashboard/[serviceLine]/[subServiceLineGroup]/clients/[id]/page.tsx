@@ -16,7 +16,6 @@ import {
   ChartSpline,
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils/taskUtils';
-import { getTaskTypeColor, formatTaskType } from '@/lib/utils/serviceLineUtils';
 import { TaskStageIndicator } from '@/components/features/tasks/TaskStageIndicator';
 import { TaskStage } from '@/types/task-stages';
 import { LoadingSpinner, Button } from '@/components/ui';
@@ -314,10 +313,6 @@ export default function ServiceLineClientDetailPage() {
                     <dt className="text-xs font-semibold text-forvis-gray-700 uppercase tracking-wider mb-2">Basic Information</dt>
                     <div className="space-y-2 ml-2">
                       <div>
-                        <dt className="text-xs font-medium text-forvis-gray-500">Client Code</dt>
-                        <dd className="mt-0.5 text-sm text-forvis-gray-900">{client.clientCode}</dd>
-                      </div>
-                      <div>
                         <dt className="text-xs font-medium text-forvis-gray-500">Status</dt>
                         <dd className="mt-0.5">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -326,6 +321,42 @@ export default function ServiceLineClientDetailPage() {
                               : 'bg-red-100 text-red-700'
                           }`}>
                             {client.active === 'Yes' ? 'Active' : 'Inactive'}
+                          </span>
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-medium text-forvis-gray-500">Office Costing</dt>
+                        <dd className="mt-0.5">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            client.clientOCFlag 
+                              ? 'bg-green-100 text-green-700' 
+                              : 'bg-forvis-gray-100 text-forvis-gray-700'
+                          }`}>
+                            {client.clientOCFlag ? 'Yes' : 'No'}
+                          </span>
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-medium text-forvis-gray-500">Tax</dt>
+                        <dd className="mt-0.5">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            client.clientTaxFlag 
+                              ? 'bg-green-100 text-green-700' 
+                              : 'bg-forvis-gray-100 text-forvis-gray-700'
+                          }`}>
+                            {client.clientTaxFlag ? 'Yes' : 'No'}
+                          </span>
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-medium text-forvis-gray-500">Secretarial</dt>
+                        <dd className="mt-0.5">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            client.clientSecFlag 
+                              ? 'bg-green-100 text-green-700' 
+                              : 'bg-forvis-gray-100 text-forvis-gray-700'
+                          }`}>
+                            {client.clientSecFlag ? 'Yes' : 'No'}
                           </span>
                         </dd>
                       </div>
@@ -403,16 +434,10 @@ export default function ServiceLineClientDetailPage() {
                   </div>
 
                   {/* Industry */}
-                  {(client.industry || client.sector || client.forvisMazarsIndustry) && (
+                  {(client.forvisMazarsIndustry || client.forvisMazarsSector || client.forvisMazarsSubsector) && (
                     <div>
                       <dt className="text-xs font-semibold text-forvis-gray-700 uppercase tracking-wider mb-2">Industry</dt>
                       <div className="space-y-2 ml-2">
-                        {(client.industry || client.sector) && (
-                          <div>
-                            <dt className="text-xs font-medium text-forvis-gray-500">Industry/Sector</dt>
-                            <dd className="mt-0.5 text-sm text-forvis-gray-900">{client.industry || client.sector}</dd>
-                          </div>
-                        )}
                         {client.forvisMazarsIndustry && (
                           <div>
                             <dt className="text-xs font-medium text-forvis-gray-500">Forvis Mazars Industry</dt>
