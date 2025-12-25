@@ -18,6 +18,79 @@ export async function validateAcceptanceAccess(
   requiredRole?: ServiceLineRole | string
 ): Promise<boolean> {
   try {
+    // Auto-add partner/manager before checking access
+    try {
+      const task = await prisma.task.findUnique({
+        where: { id: taskId },
+        select: {
+          TaskPartner: true,
+          TaskManager: true,
+        },
+      });
+
+      if (task) {
+        const employeeCodesToCheck: string[] = [];
+        if (task.TaskPartner) employeeCodesToCheck.push(task.TaskPartner);
+        if (task.TaskManager && task.TaskManager !== task.TaskPartner) {
+          employeeCodesToCheck.push(task.TaskManager);
+        }
+
+        if (employeeCodesToCheck.length > 0) {
+          const employees = await prisma.employee.findMany({
+            where: { EmpCode: { in: employeeCodesToCheck }, Active: 'Yes' },
+            select: { EmpCode: true, WinLogon: true },
+          });
+
+          for (const emp of employees) {
+            if (!emp.WinLogon) continue;
+
+            // Find user account for this employee (not limited to current user)
+            const matchingUser = await prisma.user.findFirst({
+              where: {
+                OR: [
+                  { email: { equals: emp.WinLogon } },
+                  { email: { startsWith: emp.WinLogon.split('@')[0] } },
+                  { email: { equals: `${emp.WinLogon}@mazarsinafrica.onmicrosoft.com` } },
+                ],
+              },
+              select: { id: true },
+            });
+
+            if (matchingUser) {
+              const isPartner = emp.EmpCode === task.TaskPartner;
+              const role = isPartner ? 'PARTNER' : 'MANAGER';
+
+              const existingMembership = await prisma.taskTeam.findFirst({
+                where: { taskId, userId: matchingUser.id },
+                select: { id: true },
+              });
+
+              if (!existingMembership) {
+                try {
+                  await prisma.taskTeam.create({
+                    data: { taskId, userId: matchingUser.id, role },
+                  });
+                  logger.info('Auto-added partner/manager in validateAcceptanceAccess', {
+                    userId: matchingUser.id, taskId, role, empCode: emp.EmpCode,
+                  });
+                } catch (createError: any) {
+                  if (createError.code !== 'P2002') {
+                    logger.error('Failed to auto-create TaskTeam in validateAcceptanceAccess', {
+                      userId: matchingUser.id, taskId, role, error: createError,
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (autoAddError) {
+      logger.error('Error during auto-add in validateAcceptanceAccess', {
+        userId, taskId, error: autoAddError,
+      });
+    }
+
     // Check if user has access to task
     const access = await prisma.taskTeam.findFirst({
       where: {

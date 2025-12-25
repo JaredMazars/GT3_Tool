@@ -283,6 +283,43 @@ export const DELETE = secureRoute.mutationWithParams({
       throw new AppError(400, 'You cannot remove yourself from the project', ErrorCodes.VALIDATION_ERROR);
     }
 
+    // Check if user is the task's partner or manager
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: {
+        TaskPartner: true,
+        TaskManager: true,
+      },
+    });
+
+    if (task) {
+      // Find employee record for the target user
+      const targetUserEmployee = await prisma.employee.findFirst({
+        where: {
+          OR: [
+            { WinLogon: { equals: existingTaskTeam.User.email } },
+            { WinLogon: { startsWith: existingTaskTeam.User.email.split('@')[0] } },
+          ],
+          Active: 'Yes',
+        },
+        select: { EmpCode: true },
+      });
+
+      if (targetUserEmployee) {
+        const isPartner = targetUserEmployee.EmpCode === task.TaskPartner;
+        const isManager = targetUserEmployee.EmpCode === task.TaskManager;
+
+        if (isPartner || isManager) {
+          const roleLabel = isPartner ? 'partner' : 'manager';
+          throw new AppError(
+            400,
+            `Cannot remove this user as they are the task ${roleLabel}. This user will be automatically re-added when the task is accessed. To remove them, update the task ${roleLabel} assignment first.`,
+            ErrorCodes.VALIDATION_ERROR
+          );
+        }
+      }
+    }
+
     // Check if this is the last ADMINISTRATOR/PARTNER on the project
     // Count distinct users with ADMINISTRATOR or PARTNER role
     const currentRole = existingTaskTeam.role as string;

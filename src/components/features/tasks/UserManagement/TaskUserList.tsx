@@ -185,18 +185,29 @@ export function TaskUserList({
                         You
                       </span>
                     )}
+                    {'hasAccount' in taskUser && taskUser.hasAccount === false && (
+                      <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full font-medium border border-amber-300">
+                        No Account
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-1 text-sm text-forvis-gray-600 mb-2">
                     <Mail className="w-4 h-4" />
                     <span className="truncate">{user?.email || 'No email'}</span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className={`text-xs px-2 py-1 rounded-full font-medium border ${getRoleBadgeColor(taskUser.role)}`}>
                       {taskUser.role}
                     </span>
-                    <span className="text-xs text-forvis-gray-500">
-                      Added {new Date(taskUser.createdAt).toLocaleDateString()}
-                    </span>
+                    {'hasAccount' in taskUser && taskUser.hasAccount === false ? (
+                      <span className="text-xs text-amber-700 font-medium">
+                        Account pending
+                      </span>
+                    ) : (
+                      <span className="text-xs text-forvis-gray-500">
+                        Added {new Date(taskUser.createdAt).toLocaleDateString()}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -244,13 +255,18 @@ export function TaskUserList({
                     <h3 className="text-2xl font-bold text-forvis-gray-900">
                       {user?.name || user?.email || 'Unknown User'}
                     </h3>
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <span className={`text-sm px-3 py-1 rounded-full font-medium border ${getRoleBadgeColor(selectedUser.role)}`}>
                         {selectedUser.role}
                       </span>
                       {selectedUser.userId === currentUserId && (
                         <span className="text-sm px-3 py-1 bg-forvis-blue-100 text-forvis-blue-800 rounded-full font-medium">
                           You
+                        </span>
+                      )}
+                      {'hasAccount' in selectedUser && selectedUser.hasAccount === false && (
+                        <span className="text-sm px-3 py-1 bg-amber-100 text-amber-800 rounded-full font-medium border border-amber-300">
+                          No Account
                         </span>
                       )}
                     </div>
@@ -274,13 +290,19 @@ export function TaskUserList({
                       <Calendar className="w-5 h-5 text-forvis-blue-500 mt-0.5" />
                     <div>
                       <p className="text-sm font-medium text-forvis-gray-700">Added to Task</p>
-                      <p className="text-sm text-forvis-gray-900 mt-0.5">
-                        {new Date(selectedUser.createdAt).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                        })}
-                      </p>
+                      {'hasAccount' in selectedUser && selectedUser.hasAccount === false ? (
+                        <p className="text-sm text-amber-700 mt-0.5 font-medium">
+                          Account pending - user will be added automatically when they sign in
+                        </p>
+                      ) : (
+                        <p className="text-sm text-forvis-gray-900 mt-0.5">
+                          {new Date(selectedUser.createdAt).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          })}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -295,36 +317,44 @@ export function TaskUserList({
                 {canManageUsers && selectedUser.userId !== currentUserId && (
                   <div className="border-t-2 border-forvis-gray-200 pt-6">
                     <h4 className="text-sm font-bold text-forvis-gray-900 mb-3">Manage Access</h4>
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1">
-                      <RoleSelector
-                        taskId={taskId}
-                        userId={selectedUser.userId}
-                        currentRole={selectedUser.role}
-                        onChange={() => {
-                          onRoleChanged();
-                          setSelectedUser(null);
-                        }}
-                      />
-                    </div>
-                    <button
-                      onClick={() => handleRemoveUser(selectedUser.userId)}
-                      disabled={removingUserId === selectedUser.userId}
-                      className="px-4 py-2 text-sm font-semibold text-white rounded-lg disabled:bg-gray-400 transition-colors shadow-corporate hover:shadow-corporate-md"
-                      style={{ 
-                        background: removingUserId === selectedUser.userId ? '#6C757D' : 'linear-gradient(135deg, #DC2626 0%, #B91C1C 100%)'
-                      }}
-                    >
-                      {removingUserId === selectedUser.userId ? 'Removing...' : 'Remove from Task'}
-                    </button>
-                  </div>
+                    {'hasAccount' in selectedUser && selectedUser.hasAccount === false ? (
+                      <div className="bg-amber-50 border-2 border-amber-200 rounded-lg p-4">
+                        <p className="text-sm text-amber-800">
+                          This team member doesn't have an account yet. They will automatically be added to the team when they sign in for the first time.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1">
+                          <RoleSelector
+                            taskId={taskId}
+                            userId={selectedUser.userId}
+                            currentRole={selectedUser.role}
+                            onChange={() => {
+                              onRoleChanged();
+                              setSelectedUser(null);
+                            }}
+                          />
+                        </div>
+                        <button
+                          onClick={() => handleRemoveUser(selectedUser.userId)}
+                          disabled={removingUserId === selectedUser.userId}
+                          className="px-4 py-2 text-sm font-semibold text-white rounded-lg disabled:bg-gray-400 transition-colors shadow-corporate hover:shadow-corporate-md"
+                          style={{ 
+                            background: removingUserId === selectedUser.userId ? '#6C757D' : 'linear-gradient(135deg, #DC2626 0%, #B91C1C 100%)'
+                          }}
+                        >
+                          {removingUserId === selectedUser.userId ? 'Removing...' : 'Remove from Task'}
+                        </button>
+                      </div>
+                    )}
                 </div>
               )}
             </div>
 
               {/* Footer */}
               <div className="px-6 py-4 bg-forvis-gray-50 border-t-2 border-forvis-gray-200 flex justify-between">
-                {selectedUser.userId !== currentUserId && (
+                {selectedUser.userId !== currentUserId && !('hasAccount' in selectedUser && selectedUser.hasAccount === false) && (
                   <button
                     onClick={() => {
                       setMessageRecipient({

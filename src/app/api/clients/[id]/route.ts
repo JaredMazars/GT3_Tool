@@ -164,6 +164,12 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
       };
     });
 
+    // Enrich tasks with current employee names for partner/manager
+    const enrichedTasks = await enrichRecordsWithEmployeeNames(tasksWithMasterServiceLine, [
+      { codeField: 'TaskPartner', nameField: 'TaskPartnerName' },
+      { codeField: 'TaskManager', nameField: 'TaskManagerName' },
+    ]);
+
     const [enrichedClient] = await enrichRecordsWithEmployeeNames([client], [
       { codeField: 'clientPartner', nameField: 'clientPartnerName' },
       { codeField: 'clientManager', nameField: 'clientManagerName' },
@@ -179,7 +185,7 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
 
     const responseData = {
       ...enrichedClient,
-      tasks: tasksWithMasterServiceLine,
+      tasks: enrichedTasks,
       balances: { ...clientWipBalances, debtorBalance: debtorAggregation._sum.Total || 0 },
       _count: { Task: totalAcrossAllServiceLines },
       taskPagination: { page: taskPage, limit: taskLimit, total: totalTasks, totalPages: Math.ceil(totalTasks / taskLimit) },

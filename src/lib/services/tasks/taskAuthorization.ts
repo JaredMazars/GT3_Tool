@@ -64,6 +64,7 @@ export async function checkTaskAccess(
   try {
     // Check system admin access first
     const adminCheck = await isSystemAdmin(userId);
+    
     if (adminCheck) {
       return {
         canAccess: true,
@@ -84,6 +85,106 @@ export async function checkTaskAccess(
         accessType: TaskAccessType.NO_ACCESS,
         isSystemAdmin: false,
       };
+    }
+
+    // Auto-add partner/manager to team if they're not already members
+    // This must run BEFORE access checks to ensure partner/manager are in the team
+    try {
+      const taskWithPartnerManager = await prisma.task.findUnique({
+        where: { id: taskId },
+        select: {
+          TaskPartner: true,
+          TaskManager: true,
+        },
+      });
+
+      if (taskWithPartnerManager) {
+        // Find all employees for partner and manager codes
+        const employeeCodesToCheck: string[] = [];
+        if (taskWithPartnerManager.TaskPartner) {
+          employeeCodesToCheck.push(taskWithPartnerManager.TaskPartner);
+        }
+        if (taskWithPartnerManager.TaskManager && taskWithPartnerManager.TaskManager !== taskWithPartnerManager.TaskPartner) {
+          employeeCodesToCheck.push(taskWithPartnerManager.TaskManager);
+        }
+
+        if (employeeCodesToCheck.length > 0) {
+          const employees = await prisma.employee.findMany({
+            where: {
+              EmpCode: { in: employeeCodesToCheck },
+              Active: 'Yes',
+            },
+            select: {
+              EmpCode: true,
+              WinLogon: true,
+            },
+          });
+
+          for (const emp of employees) {
+            if (!emp.WinLogon) continue;
+
+            // Find user account for this employee (not limited to current user)
+            const matchingUser = await prisma.user.findFirst({
+              where: {
+                OR: [
+                  { email: { equals: emp.WinLogon } },
+                  { email: { startsWith: emp.WinLogon.split('@')[0] } },
+                  { email: { equals: `${emp.WinLogon}@mazarsinafrica.onmicrosoft.com` } },
+                ],
+              },
+              select: { id: true },
+            });
+
+            if (matchingUser) {
+              // Determine role based on whether this is partner or manager
+              const isPartner = emp.EmpCode === taskWithPartnerManager.TaskPartner;
+              const role = isPartner ? 'PARTNER' : 'MANAGER';
+
+              // Check if already in team
+              const existingMembership = await prisma.taskTeam.findFirst({
+                where: { taskId, userId: matchingUser.id },
+                select: { id: true },
+              });
+
+              if (!existingMembership) {
+                try {
+                  await prisma.taskTeam.create({
+                    data: {
+                      taskId,
+                      userId: matchingUser.id,
+                      role,
+                    },
+                  });
+                  
+                  logger.info('Auto-added partner/manager to team in checkTaskAccess', {
+                    userId: matchingUser.id,
+                    taskId,
+                    role,
+                    empCode: emp.EmpCode,
+                  });
+                } catch (createError: any) {
+                  if (createError.code !== 'P2002') {
+                    logger.error('Failed to auto-create TaskTeam in checkTaskAccess', {
+                      userId: matchingUser.id,
+                      taskId,
+                      role,
+                      empCode: emp.EmpCode,
+                      error: createError,
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (autoAddError) {
+      logger.error('Error during partner/manager auto-add in checkTaskAccess', {
+        userId,
+        taskId,
+        error: autoAddError,
+      });
+      // Continue with normal access check - don't fail the request
     }
 
     // Map ServLineCode to SubServlineGroupCode

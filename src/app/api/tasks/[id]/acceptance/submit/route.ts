@@ -20,6 +20,7 @@ export const POST = secureRoute.mutationWithParams({
 
     // Validate user has access to task
     const hasAccess = await validateAcceptanceAccess(taskId, user.id);
+    
     if (!hasAccess) {
       throw new AppError(
         403,

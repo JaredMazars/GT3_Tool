@@ -234,6 +234,8 @@ export interface TaskTeam {
     name: string | null;
     email: string;
     image?: string | null;
+    jobTitle?: string | null;
+    officeLocation?: string | null;
   };
   // API returns User with capital U from Prisma
   User?: {
@@ -241,12 +243,16 @@ export interface TaskTeam {
     name: string | null;
     email: string;
     image?: string | null;
+    jobTitle?: string | null;
+    officeLocation?: string | null;
   };
   // Optional task/client display fields (for allocation display)
   taskName?: string | null;
   taskCode?: string | null;
   clientName?: string | null;
   clientCode?: string | null;
+  // Indicates if the user has an account (false for pending accounts)
+  hasAccount?: boolean;
 }
 
 // Allocation Period (for grouping multiple allocations by user)

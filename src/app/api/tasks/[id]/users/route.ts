@@ -31,12 +31,16 @@ export const GET = secureRoute.queryWithParams({
       throw new AppError(403, 'Forbidden', ErrorCodes.FORBIDDEN);
     }
 
-    // Get task details including client info
+    // Get task details including client info and partner/manager
     const task = await prisma.task.findUnique({
       where: { id: taskId },
       select: {
         TaskDesc: true,
         TaskCode: true,
+        TaskPartner: true,
+        TaskPartnerName: true,
+        TaskManager: true,
+        TaskManagerName: true,
         Client: {
           select: {
             clientCode: true,
@@ -46,8 +50,13 @@ export const GET = secureRoute.queryWithParams({
       },
     });
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route:52',message:'Task fetched',data:{taskId,taskPartner:task?.TaskPartner,taskManager:task?.TaskManager,taskPartnerName:task?.TaskPartnerName,taskManagerName:task?.TaskManagerName},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+
+
     // Get all users on this project with Employee data
-    const taskTeams = await prisma.taskTeam.findMany({
+    let taskTeams = await prisma.taskTeam.findMany({
       where: { taskId },
       select: {
         id: true,
@@ -75,6 +84,148 @@ export const GET = secureRoute.queryWithParams({
       ],
       take: 500,
     });
+
+    // Auto-create TaskTeam records for partner and manager if they don't exist
+    if (task) {
+      const existingUserIds = new Set(taskTeams.map(tt => tt.userId));
+      const employeeCodesToMap: Array<{ code: string; role: 'PARTNER' | 'MANAGER' }> = [];
+
+      // Collect partner and manager codes that need to be mapped
+      if (task.TaskPartner && task.TaskManager && task.TaskPartner === task.TaskManager) {
+        // Same person is both partner and manager - use PARTNER role (higher precedence)
+        employeeCodesToMap.push({ code: task.TaskPartner, role: 'PARTNER' });
+      } else {
+        if (task.TaskPartner) {
+          employeeCodesToMap.push({ code: task.TaskPartner, role: 'PARTNER' });
+        }
+        if (task.TaskManager) {
+          employeeCodesToMap.push({ code: task.TaskManager, role: 'MANAGER' });
+        }
+      }
+
+      // Map employee codes to User IDs
+      if (employeeCodesToMap.length > 0) {
+        const empCodes = employeeCodesToMap.map(e => e.code);
+        
+        
+        try {
+          const employees = await prisma.employee.findMany({
+            where: {
+              EmpCode: { in: empCodes },
+              Active: 'Yes',
+            },
+            select: {
+              EmpCode: true,
+              WinLogon: true,
+            },
+          });
+
+
+          // Create a map for quick lookup
+          const empCodeToRole = new Map(employeeCodesToMap.map(e => [e.code, e.role]));
+
+          for (const emp of employees) {
+            if (!emp.WinLogon) {
+              logger.warn('Employee missing WinLogon', { empCode: emp.EmpCode, taskId });
+              continue;
+            }
+
+            const role = empCodeToRole.get(emp.EmpCode);
+            if (!role) continue;
+
+
+            // Find matching user account
+            const matchingUser = await prisma.user.findFirst({
+              where: {
+                OR: [
+                  { email: { equals: emp.WinLogon } },
+                  { email: { startsWith: emp.WinLogon.split('@')[0] } },
+                  { email: { equals: `${emp.WinLogon}@mazarsinafrica.onmicrosoft.com` } },
+                ],
+              },
+              select: { id: true },
+            });
+
+
+            if (!matchingUser) {
+              logger.warn('No user account found for employee', { empCode: emp.EmpCode, winLogon: emp.WinLogon, taskId });
+              continue;
+            }
+
+            // Check if user already exists in team
+            if (existingUserIds.has(matchingUser.id)) {
+              continue; // User already in team, don't modify their existing role
+            }
+
+
+            // Create TaskTeam record
+            try {
+              await prisma.taskTeam.create({
+                data: {
+                  taskId,
+                  userId: matchingUser.id,
+                  role,
+                },
+              });
+
+
+              logger.info('Auto-created TaskTeam record for partner/manager', {
+                taskId,
+                userId: matchingUser.id,
+                role,
+                empCode: emp.EmpCode,
+              });
+            } catch (createError: any) {
+              // Ignore duplicate key errors (race condition - another request created it)
+              if (createError.code !== 'P2002') {
+                logger.error('Failed to create TaskTeam record', {
+                  taskId,
+                  userId: matchingUser.id,
+                  role,
+                  error: createError,
+                });
+              }
+            }
+          }
+
+          // Re-fetch TaskTeam records to include newly created ones
+          taskTeams = await prisma.taskTeam.findMany({
+            where: { taskId },
+            select: {
+              id: true,
+              taskId: true,
+              userId: true,
+              role: true,
+              startDate: true,
+              endDate: true,
+              allocatedHours: true,
+              allocatedPercentage: true,
+              actualHours: true,
+              createdAt: true,
+              User: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  image: true,
+                },
+              },
+            },
+            orderBy: [
+              { createdAt: 'asc' },
+              { id: 'asc' },
+            ],
+            take: 500,
+          });
+        } catch (mappingError) {
+          logger.error('Error during partner/manager auto-create', {
+            taskId,
+            error: mappingError,
+          });
+          // Continue with existing taskTeams - don't fail the request
+        }
+      }
+    }
 
     // Batch fetch all employees for better performance
     const emailPrefixes = taskTeams.map(tt => tt.User.email.split('@')[0]).filter((p): p is string => !!p);
@@ -116,6 +267,7 @@ export const GET = secureRoute.queryWithParams({
         taskCode: task?.TaskCode,
         clientName: task?.Client?.clientNameFull || null,
         clientCode: task?.Client?.clientCode || null,
+        hasAccount: true,
         User: {
           ...tt.User,
           jobTitle: employee?.EmpCatDesc || null,
@@ -123,7 +275,136 @@ export const GET = secureRoute.queryWithParams({
         },
       };
     });
-    return NextResponse.json(successResponse(enrichedTaskTeams));
+
+    // Add partner/manager to the list even if they don't have User accounts
+    const finalTeams = [...enrichedTaskTeams];
+    
+    if (task) {
+      const employeeCodesToAdd: Array<{ code: string; role: 'PARTNER' | 'MANAGER' }> = [];
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route:279',message:'Checking for missing partner/manager',data:{taskId,existingTeamCount:taskTeams.length,employeeMapSize:employeeMap.size,taskPartner:task.TaskPartner,taskManager:task.TaskManager},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,D'})}).catch(()=>{});
+      // #endregion
+      
+      // Check if partner is in the team
+      if (task.TaskPartner) {
+        const partnerInTeam = taskTeams.some(tt => {
+          const emailPrefix = tt.User.email.split('@')[0];
+          const employee = employeeMap.get(tt.User.email.toLowerCase()) || 
+                           (emailPrefix ? employeeMap.get(emailPrefix.toLowerCase()) : undefined);
+          return employee?.WinLogon && (
+            employee.WinLogon.toLowerCase() === tt.User.email.toLowerCase() ||
+            employee.WinLogon.split('@')[0].toLowerCase() === emailPrefix?.toLowerCase()
+          );
+        });
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route:293',message:'Partner check result',data:{taskId,taskPartner:task.TaskPartner,partnerInTeam,willAdd:!partnerInTeam},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
+        
+        if (!partnerInTeam) {
+          employeeCodesToAdd.push({ code: task.TaskPartner, role: 'PARTNER' });
+        }
+      }
+      
+      // Check if manager is in the team (and not same as partner)
+      if (task.TaskManager && task.TaskManager !== task.TaskPartner) {
+        const managerInTeam = taskTeams.some(tt => {
+          const emailPrefix = tt.User.email.split('@')[0];
+          const employee = employeeMap.get(tt.User.email.toLowerCase()) || 
+                           (emailPrefix ? employeeMap.get(emailPrefix.toLowerCase()) : undefined);
+          return employee?.WinLogon && (
+            employee.WinLogon.toLowerCase() === tt.User.email.toLowerCase() ||
+            employee.WinLogon.split('@')[0].toLowerCase() === emailPrefix?.toLowerCase()
+          );
+        });
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route:310',message:'Manager check result',data:{taskId,taskManager:task.TaskManager,managerInTeam,willAdd:!managerInTeam},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
+        
+        if (!managerInTeam) {
+          employeeCodesToAdd.push({ code: task.TaskManager, role: 'MANAGER' });
+        }
+      }
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route:316',message:'Codes to add',data:{taskId,employeeCodesToAdd:employeeCodesToAdd.map(e=>({code:e.code,role:e.role}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,D'})}).catch(()=>{});
+      // #endregion
+      
+      // Fetch employee details for partners/managers without accounts
+      if (employeeCodesToAdd.length > 0) {
+        try {
+          const missingEmployees = await prisma.employee.findMany({
+            where: {
+              EmpCode: { in: employeeCodesToAdd.map(e => e.code) },
+            },
+            select: {
+              EmpCode: true,
+              EmpName: true,
+              EmpNameFull: true,
+              WinLogon: true,
+              EmpCatDesc: true,
+              OfficeCode: true,
+              Active: true,
+            },
+          });
+          
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route:332',message:'Missing employees fetched',data:{taskId,requestedCodes:employeeCodesToAdd.map(e=>e.code),foundCount:missingEmployees.length,employees:missingEmployees.map(e=>({code:e.EmpCode,name:e.EmpName,active:e.Active,hasWinLogon:!!e.WinLogon}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+          // #endregion
+          
+          const empCodeToRole = new Map(employeeCodesToAdd.map(e => [e.code, e.role]));
+          
+          for (const emp of missingEmployees) {
+            const role = empCodeToRole.get(emp.EmpCode);
+            if (!role) continue;
+            
+            // Add placeholder entry for partner/manager without account
+            finalTeams.unshift({
+              id: 0, // Placeholder ID
+              taskId,
+              userId: `pending-${emp.EmpCode}`, // Placeholder user ID
+              role,
+              startDate: null,
+              endDate: null,
+              allocatedHours: null,
+              allocatedPercentage: null,
+              actualHours: null,
+              createdAt: new Date(),
+              taskName: task.TaskDesc,
+              taskCode: task.TaskCode,
+              clientName: task.Client?.clientNameFull || null,
+              clientCode: task.Client?.clientCode || null,
+              hasAccount: false,
+              User: {
+                id: `pending-${emp.EmpCode}`,
+                name: emp.EmpNameFull || emp.EmpName || emp.EmpCode,
+                email: emp.WinLogon || `${emp.EmpCode}@pending.local`,
+                image: null,
+                jobTitle: emp.EmpCatDesc || null,
+                officeLocation: emp.OfficeCode || null,
+              },
+            });
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route:367',message:'Added to finalTeams',data:{taskId,empCode:emp.EmpCode,role,name:emp.EmpNameFull||emp.EmpName,hasAccount:false},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+            // #endregion
+          }
+        } catch (error) {
+          logger.error('Error fetching missing partner/manager employees', { error, taskId });
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route:371',message:'Error fetching missing employees',data:{taskId,error:String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C,D'})}).catch(()=>{});
+          // #endregion
+        }
+      }
+    }
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route:379',message:'Final response',data:{taskId,finalTeamsCount:finalTeams.length,teams:finalTeams.map(t=>({role:t.role,hasAccount:t.hasAccount,userId:t.userId,name:t.User?.name}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D,E'})}).catch(()=>{});
+    // #endregion
+    
+    return NextResponse.json(successResponse(finalTeams));
   },
 });
 

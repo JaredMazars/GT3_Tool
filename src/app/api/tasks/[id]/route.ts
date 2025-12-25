@@ -10,6 +10,7 @@ import { invalidateClientCache } from '@/lib/services/clients/clientCache';
 import { invalidateTaskListCache } from '@/lib/services/cache/listCache';
 import { secureRoute } from '@/lib/api/secureRoute';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+import { enrichRecordsWithEmployeeNames } from '@/lib/services/employees/employeeQueries';
 import { z } from 'zod';
 
 // Zod schema for PUT request body
@@ -144,17 +145,23 @@ export const GET = secureRoute.queryWithParams({
       throw new AppError(404, 'Task not found', ErrorCodes.NOT_FOUND);
     }
 
+    // Enrich task with current employee names for partner/manager
+    const [enrichedTask] = await enrichRecordsWithEmployeeNames([task], [
+      { codeField: 'TaskPartner', nameField: 'TaskPartnerName' },
+      { codeField: 'TaskManager', nameField: 'TaskManagerName' },
+    ]);
+
     // Get service line mapping for URL construction
     let serviceLineMapping = null;
-    if (task.ServLineCode) {
+    if (enrichedTask.ServLineCode) {
       serviceLineMapping = await prisma.serviceLineExternal.findFirst({
-        where: { ServLineCode: task.ServLineCode },
+        where: { ServLineCode: enrichedTask.ServLineCode },
         select: { SubServlineGroupCode: true, masterCode: true },
       });
     }
 
     // Transform data to match expected format
-    const { Client, TaskAcceptance, TaskEngagementLetter, TaskTeam, ...taskData } = task;
+    const { Client, TaskAcceptance, TaskEngagementLetter, TaskTeam, ...taskData } = enrichedTask;
     
     const currentUserRole = TaskTeam && Array.isArray(TaskTeam) && TaskTeam.length > 0
       ? TaskTeam.find((member: { userId: string }) => member.userId === user.id)?.role || null
@@ -162,17 +169,17 @@ export const GET = secureRoute.queryWithParams({
     
     const transformedTask = {
       ...taskData,
-      name: task.TaskDesc,
-      description: task.TaskDesc,
+      name: enrichedTask.TaskDesc,
+      description: enrichedTask.TaskDesc,
       client: Client,
-      serviceLine: task.ServLineCode,
+      serviceLine: enrichedTask.ServLineCode,
       taxYear: null,
       taxPeriodStart: null,
       taxPeriodEnd: null,
       assessmentYear: null,
       submissionDeadline: null,
-      status: task.Active === 'Yes' ? 'ACTIVE' : 'INACTIVE',
-      archived: task.Active !== 'Yes',
+      status: enrichedTask.Active === 'Yes' ? 'ACTIVE' : 'INACTIVE',
+      archived: enrichedTask.Active !== 'Yes',
       acceptanceApproved: TaskAcceptance?.acceptanceApproved || false,
       acceptanceApprovedBy: TaskAcceptance?.approvedBy || null,
       acceptanceApprovedAt: TaskAcceptance?.approvedAt || null,
@@ -186,8 +193,8 @@ export const GET = secureRoute.queryWithParams({
       engagementLetterUploadedBy: TaskEngagementLetter?.uploadedBy || null,
       engagementLetterUploadedAt: TaskEngagementLetter?.uploadedAt || null,
       _count: {
-        mappings: task._count.MappedAccount,
-        taxAdjustments: task._count.TaxAdjustment,
+        mappings: enrichedTask._count.MappedAccount,
+        taxAdjustments: enrichedTask._count.TaxAdjustment,
       },
       currentUserRole,
       currentUserId: user.id,
@@ -316,7 +323,7 @@ export const PUT = secureRoute.mutationWithParams({
     });
 
     // Invalidate cache after update
-    await cache.invalidate(`${CACHE_PREFIXES.TASK}detail:${taskId}`);
+    await cache.invalidate(`${CACHE_PREFIXES.TASK}detail:${taskId}:*`);
     await invalidateTaskListCache(Number(taskId));
     
     if (task.GSClientID) {
@@ -392,7 +399,7 @@ export const PATCH = secureRoute.mutationWithParams({
         },
       });
 
-      await cache.invalidate(`${CACHE_PREFIXES.TASK}detail:${taskId}`);
+      await cache.invalidate(`${CACHE_PREFIXES.TASK}detail:${taskId}:*`);
       await invalidateTaskListCache(Number(taskId));
       if (task.GSClientID) {
         await invalidateClientCache(task.GSClientID);
@@ -437,7 +444,7 @@ export const DELETE = secureRoute.mutationWithParams({
       },
     });
 
-    await cache.invalidate(`${CACHE_PREFIXES.TASK}detail:${taskId}`);
+    await cache.invalidate(`${CACHE_PREFIXES.TASK}detail:${taskId}:*`);
     await invalidateTaskListCache(Number(taskId));
     if (task.GSClientID) {
       await invalidateClientCache(task.GSClientID);

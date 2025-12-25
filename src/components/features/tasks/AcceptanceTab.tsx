@@ -5,6 +5,8 @@ import { CheckCircle, Clock, Play, FileCheck } from 'lucide-react';
 import { Task } from '@/types';
 import { useQueryClient } from '@tanstack/react-query';
 import { taskKeys } from '@/hooks/tasks/useTaskData';
+import { taskListKeys } from '@/hooks/tasks/useTasks';
+import { kanbanKeys } from '@/hooks/tasks/useKanbanBoard';
 import { useCanApproveAcceptance } from '@/hooks/auth/usePermissions';
 import { useQuestionnaire, deriveQuestionnaireStatus } from '@/hooks/acceptance/useAcceptanceQuestionnaire';
 import { AcceptanceQuestionnaire } from './acceptance/AcceptanceQuestionnaire';
@@ -65,6 +67,14 @@ export function AcceptanceTab({ task, currentUserRole, onApprovalComplete }: Acc
         }),
         queryClient.invalidateQueries({ 
           queryKey: ['acceptance', 'questionnaire', task.id.toString()] 
+        }),
+        // Invalidate task list queries (workspace list view)
+        queryClient.invalidateQueries({ 
+          queryKey: taskListKeys.lists() 
+        }),
+        // Invalidate kanban board queries (kanban view)
+        queryClient.invalidateQueries({ 
+          queryKey: kanbanKeys.boards() 
         }),
       ]);
       
@@ -150,43 +160,6 @@ export function AcceptanceTab({ task, currentUserRole, onApprovalComplete }: Acc
             )}
           </div>
         </div>
-
-        {/* Client Information (collapsed when working on questionnaire) */}
-        {(workflowState === 'not_started' || workflowState === 'approved') && (
-          <div className="bg-white rounded-lg border-2 border-forvis-gray-200 shadow-corporate overflow-hidden">
-            <div className="px-6 py-4 border-b border-forvis-gray-200 bg-forvis-gray-50">
-              <h3 className="text-lg font-semibold text-forvis-gray-900">Client Information</h3>
-            </div>
-            <div className="px-6 py-4">
-              <dl className="grid grid-cols-2 gap-4">
-                <div>
-                  <dt className="text-sm font-medium text-forvis-gray-600">Client Name</dt>
-                  <dd className="mt-1 text-sm text-forvis-gray-900">
-                    {task.client?.clientNameFull || task.client?.clientCode || 'N/A'}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-forvis-gray-600">Client Code</dt>
-                  <dd className="mt-1 text-sm text-forvis-gray-900">
-                    {task.client?.clientCode || 'N/A'}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-forvis-gray-600">Partner</dt>
-                  <dd className="mt-1 text-sm text-forvis-gray-900">
-                    {task.client?.clientPartner || 'N/A'}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-forvis-gray-600">Manager</dt>
-                  <dd className="mt-1 text-sm text-forvis-gray-900">
-                    {task.client?.clientManager || 'N/A'}
-                  </dd>
-                </div>
-              </dl>
-            </div>
-          </div>
-        )}
 
         {/* Workflow State Content */}
         {workflowState === 'not_started' && viewMode !== 'questionnaire' && (
