@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Tasks by Group Report Content
+ * Profitability Report Content
  * 
  * Multi-view report with Group/Client/Task modes and enhanced multi-select filtering
  */
@@ -10,7 +10,7 @@ import { useState, useMemo } from 'react';
 import { Layers, Building2, ListTodo, LayoutList, FolderTree, Tag } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Banner } from '@/components/ui/Banner';
-import { useTasksByGroup } from '@/hooks/reports/useTasksByGroup';
+import { useProfitabilityReport } from '@/hooks/reports/useProfitabilityReport';
 import { ReportFilters, type ReportFiltersState } from './ReportFilters';
 import { GroupTotalsTable } from './GroupTotalsTable';
 import { ClientTotalsTable } from './ClientTotalsTable';
@@ -21,8 +21,8 @@ import { ServiceLineTotalsTable } from './ServiceLineTotalsTable';
 
 type ViewMode = 'group' | 'client' | 'task' | 'master-service-line' | 'sub-service-line-group' | 'service-line';
 
-export function TasksByGroupReport() {
-  const { data, isLoading, error } = useTasksByGroup();
+export function ProfitabilityReport() {
+  const { data, isLoading, error } = useProfitabilityReport();
   const [viewMode, setViewMode] = useState<ViewMode>('master-service-line');
   const [filters, setFilters] = useState<ReportFiltersState>({
     clients: [],
@@ -95,7 +95,7 @@ export function TasksByGroupReport() {
         <Banner
           variant="error"
           title="Error Loading Report"
-          message={error instanceof Error ? error.message : 'Failed to load tasks by group report'}
+          message={error instanceof Error ? error.message : 'Failed to load profitability report'}
         />
       )}
 
@@ -248,3 +248,4 @@ export function TasksByGroupReport() {
     </div>
   );
 }
+

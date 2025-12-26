@@ -5,7 +5,7 @@
  */
 
 export { MyReportsView } from './MyReportsView';
-export { TasksByGroupReport } from './TasksByGroupReport';
+export { ProfitabilityReport } from './ProfitabilityReport';
 export { ReportFilters, type ReportFiltersState } from './ReportFilters';
 export { GroupTotalsTable } from './GroupTotalsTable';
 export { ClientTotalsTable } from './ClientTotalsTable';

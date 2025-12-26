@@ -68,6 +68,39 @@ if (client?.groupCode !== groupCode) {
 }
 ```
 
+**Fiscal Period Filtering (REQUIRED):**
+- **Fiscal Year:** September to August (FY2024 = Sep 2023 - Aug 2024)
+- **ALWAYS use fiscal period helpers** from `@/lib/services/reports/fiscalPeriodQueries` for date filtering
+- **NEVER manually calculate** fiscal periods - use provided utilities
+- **Available on transaction tables:** `WIPTransactions`, `DrsTransactions`, `Wip`, `Debtors`, `WIPAging`
+
+```typescript
+import { buildFiscalPeriodFilter, getFiscalPeriods } from '@/lib/services/reports/fiscalPeriodQueries';
+import { getFiscalYear, formatFiscalPeriod } from '@/lib/utils/fiscalPeriod';
+
+// Server-side: Filter transactions by fiscal period
+const where = buildFiscalPeriodFilter(
+  { fiscalYear: 2024, fiscalQuarter: 2 },
+  'TranDate' // date field name
+);
+const transactions = await prisma.wIPTransactions.findMany({ where });
+
+// Client-side: Get fiscal year from date
+const fiscalYear = getFiscalYear(new Date()); // Returns 2024
+
+// Get available fiscal periods for dropdowns
+const years = await getFiscalPeriods({ groupBy: 'year' });
+const quarters = await getFiscalPeriods({ fiscalYear: 2024, groupBy: 'quarter' });
+```
+
+**SQL Functions Available:**
+- `dbo.GetFiscalYear(date)` - Returns fiscal year (e.g., 2024)
+- `dbo.GetFiscalQuarter(date)` - Returns quarter 1-4
+- `dbo.GetFiscalMonth(date)` - Returns fiscal month 1-12 (1=Sep, 12=Aug)
+- `dbo.GetFiscalPeriodKey(date)` - Returns period key for joins
+
+**Documentation:** See `docs/FISCAL_PERIOD_USAGE.md` for complete guide
+
 ## Service Lines
 
 **Client-Facing:** TAX, AUDIT, ACCOUNTING, ADVISORY

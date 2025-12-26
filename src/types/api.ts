@@ -116,9 +116,9 @@ export interface PermissionCheckRequest {
 }
 
 /**
- * My Reports - Tasks by Group types
+ * My Reports - Profitability Report types
  */
-export interface TasksByGroupReport {
+export interface ProfitabilityReportData {
   tasks: TaskWithWIPAndServiceLine[];
   filterMode: 'PARTNER' | 'MANAGER';
   employeeCode: string;

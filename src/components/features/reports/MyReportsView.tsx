@@ -8,9 +8,9 @@
 
 import { useState } from 'react';
 import { Folder, FileBarChart, LayoutDashboard } from 'lucide-react';
-import { TasksByGroupReport } from './TasksByGroupReport';
+import { ProfitabilityReport } from './ProfitabilityReport';
 
-type ReportTab = 'overview' | 'tasks-by-group' | 'coming-soon';
+type ReportTab = 'overview' | 'profitability' | 'coming-soon';
 
 export function MyReportsView() {
   const [activeReportTab, setActiveReportTab] = useState<ReportTab>('overview');
@@ -35,16 +35,16 @@ export function MyReportsView() {
           </button>
 
           <button
-            onClick={() => setActiveReportTab('tasks-by-group')}
+            onClick={() => setActiveReportTab('profitability')}
             className={`px-4 py-2 text-sm font-medium transition-all duration-200 border-b-2 ${
-              activeReportTab === 'tasks-by-group'
+              activeReportTab === 'profitability'
                 ? 'border-forvis-blue-500 text-forvis-blue-600'
                 : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
             }`}
           >
             <div className="flex items-center gap-2">
               <Folder className="h-4 w-4" />
-              <span>Tasks by Group</span>
+              <span>Profitability</span>
             </div>
           </button>
           
@@ -89,8 +89,8 @@ export function MyReportsView() {
               </div>
             </div>
           </div>
-        ) : activeReportTab === 'tasks-by-group' ? (
-          <TasksByGroupReport />
+        ) : activeReportTab === 'profitability' ? (
+          <ProfitabilityReport />
         ) : (
           /* More Reports Coming Soon Placeholder */
           <div className="flex items-center justify-center py-16">

@@ -77,7 +77,7 @@ export function TaskDetailsTable({ tasks }: TaskDetailsTableProps) {
           className="grid gap-4 py-3 px-4 text-sm font-semibold text-white shadow-corporate"
           style={{
             background: 'linear-gradient(to right, #2E5AAC, #25488A)',
-            gridTemplateColumns: '2fr 3fr auto auto',
+            gridTemplateColumns: '2fr 3fr 160px 180px',
           }}
         >
           <div>Client</div>
@@ -94,7 +94,7 @@ export function TaskDetailsTable({ tasks }: TaskDetailsTableProps) {
               className={`grid gap-4 py-3 px-4 text-sm transition-colors duration-200 hover:bg-forvis-blue-50 ${
                 index % 2 === 0 ? 'bg-white' : 'bg-forvis-gray-50'
               }`}
-              style={{ gridTemplateColumns: '2fr 3fr auto auto' }}
+              style={{ gridTemplateColumns: '2fr 3fr 160px 180px' }}
             >
               <div className="text-forvis-gray-900">
                 <span className="font-medium">{task.clientCode}</span>

@@ -1,7 +1,7 @@
 /**
- * My Reports - Tasks by Group API
+ * My Reports - Profitability Report API
  * 
- * Returns flat list of all tasks across all service lines
+ * Returns flat list of all tasks across all service lines with Net WIP data
  * Filtered based on employee category:
  * - CARL/Local/DIR: Tasks where user is Task Partner
  * - Others: Tasks where user is Task Manager
@@ -18,12 +18,12 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { categorizeTransaction } from '@/lib/services/clients/clientBalanceCalculation';
 import { logger } from '@/lib/utils/logger';
-import type { TasksByGroupReport, TaskWithWIPAndServiceLine } from '@/types/api';
+import type { ProfitabilityReportData, TaskWithWIPAndServiceLine } from '@/types/api';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * GET /api/my-reports/tasks-by-group
+ * GET /api/my-reports/profitability
  * 
  * Returns flat list of tasks with all relations and service line info
  */
@@ -66,7 +66,7 @@ export const GET = secureRoute.query({
         );
       }
 
-      logger.info('Tasks by group report requested', {
+      logger.info('Profitability report requested', {
         userId: user.id,
         empCode: employee.EmpCode,
         empCatCode: employee.EmpCatCode,
@@ -78,10 +78,10 @@ export const GET = secureRoute.query({
       const filterMode = isPartnerReport ? 'PARTNER' : 'MANAGER';
 
       // Check cache
-      const cacheKey = `${CACHE_PREFIXES.USER}my-reports:tasks-by-group:${user.id}`;
-      const cached = await cache.get<TasksByGroupReport>(cacheKey);
+      const cacheKey = `${CACHE_PREFIXES.USER}my-reports:profitability:${user.id}`;
+      const cached = await cache.get<ProfitabilityReportData>(cacheKey);
       if (cached) {
-        logger.info('Returning cached report', { userId: user.id, filterMode });
+        logger.info('Returning cached profitability report', { userId: user.id, filterMode });
         return NextResponse.json(successResponse(cached));
       }
 
@@ -124,7 +124,7 @@ export const GET = secureRoute.query({
       const tasksWithClients = tasks.filter((task) => task.Client !== null);
 
       if (tasksWithClients.length === 0) {
-        const emptyReport: TasksByGroupReport = {
+        const emptyReport: ProfitabilityReportData = {
           tasks: [],
           filterMode,
           employeeCode: employee.EmpCode,
@@ -271,7 +271,7 @@ export const GET = secureRoute.query({
         };
       });
 
-      const report: TasksByGroupReport = {
+      const report: ProfitabilityReportData = {
         tasks: flatTasks,
         filterMode,
         employeeCode: employee.EmpCode,
@@ -281,7 +281,7 @@ export const GET = secureRoute.query({
       await cache.set(cacheKey, report, 600);
 
       const duration = Date.now() - startTime;
-      logger.info('Tasks by group report generated', {
+      logger.info('Profitability report generated', {
         userId: user.id,
         filterMode,
         taskCount: flatTasks.length,
@@ -290,8 +290,9 @@ export const GET = secureRoute.query({
 
       return NextResponse.json(successResponse(report));
     } catch (error) {
-      logger.error('Error generating tasks by group report', error);
-      return handleApiError(error, 'Generate tasks by group report');
+      logger.error('Error generating profitability report', error);
+      return handleApiError(error, 'Generate profitability report');
     }
   },
 });
+
