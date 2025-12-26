@@ -148,7 +148,7 @@ export function enrichWithEmployeeName<T extends { [key: string]: any }>(
 
   return {
     ...record,
-    [targetNameField]: employee?.EmpNameFull,
+    [targetNameField]: employee?.EmpName,
   };
 }
 

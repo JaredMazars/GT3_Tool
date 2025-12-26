@@ -325,9 +325,10 @@ export const GET = secureRoute.query({
     // Note: No Active filter - we want to show names for historical employees too
     const allEmployees = allEmployeeCodes.length > 0 ? await prisma.employee.findMany({
       where: { EmpCode: { in: allEmployeeCodes } },
-      select: { EmpCode: true, EmpName: true },
+      select: { EmpCode: true, EmpName: true, WinLogon: true },
     }) : [];
     const employeeNameMap = new Map(allEmployees.map(emp => [emp.EmpCode, emp.EmpName]));
+    const employeeMap = new Map(allEmployees.map(emp => [emp.EmpCode, { name: emp.EmpName, email: emp.WinLogon || emp.EmpCode }]));
     
     // Fetch employee status for all partners and managers (single batch query)
     const employeeStatusMap = await enrichEmployeesWithStatus(allEmployeeCodes);
@@ -408,6 +409,72 @@ export const GET = secureRoute.query({
           wipData = { netWip };
         }
 
+        // Build team array including partner and manager if they're not already in TaskTeam
+        const teamMembers: Array<{ userId: string; role: string; name: string | null; email: string; employeeStatus?: { isActive: boolean; hasUserAccount: boolean } }> = [];
+        
+        // Add existing TaskTeam members with employee status lookup
+        for (const member of task.TaskTeam) {
+          // Try to find the employee code for this user to get their status
+          const userEmailLower = member.User.email.toLowerCase();
+          const userEmailPrefix = userEmailLower.split('@')[0];
+          const matchedEmployee = allEmployees.find(emp => 
+            emp.WinLogon?.toLowerCase() === userEmailLower || 
+            emp.WinLogon?.toLowerCase().startsWith(`${userEmailPrefix}@`)
+          );
+          
+          teamMembers.push({
+            userId: member.userId,
+            role: member.role,
+            name: member.User.name,
+            email: member.User.email,
+            employeeStatus: matchedEmployee?.EmpCode ? employeeStatusMap.get(matchedEmployee.EmpCode) : undefined,
+          });
+        }
+        
+        // Check if partner is already in team
+        const partnerInTeam = teamMembers.some(m => {
+          const memberEmailLower = m.email.toLowerCase();
+          const partnerInfo = task.TaskPartner ? employeeMap.get(task.TaskPartner) : null;
+          return partnerInfo && (
+            memberEmailLower === partnerInfo.email.toLowerCase() ||
+            memberEmailLower.startsWith(partnerInfo.email.toLowerCase().split('@')[0] + '@')
+          );
+        });
+        
+        // Add partner if not in team
+        if (task.TaskPartner && !partnerInTeam) {
+          const partnerInfo = employeeMap.get(task.TaskPartner);
+          teamMembers.push({
+            userId: `partner-${task.TaskPartner}`,
+            role: 'PARTNER',
+            name: partnerInfo?.name || task.TaskPartnerName || task.TaskPartner,
+            email: partnerInfo?.email || task.TaskPartner,
+            employeeStatus: employeeStatusMap.get(task.TaskPartner),
+          });
+        }
+        
+        // Check if manager is already in team
+        const managerInTeam = teamMembers.some(m => {
+          const memberEmailLower = m.email.toLowerCase();
+          const managerInfo = task.TaskManager ? employeeMap.get(task.TaskManager) : null;
+          return managerInfo && (
+            memberEmailLower === managerInfo.email.toLowerCase() ||
+            memberEmailLower.startsWith(managerInfo.email.toLowerCase().split('@')[0] + '@')
+          );
+        });
+        
+        // Add manager if not in team
+        if (task.TaskManager && !managerInTeam) {
+          const managerInfo = employeeMap.get(task.TaskManager);
+          teamMembers.push({
+            userId: `manager-${task.TaskManager}`,
+            role: 'MANAGER',
+            name: managerInfo?.name || task.TaskManagerName || task.TaskManager,
+            email: managerInfo?.email || task.TaskManager,
+            employeeStatus: employeeStatusMap.get(task.TaskManager),
+          });
+        }
+
         return {
           id: task.id,
           name: task.TaskDesc,
@@ -422,7 +489,7 @@ export const GET = secureRoute.query({
           dateOpen: task.TaskDateOpen,
           dateTerminate: task.TaskDateTerminate,
           client: task.Client ? { id: task.Client.id, GSClientID: task.Client.GSClientID, code: task.Client.clientCode, name: task.Client.clientNameFull } : null,
-          team: task.TaskTeam.map(member => ({ userId: member.userId, role: member.role, name: member.User.name, email: member.User.email })),
+          team: teamMembers,
           userRole,
           isUserInvolved,
           wip: wipData,

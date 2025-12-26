@@ -380,6 +380,9 @@ export function TaskDetailContent({
     clientName: (member as any).clientName,
     clientCode: (member as any).clientCode,
     allocations: member.allocations,
+    employeeId: (member as any).employeeId,
+    hasAccount: (member as any).hasAccount,
+    employeeStatus: (member as any).employeeStatus,
   }));
 
   useEffect(() => {

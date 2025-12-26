@@ -173,22 +173,20 @@ export const KanbanCard = React.memo(function KanbanCard({ task, displayMode, ca
             {task.team.slice(0, displayMode === 'compact' ? 2 : 5).map((member, idx) => (
               <EmployeeStatusBadge
                 key={member.userId}
-                isActive={member.employeeStatus?.isActive}
-                hasUserAccount={member.employeeStatus?.hasUserAccount}
-                variant="border"
+                name={(member.name || member.email).charAt(0).toUpperCase()}
+                isActive={member.employeeStatus?.isActive ?? false}
+                hasUserAccount={member.employeeStatus?.hasUserAccount ?? false}
+                role={member.role}
+                variant="kanban"
+                iconSize="sm"
+                className={`rounded-full flex items-center justify-center font-medium text-white border-2 ${
+                  displayMode === 'compact' ? 'w-4 h-4 text-[8px]' : 'w-6 h-6 text-xs'
+                }`}
+                style={{
+                  zIndex: task.team.length - idx,
+                }}
               >
-                <div
-                  className={`rounded-full flex items-center justify-center font-medium text-white ${
-                    displayMode === 'compact' ? 'w-4 h-4 text-[8px]' : 'w-6 h-6 text-xs'
-                  }`}
-                  style={{
-                    background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)',
-                    zIndex: task.team.length - idx,
-                  }}
-                  title={member.name || member.email}
-                >
-                  {(member.name || member.email).charAt(0).toUpperCase()}
-                </div>
+                {(member.name || member.email).charAt(0).toUpperCase()}
               </EmployeeStatusBadge>
             ))}
             {task.team.length > (displayMode === 'compact' ? 2 : 5) && (

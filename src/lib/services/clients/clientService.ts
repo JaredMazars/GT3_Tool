@@ -215,11 +215,13 @@ export async function getClientWithProjects(
       ]);
 
       // Enrich client with employee status
-      await enrichObjectsWithEmployeeStatus([enrichedClient], [
-        { codeField: 'clientPartner', statusField: 'clientPartnerStatus' },
-        { codeField: 'clientManager', statusField: 'clientManagerStatus' },
-        { codeField: 'clientIncharge', statusField: 'clientInchargeStatus' },
-      ]);
+      if (enrichedClient) {
+        await enrichObjectsWithEmployeeStatus([enrichedClient], [
+          { codeField: 'clientPartner', statusField: 'clientPartnerStatus' },
+          { codeField: 'clientManager', statusField: 'clientManagerStatus' },
+          { codeField: 'clientIncharge', statusField: 'clientInchargeStatus' },
+        ]);
+      }
 
       // Build task where clause using GSClientID
       interface TaskWhereClause {

@@ -378,7 +378,6 @@ export const GET = secureRoute.queryWithParams({
         OR: [
           { WinLogon: { in: fullEmails } },
           { WinLogon: { in: emailPrefixes } },
-          { EmpCode: { in: employeeCodesToAdd.map(e => e.code) } },
         ],
       },
       select: {

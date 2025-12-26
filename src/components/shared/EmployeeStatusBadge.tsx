@@ -2,6 +2,7 @@
 
 import React, { ReactNode } from 'react';
 import { CircleX, CircleCheck, CircleHelp } from 'lucide-react';
+import { getRoleGradient } from '@/lib/utils/roleColors';
 
 export interface EmployeeStatusBadgeProps {
   // Status flags
@@ -9,15 +10,19 @@ export interface EmployeeStatusBadgeProps {
   hasUserAccount?: boolean;
   
   // Display options
-  name?: string;
-  variant?: 'text' | 'border' | 'icon-only';
+  name?: string | null;
+  variant?: 'text' | 'border' | 'icon-only' | 'kanban';
   iconSize?: 'sm' | 'md' | 'lg';
+  
+  // For kanban variant
+  role?: string;
   
   // For border variant
   children?: ReactNode;
   
   // Optional styling
   className?: string;
+  style?: React.CSSProperties;
 }
 
 export function EmployeeStatusBadge({
@@ -26,8 +31,10 @@ export function EmployeeStatusBadge({
   name,
   variant = 'text',
   iconSize = 'md',
+  role,
   children,
   className = '',
+  style,
 }: EmployeeStatusBadgeProps) {
   
   // Determine status and colors
@@ -68,6 +75,26 @@ export function EmployeeStatusBadge({
     lg: 'h-5 w-5',
   }[iconSize];
 
+  // Kanban variant: role-based gradient background with optional status border
+  if (variant === 'kanban' && role) {
+    const gradient = getRoleGradient(role);
+    const statusBorderClass = !isActive 
+      ? 'border-red-500' 
+      : !hasUserAccount 
+        ? 'border-yellow-500' 
+        : 'border-green-500';
+    
+    return (
+      <div
+        className={`${className} ${statusBorderClass}`}
+        style={{ background: gradient, ...style }}
+        title={`${name || ''} - ${role}${status.title ? ` (${status.title})` : ''}`}
+      >
+        {children}
+      </div>
+    );
+  }
+
   // Border variant: wrap children with colored border
   if (variant === 'border') {
     return (
@@ -83,10 +110,11 @@ export function EmployeeStatusBadge({
   // Icon-only variant
   if (variant === 'icon-only') {
     return (
-      <Icon
-        className={`${status.textColor} ${iconSizeClass} ${className}`}
-        title={status.title}
-      />
+      <span title={status.title} className="inline-flex">
+        <Icon
+          className={`${status.textColor} ${iconSizeClass} ${className}`}
+        />
+      </span>
     );
   }
 

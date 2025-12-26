@@ -21,10 +21,22 @@ export interface Client {
   groupDesc: string;
   clientPartner: string;
   clientPartnerName?: string;
+  clientPartnerStatus?: {
+    isActive: boolean;
+    hasUserAccount: boolean;
+  };
   clientManager: string;
   clientManagerName?: string;
+  clientManagerStatus?: {
+    isActive: boolean;
+    hasUserAccount: boolean;
+  };
   clientIncharge: string;
   clientInchargeName?: string;
+  clientInchargeStatus?: {
+    isActive: boolean;
+    hasUserAccount: boolean;
+  };
   industry: string | null;
   sector: string | null;
   active: string;

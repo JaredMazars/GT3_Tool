@@ -360,7 +360,8 @@ export default function SubServiceLineWorkspacePage() {
             jobGradeCode: alloc.jobGradeCode
           },
           role: (alloc as any).serviceLineRole || 'USER',
-          allocations: []
+          allocations: [],
+          employeeStatus: alloc.employeeStatus
         });
       }
       
@@ -392,7 +393,8 @@ export default function SubServiceLineWorkspacePage() {
       employeeId: employee.employeeId,
       User: employee.User,
       role: employee.role,
-      allocations: employee.allocations
+      allocations: employee.allocations,
+      employeeStatus: employee.employeeStatus
     }));
   }, [timelinePlannerData]);
 

@@ -14,6 +14,7 @@ import { ServiceLineRole, NON_CLIENT_EVENT_LABELS } from '@/types';
 import { startOfDay, format, isSameDay, addDays, addWeeks } from 'date-fns';
 import { useDeleteNonClientAllocation } from '@/hooks/planning/useNonClientAllocations';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
+import { EmployeeStatusBadge } from '@/components/shared/EmployeeStatusBadge';
 
 interface GanttTimelineProps {
   taskId: number;
@@ -225,7 +226,8 @@ export function GanttTimeline({
         allocations: allocationsWithLanes, // Show all allocations
         totalAllocatedHours: memoizedCalculateTotalHours(currentTaskAllocations), // Total only current task
         totalAllocatedPercentage: memoizedCalculateTotalPercentage(currentTaskAllocations), // Total only current task
-        maxLanes
+        maxLanes,
+        employeeStatus: (member as any).employeeStatus,
       };
     });
   }, [teamMembers, optimisticUpdates]);
@@ -991,12 +993,16 @@ export function GanttTimeline({
                   style={{ height: `${resource.maxLanes * 36}px` }}
                 >
                   <div className="flex items-center w-full gap-2">
-                    <div 
-                      className="rounded-full flex items-center justify-center text-white font-bold shadow-corporate flex-shrink-0 w-6 h-6 text-[10px]"
-                      style={{ background: getRoleGradient(resource.role) }}
+                    <EmployeeStatusBadge
+                      name={resource.userName ? resource.userName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() : resource.userEmail.slice(0, 2).toUpperCase()}
+                      isActive={resource.employeeStatus?.isActive ?? false}
+                      hasUserAccount={resource.employeeStatus?.hasUserAccount ?? false}
+                      role={resource.role}
+                      variant="kanban"
+                      className="rounded-full flex items-center justify-center text-white font-bold shadow-corporate flex-shrink-0 w-6 h-6 text-[10px] border-2"
                     >
                       {resource.userName ? resource.userName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() : resource.userEmail.slice(0, 2).toUpperCase()}
-                    </div>
+                    </EmployeeStatusBadge>
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold text-forvis-gray-900 text-xs truncate">
                         {resource.userName || resource.userEmail}

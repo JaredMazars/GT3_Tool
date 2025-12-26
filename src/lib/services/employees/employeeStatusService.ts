@@ -93,7 +93,7 @@ export async function enrichEmployeesWithStatus(
     const emailVariants = winLogons.flatMap((logon) => {
       const lower = logon.toLowerCase();
       const prefix = lower.split('@')[0];
-      return [lower, prefix, `${prefix}@mazarsinafrica.onmicrosoft.com`];
+      return prefix ? [lower, prefix, `${prefix}@mazarsinafrica.onmicrosoft.com`] : [lower];
     });
 
     // Fetch all matching users in one query
@@ -123,8 +123,8 @@ export async function enrichEmployeesWithStatus(
         // Check if any email variant exists in users
         hasUserAccount =
           userEmails.has(winLogonLower) ||
-          userEmails.has(prefix) ||
-          userEmails.has(`${prefix}@mazarsinafrica.onmicrosoft.com`);
+          (prefix ? userEmails.has(prefix) : false) ||
+          (prefix ? userEmails.has(`${prefix}@mazarsinafrica.onmicrosoft.com`) : false);
       }
 
       statusMap.set(emp.EmpCode, {
@@ -180,7 +180,7 @@ export async function enrichObjectsWithEmployeeStatus<
       if (empCode && typeof empCode === 'string') {
         const status = statusMap.get(empCode);
         // Set status or default to inactive if not found
-        obj[statusField] = status || {
+        (obj as any)[statusField] = status || {
           empCode,
           isActive: false,
           hasUserAccount: false,

@@ -9,6 +9,7 @@ import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { mapUsersToEmployees, mapEmployeesToUsers } from '@/lib/services/employees/employeeService';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { ServiceLineRole } from '@/types';
+import { enrichEmployeesWithStatus } from '@/lib/services/employees/employeeStatusService';
 
 // Type for subGroup in userServiceLines
 interface SubGroupInfo {
@@ -64,6 +65,10 @@ interface AllocationRow {
   isNonClientEvent: boolean;
   nonClientEventType: string | null;
   notes: string | null;
+  employeeStatus?: {
+    isActive: boolean;
+    hasUserAccount: boolean;
+  };
 }
 
 // Type for employee from database
@@ -422,6 +427,12 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
       });
     }
 
+    // Fetch employee status for all employees
+    const allEmployeeCodes = Array.from(employeeMap.values())
+      .map(emp => emp.EmpCode)
+      .filter(Boolean) as string[];
+    const employeeStatusMap = await enrichEmployeesWithStatus(allEmployeeCodes);
+
     // Transform to flat structure
     const allocationRows = filteredAllocations.map(allocation => {
       const employee = employeeMap.get(allocation.userId.toLowerCase()) || 
@@ -430,6 +441,8 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
       const isClientTask = !!allocation.Task.Client?.clientCode;
       
       const serviceLineRole = userServiceLineRoleMap.get(allocation.userId) || 'USER';
+      
+      const empStatus = employee?.EmpCode ? employeeStatusMap.get(employee.EmpCode) : undefined;
 
       return {
         allocationId: allocation.id,
@@ -454,7 +467,8 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
         actualHours: allocation.actualHours ? parseFloat(allocation.actualHours.toString()) : null,
         isNonClientEvent: !isClientTask,
         nonClientEventType: null, // TODO: Handle NonClientEvent lookups if needed
-        notes: null
+        notes: null,
+        employeeStatus: empStatus
       };
     });
     
@@ -481,6 +495,7 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
       const unallocatedRows = filteredUnallocatedEmployees.map(emp => {
         const userId = employeeUserIdMap.get(emp.id);
         const userEmail = userId || `${emp.WinLogon}@forvismazars.us`;
+        const empStatus = emp.EmpCode ? employeeStatusMap.get(emp.EmpCode) : undefined;
         
         return {
           allocationId: 0, // No allocation
@@ -505,7 +520,8 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
           actualHours: null,
           isNonClientEvent: false,
           nonClientEventType: null,
-          notes: null
+          notes: null,
+          employeeStatus: empStatus
         };
       });
       

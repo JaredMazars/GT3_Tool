@@ -6,6 +6,7 @@ import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { toTaskId } from '@/types/branded';
 import { NON_CLIENT_EVENT_LABELS, NonClientEventType } from '@/types';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { enrichEmployeesWithStatus } from '@/lib/services/employees/employeeStatusService';
 
 /**
  * GET /api/tasks/[id]/team/allocations
@@ -128,32 +129,44 @@ export const GET = secureRoute.queryWithParams({
       },
       select: {
         id: true,
+        EmpCode: true,
         WinLogon: true,
         EmpCatCode: true
       },
       take: 500,
     });
 
-    // Create mapping: userId -> employeeId and userId -> jobGradeCode
+    // Create mapping: userId -> employeeId, userId -> jobGradeCode, and userId -> empCode
     const userToEmployeeMap = new Map<string, number>();
     const userToJobGradeMap = new Map<string, string>();
+    const userToEmpCodeMap = new Map<string, string>();
     task.TaskTeam.forEach(member => {
       const userEmail = member.User.email?.toLowerCase();
       if (userEmail) {
+        const userEmailPrefix = userEmail.split('@')[0];
         const matchedEmployee = employees.find(emp => {
           const empLogin = emp.WinLogon?.toLowerCase();
           if (!empLogin) return false;
-          // Direct match or prefix match
-          return empLogin === userEmail || userEmail.startsWith(empLogin.split('@')[0] || '');
+          // Direct match or check if employee WinLogon starts with user email prefix
+          return empLogin === userEmail || empLogin.startsWith(`${userEmailPrefix}@`);
         });
         if (matchedEmployee) {
           userToEmployeeMap.set(member.userId, matchedEmployee.id);
           if (matchedEmployee.EmpCatCode) {
             userToJobGradeMap.set(member.userId, matchedEmployee.EmpCatCode);
           }
+          if (matchedEmployee.EmpCode) {
+            userToEmpCodeMap.set(member.userId, matchedEmployee.EmpCode);
+          }
         }
       }
     });
+
+    // Fetch employee status for all team members
+    const allEmpCodes = Array.from(userToEmpCodeMap.values());
+    if (task.TaskPartner) allEmpCodes.push(task.TaskPartner);
+    if (task.TaskManager) allEmpCodes.push(task.TaskManager);
+    const employeeStatusMap = await enrichEmployeesWithStatus([...new Set(allEmpCodes)]);
 
     // Get non-client allocations for matched employees
     const employeeIds = Array.from(userToEmployeeMap.values());
@@ -225,6 +238,7 @@ export const GET = secureRoute.queryWithParams({
             if (!role) continue;
             
             // Add placeholder member for partner/manager without account
+            const empStatus = employeeStatusMap.get(emp.EmpCode);
             additionalMembers.push({
               id: 0, // Placeholder
               userId: `pending-${emp.EmpCode}`,
@@ -238,6 +252,7 @@ export const GET = secureRoute.queryWithParams({
               },
               allocations: [],
               hasAccount: false,
+              employeeStatus: empStatus || { isActive: false, hasUserAccount: false },
             });
           }
         } catch (error) {
@@ -309,6 +324,9 @@ export const GET = secureRoute.queryWithParams({
           notes: alloc.notes
         }));
 
+      const memberEmpCode = userToEmpCodeMap.get(member.userId);
+      const empStatus = memberEmpCode ? employeeStatusMap.get(memberEmpCode) : undefined;
+      
       return {
         id: member.id, // TaskTeam.id for the current task - needed for creating/updating allocations
         userId: member.userId,
@@ -322,6 +340,7 @@ export const GET = secureRoute.queryWithParams({
         },
         allocations: [...currentAllocation, ...otherUserAllocations, ...userNonClientAllocations],
         hasAccount: true,
+        employeeStatus: empStatus,
       };
     });
 

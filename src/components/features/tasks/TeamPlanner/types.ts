@@ -60,6 +60,7 @@ export interface ResourceData {
   totalAllocatedHours: number;
   totalAllocatedPercentage: number;
   maxLanes: number; // Maximum number of concurrent overlapping allocations
+  employeeStatus?: { isActive: boolean; hasUserAccount: boolean }; // Employee status for badge display
 }
 
 export interface GanttPosition {

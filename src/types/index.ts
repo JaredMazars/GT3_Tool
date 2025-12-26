@@ -11,7 +11,7 @@ export interface MappedData {
 
 // Employee Status (for UI status indicators)
 export interface EmployeeStatus {
-  empCode: string;
+  empCode?: string;
   isActive: boolean;
   hasUserAccount: boolean;
 }
@@ -268,6 +268,10 @@ export interface TaskTeam {
   taskCode?: string | null;
   clientName?: string | null;
   clientCode?: string | null;
+  // Allocations for this team member (from allocation API)
+  allocations?: any[];
+  // Employee ID (for non-client allocation planning)
+  employeeId?: number;
   // Indicates if the user has an account (false for pending accounts)
   hasAccount?: boolean;
   // Employee status for status indicators
@@ -356,8 +360,14 @@ export interface TeamMemberWithAllocations {
     name: string | null;
     email: string;
     image?: string | null;
+    jobGradeCode?: string | null;
   };
+  role: string;
+  id: number;
+  employeeId?: number;
   allocations: TeamAllocation[];
+  hasAccount?: boolean;
+  employeeStatus?: EmployeeStatus;
 }
 
 export interface TaskAcceptance {

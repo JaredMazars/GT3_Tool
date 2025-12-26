@@ -38,6 +38,10 @@ export interface EmployeeAllocationData {
   isNonClientEvent: boolean;
   nonClientEventType: string | null;
   notes: string | null;
+  employeeStatus?: {
+    isActive: boolean;
+    hasUserAccount: boolean;
+  };
 }
 
 export interface PaginationMetadata {
