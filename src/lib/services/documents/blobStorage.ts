@@ -7,8 +7,12 @@ import {
 import { logger } from '../../utils/logger';
 
 const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
-const containerName =
-  process.env.AZURE_STORAGE_CONTAINER_NAME || 'adjustment-documents';
+
+// Container names - each document type has its own dedicated container
+const engagementLettersContainerName = 'engagement-letters';
+const dpaContainerName = 'dpa';
+const acceptanceDocumentsContainerName = 'acceptance-documents';
+const reviewNotesContainerName = 'review-notes';
 const newsBulletinsContainerName = 'news-bulletins';
 
 /**
@@ -23,16 +27,125 @@ function getBlobServiceClient(): BlobServiceClient {
 }
 
 /**
- * Get Container Client
+ * Get Engagement Letters Container Client
  */
-function getContainerClient() {
+function getEngagementLettersContainerClient() {
   const blobServiceClient = getBlobServiceClient();
-  return blobServiceClient.getContainerClient(containerName);
+  return blobServiceClient.getContainerClient(engagementLettersContainerName);
 }
 
 /**
- * Initialize blob storage container
+ * Get DPA Container Client
+ */
+function getDpaContainerClient() {
+  const blobServiceClient = getBlobServiceClient();
+  return blobServiceClient.getContainerClient(dpaContainerName);
+}
+
+/**
+ * Get Acceptance Documents Container Client
+ */
+function getAcceptanceDocumentsContainerClient() {
+  const blobServiceClient = getBlobServiceClient();
+  return blobServiceClient.getContainerClient(acceptanceDocumentsContainerName);
+}
+
+/**
+ * Get Review Notes Container Client
+ */
+function getReviewNotesContainerClient() {
+  const blobServiceClient = getBlobServiceClient();
+  return blobServiceClient.getContainerClient(reviewNotesContainerName);
+}
+
+/**
+ * Get Container Client (legacy - for backward compatibility)
+ * @deprecated Use purpose-specific container clients instead
+ */
+function getContainerClient() {
+  const blobServiceClient = getBlobServiceClient();
+  return blobServiceClient.getContainerClient(acceptanceDocumentsContainerName);
+}
+
+/**
+ * Initialize engagement letters blob storage container
  * Creates container if it doesn't exist
+ */
+export async function initEngagementLettersStorage(): Promise<void> {
+  try {
+    const containerClient = getEngagementLettersContainerClient();
+    const exists = await containerClient.exists();
+
+    if (!exists) {
+      await containerClient.create();
+      logger.info(`Created blob container: ${engagementLettersContainerName}`);
+    }
+  } catch (error) {
+    logger.error('Failed to initialize engagement letters blob storage:', error);
+    throw error;
+  }
+}
+
+/**
+ * Initialize DPA blob storage container
+ * Creates container if it doesn't exist
+ */
+export async function initDpaStorage(): Promise<void> {
+  try {
+    const containerClient = getDpaContainerClient();
+    const exists = await containerClient.exists();
+
+    if (!exists) {
+      await containerClient.create();
+      logger.info(`Created blob container: ${dpaContainerName}`);
+    }
+  } catch (error) {
+    logger.error('Failed to initialize DPA blob storage:', error);
+    throw error;
+  }
+}
+
+/**
+ * Initialize acceptance documents blob storage container
+ * Creates container if it doesn't exist
+ */
+export async function initAcceptanceDocumentsStorage(): Promise<void> {
+  try {
+    const containerClient = getAcceptanceDocumentsContainerClient();
+    const exists = await containerClient.exists();
+
+    if (!exists) {
+      await containerClient.create();
+      logger.info(`Created blob container: ${acceptanceDocumentsContainerName}`);
+    }
+  } catch (error) {
+    logger.error('Failed to initialize acceptance documents blob storage:', error);
+    throw error;
+  }
+}
+
+/**
+ * Initialize review notes blob storage container
+ * Creates container if it doesn't exist
+ */
+export async function initReviewNotesStorage(): Promise<void> {
+  try {
+    const containerClient = getReviewNotesContainerClient();
+    const exists = await containerClient.exists();
+
+    if (!exists) {
+      await containerClient.create();
+      logger.info(`Created blob container: ${reviewNotesContainerName}`);
+    }
+  } catch (error) {
+    logger.error('Failed to initialize review notes blob storage:', error);
+    throw error;
+  }
+}
+
+/**
+ * Initialize blob storage container (legacy - for backward compatibility)
+ * @deprecated Use purpose-specific init functions instead
  */
 export async function initBlobStorage(): Promise<void> {
   try {
@@ -41,7 +154,7 @@ export async function initBlobStorage(): Promise<void> {
 
     if (!exists) {
       await containerClient.create();
-      logger.info(`Created blob container: ${containerName}`);
+      logger.info(`Created blob container: ${acceptanceDocumentsContainerName}`);
     }
   } catch (error) {
     logger.error('Failed to initialize blob storage:', error);
@@ -50,7 +163,7 @@ export async function initBlobStorage(): Promise<void> {
 }
 
 /**
- * Upload file to Azure Blob Storage
+ * Upload file to Azure Blob Storage (A&C documents)
  * @param buffer - File buffer
  * @param fileName - File name
  * @param taskId - Task ID for folder organization
@@ -62,7 +175,10 @@ export async function uploadFile(
   taskId: number
 ): Promise<string> {
   try {
-    const containerClient = getContainerClient();
+    // Ensure container exists
+    await initAcceptanceDocumentsStorage();
+    
+    const containerClient = getAcceptanceDocumentsContainerClient();
     const timestamp = Date.now();
     const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
     const blobName = `${taskId}/${timestamp}_${sanitizedFileName}`;
@@ -87,13 +203,13 @@ export async function uploadFile(
 }
 
 /**
- * Download file from Azure Blob Storage
+ * Download file from Azure Blob Storage (A&C documents)
  * @param blobName - Blob name/path
  * @returns File buffer
  */
 export async function downloadFile(blobName: string): Promise<Buffer> {
   try {
-    const containerClient = getContainerClient();
+    const containerClient = getAcceptanceDocumentsContainerClient();
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
     const downloadResponse = await blockBlobClient.download();
@@ -110,12 +226,12 @@ export async function downloadFile(blobName: string): Promise<Buffer> {
 }
 
 /**
- * Delete file from Azure Blob Storage
+ * Delete file from Azure Blob Storage (A&C documents)
  * @param blobName - Blob name/path
  */
 export async function deleteFile(blobName: string): Promise<void> {
   try {
-    const containerClient = getContainerClient();
+    const containerClient = getAcceptanceDocumentsContainerClient();
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
     await blockBlobClient.delete();
@@ -127,7 +243,7 @@ export async function deleteFile(blobName: string): Promise<void> {
 }
 
 /**
- * Generate a SAS token URL for secure file access
+ * Generate a SAS token URL for secure file access (A&C documents)
  * @param blobName - Blob name/path
  * @param expiresInMinutes - Token expiration in minutes (default: 60)
  * @returns SAS URL
@@ -137,7 +253,7 @@ export async function generateSasUrl(
   expiresInMinutes: number = 60
 ): Promise<string> {
   try {
-    const containerClient = getContainerClient();
+    const containerClient = getAcceptanceDocumentsContainerClient();
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
     // Parse connection string to get account name and key
@@ -163,7 +279,7 @@ export async function generateSasUrl(
 
     const sasToken = generateBlobSASQueryParameters(
       {
-        containerName,
+        containerName: acceptanceDocumentsContainerName,
         blobName,
         permissions: BlobSASPermissions.parse('r'), // Read permission
         startsOn,
@@ -181,13 +297,13 @@ export async function generateSasUrl(
 }
 
 /**
- * Check if file exists in blob storage
+ * Check if file exists in blob storage (A&C documents)
  * @param blobName - Blob name/path
  * @returns True if exists
  */
 export async function fileExists(blobName: string): Promise<boolean> {
   try {
-    const containerClient = getContainerClient();
+    const containerClient = getAcceptanceDocumentsContainerClient();
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
     return await blockBlobClient.exists();
   } catch (error) {
@@ -197,13 +313,13 @@ export async function fileExists(blobName: string): Promise<boolean> {
 }
 
 /**
- * List all files in a task folder
+ * List all files in a task folder (A&C documents)
  * @param taskId - Task ID
  * @returns Array of blob names
  */
 export async function listTaskFiles(taskId: number): Promise<string[]> {
   try {
-    const containerClient = getContainerClient();
+    const containerClient = getAcceptanceDocumentsContainerClient();
     const prefix = `${taskId}/`;
     const files: string[] = [];
 
@@ -440,10 +556,13 @@ export async function uploadReviewNoteAttachment(
   reviewNoteId: number
 ): Promise<string> {
   try {
-    const containerClient = getContainerClient();
+    // Ensure container exists
+    await initReviewNotesStorage();
+    
+    const containerClient = getReviewNotesContainerClient();
     const timestamp = Date.now();
     const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const blobName = `review-notes/${reviewNoteId}/${timestamp}_${sanitizedFileName}`;
+    const blobName = `${reviewNoteId}/${timestamp}_${sanitizedFileName}`;
 
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
@@ -471,7 +590,7 @@ export async function uploadReviewNoteAttachment(
  */
 export async function downloadReviewNoteAttachment(blobName: string): Promise<Buffer> {
   try {
-    const containerClient = getContainerClient();
+    const containerClient = getReviewNotesContainerClient();
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
     const downloadResponse = await blockBlobClient.download();
@@ -493,7 +612,7 @@ export async function downloadReviewNoteAttachment(blobName: string): Promise<Bu
  */
 export async function deleteReviewNoteAttachment(blobName: string): Promise<void> {
   try {
-    const containerClient = getContainerClient();
+    const containerClient = getReviewNotesContainerClient();
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
     await blockBlobClient.delete();
@@ -511,12 +630,280 @@ export async function deleteReviewNoteAttachment(blobName: string): Promise<void
  */
 export async function reviewNoteAttachmentExists(blobName: string): Promise<boolean> {
   try {
-    const containerClient = getContainerClient();
+    const containerClient = getReviewNotesContainerClient();
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
     return await blockBlobClient.exists();
   } catch (error) {
     logger.error('Failed to check review note attachment existence:', error);
     return false;
+  }
+}
+
+/**
+ * Upload engagement letter to Azure Blob Storage
+ * @param buffer - File buffer
+ * @param fileName - File name
+ * @param taskId - Task ID for folder organization
+ * @returns Blob path
+ */
+export async function uploadEngagementLetter(
+  buffer: Buffer,
+  fileName: string,
+  taskId: number
+): Promise<string> {
+  try {
+    // Ensure container exists
+    await initEngagementLettersStorage();
+    
+    const containerClient = getEngagementLettersContainerClient();
+    const timestamp = Date.now();
+    const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const blobName = `${taskId}/${timestamp}_${sanitizedFileName}`;
+
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    // Determine content type based on file extension
+    const contentType = getContentType(fileName);
+
+    await blockBlobClient.upload(buffer, buffer.length, {
+      blobHTTPHeaders: {
+        blobContentType: contentType,
+      },
+    });
+
+    logger.info(`Uploaded engagement letter to blob storage: ${blobName}`);
+    return blobName;
+  } catch (error) {
+    logger.error('Failed to upload engagement letter to blob storage:', error);
+    throw error;
+  }
+}
+
+/**
+ * Download engagement letter from Azure Blob Storage
+ * @param blobName - Blob name/path
+ * @returns File buffer
+ */
+export async function downloadEngagementLetter(blobName: string): Promise<Buffer> {
+  try {
+    const containerClient = getEngagementLettersContainerClient();
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    const downloadResponse = await blockBlobClient.download();
+    const downloaded = await streamToBuffer(
+      downloadResponse.readableStreamBody!
+    );
+
+    logger.info(`Downloaded engagement letter from blob storage: ${blobName}`);
+    return downloaded;
+  } catch (error) {
+    logger.error('Failed to download engagement letter from blob storage:', error);
+    throw error;
+  }
+}
+
+/**
+ * Delete engagement letter from Azure Blob Storage
+ * @param blobName - Blob name/path
+ */
+export async function deleteEngagementLetter(blobName: string): Promise<void> {
+  try {
+    const containerClient = getEngagementLettersContainerClient();
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    await blockBlobClient.delete();
+    logger.info(`Deleted engagement letter from blob storage: ${blobName}`);
+  } catch (error) {
+    logger.error('Failed to delete engagement letter from blob storage:', error);
+    throw error;
+  }
+}
+
+/**
+ * Generate a SAS token URL for secure engagement letter access
+ * @param blobName - Blob name/path
+ * @param expiresInMinutes - Token expiration in minutes (default: 60)
+ * @returns SAS URL
+ */
+export async function generateEngagementLetterSasUrl(
+  blobName: string,
+  expiresInMinutes: number = 60
+): Promise<string> {
+  try {
+    const containerClient = getEngagementLettersContainerClient();
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    // Parse connection string to get account name and key
+    const parts = connectionString!.split(';');
+    const accountName = parts
+      .find((p) => p.startsWith('AccountName='))
+      ?.split('=')[1];
+    const accountKey = parts
+      .find((p) => p.startsWith('AccountKey='))
+      ?.split('=')[1];
+
+    if (!accountName || !accountKey) {
+      throw new Error('Invalid connection string format');
+    }
+
+    const sharedKeyCredential = new StorageSharedKeyCredential(
+      accountName,
+      accountKey
+    );
+
+    const startsOn = new Date();
+    const expiresOn = new Date(startsOn.getTime() + expiresInMinutes * 60000);
+
+    const sasToken = generateBlobSASQueryParameters(
+      {
+        containerName: engagementLettersContainerName,
+        blobName,
+        permissions: BlobSASPermissions.parse('r'), // Read permission
+        startsOn,
+        expiresOn,
+      },
+      sharedKeyCredential
+    ).toString();
+
+    const sasUrl = `${blockBlobClient.url}?${sasToken}`;
+    return sasUrl;
+  } catch (error) {
+    logger.error('Failed to generate SAS URL for engagement letter:', error);
+    throw error;
+  }
+}
+
+/**
+ * Upload DPA (Data Processing Agreement) to Azure Blob Storage
+ * @param buffer - File buffer
+ * @param fileName - File name
+ * @param taskId - Task ID for folder organization
+ * @returns Blob path
+ */
+export async function uploadDpa(
+  buffer: Buffer,
+  fileName: string,
+  taskId: number
+): Promise<string> {
+  try {
+    // Ensure container exists
+    await initDpaStorage();
+    
+    const containerClient = getDpaContainerClient();
+    const timestamp = Date.now();
+    const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const blobName = `${taskId}/${timestamp}_${sanitizedFileName}`;
+
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    // Determine content type based on file extension
+    const contentType = getContentType(fileName);
+
+    await blockBlobClient.upload(buffer, buffer.length, {
+      blobHTTPHeaders: {
+        blobContentType: contentType,
+      },
+    });
+
+    logger.info(`Uploaded DPA to blob storage: ${blobName}`);
+    return blobName;
+  } catch (error) {
+    logger.error('Failed to upload DPA to blob storage:', error);
+    throw error;
+  }
+}
+
+/**
+ * Download DPA from Azure Blob Storage
+ * @param blobName - Blob name/path
+ * @returns File buffer
+ */
+export async function downloadDpa(blobName: string): Promise<Buffer> {
+  try {
+    const containerClient = getDpaContainerClient();
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    const downloadResponse = await blockBlobClient.download();
+    const downloaded = await streamToBuffer(
+      downloadResponse.readableStreamBody!
+    );
+
+    logger.info(`Downloaded DPA from blob storage: ${blobName}`);
+    return downloaded;
+  } catch (error) {
+    logger.error('Failed to download DPA from blob storage:', error);
+    throw error;
+  }
+}
+
+/**
+ * Delete DPA from Azure Blob Storage
+ * @param blobName - Blob name/path
+ */
+export async function deleteDpa(blobName: string): Promise<void> {
+  try {
+    const containerClient = getDpaContainerClient();
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    await blockBlobClient.delete();
+    logger.info(`Deleted DPA from blob storage: ${blobName}`);
+  } catch (error) {
+    logger.error('Failed to delete DPA from blob storage:', error);
+    throw error;
+  }
+}
+
+/**
+ * Generate a SAS token URL for secure DPA access
+ * @param blobName - Blob name/path
+ * @param expiresInMinutes - Token expiration in minutes (default: 60)
+ * @returns SAS URL
+ */
+export async function generateDpaSasUrl(
+  blobName: string,
+  expiresInMinutes: number = 60
+): Promise<string> {
+  try {
+    const containerClient = getDpaContainerClient();
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    // Parse connection string to get account name and key
+    const parts = connectionString!.split(';');
+    const accountName = parts
+      .find((p) => p.startsWith('AccountName='))
+      ?.split('=')[1];
+    const accountKey = parts
+      .find((p) => p.startsWith('AccountKey='))
+      ?.split('=')[1];
+
+    if (!accountName || !accountKey) {
+      throw new Error('Invalid connection string format');
+    }
+
+    const sharedKeyCredential = new StorageSharedKeyCredential(
+      accountName,
+      accountKey
+    );
+
+    const startsOn = new Date();
+    const expiresOn = new Date(startsOn.getTime() + expiresInMinutes * 60000);
+
+    const sasToken = generateBlobSASQueryParameters(
+      {
+        containerName: dpaContainerName,
+        blobName,
+        permissions: BlobSASPermissions.parse('r'), // Read permission
+        startsOn,
+        expiresOn,
+      },
+      sharedKeyCredential
+    ).toString();
+
+    const sasUrl = `${blockBlobClient.url}?${sasToken}`;
+    return sasUrl;
+  } catch (error) {
+    logger.error('Failed to generate SAS URL for DPA:', error);
+    throw error;
   }
 }
 

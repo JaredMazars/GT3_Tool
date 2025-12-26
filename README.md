@@ -72,7 +72,7 @@ A comprehensive Next.js application for managing professional services delivery 
 - **Validation**: Zod for schema validation
 - **File Processing**: ExcelJS, Mammoth, PDF libraries
 - **Email**: Azure Communication Services
-- **Storage**: Azure Blob Storage (future)
+- **Storage**: Azure Blob Storage for document storage
 - **Search**: Azure AI Search (future)
 
 ## Getting Started
@@ -108,7 +108,15 @@ cp .env.example .env
 # Edit .env and add your values:
 # - DATABASE_URL (use default for development)
 # - OPENAI_API_KEY (required)
+# - AZURE_STORAGE_CONNECTION_STRING (required for document storage)
 ```
+
+**Note**: Azure Blob Storage will automatically create the following containers on first use:
+- `engagement-letters` - Engagement letter documents
+- `dpa` - Data Processing Agreements
+- `acceptance-documents` - A&C (Acceptance & Continuance) documents
+- `review-notes` - Review note attachments
+- `news-bulletins` - News bulletin documents
 
 4. Initialize the database:
 ```bash
@@ -154,7 +162,7 @@ npm run dev
 | `RATE_LIMIT_BYPASS_ADMIN` | Allow admin bypass | `true` |
 | `MAX_FILE_UPLOAD_SIZE` | Max file size in bytes | `10485760` (10MB) |
 | `AZURE_COMMUNICATION_CONNECTION_STRING` | Email service (optional) | - |
-| `AZURE_STORAGE_CONNECTION_STRING` | Blob storage (future) | - |
+| `AZURE_STORAGE_CONNECTION_STRING` | Azure Blob Storage connection string | **Required** |
 
 ## Project Structure
 

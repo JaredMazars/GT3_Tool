@@ -10,6 +10,7 @@ Next.js 14 (App Router) | TypeScript (strict) | Prisma | React Query | Azure Ope
 
 - Styling: See `.cursor/rules/forvis-design-rules.mdc`
 - AI: See `.cursor/rules/ai-patterns.mdc`
+- Blob Storage: See `.cursor/rules/blob-storage-rules.mdc`
 
 ## TypeScript
 
@@ -186,6 +187,7 @@ const { isViewOnly, canEdit } = usePageAccess();
 - Audit logging for sensitive operations (include userId, resourceId - no secrets/PII)
 - File uploads: validate size + MIME type allowlist; storage paths not user-controlled
 - `X-Content-Type-Options: nosniff` for file downloads
+- **Blob Storage**: MUST use purpose-specific containers (see `.cursor/rules/blob-storage-rules.mdc`)
 
 ## Performance (REQUIRED)
 

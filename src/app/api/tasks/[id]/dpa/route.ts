@@ -5,11 +5,10 @@ import { canApproveEngagementLetter } from '@/lib/services/tasks/taskAuthorizati
 import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { toTaskId } from '@/types/branded';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { invalidateClientCache } from '@/lib/services/clients/clientCache';
 import { invalidateTaskListCache } from '@/lib/services/cache/listCache';
+import { uploadDpa } from '@/lib/services/documents/blobStorage';
 
 /**
  * POST /api/tasks/[id]/dpa
@@ -99,23 +98,12 @@ export async function POST(
       );
     }
 
-    // Create upload directory if it doesn't exist
-    const uploadDir = path.join(process.cwd(), 'uploads', 'dpa', taskId.toString());
-    await mkdir(uploadDir, { recursive: true });
-
-    // Generate unique filename
-    const timestamp = Date.now();
-    const ext = file.name.split('.').pop();
-    const filename = `dpa-${timestamp}.${ext}`;
-    const filePath = path.join(uploadDir, filename);
-
-    // Save file
+    // Convert file to buffer
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
 
-    // Store relative path
-    const relativePath = path.join('uploads', 'dpa', taskId.toString(), filename);
+    // Upload to Azure Blob Storage
+    const blobPath = await uploadDpa(buffer, file.name, taskId);
 
     // Update or create TaskEngagementLetter (add DPA fields)
     const updatedEngagementLetter = await prisma.taskEngagementLetter.upsert({
@@ -123,13 +111,13 @@ export async function POST(
       create: {
         taskId,
         dpaUploaded: true,
-        dpaFilePath: relativePath,
+        dpaFilePath: blobPath,
         dpaUploadedBy: user.id,
         dpaUploadedAt: new Date(),
       },
       update: {
         dpaUploaded: true,
-        dpaFilePath: relativePath,
+        dpaFilePath: blobPath,
         dpaUploadedBy: user.id,
         dpaUploadedAt: new Date(),
       },

@@ -5,11 +5,10 @@ import { canApproveEngagementLetter } from '@/lib/services/tasks/taskAuthorizati
 import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { toTaskId } from '@/types/branded';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { invalidateClientCache } from '@/lib/services/clients/clientCache';
 import { invalidateTaskListCache } from '@/lib/services/cache/listCache';
+import { uploadEngagementLetter } from '@/lib/services/documents/blobStorage';
 
 /**
  * POST /api/tasks/[id]/engagement-letter
@@ -87,23 +86,12 @@ export async function POST(
       );
     }
 
-    // Create upload directory if it doesn't exist
-    const uploadDir = path.join(process.cwd(), 'uploads', 'engagement-letters', taskId.toString());
-    await mkdir(uploadDir, { recursive: true });
-
-    // Generate unique filename
-    const timestamp = Date.now();
-    const ext = file.name.split('.').pop();
-    const filename = `engagement-letter-${timestamp}.${ext}`;
-    const filePath = path.join(uploadDir, filename);
-
-    // Save file
+    // Convert file to buffer
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
 
-    // Store relative path
-    const relativePath = path.join('uploads', 'engagement-letters', taskId.toString(), filename);
+    // Upload to Azure Blob Storage
+    const blobPath = await uploadEngagementLetter(buffer, file.name, taskId);
 
     // Update or create TaskEngagementLetter
     const updatedEngagementLetter = await prisma.taskEngagementLetter.upsert({
@@ -111,13 +99,13 @@ export async function POST(
       create: {
         taskId,
         uploaded: true,
-        filePath: relativePath,
+        filePath: blobPath,
         uploadedBy: user.id,
         uploadedAt: new Date(),
       },
       update: {
         uploaded: true,
-        filePath: relativePath,
+        filePath: blobPath,
         uploadedBy: user.id,
         uploadedAt: new Date(),
       },

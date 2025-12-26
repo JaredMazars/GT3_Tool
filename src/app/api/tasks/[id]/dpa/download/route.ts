@@ -4,8 +4,7 @@ import { getCurrentUser } from '@/lib/services/auth/auth';
 import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { toTaskId } from '@/types/branded';
-import { readFile } from 'fs/promises';
-import path from 'path';
+import { downloadDpa } from '@/lib/services/documents/blobStorage';
 
 /**
  * GET /api/tasks/[id]/dpa/download
@@ -56,9 +55,8 @@ export async function GET(
       );
     }
 
-    // Read the file
-    const filePath = path.join(process.cwd(), engagementLetter.dpaFilePath);
-    const fileBuffer = await readFile(filePath);
+    // Download from blob storage
+    const fileBuffer = await downloadDpa(engagementLetter.dpaFilePath);
 
     // Determine content type based on file extension
     const ext = engagementLetter.dpaFilePath.split('.').pop()?.toLowerCase();
