@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Shield, FileText, FileSignature } from 'lucide-react';
+import { UserRoundCheck, FilePen, EyeOff } from 'lucide-react';
 
 interface TaskWorkflowStatusProps {
   acceptanceApproved?: boolean | null;
@@ -48,7 +48,7 @@ export function TaskWorkflowStatus({
             : 'Acceptance & Continuance Pending'
         }
       >
-        <Shield
+        <UserRoundCheck
           className={`${iconSize} ${
             acceptanceApproved
               ? 'text-green-600'
@@ -67,7 +67,7 @@ export function TaskWorkflowStatus({
             : 'Engagement Letter Pending'
         }
       >
-        <FileText
+        <FilePen
           className={`${iconSize} ${
             engagementLetterUploaded
               ? 'text-green-600'
@@ -86,7 +86,7 @@ export function TaskWorkflowStatus({
             : 'Data Processing Agreement (DPA) Pending'
         }
       >
-        <FileSignature
+        <EyeOff
           className={`${iconSize} ${
             dpaUploaded
               ? 'text-green-600'

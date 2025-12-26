@@ -321,8 +321,9 @@ export const GET = secureRoute.query({
     const allEmployeeCodes = [...allPartnerCodes, ...allManagerCodes];
     
     // Single employee lookup for ALL stages (instead of 5 separate queries)
+    // Note: No Active filter - we want to show names for historical employees too
     const allEmployees = allEmployeeCodes.length > 0 ? await prisma.employee.findMany({
-      where: { EmpCode: { in: allEmployeeCodes }, Active: 'Yes' },
+      where: { EmpCode: { in: allEmployeeCodes } },
       select: { EmpCode: true, EmpName: true },
     }) : [];
     const employeeNameMap = new Map(allEmployees.map(emp => [emp.EmpCode, emp.EmpName]));

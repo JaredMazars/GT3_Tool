@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useTask } from '@/hooks/tasks/useTaskData';
 
@@ -12,10 +12,12 @@ import { useTask } from '@/hooks/tasks/useTaskData';
  * - Internal projects: /dashboard/[serviceLine]/internal/tasks/[id]
  * 
  * This maintains backward compatibility with bookmarks and old links.
+ * Query parameters are preserved during redirection.
  */
 export default function ProjectRedirect() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const taskId = params.id as string;
   
   const { data: project, isLoading, error } = useTask(taskId);
@@ -26,15 +28,19 @@ export default function ProjectRedirect() {
       const subServiceLineGroup = (project as any).subServiceLineGroupCode || 'default';
       const masterServiceLine = ((project as any).masterServiceLine || project.ServLineCode)?.toLowerCase() || 'tax';
       
+      // Preserve query parameters
+      const queryString = searchParams.toString();
+      const queryPart = queryString ? `?${queryString}` : '';
+      
       if (project.GSClientID && project.client) {
         // Redirect to client project URL with full path including sub-service line group
-        router.replace(`/dashboard/${masterServiceLine}/${subServiceLineGroup}/clients/${project.client.id}/tasks/${taskId}`);
+        router.replace(`/dashboard/${masterServiceLine}/${subServiceLineGroup}/clients/${project.client.id}/tasks/${taskId}${queryPart}`);
       } else {
         // Redirect to internal project URL
-        router.replace(`/dashboard/${masterServiceLine}/internal/tasks/${taskId}`);
+        router.replace(`/dashboard/${masterServiceLine}/internal/tasks/${taskId}${queryPart}`);
       }
     }
-  }, [project, isLoading, taskId, router]);
+  }, [project, isLoading, taskId, router, searchParams]);
 
   if (error) {
     return (

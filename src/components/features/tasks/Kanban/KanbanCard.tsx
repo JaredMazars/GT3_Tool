@@ -202,9 +202,10 @@ export const KanbanCard = React.memo(function KanbanCard({ task, displayMode, ca
     prevProps.canDrag === nextProps.canDrag &&
     // Deep comparison of WIP data if it exists
     (prevProps.task.wip?.netWip ?? 0) === (nextProps.task.wip?.netWip ?? 0) &&
-    // Comparison of A&C and EL status
+    // Comparison of A&C, EL, and DPA status
     prevProps.task.acceptanceApproved === nextProps.task.acceptanceApproved &&
     prevProps.task.engagementLetterUploaded === nextProps.task.engagementLetterUploaded &&
+    prevProps.task.dpaUploaded === nextProps.task.dpaUploaded &&
     prevProps.task.isClientTask === nextProps.task.isClientTask
   );
 });

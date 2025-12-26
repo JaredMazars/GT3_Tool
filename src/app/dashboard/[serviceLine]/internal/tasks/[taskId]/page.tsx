@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { ChevronRight, AlertTriangle } from 'lucide-react';
 import { LoadingSpinner, Button } from '@/components/ui';
 import { formatServiceLineName } from '@/lib/utils/serviceLineUtils';
@@ -12,9 +12,13 @@ import { useTask } from '@/hooks/tasks/useTaskData';
 export default function InternalTaskPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   
   const serviceLine = (params.serviceLine as string)?.toUpperCase();
   const taskId = params.taskId as string;
+  
+  // Check if user navigated from My Tasks tab
+  const fromMyTasks = searchParams.get('from') === 'my-tasks';
   
   const [hasAccess, setHasAccess] = useState<boolean | null>(null);
   const [accessError, setAccessError] = useState<string>('');
@@ -124,10 +128,14 @@ export default function InternalTaskPage() {
           <ChevronRight className="h-4 w-4" />
           
           <Link 
-            href={`/dashboard/${serviceLine.toLowerCase()}/internal`} 
+            href={
+              fromMyTasks && (task as any)?.subServiceLineGroupCode
+                ? `/dashboard/${serviceLine.toLowerCase()}/${(task as any).subServiceLineGroupCode}?tab=my-tasks`
+                : `/dashboard/${serviceLine.toLowerCase()}/internal`
+            } 
             className="hover:text-forvis-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1"
           >
-            Internal Tasks
+            {fromMyTasks && (task as any)?.subServiceLineGroupCode ? (task as any).subServiceLineGroupDesc || (task as any).subServiceLineGroupCode : 'Internal Tasks'}
           </Link>
           <ChevronRight className="h-4 w-4" />
           

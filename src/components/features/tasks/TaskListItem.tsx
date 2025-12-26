@@ -54,6 +54,7 @@ interface TaskListItemProps {
   additionalBadge?: ReactNode;
   masterServiceLine?: string | null; // The main service line this task belongs to
   GSClientID?: string; // Optional GSClientID for when task.Client is not populated
+  fromMyTasks?: boolean; // Whether navigating from My Tasks tab
 }
 
 export function TaskListItem({
@@ -66,6 +67,7 @@ export function TaskListItem({
   additionalBadge,
   masterServiceLine,
   GSClientID,
+  fromMyTasks = false,
 }: TaskListItemProps) {
   const [showAccessModal, setShowAccessModal] = useState(false);
   
@@ -94,7 +96,7 @@ export function TaskListItem({
   };
 
   const taskUrl = task.Client?.GSClientID || GSClientID
-    ? `/dashboard/${serviceLine.toLowerCase()}/${currentSubServiceLineGroup}/clients/${task.Client?.GSClientID || GSClientID}/tasks/${task.id}`
+    ? `/dashboard/${serviceLine.toLowerCase()}/${currentSubServiceLineGroup}/clients/${task.Client?.GSClientID || GSClientID}/tasks/${task.id}${fromMyTasks ? '?from=my-tasks' : ''}`
     : '#';
 
   const content = (

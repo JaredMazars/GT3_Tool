@@ -337,8 +337,9 @@ export const GET = secureRoute.query({
     const uniqueManagerCodes = [...new Set(tasks.map(t => t.TaskManager).filter(Boolean))];
     const allEmployeeCodes = [...new Set([...uniquePartnerCodes, ...uniqueManagerCodes])];
     
+    // Note: No Active filter - we want to show names for historical employees too
     const employees = allEmployeeCodes.length > 0 ? await prisma.employee.findMany({
-      where: { EmpCode: { in: allEmployeeCodes }, Active: 'Yes' },
+      where: { EmpCode: { in: allEmployeeCodes } },
       select: { EmpCode: true, EmpName: true },
     }) : [];
     

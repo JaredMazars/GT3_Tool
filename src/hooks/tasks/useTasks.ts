@@ -150,7 +150,7 @@ export function useTasks(params: UseTasksParams = {}) {
     enabled,
     staleTime: 10 * 60 * 1000, // 10 minutes - aligned with backend cache (increased from 5)
     gcTime: 15 * 60 * 1000, // 15 minutes cache retention (increased from 10)
-    refetchOnMount: false, // Don't refetch if data is fresh
+    refetchOnMount: true, // Refetch if data is stale (after invalidation)
     refetchOnWindowFocus: false, // Don't refetch on window focus
     refetchOnReconnect: false, // Don't refetch on reconnect
     placeholderData: (previousData) => previousData, // Keep previous data while fetching

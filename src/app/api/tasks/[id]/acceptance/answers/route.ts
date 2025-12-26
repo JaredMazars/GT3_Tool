@@ -73,8 +73,24 @@ export const PATCH = secureRoute.mutationWithParams({
 
     const questionMap = new Map(allQuestions.map((q) => [q.questionKey, q]));
 
+    // Deduplicate answers by questionKey (keep last occurrence to preserve latest user input)
+    const answerMap = new Map<string, typeof data.answers[0]>();
+    data.answers.forEach(answer => {
+      answerMap.set(answer.questionKey, answer);
+    });
+    const deduplicatedAnswers = Array.from(answerMap.values());
+
+    // Log if duplicates were found
+    if (deduplicatedAnswers.length !== data.answers.length) {
+      logger.warn('Duplicate question keys detected in submission', {
+        taskId,
+        original: data.answers.length,
+        deduplicated: deduplicatedAnswers.length,
+      });
+    }
+
     // Batch upsert answers (no transaction - each upsert is atomic)
-    const upsertPromises = data.answers
+    const upsertPromises = deduplicatedAnswers
       .map((answerInput) => {
         const question = questionMap.get(answerInput.questionKey);
 

@@ -15,6 +15,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { taskKeys } from '@/hooks/tasks/useTaskData';
 import { taskListKeys } from '@/hooks/tasks/useTasks';
 import { kanbanKeys } from '@/hooks/tasks/useKanbanBoard';
+import { clientKeys } from '@/hooks/clients/useClients';
 import { useCanApproveAcceptance } from '@/hooks/auth/usePermissions';
 import { TemplateSelector } from '@/components/features/templates/TemplateSelector';
 
@@ -72,12 +73,6 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
   const isDpaUploaded = task.dpaUploaded;
   const isFullyComplete = isUploaded && isDpaUploaded; // Both EL and DPA uploaded
   const acceptanceApproved = task.acceptanceApproved;
-
-  // #region agent log
-  useEffect(() => {
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EngagementLetterTab.tsx:stateCheck',message:'Component state',data:{isUploaded,isDpaUploaded,isFullyComplete,taskDpaUploaded:task.dpaUploaded,taskDpaPath:task.dpaPath},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-  }, [isUploaded, isDpaUploaded, isFullyComplete, task.dpaUploaded, task.dpaPath]);
-  // #endregion
 
   const handleGenerate = async () => {
     setIsGenerating(true);
@@ -163,10 +158,17 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
         queryClient.invalidateQueries({ 
           queryKey: taskListKeys.lists() 
         }),
-        // Invalidate kanban board queries (kanban view)
+        // Invalidate kanban board queries (kanban view) - FORCE REFETCH
         queryClient.invalidateQueries({ 
-          queryKey: kanbanKeys.boards() 
+          queryKey: kanbanKeys.boards(),
+          refetchType: 'active' // Force immediate refetch for consistency
         }),
+        // Invalidate client cache if this is a client task
+        ...(task.GSClientID ? [
+          queryClient.invalidateQueries({ 
+            queryKey: clientKeys.all 
+          })
+        ] : []),
       ]);
 
       setSelectedFile(null);
@@ -196,10 +198,6 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
   };
 
   const handleDpaUpload = async () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EngagementLetterTab.tsx:handleDpaUpload:entry',message:'DPA upload started',data:{hasFile:!!selectedDpaFile,fileName:selectedDpaFile?.name,taskId:task.id,isDpaUploaded},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
-    
     if (!selectedDpaFile) {
       setDpaError('Please select a file to upload');
       return;
@@ -219,10 +217,6 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
       const formData = new FormData();
       formData.append('file', selectedDpaFile);
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EngagementLetterTab.tsx:handleDpaUpload:beforeFetch',message:'About to POST to API',data:{url:`/api/tasks/${task.id}/dpa`,fileSize:selectedDpaFile.size},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-
       const response = await fetch(`/api/tasks/${task.id}/dpa`, {
         method: 'POST',
         body: formData,
@@ -230,17 +224,9 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
 
       const data = await response.json();
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EngagementLetterTab.tsx:handleDpaUpload:afterFetch',message:'API response received',data:{status:response.status,ok:response.ok,responseData:data},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,D'})}).catch(()=>{});
-      // #endregion
-
       if (!response.ok) {
         throw new Error(data.error || 'Failed to upload DPA');
       }
-
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EngagementLetterTab.tsx:handleDpaUpload:beforeInvalidate',message:'About to invalidate queries',data:{taskId:task.id.toString(),detailKey:taskKeys.detail(task.id.toString())},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
 
       // Invalidate and refetch the task data
       await Promise.all([
@@ -252,29 +238,25 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
         queryClient.invalidateQueries({ 
           queryKey: taskListKeys.lists() 
         }),
-        // Invalidate kanban board queries (kanban view)
+        // Invalidate kanban board queries (kanban view) - FORCE REFETCH
         queryClient.invalidateQueries({ 
-          queryKey: kanbanKeys.boards() 
+          queryKey: kanbanKeys.boards(),
+          refetchType: 'active' // Force immediate refetch to update DPA icon
         }),
+        // Invalidate client cache if this is a client task
+        ...(task.GSClientID ? [
+          queryClient.invalidateQueries({ 
+            queryKey: clientKeys.all 
+          })
+        ] : []),
       ]);
-
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EngagementLetterTab.tsx:handleDpaUpload:afterInvalidateAll',message:'All queries invalidated',data:{queryCacheSize:queryClient.getQueryCache().getAll().length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,C,D'})}).catch(()=>{});
-      // #endregion
 
       setSelectedDpaFile(null);
       if (dpaFileInputRef.current) {
         dpaFileInputRef.current.value = '';
       }
       onUploadComplete();
-
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EngagementLetterTab.tsx:handleDpaUpload:success',message:'Upload complete',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
     } catch (err) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EngagementLetterTab.tsx:handleDpaUpload:error',message:'Upload failed',data:{error:err instanceof Error ? err.message : String(err)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       setDpaError(err instanceof Error ? err.message : 'Failed to upload DPA');
     } finally {
       setIsUploadingDpa(false);

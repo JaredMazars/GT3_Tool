@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Task, TaskTeam, ServiceLineRole } from '@/types';
 import { 
   Table,
-  FileText,
+  FilePen,
   Calculator,
   Settings,
   Pencil,
@@ -17,7 +17,7 @@ import {
   Folder,
   ClipboardCheck,
   FileCheck,
-  CheckCircle,
+  UserRoundCheck,
   Lock,
   AlertTriangle,
   Plus
@@ -332,14 +332,6 @@ export function TaskDetailContent({
   const searchParams = useSearchParams();
   const { data: task, isLoading, refetch: fetchTask } = useTask(taskId);
 
-  // #region agent log
-  useEffect(() => {
-    if (task) {
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TaskDetailContent.tsx:taskUpdate',message:'Task data updated',data:{taskId,dpaUploaded:task.dpaUploaded,dpaPath:task.dpaPath,engagementLetterUploaded:task.engagementLetterUploaded},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-    }
-  }, [task?.dpaUploaded, task?.dpaPath, taskId]);
-  // #endregion
-
   const getDefaultTab = () => {
     if (!task) return 'acceptance';
     
@@ -359,6 +351,7 @@ export function TaskDetailContent({
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState<ServiceLineRole | string>('USER');
   const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [hasManuallySelectedTab, setHasManuallySelectedTab] = useState(false);
 
   const { 
     data: teamMembersData = [],
@@ -392,10 +385,12 @@ export function TaskDetailContent({
     const tab = searchParams.get('tab');
     if (tab) {
       setActiveTab(tab);
-    } else if (task) {
+      setHasManuallySelectedTab(true);
+    } else if (task && !hasManuallySelectedTab) {
+      // Only set default tab if user hasn't manually selected one
       setActiveTab(getDefaultTab());
     }
-  }, [searchParams, task]);
+  }, [searchParams, task, hasManuallySelectedTab]);
 
   useEffect(() => {
     const fetchCurrentUserRole = async () => {
@@ -418,14 +413,13 @@ export function TaskDetailContent({
     }
   }, [taskId]);
 
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    setHasManuallySelectedTab(true);
+  };
+
   const handleUpdate = () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TaskDetailContent.tsx:handleUpdate',message:'handleUpdate called, about to fetchTask',data:{taskId,currentDpaUploaded:task?.dpaUploaded},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,C'})}).catch(()=>{});
-    // #endregion
     fetchTask();
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TaskDetailContent.tsx:handleUpdate:afterFetch',message:'fetchTask called',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
     if (onUpdate) {
       onUpdate();
     }
@@ -742,44 +736,44 @@ export function TaskDetailContent({
                 {task && isClientTask(task) && (
                   <>
                     <Tab
-                      onClick={() => setActiveTab('acceptance')}
+                      onClick={() => handleTabChange('acceptance')}
                       selected={activeTab === 'acceptance'}
-                      icon={CheckCircle}
+                      icon={UserRoundCheck}
                     >
                       Acceptance
                     </Tab>
                     <Tab
-                      onClick={() => setActiveTab('engagement-letter')}
+                      onClick={() => handleTabChange('engagement-letter')}
                       selected={activeTab === 'engagement-letter'}
-                      icon={FileText}
+                      icon={FilePen}
                       disabled={!task.acceptanceApproved}
                       tooltip={!task.acceptanceApproved ? 'Complete client acceptance first' : undefined}
                     >
                       Engagement Documentation
                     </Tab>
                     <Tab
-                      onClick={() => setActiveTab('team')}
+                      onClick={() => handleTabChange('team')}
                       selected={activeTab === 'team'}
                       icon={Users}
                     >
                       Team
                     </Tab>
                     <Tab
-                      onClick={() => setActiveTab('finance')}
+                      onClick={() => handleTabChange('finance')}
                       selected={activeTab === 'finance'}
                       icon={DollarSign}
                     >
                       Finance
                     </Tab>
                     <Tab
-                      onClick={() => setActiveTab('workspace')}
+                      onClick={() => handleTabChange('workspace')}
                       selected={activeTab === 'workspace'}
                       icon={Briefcase}
                     >
                       Tools
                     </Tab>
                     <Tab
-                      onClick={() => setActiveTab('documents')}
+                      onClick={() => handleTabChange('documents')}
                       selected={activeTab === 'documents'}
                       icon={FolderOpen}
                     >
@@ -791,28 +785,28 @@ export function TaskDetailContent({
                 {!task || !isClientTask(task) && (
                   <>
                     <Tab
-                      onClick={() => setActiveTab('team')}
+                      onClick={() => handleTabChange('team')}
                       selected={activeTab === 'team'}
                       icon={Users}
                     >
                       Team
                     </Tab>
                     <Tab
-                      onClick={() => setActiveTab('finance')}
+                      onClick={() => handleTabChange('finance')}
                       selected={activeTab === 'finance'}
                       icon={DollarSign}
                     >
                       Finance
                     </Tab>
                     <Tab
-                      onClick={() => setActiveTab('workspace')}
+                      onClick={() => handleTabChange('workspace')}
                       selected={activeTab === 'workspace'}
                       icon={Briefcase}
                     >
                       Tools
                     </Tab>
                     <Tab
-                      onClick={() => setActiveTab('documents')}
+                      onClick={() => handleTabChange('documents')}
                       selected={activeTab === 'documents'}
                       icon={FolderOpen}
                     >
@@ -822,7 +816,7 @@ export function TaskDetailContent({
                 )}
                 
                 <Tab
-                  onClick={() => setActiveTab('settings')}
+                  onClick={() => handleTabChange('settings')}
                   selected={activeTab === 'settings'}
                   icon={Settings}
                 >

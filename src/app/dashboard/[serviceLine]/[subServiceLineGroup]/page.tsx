@@ -1316,7 +1316,7 @@ export default function SubServiceLineWorkspacePage() {
                           Stage
                         </th>
                         <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">
-                          A&C / EL
+                          QRM
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                           Client
@@ -1411,9 +1411,11 @@ export default function SubServiceLineWorkspacePage() {
                             )}
                             <td className="px-6 py-4 text-center">
                               <Link
-                                href={task.client?.GSClientID 
-                                  ? `/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${task.client.GSClientID}/tasks/${task.id}`
-                                  : `/dashboard/tasks/${task.id}`}
+                                href={
+                                  task.client?.GSClientID 
+                                    ? `/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${task.client.GSClientID}/tasks/${task.id}${activeTab === 'my-tasks' ? '?from=my-tasks' : ''}`
+                                    : `/dashboard/tasks/${task.id}${activeTab === 'my-tasks' ? '?from=my-tasks' : ''}`
+                                }
                                 className="text-forvis-blue-600 hover:text-forvis-blue-900 text-sm font-medium transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-2 py-1"
                               >
                                 View

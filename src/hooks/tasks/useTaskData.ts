@@ -83,7 +83,7 @@ export function useTask(taskId: string) {
     enabled: !!taskId,
     staleTime: 5 * 60 * 1000, // 5 minutes - aligned with Redis cache TTL
     gcTime: 10 * 60 * 1000, // 10 minutes cache retention
-    refetchOnMount: false, // Don't refetch if data is fresh
+    refetchOnMount: true, // Refetch if data is stale (after invalidation)
     refetchOnWindowFocus: false, // Don't refetch on window focus
     refetchOnReconnect: false, // Don't refetch on reconnect
     placeholderData: (previousData) => previousData, // Keep previous data while fetching

@@ -318,6 +318,7 @@ export const GET = secureRoute.queryWithParams({
           const missingEmployees = await prisma.employee.findMany({
             where: {
               EmpCode: { in: employeeCodesToAdd.map(e => e.code) },
+              Active: 'Yes',
             },
             select: {
               EmpCode: true,

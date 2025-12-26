@@ -559,8 +559,16 @@ export const SaveAnswersByKeySchema = z.object({
       answer: z.string().max(10000),
       comment: z.string().max(10000).optional(),
     })
+  ).refine(
+    (answers) => {
+      const keys = answers.map(a => a.questionKey);
+      return keys.length === new Set(keys).size;
+    },
+    {
+      message: 'Duplicate question keys are not allowed',
+    }
   ),
-});
+}).strict();
 
 // Submit questionnaire for review
 export const SubmitQuestionnaireSchema = z.object({

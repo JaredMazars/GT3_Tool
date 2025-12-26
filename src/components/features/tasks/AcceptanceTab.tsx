@@ -7,6 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { taskKeys } from '@/hooks/tasks/useTaskData';
 import { taskListKeys } from '@/hooks/tasks/useTasks';
 import { kanbanKeys } from '@/hooks/tasks/useKanbanBoard';
+import { clientKeys } from '@/hooks/clients/useClients';
 import { useCanApproveAcceptance } from '@/hooks/auth/usePermissions';
 import { useQuestionnaire, deriveQuestionnaireStatus } from '@/hooks/acceptance/useAcceptanceQuestionnaire';
 import { AcceptanceQuestionnaire } from './acceptance/AcceptanceQuestionnaire';
@@ -60,7 +61,8 @@ export function AcceptanceTab({ task, currentUserRole, onApprovalComplete }: Acc
       // Invalidate all related queries to ensure fresh data
       await Promise.all([
         queryClient.invalidateQueries({ 
-          queryKey: taskKeys.detail(task.id.toString()) 
+          queryKey: taskKeys.detail(task.id.toString()),
+          refetchType: 'active' // Force immediate refetch
         }),
         queryClient.invalidateQueries({ 
           queryKey: ['acceptance', 'status', task.id.toString()] 
@@ -72,10 +74,17 @@ export function AcceptanceTab({ task, currentUserRole, onApprovalComplete }: Acc
         queryClient.invalidateQueries({ 
           queryKey: taskListKeys.lists() 
         }),
-        // Invalidate kanban board queries (kanban view)
+        // Invalidate kanban board queries (kanban view) - FORCE REFETCH
         queryClient.invalidateQueries({ 
-          queryKey: kanbanKeys.boards() 
+          queryKey: kanbanKeys.boards(),
+          refetchType: 'active' // Force immediate refetch to update A&C icon
         }),
+        // Invalidate client cache if this is a client task
+        ...(task.GSClientID ? [
+          queryClient.invalidateQueries({ 
+            queryKey: clientKeys.all 
+          })
+        ] : []),
       ]);
       
       // Wait for queries to refetch

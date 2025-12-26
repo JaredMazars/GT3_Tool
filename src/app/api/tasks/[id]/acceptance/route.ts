@@ -7,6 +7,9 @@ import { parseTaskId } from '@/lib/utils/apiUtils';
 import { logAcceptanceApproved } from '@/lib/services/acceptance/auditLog';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { toTaskId } from '@/types/branded';
+import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
+import { invalidateClientCache } from '@/lib/services/clients/clientCache';
+import { invalidateTaskListCache } from '@/lib/services/cache/listCache';
 
 /**
  * POST /api/tasks/[id]/acceptance
@@ -176,6 +179,14 @@ export const POST = secureRoute.mutationWithParams({
       questionnaireResponse.riskRating || undefined,
       questionnaireResponse.overallRiskScore || undefined
     );
+
+    // Invalidate caches to ensure fresh data on next fetch
+    await cache.invalidate(`${CACHE_PREFIXES.TASK}detail:${taskId}:*`);
+    await invalidateTaskListCache(taskId);
+
+    if (updatedTask?.Client?.GSClientID) {
+      await invalidateClientCache(updatedTask.Client.GSClientID);
+    }
 
     return NextResponse.json(successResponse(updatedTask), { status: 200 });
   },

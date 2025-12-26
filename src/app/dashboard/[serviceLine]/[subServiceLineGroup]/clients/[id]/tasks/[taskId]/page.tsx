@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { ChevronRight, AlertTriangle } from 'lucide-react';
 import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLineGroups';
 import { LoadingSpinner, Button } from '@/components/ui';
@@ -13,11 +13,15 @@ import { useTask } from '@/hooks/tasks/useTaskData';
 export default function ClientProjectPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   
   const serviceLine = (params.serviceLine as string)?.toUpperCase();
   const subServiceLineGroup = params.subServiceLineGroup as string;
   const GSClientID = params.id as string;
   const taskId = params.taskId as string;
+  
+  // Check if user navigated from My Tasks tab
+  const fromMyTasks = searchParams.get('from') === 'my-tasks';
   
   const [hasAccess, setHasAccess] = useState<boolean | null>(null);
   const [accessError, setAccessError] = useState<string>('');
@@ -175,7 +179,7 @@ export default function ClientProjectPage() {
           <ChevronRight className="h-4 w-4" />
           
           <Link 
-            href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}`} 
+            href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}${fromMyTasks ? '?tab=my-tasks' : ''}`} 
             className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1"
           >
             {subServiceLineGroupDescription}
