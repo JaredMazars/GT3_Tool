@@ -122,7 +122,8 @@ export interface UseClientsParams {
   subServiceLineGroup?: string;
   serviceLine?: string;
   clientCodes?: string[]; // Filter by specific client codes
-  industries?: string[]; // Filter by specific industries
+  partners?: string[]; // Filter by specific client partners
+  managers?: string[]; // Filter by specific client managers
   groups?: string[]; // Filter by specific group codes
   enabled?: boolean;
 }
@@ -140,7 +141,8 @@ export function useClients(params: UseClientsParams = {}) {
     subServiceLineGroup,
     serviceLine,
     clientCodes = [],
-    industries = [],
+    partners = [],
+    managers = [],
     groups = [],
     enabled = true,
   } = params;
@@ -149,7 +151,7 @@ export function useClients(params: UseClientsParams = {}) {
     // NOTE: Cache key excludes subServiceLineGroup and serviceLine because
     // the API now returns ALL clients regardless of service line
     // Includes array filters for proper cache segmentation
-    queryKey: clientKeys.list({ search, page, limit, sortBy, sortOrder, clientCodes: clientCodes.join(','), industries: industries.join(','), groups: groups.join(',') }),
+    queryKey: clientKeys.list({ search, page, limit, sortBy, sortOrder, clientCodes: clientCodes.join(','), partners: partners.join(','), managers: managers.join(','), groups: groups.join(',') }),
     queryFn: async () => {
       const searchParams = new URLSearchParams();
       if (search) searchParams.set('search', search);
@@ -162,7 +164,8 @@ export function useClients(params: UseClientsParams = {}) {
       
       // Add array filters
       clientCodes.forEach(code => searchParams.append('clientCodes[]', code));
-      industries.forEach(ind => searchParams.append('industries[]', ind));
+      partners.forEach(partner => searchParams.append('partners[]', partner));
+      managers.forEach(manager => searchParams.append('managers[]', manager));
       groups.forEach(grp => searchParams.append('groups[]', grp));
       
       const url = `/api/clients?${searchParams.toString()}`;

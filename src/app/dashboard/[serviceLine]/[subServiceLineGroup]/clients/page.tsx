@@ -21,6 +21,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { EmployeeStatusBadge } from '@/components/shared/EmployeeStatusBadge';
 import { formatDate } from '@/lib/utils/taskUtils';
 import { LoadingSpinner } from '@/components/ui';
+import { ClientsFilters, type ClientsFiltersType } from '@/components/features/clients/ClientsFilters';
 
 export default function ServiceLineClientsPage() {
   const router = useRouter();
@@ -35,6 +36,12 @@ export default function ServiceLineClientsPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
+  const [filters, setFilters] = useState<ClientsFiltersType>({
+    clients: [],
+    partners: [],
+    managers: [],
+    groups: [],
+  });
 
   // Fetch sub-service line groups to get the description
   const { data: subGroups } = useSubServiceLineGroups({
@@ -105,6 +112,10 @@ export default function ServiceLineClientsPage() {
     page: currentPage,
     limit: itemsPerPage,
     subServiceLineGroup,
+    clientCodes: filters.clients,
+    partners: filters.partners,
+    managers: filters.managers,
+    groups: filters.groups,
     enabled: activeTab === 'clients',
   });
   const clients = clientsData?.clients || [];
@@ -339,7 +350,7 @@ export default function ServiceLineClientsPage() {
               type="text"
               placeholder={
                 activeTab === 'clients'
-                  ? 'Search by name, code, group, or industry...'
+                  ? 'Search by name, code, or group...'
                   : 'Search by task name, client, or task code...'
               }
               value={searchTerm}
@@ -364,6 +375,11 @@ export default function ServiceLineClientsPage() {
             </select>
           </div>
         </div>
+
+        {/* Filters - Only show for clients tab */}
+        {activeTab === 'clients' && (
+          <ClientsFilters filters={filters} onFiltersChange={setFilters} />
+        )}
 
         {/* Results count */}
         {searchTerm && (
@@ -392,10 +408,10 @@ export default function ServiceLineClientsPage() {
                   <colgroup>
                     <col style={{ width: '32%' }} />
                     <col style={{ width: '22%' }} />
-                    <col style={{ width: '20%' }} />
-                    <col style={{ width: '12%' }} />
-                    <col style={{ width: '8%' }} />
-                    <col style={{ width: '6%' }} />
+                    <col style={{ width: '17%' }} />
+                    <col style={{ width: '17%' }} />
+                    <col style={{ width: '7%' }} />
+                    <col style={{ width: '5%' }} />
                   </colgroup>
                   <thead className="bg-forvis-gray-50">
                     <tr>
@@ -405,11 +421,11 @@ export default function ServiceLineClientsPage() {
                       <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
                         Group
                       </th>
-                      <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
-                        Industry
-                      </th>
                       <th scope="col" className="px-3 py-2 text-center text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
                         Partner
+                      </th>
+                      <th scope="col" className="px-3 py-2 text-center text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
+                        Manager
                       </th>
                       <th scope="col" className="px-3 py-2 text-center text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
                         Tasks
@@ -431,18 +447,13 @@ export default function ServiceLineClientsPage() {
                                 <div className="text-sm font-medium text-forvis-gray-900 truncate">
                                   {client.clientNameFull || client.clientCode}
                                 </div>
-                                <div className="text-xs text-forvis-gray-500 truncate">{client.clientCode}</div>
+                                <div className="text-sm text-forvis-gray-500 truncate">{client.clientCode}</div>
                               </div>
                             </div>
                           </td>
                           <td className="px-3 py-2">
                             <div className="text-sm text-forvis-gray-600 truncate" title={client.groupDesc}>
                               {client.groupDesc}
-                            </div>
-                          </td>
-                          <td className="px-3 py-2">
-                            <div className="text-sm text-forvis-gray-600 truncate" title={client.industry || client.sector || '-'}>
-                              {client.industry || client.sector || '-'}
                             </div>
                           </td>
                           <td className="px-3 py-2">
@@ -456,15 +467,26 @@ export default function ServiceLineClientsPage() {
                               />
                             </div>
                           </td>
+                          <td className="px-3 py-2">
+                            <div className="text-center">
+                              <EmployeeStatusBadge
+                                name={client.clientManagerName || '-'}
+                                isActive={client.clientManagerStatus?.isActive ?? false}
+                                hasUserAccount={client.clientManagerStatus?.hasUserAccount ?? false}
+                                variant="text"
+                                iconSize="sm"
+                              />
+                            </div>
+                          </td>
                           <td className="px-3 py-2 text-center">
-                            <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-forvis-blue-100 text-forvis-blue-800">
+                            <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-sm font-medium bg-forvis-blue-100 text-forvis-blue-800">
                               {client._count.Task || 0}
                             </span>
                           </td>
                           <td className="px-3 py-2 text-center">
                             <Link
                               href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${client.GSClientID}`}
-                              className="text-forvis-blue-600 hover:text-forvis-blue-900 text-xs font-medium"
+                              className="text-forvis-blue-600 hover:text-forvis-blue-900 text-sm font-medium"
                               onMouseEnter={() => prefetchClient(client.GSClientID)}
                             >
                               View

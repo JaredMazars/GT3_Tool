@@ -5,6 +5,7 @@
  */
 
 export { MyReportsView } from './MyReportsView';
+export { MyReportsOverview } from './MyReportsOverview';
 export { ProfitabilityReport } from './ProfitabilityReport';
 export { ReportFilters, type ReportFiltersState } from './ReportFilters';
 export { GroupTotalsTable } from './GroupTotalsTable';

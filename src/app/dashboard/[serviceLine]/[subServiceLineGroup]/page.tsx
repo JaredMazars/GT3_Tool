@@ -81,7 +81,8 @@ export default function SubServiceLineWorkspacePage() {
   // Clients filters
   const [clientsFilters, setClientsFilters] = useState<ClientsFiltersType>({
     clients: [],
-    industries: [],
+    partners: [],
+    managers: [],
     groups: [],
   });
 
@@ -203,7 +204,8 @@ export default function SubServiceLineWorkspacePage() {
     page: currentPage,
     limit: itemsPerPage,
     clientCodes: clientsFilters.clients, // Backend filtering by client codes
-    industries: clientsFilters.industries, // Backend filtering by industries
+    partners: clientsFilters.partners, // Backend filtering by partners
+    managers: clientsFilters.managers, // Backend filtering by managers
     groups: clientsFilters.groups, // Backend filtering by groups
     // Note: NOT passing subServiceLineGroup - we want ALL clients
     enabled: shouldFetchClients && activeTab === 'clients', // Only fetch when on clients tab
@@ -1079,13 +1081,12 @@ export default function SubServiceLineWorkspacePage() {
               <div className="overflow-x-auto">
                 <table className="w-full" style={{ tableLayout: 'fixed' }}>
                   <colgroup>
-                    <col style={{ width: '26%' }} />
-                    <col style={{ width: '18%' }} />
-                    <col style={{ width: '16%' }} />
-                    <col style={{ width: '12%' }} />
-                    <col style={{ width: '12%' }} />
-                    <col style={{ width: '8%' }} />
-                    <col style={{ width: '8%' }} />
+                    <col style={{ width: '32%' }} />
+                    <col style={{ width: '22%' }} />
+                    <col style={{ width: '17%' }} />
+                    <col style={{ width: '17%' }} />
+                    <col style={{ width: '7%' }} />
+                    <col style={{ width: '5%' }} />
                   </colgroup>
                   <thead>
                     <tr style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}>
@@ -1094,9 +1095,6 @@ export default function SubServiceLineWorkspacePage() {
                       </th>
                       <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                         Group
-                      </th>
-                      <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                        Industry
                       </th>
                       <th scope="col" className="px-3 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">
                         Partner
@@ -1124,18 +1122,13 @@ export default function SubServiceLineWorkspacePage() {
                                 <div className="text-sm font-medium text-forvis-gray-900 truncate">
                                   {client.clientNameFull || client.clientCode}
                                 </div>
-                                <div className="text-xs text-forvis-gray-500 truncate">{client.clientCode}</div>
+                                <div className="text-sm text-forvis-gray-500 truncate">{client.clientCode}</div>
                               </div>
                             </div>
                           </td>
                           <td className="px-3 py-3">
                             <div className="text-sm font-normal text-forvis-gray-800 truncate" title={client.groupDesc}>
                               {client.groupDesc}
-                            </div>
-                          </td>
-                          <td className="px-3 py-3">
-                            <div className="text-sm font-normal text-forvis-gray-800 truncate" title={client.industry || client.sector || '-'}>
-                              {client.industry || client.sector || '-'}
                             </div>
                           </td>
                           <td className="px-3 py-3">
@@ -1161,7 +1154,7 @@ export default function SubServiceLineWorkspacePage() {
                             </div>
                           </td>
                           <td className="px-3 py-3 text-center">
-                            <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-forvis-blue-100 text-forvis-blue-800">
+                            <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-sm font-medium bg-forvis-blue-100 text-forvis-blue-800">
                               {client._count.Task || 0}
                             </span>
                           </td>

@@ -12,7 +12,8 @@ import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 
 // Zod schema for query params validation
 const ClientFiltersQuerySchema = z.object({
-  industrySearch: z.string().max(100).optional().default(''),
+  partnerSearch: z.string().max(100).optional().default(''),
+  managerSearch: z.string().max(100).optional().default(''),
   groupSearch: z.string().max(100).optional().default(''),
 }).strict();
 
@@ -38,7 +39,8 @@ export const GET = secureRoute.query({
     
     // Validate query params
     const queryResult = ClientFiltersQuerySchema.safeParse({
-      industrySearch: searchParams.get('industrySearch') || undefined,
+      partnerSearch: searchParams.get('partnerSearch') || undefined,
+      managerSearch: searchParams.get('managerSearch') || undefined,
       groupSearch: searchParams.get('groupSearch') || undefined,
     });
     
@@ -46,24 +48,27 @@ export const GET = secureRoute.query({
       throw new AppError(400, 'Invalid query parameters', ErrorCodes.VALIDATION_ERROR, { errors: queryResult.error.flatten() });
     }
     
-    const { industrySearch, groupSearch } = queryResult.data;
+    const { partnerSearch, managerSearch, groupSearch } = queryResult.data;
 
-    const industryTooShort = industrySearch.length > 0 && industrySearch.length < 2;
+    const partnerTooShort = partnerSearch.length > 0 && partnerSearch.length < 2;
+    const managerTooShort = managerSearch.length > 0 && managerSearch.length < 2;
     const groupTooShort = groupSearch.length > 0 && groupSearch.length < 2;
 
-    if (industryTooShort || groupTooShort) {
+    if (partnerTooShort || managerTooShort || groupTooShort) {
       return NextResponse.json(successResponse({
-        industries: industryTooShort ? [] : undefined,
+        partners: partnerTooShort ? [] : undefined,
+        managers: managerTooShort ? [] : undefined,
         groups: groupTooShort ? [] : undefined,
         metadata: {
-          industries: industryTooShort ? { hasMore: false, total: 0, returned: 0 } : undefined,
+          partners: partnerTooShort ? { hasMore: false, total: 0, returned: 0 } : undefined,
+          managers: managerTooShort ? { hasMore: false, total: 0, returned: 0 } : undefined,
           groups: groupTooShort ? { hasMore: false, total: 0, returned: 0 } : undefined,
         },
         message: 'Please enter at least 2 characters to search',
       }));
     }
 
-    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}client-filters:industry:${industrySearch}:group:${groupSearch}:limit:30`;
+    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}client-filters:partner:${partnerSearch}:manager:${managerSearch}:group:${groupSearch}:limit:30`;
     
     const cached = await cache.get(cacheKey);
     if (cached) {
@@ -72,15 +77,22 @@ export const GET = secureRoute.query({
       return NextResponse.json(successResponse(cached));
     }
 
-    interface IndustryWhereClause {
-      industry?: { contains: string; mode: 'insensitive' };
-    }
-    
-    const industryWhere: IndustryWhereClause = {};
+    const partnerWhere: Record<string, unknown> = {};
+    const managerWhere: Record<string, unknown> = {};
     const groupWhere: Record<string, unknown> = {};
 
-    if (industrySearch) {
-      industryWhere.industry = { contains: industrySearch, mode: 'insensitive' };
+    if (partnerSearch) {
+      partnerWhere.OR = [
+        { EmpCode: { contains: partnerSearch, mode: 'insensitive' } },
+        { EmpName: { contains: partnerSearch, mode: 'insensitive' } },
+      ];
+    }
+
+    if (managerSearch) {
+      managerWhere.OR = [
+        { EmpCode: { contains: managerSearch, mode: 'insensitive' } },
+        { EmpName: { contains: managerSearch, mode: 'insensitive' } },
+      ];
     }
 
     if (groupSearch) {
@@ -92,12 +104,26 @@ export const GET = secureRoute.query({
 
     const FILTER_LIMIT = 30;
     
-    const [industriesData, groupsData] = await Promise.all([
-      prisma.client.groupBy({
-        by: ['industry'],
-        where: { ...industryWhere, industry: { not: null } },
-        orderBy: { industry: 'asc' },
+    const [partnersData, managersData, groupsData] = await Promise.all([
+      prisma.employee.findMany({
+        where: partnerWhere,
+        select: {
+          EmpCode: true,
+          EmpName: true,
+        },
+        orderBy: { EmpName: 'asc' },
         take: FILTER_LIMIT,
+        distinct: ['EmpCode'],
+      }),
+      prisma.employee.findMany({
+        where: managerWhere,
+        select: {
+          EmpCode: true,
+          EmpName: true,
+        },
+        orderBy: { EmpName: 'asc' },
+        take: FILTER_LIMIT,
+        distinct: ['EmpCode'],
       }),
       prisma.client.groupBy({
         by: ['groupCode', 'groupDesc'],
@@ -107,19 +133,27 @@ export const GET = secureRoute.query({
       }),
     ]);
 
-    const industries = industriesData
-      .map(item => item.industry)
-      .filter((industry): industry is string => !!industry);
+    const partners = partnersData.map(emp => ({ 
+      code: emp.EmpCode, 
+      name: emp.EmpName 
+    }));
+
+    const managers = managersData.map(emp => ({ 
+      code: emp.EmpCode, 
+      name: emp.EmpName 
+    }));
 
     const groups = groupsData
       .filter(group => group.groupCode !== null && group.groupDesc !== null)
       .map(group => ({ code: group.groupCode!, name: group.groupDesc! }));
 
     const responseData = {
-      industries,
+      partners,
+      managers,
       groups,
       metadata: {
-        industries: { hasMore: industries.length >= FILTER_LIMIT, total: industries.length, returned: industries.length },
+        partners: { hasMore: partners.length >= FILTER_LIMIT, total: partners.length, returned: partners.length },
+        managers: { hasMore: managers.length >= FILTER_LIMIT, total: managers.length, returned: managers.length },
         groups: { hasMore: groups.length >= FILTER_LIMIT, total: groups.length, returned: groups.length },
       },
     };

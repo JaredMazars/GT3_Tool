@@ -8,7 +8,8 @@ import { useClients } from '@/hooks/clients/useClients';
 
 export interface ClientsFiltersType {
   clients: string[];  // Client codes
-  industries: string[];
+  partners: string[];  // Employee codes
+  managers: string[];  // Employee codes
   groups: string[];
 }
 
@@ -22,12 +23,14 @@ export function ClientsFilters({
   onFiltersChange,
 }: ClientsFiltersProps) {
   const [clientSearch, setClientSearch] = React.useState('');
-  const [industrySearch, setIndustrySearch] = React.useState('');
+  const [partnerSearch, setPartnerSearch] = React.useState('');
+  const [managerSearch, setManagerSearch] = React.useState('');
   const [groupSearch, setGroupSearch] = React.useState('');
 
   // Fetch filter options with independent searches
   const { data: clientFiltersData, isLoading: isLoadingFilters } = useClientFilters({
-    industrySearch,
+    partnerSearch,
+    managerSearch,
     groupSearch,
   });
 
@@ -42,8 +45,12 @@ export function ClientsFilters({
     onFiltersChange({ ...filters, clients: values as string[] });
   };
 
-  const handleIndustriesChange = (values: (string | number)[]) => {
-    onFiltersChange({ ...filters, industries: values as string[] });
+  const handlePartnersChange = (values: (string | number)[]) => {
+    onFiltersChange({ ...filters, partners: values as string[] });
+  };
+
+  const handleManagersChange = (values: (string | number)[]) => {
+    onFiltersChange({ ...filters, managers: values as string[] });
   };
 
   const handleGroupsChange = (values: (string | number)[]) => {
@@ -53,14 +60,16 @@ export function ClientsFilters({
   const handleClearFilters = () => {
     onFiltersChange({
       clients: [],
-      industries: [],
+      partners: [],
+      managers: [],
       groups: [],
     });
   };
 
   const hasActiveFilters = 
     filters.clients.length > 0 ||
-    filters.industries.length > 0 ||
+    filters.partners.length > 0 ||
+    filters.managers.length > 0 ||
     filters.groups.length > 0;
 
   // Convert data to SearchMultiCombobox options
@@ -69,9 +78,14 @@ export function ClientsFilters({
     label: `${client.clientCode} - ${client.clientNameFull || client.clientCode}`,
   }));
 
-  const industryOptions: SearchMultiComboboxOption[] = (clientFiltersData?.industries || []).map(industry => ({
-    id: industry,
-    label: industry,
+  const partnerOptions: SearchMultiComboboxOption[] = (clientFiltersData?.partners || []).map(partner => ({
+    id: partner.code,
+    label: `${partner.code} - ${partner.name}`,
+  }));
+
+  const managerOptions: SearchMultiComboboxOption[] = (clientFiltersData?.managers || []).map(manager => ({
+    id: manager.code,
+    label: `${manager.code} - ${manager.name}`,
   }));
 
   const groupOptions: SearchMultiComboboxOption[] = (clientFiltersData?.groups || []).map(group => ({
@@ -83,7 +97,8 @@ export function ClientsFilters({
   const getActiveFiltersSummary = () => {
     const parts: string[] = [];
     if (filters.clients.length > 0) parts.push(`${filters.clients.length} Client${filters.clients.length > 1 ? 's' : ''}`);
-    if (filters.industries.length > 0) parts.push(`${filters.industries.length} Industr${filters.industries.length > 1 ? 'ies' : 'y'}`);
+    if (filters.partners.length > 0) parts.push(`${filters.partners.length} Partner${filters.partners.length > 1 ? 's' : ''}`);
+    if (filters.managers.length > 0) parts.push(`${filters.managers.length} Manager${filters.managers.length > 1 ? 's' : ''}`);
     if (filters.groups.length > 0) parts.push(`${filters.groups.length} Group${filters.groups.length > 1 ? 's' : ''}`);
     return parts.join(', ');
   };
@@ -91,8 +106,8 @@ export function ClientsFilters({
   return (
     <div className="bg-white rounded-lg shadow-corporate p-3 mb-4">
       <div className="space-y-2">
-        {/* Filter Row: Client, Industry, Group */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+        {/* Filter Row: Client, Partner, Manager, Group */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
           {/* Client Filter with server-side search */}
           <SearchMultiCombobox
             value={filters.clients}
@@ -111,18 +126,32 @@ export function ClientsFilters({
             } : undefined}
           />
 
-          {/* Industry Filter with server-side search */}
+          {/* Partner Filter with server-side search */}
           <SearchMultiCombobox
-            value={filters.industries}
-            onChange={handleIndustriesChange}
-            onSearchChange={setIndustrySearch}
-            options={industryOptions}
-            placeholder="All Industries"
-            searchPlaceholder="Search industries..."
+            value={filters.partners}
+            onChange={handlePartnersChange}
+            onSearchChange={setPartnerSearch}
+            options={partnerOptions}
+            placeholder="All Partners"
+            searchPlaceholder="Search partners..."
             minimumSearchChars={2}
             isLoading={isLoadingFilters}
-            emptyMessage={industrySearch.length < 2 ? "Type 2+ characters to search industries" : "No industries found"}
-            metadata={clientFiltersData?.metadata?.industries}
+            emptyMessage={partnerSearch.length < 2 ? "Type 2+ characters to search partners" : "No partners found"}
+            metadata={clientFiltersData?.metadata?.partners}
+          />
+
+          {/* Manager Filter with server-side search */}
+          <SearchMultiCombobox
+            value={filters.managers}
+            onChange={handleManagersChange}
+            onSearchChange={setManagerSearch}
+            options={managerOptions}
+            placeholder="All Managers"
+            searchPlaceholder="Search managers..."
+            minimumSearchChars={2}
+            isLoading={isLoadingFilters}
+            emptyMessage={managerSearch.length < 2 ? "Type 2+ characters to search managers" : "No managers found"}
+            metadata={clientFiltersData?.metadata?.managers}
           />
 
           {/* Group Filter with server-side search */}

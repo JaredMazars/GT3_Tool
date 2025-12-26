@@ -17,44 +17,50 @@ export interface FilterMetadata {
 }
 
 export interface ClientFilterOptions {
-  industries: string[];
+  partners: { code: string; name: string }[];
+  managers: { code: string; name: string }[];
   groups: { code: string; name: string }[];
   metadata?: {
-    industries?: FilterMetadata;
+    partners?: FilterMetadata;
+    managers?: FilterMetadata;
     groups?: FilterMetadata;
   };
 }
 
 export interface UseClientFiltersParams {
-  industrySearch?: string;
+  partnerSearch?: string;
+  managerSearch?: string;
   groupSearch?: string;
   enabled?: boolean;
 }
 
 /**
- * Fetch client filter options (industries and groups)
+ * Fetch client filter options (partners, managers, and groups)
  * Used to populate filter dropdowns independently from the main client list
- * Supports separate searches for industries and groups
+ * Supports separate searches for partners, managers, and groups
  * 
  * Requires minimum 2 characters for search queries
  */
 export function useClientFilters(params: UseClientFiltersParams = {}) {
   const {
-    industrySearch = '',
+    partnerSearch = '',
+    managerSearch = '',
     groupSearch = '',
     enabled = true,
   } = params;
 
-  // Don't execute query if both searches are too short
-  const industryValid = !industrySearch || industrySearch.length >= 2;
+  // Don't execute query if all searches are too short
+  const partnerValid = !partnerSearch || partnerSearch.length >= 2;
+  const managerValid = !managerSearch || managerSearch.length >= 2;
   const groupValid = !groupSearch || groupSearch.length >= 2;
-  const shouldExecute = enabled && (industryValid || groupValid);
+  const shouldExecute = enabled && (partnerValid || managerValid || groupValid);
 
   return useQuery<ClientFilterOptions>({
-    queryKey: clientFilterKeys.list({ industrySearch, groupSearch }),
+    queryKey: clientFilterKeys.list({ partnerSearch, managerSearch, groupSearch }),
     queryFn: async () => {
       const searchParams = new URLSearchParams();
-      if (industrySearch) searchParams.set('industrySearch', industrySearch);
+      if (partnerSearch) searchParams.set('partnerSearch', partnerSearch);
+      if (managerSearch) searchParams.set('managerSearch', managerSearch);
       if (groupSearch) searchParams.set('groupSearch', groupSearch);
       
       const url = `/api/clients/filters?${searchParams.toString()}`;

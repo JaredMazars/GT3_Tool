@@ -160,6 +160,33 @@ export interface TaskWithWIPAndServiceLine extends TaskWithWIP {
   masterServiceLineName: string;
 }
 
+/**
+ * My Reports - Overview types
+ */
+export interface MonthlyMetrics {
+  month: string; // YYYY-MM format
+  netRevenue: number;
+  grossProfit: number;
+  collections: number;
+  wipLockupDays: number;
+  debtorsLockupDays: number;
+  writeoffPercentage: number;
+  // Calculation components for tooltips
+  wipBalance?: number;
+  trailing12Revenue?: number;
+  debtorsBalance?: number;
+  trailing12Billings?: number;
+  negativeAdj?: number;
+  provisions?: number;
+  grossTime?: number;
+}
+
+export interface MyReportsOverviewData {
+  monthlyMetrics: MonthlyMetrics[];
+  filterMode: 'PARTNER' | 'MANAGER';
+  employeeCode: string;
+}
+
 
 
 

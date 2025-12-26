@@ -9,6 +9,7 @@
 import { useState } from 'react';
 import { Folder, FileBarChart, LayoutDashboard } from 'lucide-react';
 import { ProfitabilityReport } from './ProfitabilityReport';
+import { MyReportsOverview } from './MyReportsOverview';
 
 type ReportTab = 'overview' | 'profitability' | 'coming-soon';
 
@@ -67,28 +68,7 @@ export function MyReportsView() {
       {/* Report Content */}
       <div className="mt-4">
         {activeReportTab === 'overview' ? (
-          /* Overview Coming Soon Placeholder */
-          <div className="flex items-center justify-center py-16">
-            <div className="text-center max-w-md">
-              <div
-                className="inline-flex rounded-full p-4 mb-4"
-                style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
-              >
-                <LayoutDashboard className="h-8 w-8 text-white" />
-              </div>
-              <h3 className="text-xl font-semibold text-forvis-gray-900 mb-2">
-                Overview Coming Soon
-              </h3>
-              <p className="text-sm text-forvis-gray-700 mb-4">
-                A comprehensive overview of your tasks and activities will be available here.
-              </p>
-              <div className="rounded-lg p-4 border border-forvis-blue-100" style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}>
-                <p className="text-xs text-forvis-gray-600">
-                  Expected features: Summary statistics, visualizations, and key metrics
-                </p>
-              </div>
-            </div>
-          </div>
+          <MyReportsOverview />
         ) : activeReportTab === 'profitability' ? (
           <ProfitabilityReport />
         ) : (

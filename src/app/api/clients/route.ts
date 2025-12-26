@@ -56,12 +56,13 @@ export const GET = secureRoute.query({
     
     const { search, page, limit, sortBy, sortOrder } = queryResult.data;
     const clientCodes = searchParams.getAll('clientCodes[]');
-    const industries = searchParams.getAll('industries[]');
+    const partners = searchParams.getAll('partners[]');
+    const managers = searchParams.getAll('managers[]');
     const groups = searchParams.getAll('groups[]');
     
     const skip = (page - 1) * limit;
 
-    const hasFilters = clientCodes.length > 0 || industries.length > 0 || groups.length > 0;
+    const hasFilters = clientCodes.length > 0 || partners.length > 0 || managers.length > 0 || groups.length > 0;
     
     const cacheParams = {
       endpoint: 'clients' as const,
@@ -93,8 +94,12 @@ export const GET = secureRoute.query({
       andConditions.push({ clientCode: { in: clientCodes } });
     }
     
-    if (industries.length > 0) {
-      andConditions.push({ industry: { in: industries } });
+    if (partners.length > 0) {
+      andConditions.push({ clientPartner: { in: partners } });
+    }
+    
+    if (managers.length > 0) {
+      andConditions.push({ clientManager: { in: managers } });
     }
     
     if (groups.length > 0) {
