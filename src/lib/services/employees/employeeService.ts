@@ -1,5 +1,6 @@
 
 import { prisma } from '@/lib/db/prisma';
+import { extractEmpCodeFromUserId, generateEmailVariants } from '@/lib/utils/employeeCodeExtractor';
 
 export interface EmployeeWithUser {
   employee: {
@@ -110,6 +111,18 @@ export async function mapUsersToEmployees(userIds: string[]) {
   const potentialUserIds = userIds.filter(id => !id.includes('@'));
   const potentialEmails = userIds.filter(id => id.includes('@'));
 
+  // Extract employee codes from non-email userIds (pending-EMPCODE, emp_EMPCODE_timestamp, etc.)
+  const extractedEmpCodes: string[] = [];
+  const userIdToEmpCode = new Map<string, string>();
+  
+  for (const userId of potentialUserIds) {
+    const empCode = extractEmpCodeFromUserId(userId);
+    if (empCode) {
+      extractedEmpCodes.push(empCode);
+      userIdToEmpCode.set(userId.toLowerCase(), empCode);
+    }
+  }
+
   // Fetch User records to get their emails
   let emailsFromUsers: string[] = [];
   if (potentialUserIds.length > 0) {
@@ -120,40 +133,72 @@ export async function mapUsersToEmployees(userIds: string[]) {
     emailsFromUsers = users.map(u => u.email).filter(Boolean) as string[];
   }
 
-  // Combine all emails to query
-  const allEmailsToQuery = [...potentialEmails, ...emailsFromUsers];
-
-  // Fetch employees
-  const employees = await prisma.employee.findMany({
-    where: {
-      OR: [
-        { WinLogon: { in: allEmailsToQuery } },
-        // Also try email prefixes
-        ...allEmailsToQuery.map(email => ({
-          WinLogon: { startsWith: `${email.split('@')[0]}@` }
-        }))
-      ]
-    },
-    select: {
-      id: true,
-      GSEmployeeID: true,
-      EmpCode: true,
-      EmpNameFull: true,
-      EmpCatCode: true,
-      OfficeCode: true,
-      WinLogon: true
-    }
+  // Generate email variants for better matching
+  const allEmailVariants = new Set<string>();
+  [...potentialEmails, ...emailsFromUsers].forEach(email => {
+    generateEmailVariants(email).forEach(variant => allEmailVariants.add(variant));
   });
+  const allEmailsToQuery = Array.from(allEmailVariants);
+
+  // Build query conditions
+  const whereConditions: any[] = [];
+  
+  // Email-based lookups
+  if (allEmailsToQuery.length > 0) {
+    whereConditions.push({ WinLogon: { in: allEmailsToQuery } });
+    // Also try email prefixes
+    allEmailsToQuery.forEach(email => {
+      const prefix = email.split('@')[0];
+      if (prefix) {
+        whereConditions.push({ WinLogon: { startsWith: `${prefix}@` } });
+      }
+    });
+  }
+  
+  // Employee code-based lookups
+  if (extractedEmpCodes.length > 0) {
+    whereConditions.push({ EmpCode: { in: extractedEmpCodes } });
+  }
+
+  // Fetch employees (if we have any conditions)
+  const employees = whereConditions.length > 0 
+    ? await prisma.employee.findMany({
+        where: { OR: whereConditions },
+        select: {
+          id: true,
+          GSEmployeeID: true,
+          EmpCode: true,
+          EmpNameFull: true,
+          EmpCatCode: true,
+          OfficeCode: true,
+          WinLogon: true
+        }
+      })
+    : [];
 
   // Build map - key by both original userIds and emails
   const employeeMap = new Map<string, typeof employees[0]>();
   
-  // First, create email -> employee mapping
+  // Create lookup maps
   const emailToEmployee = new Map<string, typeof employees[0]>();
+  const empCodeToEmployee = new Map<string, typeof employees[0]>();
+  
   employees.forEach(emp => {
+    // Map by email
     if (emp.WinLogon) {
       const lowerLogon = emp.WinLogon.toLowerCase();
       emailToEmployee.set(lowerLogon, emp);
+      
+      // Also map by email prefix
+      const prefix = lowerLogon.split('@')[0];
+      if (prefix) {
+        emailToEmployee.set(prefix, emp);
+      }
+    }
+    
+    // Map by employee code
+    if (emp.EmpCode) {
+      empCodeToEmployee.set(emp.EmpCode.toUpperCase(), emp);
     }
   });
 
@@ -167,13 +212,23 @@ export async function mapUsersToEmployees(userIds: string[]) {
   
   const userIdToEmail = new Map(users.map(u => [u.id.toLowerCase(), u.email?.toLowerCase()]));
 
-  // Now map all original userIds (including User.id format) to employees
+  // Now map all original userIds to employees
   for (const userId of userIds) {
     const lowerUserId = userId.toLowerCase();
+    let employee: typeof employees[0] | undefined;
     
-    // If it's an email, directly map it
+    // Strategy 1: If it's an email, try direct email lookup
     if (userId.includes('@')) {
-      const employee = emailToEmployee.get(lowerUserId);
+      employee = emailToEmployee.get(lowerUserId);
+      
+      // Try email prefix
+      if (!employee) {
+        const prefix = lowerUserId.split('@')[0];
+        if (prefix) {
+          employee = emailToEmployee.get(prefix);
+        }
+      }
+      
       if (employee) {
         employeeMap.set(lowerUserId, employee);
         const prefix = lowerUserId.split('@')[0];
@@ -182,18 +237,31 @@ export async function mapUsersToEmployees(userIds: string[]) {
         }
       }
     } else {
-      // It's a User ID - look up the email from our batch query
-      const userEmail = userIdToEmail.get(lowerUserId);
-      
-      if (userEmail) {
-        const employee = emailToEmployee.get(userEmail);
+      // Strategy 2: Check if we extracted an employee code from this userId
+      const extractedEmpCode = userIdToEmpCode.get(lowerUserId);
+      if (extractedEmpCode) {
+        employee = empCodeToEmployee.get(extractedEmpCode.toUpperCase());
         if (employee) {
-          // Map both the User ID and the email to the employee
           employeeMap.set(lowerUserId, employee);
-          employeeMap.set(userEmail, employee);
-          const prefix = userEmail.split('@')[0];
-          if (prefix) {
-            employeeMap.set(prefix, employee);
+          employeeMap.set(extractedEmpCode.toUpperCase(), employee);
+          employeeMap.set(extractedEmpCode.toLowerCase(), employee);
+        }
+      }
+      
+      // Strategy 3: It's a User ID - look up the email from our batch query
+      if (!employee) {
+        const userEmail = userIdToEmail.get(lowerUserId);
+        
+        if (userEmail) {
+          employee = emailToEmployee.get(userEmail);
+          if (employee) {
+            // Map both the User ID and the email to the employee
+            employeeMap.set(lowerUserId, employee);
+            employeeMap.set(userEmail, employee);
+            const prefix = userEmail.split('@')[0];
+            if (prefix) {
+              employeeMap.set(prefix, employee);
+            }
           }
         }
       }

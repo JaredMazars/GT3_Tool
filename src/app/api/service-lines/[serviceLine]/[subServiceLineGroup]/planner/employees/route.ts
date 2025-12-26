@@ -9,7 +9,8 @@ import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { mapUsersToEmployees, mapEmployeesToUsers } from '@/lib/services/employees/employeeService';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { ServiceLineRole } from '@/types';
-import { enrichEmployeesWithStatus } from '@/lib/services/employees/employeeStatusService';
+import { enrichEmployeesWithStatus, getEmployeeStatus } from '@/lib/services/employees/employeeStatusService';
+import { extractEmpCodeFromUserId } from '@/lib/utils/employeeCodeExtractor';
 
 // Type for subGroup in userServiceLines
 interface SubGroupInfo {
@@ -434,7 +435,7 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
     const employeeStatusMap = await enrichEmployeesWithStatus(allEmployeeCodes);
 
     // Transform to flat structure
-    const allocationRows = filteredAllocations.map(allocation => {
+    const allocationRows = await Promise.all(filteredAllocations.map(async (allocation) => {
       const employee = employeeMap.get(allocation.userId.toLowerCase()) || 
                       employeeMap.get(allocation.userId.split('@')[0]?.toLowerCase() || '');
 
@@ -442,7 +443,16 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
       
       const serviceLineRole = userServiceLineRoleMap.get(allocation.userId) || 'USER';
       
-      const empStatus = employee?.EmpCode ? employeeStatusMap.get(employee.EmpCode) : undefined;
+      // Try to get employee status
+      let empStatus = employee?.EmpCode ? employeeStatusMap.get(employee.EmpCode) : undefined;
+      
+      // Fallback: If no status found, try extracting employee code from userId
+      if (!empStatus) {
+        const extractedEmpCode = extractEmpCodeFromUserId(allocation.userId);
+        if (extractedEmpCode) {
+          empStatus = await getEmployeeStatus(extractedEmpCode);
+        }
+      }
 
       return {
         allocationId: allocation.id,
@@ -470,7 +480,7 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
         notes: null,
         employeeStatus: empStatus
       };
-    });
+    }));
     
     // 13. For timeline view with includeUnallocated, add employees with no allocations
     let finalAllocationRows = allocationRows;
@@ -492,10 +502,15 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
       
       // Add placeholder rows for unallocated employees (needed for timeline to show employees)
       // These will have no allocation data but will display the employee in the timeline
-      const unallocatedRows = filteredUnallocatedEmployees.map(emp => {
+      const unallocatedRows = await Promise.all(filteredUnallocatedEmployees.map(async (emp) => {
         const userId = employeeUserIdMap.get(emp.id);
         const userEmail = userId || `${emp.WinLogon}@forvismazars.us`;
-        const empStatus = emp.EmpCode ? employeeStatusMap.get(emp.EmpCode) : undefined;
+        let empStatus = emp.EmpCode ? employeeStatusMap.get(emp.EmpCode) : undefined;
+        
+        // Fallback: Direct lookup if not in map
+        if (!empStatus && emp.EmpCode) {
+          empStatus = await getEmployeeStatus(emp.EmpCode);
+        }
         
         return {
           allocationId: 0, // No allocation
@@ -523,7 +538,7 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
           notes: null,
           employeeStatus: empStatus
         };
-      });
+      }));
       
       finalAllocationRows = [...allocationRows, ...unallocatedRows];
     }

@@ -6,7 +6,8 @@ import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { toTaskId } from '@/types/branded';
 import { NON_CLIENT_EVENT_LABELS, NonClientEventType } from '@/types';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
-import { enrichEmployeesWithStatus } from '@/lib/services/employees/employeeStatusService';
+import { enrichEmployeesWithStatus, getEmployeeStatus } from '@/lib/services/employees/employeeStatusService';
+import { extractEmpCodeFromUserId } from '@/lib/utils/employeeCodeExtractor';
 
 /**
  * GET /api/tasks/[id]/team/allocations
@@ -238,7 +239,13 @@ export const GET = secureRoute.queryWithParams({
             if (!role) continue;
             
             // Add placeholder member for partner/manager without account
-            const empStatus = employeeStatusMap.get(emp.EmpCode);
+            let empStatus = employeeStatusMap.get(emp.EmpCode);
+            
+            // Fallback: Direct lookup if not in map
+            if (!empStatus && emp.EmpCode) {
+              empStatus = await getEmployeeStatus(emp.EmpCode);
+            }
+            
             additionalMembers.push({
               id: 0, // Placeholder
               userId: `pending-${emp.EmpCode}`,
@@ -252,7 +259,7 @@ export const GET = secureRoute.queryWithParams({
               },
               allocations: [],
               hasAccount: false,
-              employeeStatus: empStatus || { isActive: false, hasUserAccount: false },
+              employeeStatus: empStatus || { isActive: true, hasUserAccount: false },
             });
           }
         } catch (error) {
@@ -325,7 +332,15 @@ export const GET = secureRoute.queryWithParams({
         }));
 
       const memberEmpCode = userToEmpCodeMap.get(member.userId);
-      const empStatus = memberEmpCode ? employeeStatusMap.get(memberEmpCode) : undefined;
+      let empStatus = memberEmpCode ? employeeStatusMap.get(memberEmpCode) : undefined;
+      
+      // Fallback: Try extracting employee code from userId if no status found
+      if (!empStatus) {
+        const extractedEmpCode = extractEmpCodeFromUserId(member.userId);
+        if (extractedEmpCode) {
+          empStatus = employeeStatusMap.get(extractedEmpCode);
+        }
+      }
       
       return {
         id: member.id, // TaskTeam.id for the current task - needed for creating/updating allocations
