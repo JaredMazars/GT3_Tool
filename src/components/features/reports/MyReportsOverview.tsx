@@ -3,13 +3,16 @@
 /**
  * My Reports Overview Component
  * 
- * Displays 6 financial performance graphs over a rolling 24-month period:
+ * Displays 9 financial performance graphs over a rolling 24-month period:
  * - Net Revenue
  * - Gross Profit
  * - Collections
- * - WIP Lockup Days
- * - Debtors Lockup Days
- * - Writeoff %
+ * - WIP Lockup Days (with 45-day target)
+ * - Debtors Lockup Days (with 45-day target)
+ * - Writeoff % (with 25% target)
+ * - Total Lockup Days (WIP + Debtors, with 90-day target)
+ * - WIP Balance
+ * - Debtors Balance
  */
 
 import { useMemo } from 'react';
@@ -20,6 +23,9 @@ import {
   Clock,
   AlertTriangle,
   Wallet,
+  Timer,
+  Banknote,
+  CreditCard,
 } from 'lucide-react';
 import { useMyReportsOverview } from '@/hooks/reports/useMyReportsOverview';
 import { LoadingSpinner } from '@/components/ui';
@@ -33,6 +39,7 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  ReferenceLine,
 } from 'recharts';
 import { format, parse } from 'date-fns';
 
@@ -126,6 +133,11 @@ interface ChartCardProps {
   dataKey: string;
   color: string;
   showCalculation?: 'wip' | 'debtors' | 'writeoff';
+  targetLine?: {
+    value: number;
+    label: string;
+    color?: string;
+  };
 }
 
 function ChartCard({
@@ -138,6 +150,7 @@ function ChartCard({
   dataKey,
   color,
   showCalculation,
+  targetLine,
 }: ChartCardProps) {
   const formatXAxis = (monthStr: string) => {
     try {
@@ -198,6 +211,21 @@ function ChartCard({
             isAnimationActive={false}
             connectNulls={true}
           />
+          {targetLine && (
+            <ReferenceLine
+              y={targetLine.value}
+              stroke={targetLine.color || '#DC2626'}
+              strokeDasharray="5 5"
+              strokeWidth={2}
+              label={{
+                value: targetLine.label,
+                position: 'right',
+                fill: targetLine.color || '#DC2626',
+                fontSize: 12,
+                fontWeight: 500,
+              }}
+            />
+          )}
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -270,6 +298,21 @@ export function MyReportsOverview() {
       writeoff: data.monthlyMetrics.map(m => ({
         ...m,
         value: m.writeoffPercentage,
+      })),
+      // Total Lockup Days = WIP Lockup + Debtors Lockup
+      totalLockup: data.monthlyMetrics.map(m => ({
+        ...m,
+        value: m.wipLockupDays + m.debtorsLockupDays,
+      })),
+      // WIP Balance
+      wipBalance: data.monthlyMetrics.map(m => ({
+        ...m,
+        value: m.wipBalance ?? 0,
+      })),
+      // Debtors Balance
+      debtorsBalance: data.monthlyMetrics.map(m => ({
+        ...m,
+        value: m.debtorsBalance ?? 0,
       })),
     };
   }, [data]);
@@ -369,6 +412,7 @@ export function MyReportsOverview() {
           dataKey="value"
           color="#2E5AAC"
           showCalculation="wip"
+          targetLine={{ value: 45, label: 'Target: 45 days' }}
         />
 
         {/* Debtors Lockup Days */}
@@ -382,6 +426,7 @@ export function MyReportsOverview() {
           dataKey="value"
           color="#2E5AAC"
           showCalculation="debtors"
+          targetLine={{ value: 45, label: 'Target: 45 days' }}
         />
 
         {/* Writeoff % */}
@@ -395,6 +440,44 @@ export function MyReportsOverview() {
           dataKey="value"
           color="#2E5AAC"
           showCalculation="writeoff"
+          targetLine={{ value: 25, label: 'Target: 25%' }}
+        />
+
+        {/* Total Lockup Days */}
+        <ChartCard
+          title="Total Lockup Days"
+          description="WIP lockup + Debtors lockup combined"
+          icon={<Timer className="h-5 w-5 text-white" />}
+          data={chartData.totalLockup}
+          valueFormatter={formatDays}
+          yAxisFormatter={formatDaysShort}
+          dataKey="value"
+          color="#2E5AAC"
+          targetLine={{ value: 90, label: 'Target: 90 days' }}
+        />
+
+        {/* WIP Balance */}
+        <ChartCard
+          title="WIP Balance"
+          description="Outstanding work in progress value"
+          icon={<Banknote className="h-5 w-5 text-white" />}
+          data={chartData.wipBalance}
+          valueFormatter={formatCurrency}
+          yAxisFormatter={formatCurrencyShort}
+          dataKey="value"
+          color="#2E5AAC"
+        />
+
+        {/* Debtors Balance */}
+        <ChartCard
+          title="Debtors Balance"
+          description="Outstanding receivables value"
+          icon={<CreditCard className="h-5 w-5 text-white" />}
+          data={chartData.debtorsBalance}
+          valueFormatter={formatCurrency}
+          yAxisFormatter={formatCurrencyShort}
+          dataKey="value"
+          color="#2E5AAC"
         />
       </div>
     </div>
