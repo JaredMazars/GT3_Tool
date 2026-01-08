@@ -47,10 +47,22 @@ export async function POST(request: NextRequest) {
     });
     
     // Delete session cookie
-    response.cookies.delete('session');
+    response.cookies.set('session', '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      expires: new Date(0), // Expire in the past (1970)
+    });
     
     // Also clear the auth callback URL cookie if it exists
-    response.cookies.delete('auth_callback_url');
+    response.cookies.set('auth_callback_url', '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      expires: new Date(0),
+    });
     
     // Add cache control headers to prevent caching
     response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -101,10 +113,22 @@ export async function GET(request: NextRequest) {
     const response = NextResponse.redirect(new URL('/', request.url));
     
     // Delete session cookie
-    response.cookies.delete('session');
+    response.cookies.set('session', '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      expires: new Date(0), // Expire in the past (1970)
+    });
     
     // Also clear the auth callback URL cookie if it exists
-    response.cookies.delete('auth_callback_url');
+    response.cookies.set('auth_callback_url', '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      expires: new Date(0),
+    });
     
     // Add cache control headers to prevent caching
     response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');

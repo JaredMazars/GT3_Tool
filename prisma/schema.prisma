@@ -307,17 +307,18 @@ model Client {
   createdAt                DateTime                   @default(now())
   updatedAt                DateTime                   @updatedAt
   GSClientID               String                     @unique @db.UniqueIdentifier
-  BDOpportunity            BDOpportunity[]
-  ClientAcceptanceResponse ClientAcceptanceResponse[]
-  ClientAnalyticsDocument  ClientAnalyticsDocument[]
-  ClientCreditRating       ClientCreditRating[]
-  Debtors                  Debtors[]
-  DrsTransactions          DrsTransactions[]
-  Task                     Task[]
-  TaskBudget               TaskBudget[]
-  Wip                      Wip[]
-  WIPAging                 WIPAging[]
-  WIPTransactions          WIPTransactions[]
+  BDOpportunity                        BDOpportunity[]
+  ClientAcceptanceResponse             ClientAcceptanceResponse[]
+  ClientAnalyticsDocument              ClientAnalyticsDocument[]
+  ClientCreditRating                   ClientCreditRating[]
+  ClientPartnerManagerChangeRequest    ClientPartnerManagerChangeRequest[]
+  Debtors                              Debtors[]
+  DrsTransactions                      DrsTransactions[]
+  Task                                 Task[]
+  TaskBudget                           TaskBudget[]
+  Wip                                  Wip[]
+  WIPAging                             WIPAging[]
+  WIPTransactions                      WIPTransactions[]
 
   @@index([active])
   @@index([clientCode])
@@ -406,6 +407,31 @@ model ClientCreditRating {
   @@index([clientId, ratingDate(sort: Desc)])
   @@index([ratingDate(sort: Desc)])
   @@index([ratingGrade])
+}
+
+model ClientPartnerManagerChangeRequest {
+  id                   Int       @id @default(autoincrement())
+  clientId             Int
+  changeType           String    @db.VarChar(20)
+  currentEmployeeCode  String    @db.NVarChar(10)
+  currentEmployeeName  String?   @db.NVarChar(100)
+  proposedEmployeeCode String    @db.NVarChar(10)
+  proposedEmployeeName String?   @db.NVarChar(100)
+  reason               String?   @db.NVarChar(500)
+  status               String    @db.VarChar(20)
+  requestedById        String
+  requestedAt          DateTime  @default(now())
+  resolvedById         String?
+  resolvedAt           DateTime?
+  resolutionComment    String?   @db.NVarChar(500)
+  Client               Client    @relation(fields: [clientId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  RequestedBy          User      @relation("ChangeRequest_RequestedBy", fields: [requestedById], references: [id], onUpdate: NoAction)
+  ResolvedBy           User?     @relation("ChangeRequest_ResolvedBy", fields: [resolvedById], references: [id], onUpdate: NoAction)
+
+  @@index([clientId])
+  @@index([status])
+  @@index([proposedEmployeeCode, status])
+  @@index([requestedAt(sort: Desc)])
 }
 
 model ComplianceChecklist {
@@ -1171,6 +1197,8 @@ model User {
   Task                                                   Task[]
   TaskTeam                                               TaskTeam[]
   TaskTool                                               TaskTool[]
+  ClientPartnerManagerChangeRequest_RequestedBy          ClientPartnerManagerChangeRequest[] @relation("ChangeRequest_RequestedBy")
+  ClientPartnerManagerChangeRequest_ResolvedBy           ClientPartnerManagerChangeRequest[] @relation("ChangeRequest_ResolvedBy")
 
   @@index([role])
 }

@@ -8,9 +8,10 @@ import { ROUTES } from '@/constants/routes';
 
 interface NotificationDropdownProps {
   onClose: () => void;
+  onOpenChangeRequestModal?: (requestId: number) => void;
 }
 
-export function NotificationDropdown({ onClose }: NotificationDropdownProps) {
+export function NotificationDropdown({ onClose, onOpenChangeRequestModal }: NotificationDropdownProps) {
   const { data, isLoading } = useNotifications({ pageSize: 5 });
   const markAllAsRead = useMarkAllAsRead();
 
@@ -65,6 +66,7 @@ export function NotificationDropdown({ onClose }: NotificationDropdownProps) {
                 notification={notification}
                 compact
                 onNavigate={onClose}
+                onOpenChangeRequestModal={onOpenChangeRequestModal}
               />
             ))}
           </div>

@@ -677,9 +677,7 @@ export async function uploadEngagementLetter(
     logger.error('Failed to upload engagement letter to blob storage:', error);
     throw error;
   }
-}
-
-/**
+}/**
  * Download engagement letter from Azure Blob Storage
  * @param blobName - Blob name/path
  * @returns File buffer
@@ -687,9 +685,7 @@ export async function uploadEngagementLetter(
 export async function downloadEngagementLetter(blobName: string): Promise<Buffer> {
   try {
     const containerClient = getEngagementLettersContainerClient();
-    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
-
-    const downloadResponse = await blockBlobClient.download();
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);    const downloadResponse = await blockBlobClient.download();
     const downloaded = await streamToBuffer(
       downloadResponse.readableStreamBody!
     );
@@ -906,4 +902,3 @@ export async function generateDpaSasUrl(
     throw error;
   }
 }
-

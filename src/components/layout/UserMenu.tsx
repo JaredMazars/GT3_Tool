@@ -48,25 +48,9 @@ export default function UserMenu({ user }: UserMenuProps) {
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
-    try {
-      const response = await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        // Redirect to Azure AD logout URL which will clear AD session
-        // and redirect back to login page
-        window.location.href = data.logoutUrl || '/api/auth/login';
-      } else {
-        setIsLoggingOut(false);
-      }
-    } catch (error) {
-      setIsLoggingOut(false);
-    }
+    // Use GET endpoint for server-side redirect instead of POST with client-side redirect
+    // This ensures browser processes Set-Cookie headers before following redirect
+    window.location.href = '/api/auth/logout';
   };
 
   return (

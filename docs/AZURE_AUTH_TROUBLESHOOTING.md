@@ -25,14 +25,35 @@ This script will check:
 3. Find your app: **Tax Computation Mapper**
    - App ID: `050a0513-3caa-440a-91e1-665d38685aeb`
 4. Click **Authentication** in the left menu
-5. Under **Platform configurations** → **Web**, verify this redirect URI exists:
+5. Under **Platform configurations** → **Web**, verify these redirect URIs exist:
+   
+   **Authentication callback URI (required for login):**
    ```
    https://mapper-tax-app.greenpebble-86483b9f.westeurope.azurecontainerapps.io/api/auth/callback
    ```
+   
+   **Post-logout redirect URI (required for logout):**
+   
+   Under the same **Web** platform configuration, scroll down to **Front-channel logout URL** section and add:
+   ```
+   https://mapper-tax-app.greenpebble-86483b9f.westeurope.azurecontainerapps.io
+   ```
+   
+   Or add it to the redirect URIs list:
+   ```
+   https://mapper-tax-app.greenpebble-86483b9f.westeurope.azurecontainerapps.io
+   ```
+   
+   **For local development, also add:**
+   - Callback: `http://localhost:3000/api/auth/callback`
+   - Post-logout: `http://localhost:3000`
+
 6. If missing:
    - Click **Add URI**
-   - Paste the URI above
+   - Paste the URIs above
    - Click **Save**
+
+**Note:** The post-logout redirect URI must be registered for the logout flow to work properly. Without it, users will see an Azure AD error after signing out.
 
 #### Check API Permissions
 
@@ -155,6 +176,31 @@ While logs are streaming:
 2. Wait 30-60 seconds and retry
 3. If persists, check `DATABASE_URL` environment variable
 4. Verify Azure SQL firewall rules allow Container App connections
+
+### Logout Not Working - Immediately Re-authenticated
+
+**Symptom:** Clicking "Sign out" redirects back to dashboard without signing out
+
+**Cause:** The logout flow was redirecting directly to `/api/auth/login` instead of Azure AD's logout endpoint, which meant the Azure AD SSO session was never cleared
+
+**Solution:**
+This has been fixed in the latest version. The logout flow now:
+1. Deletes the application session
+2. Redirects to Azure AD logout endpoint
+3. Azure AD clears the SSO session
+4. Azure AD redirects back to app root
+5. Middleware detects no session and redirects to login
+
+**Required Azure AD Configuration:**
+- Post-logout redirect URI must be registered (see "Verify Redirect URI" section above)
+- Must be the base URL (e.g., `https://your-app.com` or `http://localhost:3000`)
+- Do NOT include `/api/auth/login` or other paths
+
+**Testing:**
+1. Click "Sign out" in user menu
+2. You should briefly see Azure AD logout page
+3. You'll be redirected to app root, then to Azure AD login
+4. You must re-enter credentials to sign in
 
 ## Testing After Fixes
 

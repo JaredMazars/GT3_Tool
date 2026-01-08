@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { deleteSession, deleteAllUserSessions, verifySession } from '@/lib/services/auth/auth';
+import { deleteSession, deleteAllUserSessions, verifySession, getLogoutUrl } from '@/lib/services/auth/auth';
 import { clearRateLimitsForIdentifier, getClientIdentifier, enforceRateLimit, RateLimitPresets } from '@/lib/utils/rateLimit';
 import { logInfo } from '@/lib/utils/logger';
 
@@ -40,15 +40,20 @@ export async function GET(request: NextRequest) {
   const clientIdentifier = getClientIdentifier(request);
   clearRateLimitsForIdentifier(clientIdentifier);
   
-  // Redirect to signin page instead of Azure AD logout
-  // This keeps the user's Azure AD session active but clears app session
-  const response = NextResponse.redirect(new URL('/auth/signin', request.url));
+  // Redirect to Azure AD logout, which will clear SSO session and redirect back to app root
+  // Middleware will then redirect unauthenticated users to Azure AD login
+  const postLogoutRedirectUri = process.env.NEXTAUTH_URL!;
+  const azureLogoutUrl = getLogoutUrl(postLogoutRedirectUri);
+  const response = NextResponse.redirect(azureLogoutUrl);
   
-  // Delete session cookie with all the same options it was set with
-  response.cookies.delete('session');
+  // Delete session cookie using direct Set-Cookie headers for reliability
+  const nodeEnv = process.env.NODE_ENV;
+  const isProduction = nodeEnv === 'production';
+  const sessionCookieHeader = `session=; Path=/; HttpOnly; SameSite=Lax${isProduction ? '; Secure' : ''}; Max-Age=0`;
+  const callbackCookieHeader = `auth_callback_url=; Path=/; HttpOnly; SameSite=Lax${isProduction ? '; Secure' : ''}; Max-Age=0`;
   
-  // Also clear the auth callback URL cookie if it exists
-  response.cookies.delete('auth_callback_url');
+  response.headers.append('Set-Cookie', sessionCookieHeader);
+  response.headers.append('Set-Cookie', callbackCookieHeader);
   
   // Add cache control headers to prevent caching
   response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -81,18 +86,24 @@ export async function POST(request: NextRequest) {
   const clientIdentifier = getClientIdentifier(request);
   clearRateLimitsForIdentifier(clientIdentifier);
   
-  // Return signin page URL instead of Azure AD logout
+  // Return Azure AD logout URL which will clear SSO session and redirect back to app root
+  // Middleware will then redirect unauthenticated users to Azure AD login
+  const postLogoutRedirectUri = process.env.NEXTAUTH_URL!;
+  const azureLogoutUrl = getLogoutUrl(postLogoutRedirectUri);
   const response = NextResponse.json({ 
     success: true, 
     message: 'Logged out successfully',
-    logoutUrl: '/auth/signin'
+    logoutUrl: azureLogoutUrl
   });
   
-  // Delete session cookie with all the same options it was set with
-  response.cookies.delete('session');
+  // Delete session cookie using direct Set-Cookie headers for reliability
+  const nodeEnv = process.env.NODE_ENV;
+  const isProduction = nodeEnv === 'production';
+  const sessionCookieHeader = `session=; Path=/; HttpOnly; SameSite=Lax${isProduction ? '; Secure' : ''}; Max-Age=0`;
+  const callbackCookieHeader = `auth_callback_url=; Path=/; HttpOnly; SameSite=Lax${isProduction ? '; Secure' : ''}; Max-Age=0`;
   
-  // Also clear the auth callback URL cookie if it exists
-  response.cookies.delete('auth_callback_url');
+  response.headers.append('Set-Cookie', sessionCookieHeader);
+  response.headers.append('Set-Cookie', callbackCookieHeader);
   
   // Add cache control headers to prevent caching
   response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');

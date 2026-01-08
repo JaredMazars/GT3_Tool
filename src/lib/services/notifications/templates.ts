@@ -250,5 +250,86 @@ export function createSystemRoleChangedNotification(
   };
 }
 
+/**
+ * Create client partner/manager change request notification (to proposed person)
+ * This is sent to the person being proposed as the new partner/manager
+ */
+export function createPartnerManagerChangeRequestNotification(
+  changeType: 'PARTNER' | 'MANAGER',
+  clientName: string,
+  clientCode: string,
+  requestedByName: string,
+  reason: string | null,
+  requestId: number
+): NotificationTemplate {
+  const roleLabel = changeType === 'PARTNER' ? 'Client Partner' : 'Client Manager';
+  return {
+    title: `${roleLabel} Change Request`,
+    message: `${requestedByName} has requested to assign you as ${roleLabel} for ${clientName} (${clientCode}).${reason ? ` Reason: ${reason}` : ''}`,
+    actionUrl: `/change-requests/${requestId}`,
+  };
+}
+
+/**
+ * Create client partner/manager change info notification (to current person)
+ * This is sent to the current partner/manager for informational purposes
+ */
+export function createPartnerManagerChangeInfoNotification(
+  changeType: 'PARTNER' | 'MANAGER',
+  clientName: string,
+  clientCode: string,
+  requestedByName: string,
+  proposedEmployeeName: string
+): NotificationTemplate {
+  const roleLabel = changeType === 'PARTNER' ? 'Client Partner' : 'Client Manager';
+  return {
+    title: `${roleLabel} Change Requested`,
+    message: `${requestedByName} has requested to change the ${roleLabel} for ${clientName} (${clientCode}) from you to ${proposedEmployeeName}.`,
+    actionUrl: ROUTES.DASHBOARD.ROOT,
+  };
+}
+
+/**
+ * Create change request approved notification (to requester)
+ */
+export function createChangeRequestApprovedNotification(
+  changeType: 'PARTNER' | 'MANAGER',
+  clientName: string,
+  clientCode: string,
+  approvedByName: string,
+  clientId: string,
+  serviceLine?: string,
+  subServiceLineGroup?: string
+): NotificationTemplate {
+  const roleLabel = changeType === 'PARTNER' ? 'Client Partner' : 'Client Manager';
+  const clientUrl = serviceLine && subServiceLineGroup 
+    ? `/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${clientId}`
+    : ROUTES.DASHBOARD.ROOT;
+    
+  return {
+    title: `${roleLabel} Change Approved`,
+    message: `${approvedByName} approved your request to change the ${roleLabel} for ${clientName} (${clientCode}). The client record has been updated.`,
+    actionUrl: clientUrl,
+  };
+}
+
+/**
+ * Create change request rejected notification (to requester)
+ */
+export function createChangeRequestRejectedNotification(
+  changeType: 'PARTNER' | 'MANAGER',
+  clientName: string,
+  clientCode: string,
+  rejectedByName: string,
+  comment: string | null
+): NotificationTemplate {
+  const roleLabel = changeType === 'PARTNER' ? 'Client Partner' : 'Client Manager';
+  return {
+    title: `${roleLabel} Change Rejected`,
+    message: `${rejectedByName} declined your request to change the ${roleLabel} for ${clientName} (${clientCode}).${comment ? ` Comment: ${comment}` : ''}`,
+    actionUrl: ROUTES.DASHBOARD.ROOT,
+  };
+}
+
 
 

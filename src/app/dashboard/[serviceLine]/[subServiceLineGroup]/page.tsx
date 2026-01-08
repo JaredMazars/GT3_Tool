@@ -38,7 +38,12 @@ import { ClientPlannerList } from '@/components/features/planning/ClientPlannerL
 import { MyReportsView } from '@/components/features/reports/MyReportsView';
 import type { EmployeePlannerFilters as EmployeePlannerFiltersType, ClientPlannerFilters as ClientPlannerFiltersType } from '@/components/features/planning';
 import { EmployeeStatusBadge } from '@/components/shared/EmployeeStatusBadge';
+import { ClickableEmployeeBadge } from '@/components/shared/ClickableEmployeeBadge';
+import { ChangePartnerManagerModal } from '@/components/features/clients/ChangePartnerManagerModal';
 import { useSubServiceLineUsers } from '@/hooks/service-lines/useSubServiceLineUsers';
+import { useCurrentUser } from '@/hooks/auth/usePermissions';
+import { useQuery } from '@tanstack/react-query';
+import { hasServiceLineRole } from '@/lib/utils/roleHierarchy';
 import { useEmployeePlanner } from '@/hooks/planning/useEmployeePlanner';
 import { TaskWorkflowStatus } from '@/components/features/tasks/TaskWorkflowStatus';
 import { GanttTimeline } from '@/components/features/tasks/TeamPlanner';
@@ -115,6 +120,17 @@ export default function SubServiceLineWorkspacePage() {
     taskCategories: []
   });
   
+  // Change request modal state
+  const [changeModalState, setChangeModalState] = useState<{
+    isOpen: boolean;
+    clientId: number;
+    clientName: string;
+    clientCode: string;
+    changeType: 'PARTNER' | 'MANAGER';
+    currentEmployeeCode: string;
+    currentEmployeeName: string;
+  } | null>(null);
+
   // Client planner filters (array-based for multiselect)
   const [clientPlannerFilters, setClientPlannerFilters] = useState<ClientPlannerFiltersType>({
     clients: [],
@@ -133,6 +149,29 @@ export default function SubServiceLineWorkspacePage() {
   // Find the current sub-service line group to get its description
   const currentSubGroup = subGroups?.find(sg => sg.code === subServiceLineGroup);
   const subServiceLineGroupDescription = currentSubGroup?.description || subServiceLineGroup;
+
+  // Fetch current user and roles for change request feature
+  const { data: currentUser } = useCurrentUser();
+  const { data: userRoles } = useQuery({
+    queryKey: ['user-service-line-roles', currentUser?.id],
+    queryFn: async () => {
+      if (!currentUser?.id) return [];
+      const response = await fetch('/api/service-lines/user-roles');
+      if (!response.ok) throw new Error('Failed to fetch user roles');
+      const result = await response.json();
+      return result.data as { role: string }[];
+    },
+    enabled: !!currentUser?.id,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  // Check if user has MANAGER+ role for change requests
+  const hasManagerRole = useMemo(() => {
+    if (!currentUser) return false;
+    if (currentUser.systemRole === 'SYSTEM_ADMIN') return true;
+    if (!userRoles || userRoles.length === 0) return false;
+    return userRoles.some(({ role }) => hasServiceLineRole(role, 'MANAGER'));
+  }, [currentUser, userRoles]);
 
   // Debounce search input (500ms to reduce unnecessary API calls)
   useEffect(() => {
@@ -1133,23 +1172,47 @@ export default function SubServiceLineWorkspacePage() {
                           </td>
                           <td className="px-3 py-3">
                             <div className="text-center">
-                              <EmployeeStatusBadge
+                              <ClickableEmployeeBadge
                                 name={client.clientPartnerName || '-'}
                                 isActive={client.clientPartnerStatus?.isActive ?? false}
                                 hasUserAccount={client.clientPartnerStatus?.hasUserAccount ?? false}
                                 variant="text"
                                 iconSize="sm"
+                                clickable={hasManagerRole}
+                                onClick={() => {
+                                  setChangeModalState({
+                                    isOpen: true,
+                                    clientId: client.id,
+                                    clientName: client.clientNameFull || client.clientCode,
+                                    clientCode: client.clientCode,
+                                    changeType: 'PARTNER',
+                                    currentEmployeeCode: client.clientPartner,
+                                    currentEmployeeName: client.clientPartnerName || client.clientPartner,
+                                  });
+                                }}
                               />
                             </div>
                           </td>
                           <td className="px-3 py-3">
                             <div className="text-center">
-                              <EmployeeStatusBadge
+                              <ClickableEmployeeBadge
                                 name={client.clientManagerName || '-'}
                                 isActive={client.clientManagerStatus?.isActive ?? false}
                                 hasUserAccount={client.clientManagerStatus?.hasUserAccount ?? false}
                                 variant="text"
                                 iconSize="sm"
+                                clickable={hasManagerRole}
+                                onClick={() => {
+                                  setChangeModalState({
+                                    isOpen: true,
+                                    clientId: client.id,
+                                    clientName: client.clientNameFull || client.clientCode,
+                                    clientCode: client.clientCode,
+                                    changeType: 'MANAGER',
+                                    currentEmployeeCode: client.clientManager,
+                                    currentEmployeeName: client.clientManagerName || client.clientManager,
+                                  });
+                                }}
                               />
                             </div>
                           </td>
@@ -1506,6 +1569,24 @@ export default function SubServiceLineWorkspacePage() {
           </div>
         </div>
       </div>
+
+      {/* Change Partner/Manager Modal */}
+      {changeModalState && (
+        <ChangePartnerManagerModal
+          isOpen={changeModalState.isOpen}
+          onClose={() => setChangeModalState(null)}
+          clientId={changeModalState.clientId}
+          clientName={changeModalState.clientName}
+          clientCode={changeModalState.clientCode}
+          changeType={changeModalState.changeType}
+          currentEmployeeCode={changeModalState.currentEmployeeCode}
+          currentEmployeeName={changeModalState.currentEmployeeName}
+          onSuccess={() => {
+            // Invalidate clients cache to refresh the list
+            queryClient.invalidateQueries({ queryKey: ['clients'] });
+          }}
+        />
+      )}
     </div>
   );
 }

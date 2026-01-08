@@ -140,7 +140,13 @@ export async function GET(request: NextRequest) {
     });
     
     // Clear callback URL cookie
-    response.cookies.delete('auth_callback_url');
+    response.cookies.set('auth_callback_url', '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      expires: new Date(0),
+    });
     
     return response;
   } catch (error) {

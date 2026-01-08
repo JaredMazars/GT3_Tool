@@ -7,6 +7,7 @@ import {
   useDeleteAllRead 
 } from '@/hooks/notifications/useNotifications';
 import { NotificationItem } from '@/components/features/notifications/NotificationItem';
+import { ApproveChangeRequestModal } from '@/components/features/clients/ApproveChangeRequestModal';
 import { Check, Trash2 } from 'lucide-react';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 
@@ -16,6 +17,7 @@ export default function NotificationsPage() {
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 20;
+  const [modalRequestId, setModalRequestId] = useState<number | null>(null);
 
   // Modal state
   const [confirmModal, setConfirmModal] = useState<{
@@ -184,6 +186,7 @@ export default function NotificationsPage() {
                     key={notification.id}
                     notification={notification}
                     compact={false}
+                    onOpenChangeRequestModal={setModalRequestId}
                   />
                 ))}
               </div>
@@ -233,6 +236,15 @@ export default function NotificationsPage() {
         message={confirmModal.message}
         variant={confirmModal.variant}
       />
+
+      {/* Change Request Modal */}
+      {modalRequestId && (
+        <ApproveChangeRequestModal
+          isOpen={modalRequestId !== null}
+          onClose={() => setModalRequestId(null)}
+          requestId={modalRequestId}
+        />
+      )}
     </div>
   );
 }

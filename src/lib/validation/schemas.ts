@@ -1395,4 +1395,26 @@ export type CreateReviewCategoryInput = z.infer<typeof CreateReviewCategorySchem
 export type UpdateReviewCategoryInput = z.infer<typeof UpdateReviewCategorySchema>;
 export type ReviewNoteReportFilterInput = z.infer<typeof ReviewNoteReportFilterSchema>;
 
+// =============================================================================
+// Client Partner/Manager Change Request Schemas
+// =============================================================================
+
+// Create change request schema
+export const CreateChangeRequestSchema = z.object({
+  changeType: z.enum(['PARTNER', 'MANAGER'], {
+    errorMap: () => ({ message: 'Change type must be either PARTNER or MANAGER' }),
+  }),
+  proposedEmployeeCode: safeIdentifier(10, 1),
+  reason: safeString(500).optional(),
+}).strict();
+
+// Resolve change request schema (approve/reject)
+export const ResolveChangeRequestSchema = z.object({
+  comment: safeString(500).optional(),
+}).strict();
+
+// Inferred types
+export type CreateChangeRequestInput = z.infer<typeof CreateChangeRequestSchema>;
+export type ResolveChangeRequestInput = z.infer<typeof ResolveChangeRequestSchema>;
+
 
