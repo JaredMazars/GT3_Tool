@@ -12,7 +12,7 @@ interface NotificationDropdownProps {
 }
 
 export function NotificationDropdown({ onClose, onOpenChangeRequestModal }: NotificationDropdownProps) {
-  const { data, isLoading } = useNotifications({ pageSize: 5 });
+  const { data, isLoading } = useNotifications({ pageSize: 5, readStatus: 'unread' });
   const markAllAsRead = useMarkAllAsRead();
 
   const handleMarkAllAsRead = async () => {

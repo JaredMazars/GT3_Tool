@@ -10,6 +10,8 @@ const NotificationQuerySchema = z.object({
   pageSize: z.coerce.number().int().positive().max(100).default(20),
   isRead: z.enum(['true', 'false']).transform(v => v === 'true').optional(),
   taskId: z.coerce.number().int().positive().optional(),
+  types: z.string().optional().transform(val => val ? val.split(',').filter(Boolean) : undefined),
+  readStatus: z.enum(['all', 'unread', 'read']).optional(),
 }).strict();
 
 /**
@@ -25,6 +27,8 @@ export const GET = secureRoute.query({
       pageSize: searchParams.get('pageSize') ?? undefined,
       isRead: searchParams.get('isRead') ?? undefined,
       taskId: searchParams.get('taskId') ?? undefined,
+      types: searchParams.get('types') ?? undefined,
+      readStatus: searchParams.get('readStatus') ?? undefined,
     });
 
     const response = await notificationService.getUserNotifications(user.id, {
@@ -32,6 +36,8 @@ export const GET = secureRoute.query({
       pageSize: queryParams.pageSize,
       isRead: queryParams.isRead,
       taskId: queryParams.taskId,
+      types: queryParams.types,
+      readStatus: queryParams.readStatus,
     });
 
     return NextResponse.json(successResponse(response));

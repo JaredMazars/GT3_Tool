@@ -70,16 +70,25 @@ export class NotificationService {
         userId: string;
         isRead?: boolean;
         taskId?: number;
+        type?: { in: string[] };
       } = {
         userId,
       };
 
-      if (filters.isRead !== undefined) {
+      // Handle readStatus filter (takes precedence over isRead if provided)
+      if (filters.readStatus !== undefined && filters.readStatus !== 'all') {
+        where.isRead = filters.readStatus === 'read';
+      } else if (filters.isRead !== undefined) {
         where.isRead = filters.isRead;
       }
 
       if (filters.taskId !== undefined) {
         where.taskId = filters.taskId;
+      }
+
+      // Filter by notification types
+      if (filters.types && filters.types.length > 0) {
+        where.type = { in: filters.types };
       }
 
       // Get notifications with user and task details

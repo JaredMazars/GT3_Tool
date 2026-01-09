@@ -187,6 +187,11 @@ export function useApproveChangeRequest() {
       queryClient.invalidateQueries({
         queryKey: clientKeys.all,
       });
+
+      // Invalidate approvals to refresh the approvals list
+      queryClient.invalidateQueries({
+        queryKey: ['approvals'],
+      });
     },
   });
 }
@@ -230,6 +235,11 @@ export function useRejectChangeRequest() {
 
       queryClient.invalidateQueries({
         queryKey: changeRequestKeys.all,
+      });
+
+      // Invalidate approvals to refresh the approvals list
+      queryClient.invalidateQueries({
+        queryKey: ['approvals'],
       });
     },
   });

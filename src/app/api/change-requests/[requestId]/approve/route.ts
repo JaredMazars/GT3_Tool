@@ -6,6 +6,7 @@ import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { approveChangeRequest } from '@/lib/services/clients/changeRequestService';
 import { invalidateClientCache } from '@/lib/services/clients/clientCache';
 import { invalidateClientListCache } from '@/lib/services/cache/listCache';
+import { invalidateApprovalsCache } from '@/lib/services/cache/cacheInvalidation';
 
 /**
  * PATCH /api/change-requests/[requestId]/approve
@@ -31,6 +32,7 @@ export const PATCH = secureRoute.mutationWithParams<typeof ResolveChangeRequestS
     await Promise.all([
       invalidateClientCache(changeRequest.Client?.GSClientID ?? ''),
       invalidateClientListCache(),
+      invalidateApprovalsCache(),
     ]);
 
     return NextResponse.json(

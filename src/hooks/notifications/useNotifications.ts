@@ -3,8 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   NotificationFilters, 
-  NotificationResponse, 
-  InAppNotificationWithUser,
+  NotificationResponse,
   SendMessageData 
 } from '@/types/notification';
 
@@ -30,6 +29,8 @@ export function useNotifications(filters: NotificationFilters = {}) {
       if (filters.pageSize) params.append('pageSize', filters.pageSize.toString());
       if (filters.isRead !== undefined) params.append('isRead', filters.isRead.toString());
       if (filters.taskId) params.append('taskId', filters.taskId.toString());
+      if (filters.types && filters.types.length > 0) params.append('types', filters.types.join(','));
+      if (filters.readStatus) params.append('readStatus', filters.readStatus);
 
       const response = await fetch(`/api/notifications?${params.toString()}`);
       if (!response.ok) throw new Error('Failed to fetch notifications');

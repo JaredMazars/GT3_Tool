@@ -10,7 +10,7 @@ import {
 } from '@/lib/services/notifications/templates';
 import type { CreateChangeRequestInput, ResolveChangeRequestInput } from '@/lib/validation/schemas';
 
-export type ChangeRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type ChangeRequestStatus = 'PENDING' | 'PARTIALLY_APPROVED' | 'APPROVED' | 'REJECTED';
 export type ChangeType = 'PARTNER' | 'MANAGER';
 
 export interface ChangeRequest {
@@ -28,6 +28,11 @@ export interface ChangeRequest {
   resolvedById: string | null;
   resolvedAt: Date | null;
   resolutionComment: string | null;
+  requiresDualApproval: boolean;
+  currentEmployeeApprovedAt: Date | null;
+  currentEmployeeApprovedById: string | null;
+  proposedEmployeeApprovedAt: Date | null;
+  proposedEmployeeApprovedById: string | null;
   Client?: {
     clientCode: string;
     clientNameFull: string | null;
@@ -37,6 +42,12 @@ export interface ChangeRequest {
     name: string | null;
   };
   ResolvedBy?: {
+    name: string | null;
+  };
+  CurrentApprover?: {
+    name: string | null;
+  };
+  ProposedApprover?: {
     name: string | null;
   };
 }
@@ -154,8 +165,12 @@ export async function createChangeRequest(
         EmpCode: true,
         EmpName: true,
         WinLogon: true,
+        Active: true,
       },
     });
+
+    // Determine if dual approval is required based on current employee's active status
+    const requiresDualApproval = currentEmployee?.Active === 'Yes';
 
     // Find current employee's user account (optional - they might not have one)
     const currentUser = currentEmployee?.WinLogon
@@ -185,6 +200,7 @@ export async function createChangeRequest(
         reason: data.reason ?? null,
         status: 'PENDING',
         requestedById,
+        requiresDualApproval,
       },
       include: {
         Client: {
@@ -221,25 +237,48 @@ export async function createChangeRequest(
       requestedById
     );
 
-    // 2. To current employee (informational) - only if they have a user account
+    // 2. To current employee
     if (currentEmployee && currentUser) {
-      const currentNotification = createPartnerManagerChangeInfoNotification(
-        data.changeType,
-        client.clientNameFull || client.clientCode,
-        client.clientCode,
-        requester?.name || 'A user',
-        proposedEmployee.EmpName
-      );
+      if (requiresDualApproval) {
+        // Send actionable approval request to current employee
+        const currentNotification = createPartnerManagerChangeRequestNotification(
+          data.changeType,
+          client.clientNameFull || client.clientCode,
+          client.clientCode,
+          requester?.name || 'A user',
+          data.reason ?? null,
+          changeRequest.id
+        );
 
-      await notificationService.createNotification(
-        currentUser.id,
-        'PARTNER_MANAGER_CHANGE_INFO',
-        currentNotification.title,
-        currentNotification.message,
-        undefined, // taskId
-        currentNotification.actionUrl,
-        requestedById
-      );
+        await notificationService.createNotification(
+          currentUser.id,
+          'PARTNER_MANAGER_CHANGE_REQUEST',
+          currentNotification.title,
+          currentNotification.message,
+          undefined, // taskId
+          currentNotification.actionUrl,
+          requestedById
+        );
+      } else {
+        // Send informational notification to current employee (not active)
+        const currentNotification = createPartnerManagerChangeInfoNotification(
+          data.changeType,
+          client.clientNameFull || client.clientCode,
+          client.clientCode,
+          requester?.name || 'A user',
+          proposedEmployee.EmpName
+        );
+
+        await notificationService.createNotification(
+          currentUser.id,
+          'PARTNER_MANAGER_CHANGE_INFO',
+          currentNotification.title,
+          currentNotification.message,
+          undefined, // taskId
+          currentNotification.actionUrl,
+          requestedById
+        );
+      }
     }
 
     logger.info('Change request created', {
@@ -293,6 +332,12 @@ export async function getChangeRequests(
         ResolvedBy: {
           select: { name: true },
         },
+        CurrentApprover: {
+          select: { name: true },
+        },
+        ProposedApprover: {
+          select: { name: true },
+        },
       },
       orderBy: { requestedAt: 'desc' },
       skip,
@@ -340,7 +385,7 @@ export async function approveChangeRequest(
       throw new AppError(404, 'Change request not found', ErrorCodes.NOT_FOUND);
     }
 
-    if (request.status !== 'PENDING') {
+    if (request.status !== 'PENDING' && request.status !== 'PARTIALLY_APPROVED') {
       throw new AppError(
         400,
         'Change request has already been resolved',
@@ -348,20 +393,32 @@ export async function approveChangeRequest(
       );
     }
 
-    // Verify authorization - user must be the proposed employee or SYSTEM_ADMIN
+    // Get user details
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { role: true, name: true, email: true },
     });
 
-    const employee = await prisma.employee.findFirst({
+    if (!user) {
+      throw new AppError(404, 'User not found', ErrorCodes.NOT_FOUND);
+    }
+
+    // Verify authorization - user must be EITHER current OR proposed employee or SYSTEM_ADMIN
+    const isCurrentEmployee = await prisma.employee.findFirst({
       where: {
-        EmpCode: request.proposedEmployeeCode,
-        WinLogon: user?.email,
+        EmpCode: request.currentEmployeeCode,
+        WinLogon: user.email,
       },
     });
 
-    if (!employee && user?.role !== 'SYSTEM_ADMIN') {
+    const isProposedEmployee = await prisma.employee.findFirst({
+      where: {
+        EmpCode: request.proposedEmployeeCode,
+        WinLogon: user.email,
+      },
+    });
+
+    if (!isCurrentEmployee && !isProposedEmployee && user.role !== 'SYSTEM_ADMIN') {
       throw new AppError(
         403,
         'You are not authorized to approve this request',
@@ -369,15 +426,100 @@ export async function approveChangeRequest(
       );
     }
 
-    // Update request and client in a transaction
-    const [updatedRequest] = await prisma.$transaction([
-      prisma.clientPartnerManagerChangeRequest.update({
+    // Determine which role the user is approving as
+    const approvingAsCurrent = !!isCurrentEmployee;
+    const approvingAsProposed = !!isProposedEmployee;
+
+    // Check if user has already approved
+    if (approvingAsCurrent && request.currentEmployeeApprovedAt) {
+      throw new AppError(
+        400,
+        'You have already approved this request',
+        ErrorCodes.VALIDATION_ERROR
+      );
+    }
+
+    if (approvingAsProposed && request.proposedEmployeeApprovedAt) {
+      throw new AppError(
+        400,
+        'You have already approved this request',
+        ErrorCodes.VALIDATION_ERROR
+      );
+    }
+
+    const now = new Date();
+    
+    // Determine if this is the final approval
+    const isFirstApproval = !request.currentEmployeeApprovedAt && !request.proposedEmployeeApprovedAt;
+    const isSecondApproval = !isFirstApproval;
+
+    let updatedRequest: ChangeRequest;
+
+    if (!request.requiresDualApproval) {
+      // Single approval mode - apply change immediately
+      const [changeRequest] = await prisma.$transaction([
+        prisma.clientPartnerManagerChangeRequest.update({
+          where: { id: requestId },
+          data: {
+            status: 'APPROVED',
+            resolvedById: userId,
+            resolvedAt: now,
+            resolutionComment: data?.comment ?? null,
+            ...(approvingAsProposed && {
+              proposedEmployeeApprovedAt: now,
+              proposedEmployeeApprovedById: userId,
+            }),
+            ...(approvingAsCurrent && {
+              currentEmployeeApprovedAt: now,
+              currentEmployeeApprovedById: userId,
+            }),
+          },
+          include: {
+            Client: {
+              select: {
+                clientCode: true,
+                clientNameFull: true,
+                GSClientID: true,
+              },
+            },
+            RequestedBy: {
+              select: { name: true },
+            },
+            ResolvedBy: {
+              select: { name: true },
+            },
+            CurrentApprover: {
+              select: { name: true },
+            },
+            ProposedApprover: {
+              select: { name: true },
+            },
+          },
+        }),
+        prisma.client.update({
+          where: { id: request.Client.id },
+          data:
+            request.changeType === 'PARTNER'
+              ? { clientPartner: request.proposedEmployeeCode }
+              : { clientManager: request.proposedEmployeeCode },
+        }),
+      ]);
+
+      updatedRequest = changeRequest as ChangeRequest;
+    } else if (isFirstApproval) {
+      // First approval in dual approval mode
+      updatedRequest = (await prisma.clientPartnerManagerChangeRequest.update({
         where: { id: requestId },
         data: {
-          status: 'APPROVED',
-          resolvedById: userId,
-          resolvedAt: new Date(),
-          resolutionComment: data?.comment ?? null,
+          status: 'PARTIALLY_APPROVED',
+          ...(approvingAsProposed && {
+            proposedEmployeeApprovedAt: now,
+            proposedEmployeeApprovedById: userId,
+          }),
+          ...(approvingAsCurrent && {
+            currentEmployeeApprovedAt: now,
+            currentEmployeeApprovedById: userId,
+          }),
         },
         include: {
           Client: {
@@ -393,65 +535,148 @@ export async function approveChangeRequest(
           ResolvedBy: {
             select: { name: true },
           },
-        },
-      }),
-      prisma.client.update({
-        where: { id: request.Client.id },
-        data:
-          request.changeType === 'PARTNER'
-            ? { clientPartner: request.proposedEmployeeCode }
-            : { clientManager: request.proposedEmployeeCode },
-      }),
-    ]);
-
-    // Send notification to requester
-    const approvalNotification = createChangeRequestApprovedNotification(
-      request.changeType as ChangeType,
-      request.Client.clientNameFull || request.Client.clientCode,
-      request.Client.clientCode,
-      user?.name || 'A user',
-      request.Client.GSClientID
-    );
-
-    await notificationService.createNotification(
-      request.RequestedBy.id,
-      'CHANGE_REQUEST_APPROVED',
-      approvalNotification.title,
-      approvalNotification.message,
-      undefined, // taskId
-      approvalNotification.actionUrl ?? undefined,
-      userId
-    );
-
-    // Send notification to previous partner/manager if they have a user account
-    const previousEmployee = await prisma.employee.findFirst({
-      where: { EmpCode: request.currentEmployeeCode },
-      select: {
-        EmpCode: true,
-        WinLogon: true,
-      },
-    });
-
-    const previousUser = previousEmployee?.WinLogon
-      ? await prisma.user.findFirst({
-          where: { 
-            email: previousEmployee.WinLogon.toLowerCase(),
+          CurrentApprover: {
+            select: { name: true },
           },
-          select: { id: true },
-        })
-      : null;
+          ProposedApprover: {
+            select: { name: true },
+          },
+        },
+      })) as ChangeRequest;
 
-    if (previousUser) {
-      const roleLabel = request.changeType === 'PARTNER' ? 'Client Partner' : 'Client Manager';
+      // Notify the other approver
+      const otherEmployeeCode = approvingAsCurrent
+        ? request.proposedEmployeeCode
+        : request.currentEmployeeCode;
+
+      const otherEmployee = await prisma.employee.findFirst({
+        where: { EmpCode: otherEmployeeCode },
+        select: { WinLogon: true },
+      });
+
+      const otherUser = otherEmployee?.WinLogon
+        ? await prisma.user.findFirst({
+            where: { email: otherEmployee.WinLogon.toLowerCase() },
+            select: { id: true },
+          })
+        : null;
+
+      if (otherUser) {
+        const roleLabel = request.changeType === 'PARTNER' ? 'Client Partner' : 'Client Manager';
+        await notificationService.createNotification(
+          otherUser.id,
+          'PARTNER_MANAGER_CHANGE_FIRST_APPROVAL',
+          `${roleLabel} Change Request - Your Approval Needed`,
+          `${user.name || 'A user'} has approved the ${roleLabel.toLowerCase()} change request for ${request.Client.clientNameFull || request.Client.clientCode} (${request.Client.clientCode}). Your approval is now required to complete this change.`,
+          undefined, // taskId
+          `/api/change-requests/${requestId}`,
+          userId
+        );
+      }
+    } else {
+      // Second approval in dual approval mode - apply change
+      const [changeRequest] = await prisma.$transaction([
+        prisma.clientPartnerManagerChangeRequest.update({
+          where: { id: requestId },
+          data: {
+            status: 'APPROVED',
+            resolvedById: userId,
+            resolvedAt: now,
+            resolutionComment: data?.comment ?? null,
+            ...(approvingAsProposed && {
+              proposedEmployeeApprovedAt: now,
+              proposedEmployeeApprovedById: userId,
+            }),
+            ...(approvingAsCurrent && {
+              currentEmployeeApprovedAt: now,
+              currentEmployeeApprovedById: userId,
+            }),
+          },
+          include: {
+            Client: {
+              select: {
+                clientCode: true,
+                clientNameFull: true,
+                GSClientID: true,
+              },
+            },
+            RequestedBy: {
+              select: { name: true },
+            },
+            ResolvedBy: {
+              select: { name: true },
+            },
+            CurrentApprover: {
+              select: { name: true },
+            },
+            ProposedApprover: {
+              select: { name: true },
+            },
+          },
+        }),
+        prisma.client.update({
+          where: { id: request.Client.id },
+          data:
+            request.changeType === 'PARTNER'
+              ? { clientPartner: request.proposedEmployeeCode }
+              : { clientManager: request.proposedEmployeeCode },
+        }),
+      ]);
+
+      updatedRequest = changeRequest as ChangeRequest;
+    }
+
+    // Send notifications based on approval stage
+    if (!request.requiresDualApproval || isSecondApproval) {
+      // Final approval - notify requester and previous partner/manager
+      const approvalNotification = createChangeRequestApprovedNotification(
+        request.changeType as ChangeType,
+        request.Client.clientNameFull || request.Client.clientCode,
+        request.Client.clientCode,
+        user.name || 'A user',
+        request.Client.GSClientID
+      );
+
       await notificationService.createNotification(
-        previousUser.id,
-        'PARTNER_MANAGER_CHANGE_COMPLETED',
-        `${roleLabel} Change Completed`,
-        `You have been replaced as ${roleLabel} for ${request.Client.clientNameFull || request.Client.clientCode} (${request.Client.clientCode}). The new ${roleLabel.toLowerCase()} is ${request.proposedEmployeeName}.`,
+        request.RequestedBy.id,
+        'CHANGE_REQUEST_APPROVED',
+        approvalNotification.title,
+        approvalNotification.message,
         undefined, // taskId
-        undefined, // actionUrl
+        approvalNotification.actionUrl ?? undefined,
         userId
       );
+
+      // Send notification to previous partner/manager if they have a user account
+      const previousEmployee = await prisma.employee.findFirst({
+        where: { EmpCode: request.currentEmployeeCode },
+        select: {
+          EmpCode: true,
+          WinLogon: true,
+        },
+      });
+
+      const previousUser = previousEmployee?.WinLogon
+        ? await prisma.user.findFirst({
+            where: {
+              email: previousEmployee.WinLogon.toLowerCase(),
+            },
+            select: { id: true },
+          })
+        : null;
+
+      if (previousUser) {
+        const roleLabel = request.changeType === 'PARTNER' ? 'Client Partner' : 'Client Manager';
+        await notificationService.createNotification(
+          previousUser.id,
+          'PARTNER_MANAGER_CHANGE_COMPLETED',
+          `${roleLabel} Change Completed`,
+          `You have been replaced as ${roleLabel} for ${request.Client.clientNameFull || request.Client.clientCode} (${request.Client.clientCode}). The new ${roleLabel.toLowerCase()} is ${request.proposedEmployeeName}.`,
+          undefined, // taskId
+          undefined, // actionUrl
+          userId
+        );
+      }
     }
 
     logger.info('Change request approved', {
@@ -459,9 +684,13 @@ export async function approveChangeRequest(
       clientId: request.clientId,
       changeType: request.changeType,
       approvedBy: userId,
+      requiresDualApproval: request.requiresDualApproval,
+      isFirstApproval,
+      isSecondApproval,
+      finalStatus: updatedRequest.status,
     });
 
-    return updatedRequest as ChangeRequest;
+    return updatedRequest;
   } catch (error) {
     logger.error('Failed to approve change request', error);
     throw error;
@@ -500,7 +729,7 @@ export async function rejectChangeRequest(
       throw new AppError(404, 'Change request not found', ErrorCodes.NOT_FOUND);
     }
 
-    if (request.status !== 'PENDING') {
+    if (request.status !== 'PENDING' && request.status !== 'PARTIALLY_APPROVED') {
       throw new AppError(
         400,
         'Change request has already been resolved',
@@ -508,20 +737,32 @@ export async function rejectChangeRequest(
       );
     }
 
-    // Verify authorization - user must be the proposed employee or SYSTEM_ADMIN
+    // Get user details
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { role: true, name: true, email: true },
     });
 
-    const employee = await prisma.employee.findFirst({
+    if (!user) {
+      throw new AppError(404, 'User not found', ErrorCodes.NOT_FOUND);
+    }
+
+    // Verify authorization - user must be EITHER current OR proposed employee or SYSTEM_ADMIN
+    const isCurrentEmployee = await prisma.employee.findFirst({
       where: {
-        EmpCode: request.proposedEmployeeCode,
-        WinLogon: user?.email,
+        EmpCode: request.currentEmployeeCode,
+        WinLogon: user.email,
       },
     });
 
-    if (!employee && user?.role !== 'SYSTEM_ADMIN') {
+    const isProposedEmployee = await prisma.employee.findFirst({
+      where: {
+        EmpCode: request.proposedEmployeeCode,
+        WinLogon: user.email,
+      },
+    });
+
+    if (!isCurrentEmployee && !isProposedEmployee && user.role !== 'SYSTEM_ADMIN') {
       throw new AppError(
         403,
         'You are not authorized to reject this request',
@@ -550,6 +791,12 @@ export async function rejectChangeRequest(
           select: { name: true },
         },
         ResolvedBy: {
+          select: { name: true },
+        },
+        CurrentApprover: {
+          select: { name: true },
+        },
+        ProposedApprover: {
           select: { name: true },
         },
       },

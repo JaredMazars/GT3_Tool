@@ -11,6 +11,7 @@ Next.js 14 (App Router) | TypeScript (strict) | Prisma | React Query | Azure Ope
 - Styling: See `.cursor/rules/forvis-design-rules.mdc`
 - AI: See `.cursor/rules/ai-patterns.mdc`
 - Blob Storage: See `.cursor/rules/blob-storage-rules.mdc`
+- Approval System: See `.cursor/rules/approval-system-rules.mdc`
 
 ## TypeScript
 
@@ -253,10 +254,11 @@ const { isViewOnly, canEdit } = usePageAccess();
 
 **Cache Invalidation (after mutations):**
 ```typescript
-import { invalidateOnTaskMutation, invalidateOnClientMutation } from '@/lib/services/cache/cacheInvalidation';
+import { invalidateOnTaskMutation, invalidateOnClientMutation, invalidateApprovalsCache } from '@/lib/services/cache/cacheInvalidation';
 
 await invalidateOnTaskMutation(taskId, serviceLine, subServiceLineGroup);
 await invalidateOnClientMutation(clientId);
+await invalidateApprovalsCache(); // After approval mutations
 ```
 
 ### Logging
@@ -285,6 +287,31 @@ Codes: `VALIDATION_ERROR`, `NOT_FOUND`, `FORBIDDEN`, `UNAUTHORIZED`
 - Check unique constraints before insert to prevent race condition errors
 - Timezone: store/return UTC, convert on frontend
 - Decimal precision: use `Decimal.js` for financial data, never floats
+
+## Approval System (REQUIRED)
+
+**All approval workflows MUST use the centralized approval system** (see `.cursor/rules/approval-system-rules.mdc`):
+
+```typescript
+import { approvalService } from '@/lib/services/approvals/approvalService';
+
+// Create approval when workflow needs approval
+const approval = await approvalService.createApproval({
+  workflowType: 'CHANGE_REQUEST', // or ACCEPTANCE, ENGAGEMENT_LETTER, etc.
+  workflowId: item.id,
+  title: 'Descriptive title',
+  requestedById: user.id,
+  context: { /* data for routing */ }
+});
+
+// Link back to workflow
+await prisma.yourTable.update({
+  where: { id: item.id },
+  data: { approvalId: approval.id }
+});
+```
+
+**Benefits:** Centralized logic, reusable workflows, multi-approver support, delegation, audit trail
 
 ## Code Quality
 

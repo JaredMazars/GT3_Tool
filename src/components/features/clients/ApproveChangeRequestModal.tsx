@@ -17,7 +17,18 @@ interface ChangeRequest {
   reason: string | null;
   status: string;
   requestedAt: string;
+  requiresDualApproval: boolean;
+  currentEmployeeApprovedAt: string | null;
+  currentEmployeeApprovedById: string | null;
+  proposedEmployeeApprovedAt: string | null;
+  proposedEmployeeApprovedById: string | null;
   RequestedBy: {
+    name: string | null;
+  };
+  CurrentApprover?: {
+    name: string | null;
+  };
+  ProposedApprover?: {
     name: string | null;
   };
   Client: {
@@ -47,12 +58,6 @@ export function ApproveChangeRequestModal({
   const approveRequest = useApproveChangeRequest();
   const rejectRequest = useRejectChangeRequest();
 
-  useEffect(() => {
-    if (isOpen && requestId) {
-      fetchRequest();
-    }
-  }, [isOpen, requestId]);
-
   const fetchRequest = async () => {
     try {
       setLoading(true);
@@ -71,6 +76,13 @@ export function ApproveChangeRequestModal({
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (isOpen && requestId) {
+      fetchRequest();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, requestId]);
 
   const handleApprove = async () => {
     if (!request) return;
@@ -110,7 +122,14 @@ export function ApproveChangeRequestModal({
   if (!isOpen) return null;
 
   const roleLabel = request?.changeType === 'PARTNER' ? 'Client Partner' : 'Client Manager';
-  const isResolved = request && request.status !== 'PENDING';
+  const isResolved = request && request.status !== 'PENDING' && request.status !== 'PARTIALLY_APPROVED';
+  const isPartiallyApproved = request?.status === 'PARTIALLY_APPROVED';
+  
+  // Determine if current user has already approved (check if either approval field is set)
+  const userHasApproved = !!(
+    request &&
+    ((request.currentEmployeeApprovedById) || (request.proposedEmployeeApprovedById))
+  );
 
   return (
     <div
@@ -194,6 +213,59 @@ export function ApproveChangeRequestModal({
                   </div>
                 </div>
               </div>
+
+              {/* Dual Approval Info Banner */}
+              {request.requiresDualApproval && request.status === 'PENDING' && (
+                <div className="mb-6 p-4 bg-forvis-blue-50 border border-forvis-blue-200 rounded-lg">
+                  <div className="flex items-start space-x-3">
+                    <AlertCircle className="h-5 w-5 text-forvis-blue-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-forvis-blue-900">
+                        Dual Approval Required
+                      </p>
+                      <p className="text-sm text-forvis-blue-700 mt-1">
+                        This request requires approval from both the current and proposed {roleLabel.toLowerCase()}.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Partial Approval Status */}
+              {isPartiallyApproved && (
+                <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="flex items-start space-x-3">
+                    <CheckCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-yellow-900">
+                        First Approval Received
+                      </p>
+                      <div className="mt-2 space-y-2">
+                        {request.currentEmployeeApprovedAt && (
+                          <div className="text-sm text-yellow-700">
+                            <span className="font-medium">Current {roleLabel}:</span> Approved by {request.CurrentApprover?.name || 'Unknown'} on {formatDate(request.currentEmployeeApprovedAt)}
+                          </div>
+                        )}
+                        {request.proposedEmployeeApprovedAt && (
+                          <div className="text-sm text-yellow-700">
+                            <span className="font-medium">Proposed {roleLabel}:</span> Approved by {request.ProposedApprover?.name || 'Unknown'} on {formatDate(request.proposedEmployeeApprovedAt)}
+                          </div>
+                        )}
+                        {!request.currentEmployeeApprovedAt && (
+                          <div className="text-sm text-yellow-700">
+                            <span className="font-medium">Waiting for:</span> Current {roleLabel} ({request.currentEmployeeName || request.currentEmployeeCode})
+                          </div>
+                        )}
+                        {!request.proposedEmployeeApprovedAt && (
+                          <div className="text-sm text-yellow-700">
+                            <span className="font-medium">Waiting for:</span> Proposed {roleLabel} ({request.proposedEmployeeName || request.proposedEmployeeCode})
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Request Details */}
               <div className="space-y-4 mb-6">
@@ -283,13 +355,27 @@ export function ApproveChangeRequestModal({
                   <>
                     <button
                       onClick={handleApprove}
-                      disabled={approveRequest.isPending || rejectRequest.isPending}
+                      disabled={
+                        approveRequest.isPending || 
+                        rejectRequest.isPending || 
+                        userHasApproved
+                      }
                       className="flex-1 flex items-center justify-center px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                     >
-                      {approveRequest.isPending ? (
+                      {userHasApproved ? (
+                        <>
+                          <CheckCircle className="h-5 w-5 mr-2" />
+                          You Have Approved
+                        </>
+                      ) : approveRequest.isPending ? (
                         <>
                           <LoadingSpinner size="sm" className="mr-2" />
                           Approving...
+                        </>
+                      ) : isPartiallyApproved ? (
+                        <>
+                          <CheckCircle className="h-5 w-5 mr-2" />
+                          Final Approval - Apply Change
                         </>
                       ) : (
                         <>

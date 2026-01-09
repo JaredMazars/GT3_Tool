@@ -19,6 +19,7 @@ import {
   Maximize2,
   Filter,
   FileBarChart,
+  ClipboardCheck,
 } from 'lucide-react';
 import { isValidServiceLine, formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';
 import { formatTaskStage, getTaskStageColor } from '@/lib/utils/taskStages';
@@ -29,6 +30,7 @@ import { useTasks, type TaskListItem } from '@/hooks/tasks/useTasks'; // Updated
 import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLineGroups';
 import { useClientGroups } from '@/hooks/clients/useClientGroups';
 import { useWorkspaceCounts } from '@/hooks/workspace/useWorkspaceCounts';
+import { useApprovalsCount } from '@/hooks/approvals/useApprovals';
 import { ServiceLineSelector } from '@/components/features/service-lines/ServiceLineSelector';
 import { SubServiceLineQuickNav } from '@/components/features/service-lines/SubServiceLineQuickNav';
 import { Button, LoadingSpinner, Card, MultiSelect } from '@/components/ui';
@@ -36,6 +38,7 @@ import { MyPlanningView, PlannerFilters } from '@/components/features/planning';
 import { EmployeePlannerList } from '@/components/features/planning/EmployeePlannerList';
 import { ClientPlannerList } from '@/components/features/planning/ClientPlannerList';
 import { MyReportsView } from '@/components/features/reports/MyReportsView';
+import { MyApprovalsView } from '@/components/features/approvals';
 import type { EmployeePlannerFilters as EmployeePlannerFiltersType, ClientPlannerFilters as ClientPlannerFiltersType } from '@/components/features/planning';
 import { EmployeeStatusBadge } from '@/components/shared/EmployeeStatusBadge';
 import { ClickableEmployeeBadge } from '@/components/shared/ClickableEmployeeBadge';
@@ -66,7 +69,7 @@ export default function SubServiceLineWorkspacePage() {
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [currentUserSubGroupRole, setCurrentUserSubGroupRole] = useState<string>('VIEWER');
   
-  const [activeTab, setActiveTab] = useState<'groups' | 'clients' | 'tasks' | 'planner' | 'my-tasks' | 'my-planning' | 'my-reports'>('clients');
+  const [activeTab, setActiveTab] = useState<'groups' | 'clients' | 'tasks' | 'planner' | 'my-tasks' | 'my-planning' | 'my-reports' | 'my-approvals'>('clients');
   const [searchTerm, setSearchTerm] = useState(''); // Only used for tasks tab
   const [debouncedSearch, setDebouncedSearch] = useState(''); // Only used for tasks tab
   const [currentPage, setCurrentPage] = useState(1);
@@ -211,7 +214,7 @@ export default function SubServiceLineWorkspacePage() {
   // Handle tab query parameter for navigation from Quick Nav
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab && (tab === 'groups' || tab === 'clients' || tab === 'tasks' || tab === 'planner' || tab === 'my-tasks' || tab === 'my-planning' || tab === 'my-reports')) {
+    if (tab && (tab === 'groups' || tab === 'clients' || tab === 'tasks' || tab === 'planner' || tab === 'my-tasks' || tab === 'my-planning' || tab === 'my-reports' || tab === 'my-approvals')) {
       setActiveTab(tab);
     }
   }, [searchParams]);
@@ -372,6 +375,9 @@ export default function SubServiceLineWorkspacePage() {
     subServiceLineGroup: subServiceLineGroup || '',
     enabled: !!serviceLine && !!subServiceLineGroup,
   });
+
+  // Fetch approvals count for badge
+  const { data: approvalsCount, isLoading: isLoadingApprovalsCount } = useApprovalsCount();
   
   const isLoading = activeTab === 'clients' ? isLoadingClients : activeTab === 'tasks' ? isLoadingTasks : activeTab === 'my-tasks' ? isLoadingMyTasks : activeTab === 'groups' ? isLoadingGroups : activeTab === 'planner' ? isLoadingPlannerUsers : false;
   const isFetching = activeTab === 'clients' ? false : activeTab === 'tasks' ? isFetchingTasks : activeTab === 'my-tasks' ? isFetchingMyTasks : activeTab === 'groups' ? isFetchingGroups : false;
@@ -806,6 +812,32 @@ export default function SubServiceLineWorkspacePage() {
                       <span>My Reports</span>
                     </div>
                   </button>
+                  <button
+                    onClick={() => setActiveTab('my-approvals')}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 ${
+                      activeTab === 'my-approvals'
+                        ? 'shadow-sm'
+                        : 'text-white hover:bg-white/20'
+                    }`}
+                    style={activeTab === 'my-approvals' ? { 
+                      background: 'linear-gradient(135deg, #D9CBA8 0%, #B0A488 100%)',
+                      color: 'white'
+                    } : {}}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <ClipboardCheck className="h-4 w-4" />
+                      <span>My Approvals</span>
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          activeTab === 'my-approvals'
+                            ? 'bg-white/30 text-white'
+                            : 'bg-white/20 text-white'
+                        }`}
+                      >
+                        {isLoadingApprovalsCount ? '...' : (approvalsCount ?? 0)}
+                      </span>
+                    </div>
+                  </button>
                   <SubServiceLineQuickNav />
                 </nav>
               </div>
@@ -955,6 +987,9 @@ export default function SubServiceLineWorkspacePage() {
           ) : activeTab === 'my-reports' ? (
             /* My Reports View with Sub-tabs */
             <MyReportsView />
+          ) : activeTab === 'my-approvals' ? (
+            /* My Approvals View with Sub-tabs */
+            <MyApprovalsView />
           ) : activeTab === 'groups' ? (
             /* Groups List */
             <div className="bg-forvis-gray-50 rounded-lg border border-forvis-gray-200 shadow-sm p-4">

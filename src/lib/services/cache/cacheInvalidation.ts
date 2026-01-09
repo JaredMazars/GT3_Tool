@@ -136,6 +136,19 @@ export async function invalidateAnalyticsCache(
 }
 
 /**
+ * Invalidate approvals cache
+ * Use this when approvals are created, resolved, or when data affecting approvals changes
+ */
+export async function invalidateApprovalsCache(): Promise<void> {
+  try {
+    await cache.invalidate(`${CACHE_PREFIXES.USER}approvals`);
+    logger.debug('Approvals cache invalidated');
+  } catch (error) {
+    // Silent fail - cache invalidation errors are not critical
+  }
+}
+
+/**
  * Comprehensive invalidation after task creation/update
  * Use this when a task is created, updated, or deleted
  */
@@ -148,6 +161,7 @@ export async function invalidateOnTaskMutation(
     await Promise.all([
       invalidateTaskCache(taskId),
       invalidateWorkspaceCounts(serviceLine, subServiceLineGroup),
+      invalidateApprovalsCache(), // Task changes can affect approvals (acceptance, engagement letters, review notes)
     ]);
     logger.debug('Task mutation caches invalidated', { taskId, serviceLine, subServiceLineGroup });
   } catch (error) {
@@ -167,6 +181,7 @@ export async function invalidateOnClientMutation(
       invalidateClientCache(clientId),
       // Client changes can affect workspace counts (groups)
       invalidateWorkspaceCounts(),
+      invalidateApprovalsCache(), // Client changes can affect change requests
     ]);
     logger.debug('Client mutation caches invalidated', { clientId });
   } catch (error) {

@@ -1,0 +1,129 @@
+---
+description: For approval services
+alwaysApply: false
+---
+  priority: 'MEDIUM', // LOW, MEDIUM, HIGH, URGENT
+  requestedById: user.id,
+  routeName: 'your-route', // Optional - uses default if not provided
+  context: {
+    // Data needed for route evaluation and assignment
+    userId: someUserId,
+    riskLevel: 5,
+    amount: 10000,
+  }
+});
+
+// Link approval back to your workflow table
+await prisma.yourTable.update({
+  where: { id: workflowItem.id },
+  data: { approvalId: approval.id }
+});
+```
+
+### 4. Handle Approval Actions
+
+Use the built-in API endpoints:
+- `POST /api/approvals/[id]/steps/[stepId]/approve`
+- `POST /api/approvals/[id]/steps/[stepId]/reject`
+
+**Cache Invalidation:** ALWAYS call after approval actions:
+
+```typescript
+import { invalidateApprovalsCache } from '@/lib/services/cache/cacheInvalidation';
+
+// After creating, approving, or rejecting approval
+await invalidateApprovalsCache();
+```
+
+### 5. Display in UI
+
+Use the unified approval card component:
+
+```typescript
+import { UnifiedApprovalCard } from '@/components/features/approvals';
+import { useApproveStep, useRejectStep } from '@/hooks/approvals/useUnifiedApprovals';
+
+function YourComponent() {
+  const approveStep = useApproveStep();
+  const rejectStep = useRejectStep();
+
+  return (
+    <UnifiedApprovalCard
+      approval={approval}
+      onApprove={(stepId, comment) => approveStep.mutateAsync({ stepId, comment })}
+      onReject={(stepId, comment) => rejectStep.mutateAsync({ stepId, comment })}
+    />
+  );
+}
+```
+
+## Approval Routes
+
+**Pre-configured routes:**
+- `partner-approval` - Single partner approval (default for ACCEPTANCE, ENGAGEMENT_LETTER, DPA)
+- `dual-approval` - Both proposed + current employee (default for CHANGE_REQUEST)
+- `single-approval` - Only proposed employee (alternative for CHANGE_REQUEST)
+- `assignee-approval` - Assignee approval (default for REVIEW_NOTE)
+- `risk-based-approval` - Conditional routing (default for CONTINUANCE)
+- `senior-approval` - Partner OR Administrator (alternative for ACCEPTANCE)
+
+## Key Features
+
+**Multi-Approver Support:**
+- Sequential: All steps must be completed in order (`requiresAllSteps: true`)
+- Parallel: Any one step can complete the approval (`requiresAllSteps: false`)
+
+**Delegation:**
+Users can delegate approvals when out of office:
+
+```typescript
+await approvalService.delegateApprovals(fromUserId, {
+  toUserId: delegateUserId,
+  workflowType: 'CHANGE_REQUEST', // Optional - delegates specific workflow
+  startDate: new Date(),
+  endDate: new Date('2024-12-31'),
+  reason: 'On vacation',
+});
+```
+
+**Conditional Routing:**
+Routes can include conditions that determine which steps apply:
+
+```json
+{
+  "condition": "context.riskLevel > 3"
+}
+```
+
+## Don'ts
+
+❌ Don't create custom approval logic outside the approval system
+❌ Don't bypass the approval service to create approvals directly
+❌ Don't forget to invalidate approval cache after mutations
+❌ Don't use workflow-specific approval fields when approval system is available
+❌ Don't create approval steps manually - let the service handle it via routes
+
+## Migration from Legacy Approvals
+
+If migrating existing approval logic:
+
+1. Create workflow registry entry
+2. Create approval route matching existing logic
+3. Update creation logic to use `approvalService.createApproval()`
+4. Replace approval checks with `ApprovalStep` queries
+5. Update UI to use `UnifiedApprovalCard`
+6. Deprecate old approval fields (keep for data migration period)
+
+## Files Reference
+
+**Core Service:** `src/lib/services/approvals/approvalService.ts`
+**Workflow Registry:** `src/lib/services/approvals/workflowRegistry.ts`
+**Types:** `src/types/approval.ts`
+**UI Component:** `src/components/features/approvals/UnifiedApprovalCard.tsx`
+**Hooks:** `src/hooks/approvals/useUnifiedApprovals.ts`
+**API Endpoints:** `src/app/api/approvals/[id]/steps/[stepId]/{approve,reject}/route.ts`
+**Seed Routes:** `prisma/seed-approval-routes.sql`
+
+## Documentation
+
+See `GENERIC_APPROVAL_SYSTEM_IMPLEMENTATION.md` for complete implementation details and examples.

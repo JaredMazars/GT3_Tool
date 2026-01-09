@@ -410,28 +410,41 @@ model ClientCreditRating {
 }
 
 model ClientPartnerManagerChangeRequest {
-  id                   Int       @id @default(autoincrement())
-  clientId             Int
-  changeType           String    @db.VarChar(20)
-  currentEmployeeCode  String    @db.NVarChar(10)
-  currentEmployeeName  String?   @db.NVarChar(100)
-  proposedEmployeeCode String    @db.NVarChar(10)
-  proposedEmployeeName String?   @db.NVarChar(100)
-  reason               String?   @db.NVarChar(500)
-  status               String    @db.VarChar(20)
-  requestedById        String
-  requestedAt          DateTime  @default(now())
-  resolvedById         String?
-  resolvedAt           DateTime?
-  resolutionComment    String?   @db.NVarChar(500)
-  Client               Client    @relation(fields: [clientId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  RequestedBy          User      @relation("ChangeRequest_RequestedBy", fields: [requestedById], references: [id], onUpdate: NoAction)
-  ResolvedBy           User?     @relation("ChangeRequest_ResolvedBy", fields: [resolvedById], references: [id], onUpdate: NoAction)
+  id                        Int       @id @default(autoincrement())
+  clientId                  Int
+  changeType                String    @db.VarChar(20)
+  currentEmployeeCode       String    @db.NVarChar(10)
+  currentEmployeeName       String?   @db.NVarChar(100)
+  proposedEmployeeCode      String    @db.NVarChar(10)
+  proposedEmployeeName      String?   @db.NVarChar(100)
+  reason                    String?   @db.NVarChar(500)
+  status                    String    @db.VarChar(20)
+  requestedById             String
+  requestedAt               DateTime  @default(now())
+  resolvedById              String?
+  resolvedAt                DateTime?
+  resolutionComment         String?   @db.NVarChar(500)
+  requiresDualApproval      Boolean   @default(false)
+  currentEmployeeApprovedAt DateTime?
+  currentEmployeeApprovedById String?
+  proposedEmployeeApprovedAt DateTime?
+  proposedEmployeeApprovedById String?
+  approvalId                Int?
+  Client                    Client    @relation(fields: [clientId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  RequestedBy               User      @relation("ChangeRequest_RequestedBy", fields: [requestedById], references: [id], onUpdate: NoAction)
+  ResolvedBy                User?     @relation("ChangeRequest_ResolvedBy", fields: [resolvedById], references: [id], onUpdate: NoAction)
+  CurrentApprover           User?     @relation("ChangeRequest_CurrentApprover", fields: [currentEmployeeApprovedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ProposedApprover          User?     @relation("ChangeRequest_ProposedApprover", fields: [proposedEmployeeApprovedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Approval                  Approval? @relation(fields: [approvalId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([clientId])
   @@index([status])
   @@index([proposedEmployeeCode, status])
   @@index([requestedAt(sort: Desc)])
+  @@index([requiresDualApproval])
+  @@index([currentEmployeeApprovedById])
+  @@index([proposedEmployeeApprovedById])
+  @@index([approvalId])
 }
 
 model ComplianceChecklist {
@@ -1199,8 +1212,106 @@ model User {
   TaskTool                                               TaskTool[]
   ClientPartnerManagerChangeRequest_RequestedBy          ClientPartnerManagerChangeRequest[] @relation("ChangeRequest_RequestedBy")
   ClientPartnerManagerChangeRequest_ResolvedBy           ClientPartnerManagerChangeRequest[] @relation("ChangeRequest_ResolvedBy")
+  ClientPartnerManagerChangeRequest_CurrentApprover      ClientPartnerManagerChangeRequest[] @relation("ChangeRequest_CurrentApprover")
+  ClientPartnerManagerChangeRequest_ProposedApprover     ClientPartnerManagerChangeRequest[] @relation("ChangeRequest_ProposedApprover")
+  Approval_RequestedBy                                    Approval[]                          @relation("Approval_RequestedBy")
+  Approval_CompletedBy                                    Approval[]                          @relation("Approval_CompletedBy")
+  ApprovalStep_AssignedTo                                 ApprovalStep[]                      @relation("ApprovalStep_AssignedTo")
+  ApprovalStep_ApprovedBy                                 ApprovalStep[]                      @relation("ApprovalStep_ApprovedBy")
+  ApprovalStep_DelegatedTo                                ApprovalStep[]                      @relation("ApprovalStep_DelegatedTo")
+  ApprovalDelegation_From                                 ApprovalDelegation[]                @relation("ApprovalDelegation_From")
+  ApprovalDelegation_To                                   ApprovalDelegation[]                @relation("ApprovalDelegation_To")
 
   @@index([role])
+}
+
+model Approval {
+  id                                  Int                                  @id @default(autoincrement())
+  workflowType                        String                               @db.VarChar(50)
+  workflowId                          Int
+  status                              String                               @db.VarChar(20)
+  priority                            String                               @default("MEDIUM") @db.VarChar(20)
+  title                               String                               @db.NVarChar(255)
+  description                         String?                              @db.NVarChar(Max)
+  requestedById                       String                               @db.VarChar(450)
+  requestedAt                         DateTime                             @default(now())
+  currentStepId                       Int?
+  requiresAllSteps                    Boolean                              @default(false)
+  completedAt                         DateTime?
+  completedById                       String?                              @db.VarChar(450)
+  resolutionComment                   String?                              @db.NVarChar(Max)
+  createdAt                           DateTime                             @default(now())
+  updatedAt                           DateTime                             @updatedAt
+  RequestedBy                         User                                 @relation("Approval_RequestedBy", fields: [requestedById], references: [id], onUpdate: NoAction)
+  CompletedBy                         User?                                @relation("Approval_CompletedBy", fields: [completedById], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  ApprovalStep                        ApprovalStep[]
+  ClientPartnerManagerChangeRequest   ClientPartnerManagerChangeRequest[]
+
+  @@index([workflowType])
+  @@index([status])
+  @@index([requestedById])
+  @@index([workflowType, workflowId])
+}
+
+model ApprovalStep {
+  id                  Int       @id @default(autoincrement())
+  approvalId          Int
+  stepOrder           Int
+  stepType            String    @db.VarChar(50)
+  isRequired          Boolean   @default(true)
+  assignedToUserId    String?
+  assignedToRole      String?   @db.VarChar(50)
+  assignedToCondition String?   @db.NVarChar(Max)
+  status              String    @default("PENDING") @db.VarChar(20)
+  approvedAt          DateTime?
+  approvedById        String?
+  comment             String?   @db.NVarChar(Max)
+  isDelegated         Boolean   @default(false)
+  delegatedToUserId   String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  Approval            Approval  @relation(fields: [approvalId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  AssignedToUser      User?     @relation("ApprovalStep_AssignedTo", fields: [assignedToUserId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  ApprovedBy          User?     @relation("ApprovalStep_ApprovedBy", fields: [approvedById], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  DelegatedToUser     User?     @relation("ApprovalStep_DelegatedTo", fields: [delegatedToUserId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+
+  @@index([approvalId])
+  @@index([assignedToUserId])
+  @@index([status])
+  @@index([approvalId, stepOrder])
+}
+
+model ApprovalRoute {
+  id          Int      @id @default(autoincrement())
+  workflowType String  @db.VarChar(50)
+  routeName   String   @db.NVarChar(100)
+  description String?  @db.NVarChar(500)
+  routeConfig String   @db.NVarChar(Max)
+  isActive    Boolean  @default(true)
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([workflowType, routeName])
+  @@index([workflowType, isDefault])
+}
+
+model ApprovalDelegation {
+  id           Int       @id @default(autoincrement())
+  fromUserId   String
+  toUserId     String
+  workflowType String?   @db.VarChar(50)
+  startDate    DateTime
+  endDate      DateTime?
+  reason       String?   @db.NVarChar(500)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  FromUser     User      @relation("ApprovalDelegation_From", fields: [fromUserId], references: [id], onUpdate: NoAction)
+  ToUser       User      @relation("ApprovalDelegation_To", fields: [toUserId], references: [id], onUpdate: NoAction)
+
+  @@index([fromUserId])
+  @@index([isActive, endDate])
+  @@index([fromUserId, isActive])
 }
 
 model VerificationToken {

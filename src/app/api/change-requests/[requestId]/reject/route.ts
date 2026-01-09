@@ -4,6 +4,7 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { ResolveChangeRequestSchema } from '@/lib/validation/schemas';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { rejectChangeRequest } from '@/lib/services/clients/changeRequestService';
+import { invalidateApprovalsCache } from '@/lib/services/cache/cacheInvalidation';
 
 /**
  * PATCH /api/change-requests/[requestId]/reject
@@ -24,6 +25,9 @@ export const PATCH = secureRoute.mutationWithParams<typeof ResolveChangeRequestS
 
     // Reject the change request
     const changeRequest = await rejectChangeRequest(requestId, user.id, data);
+
+    // Invalidate approvals cache
+    await invalidateApprovalsCache();
 
     return NextResponse.json(
       successResponse(changeRequest, { message: 'Change request rejected' }),

@@ -63,6 +63,16 @@ export interface InAppNotificationWithUser extends InAppNotification {
 }
 
 /**
+ * Read status filter options
+ */
+export type ReadStatusFilter = 'all' | 'unread' | 'read';
+
+/**
+ * Notification type category for grouping
+ */
+export type NotificationCategory = 'all' | 'userChanges' | 'messages' | 'documentsAndTasks';
+
+/**
  * Notification filters
  */
 export interface NotificationFilters {
@@ -70,6 +80,8 @@ export interface NotificationFilters {
   taskId?: number;
   page?: number;
   pageSize?: number;
+  types?: string[]; // Array of notification types to filter by
+  readStatus?: ReadStatusFilter; // Filter by read status
 }
 
 /**

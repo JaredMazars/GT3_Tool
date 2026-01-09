@@ -35,6 +35,11 @@ export const GET = secureRoute.queryWithParams<{ requestId: string }>({
         requestedAt: true,
         resolvedAt: true,
         resolutionComment: true,
+        requiresDualApproval: true,
+        currentEmployeeApprovedAt: true,
+        currentEmployeeApprovedById: true,
+        proposedEmployeeApprovedAt: true,
+        proposedEmployeeApprovedById: true,
         RequestedBy: {
           select: {
             id: true,
@@ -42,6 +47,18 @@ export const GET = secureRoute.queryWithParams<{ requestId: string }>({
           },
         },
         ResolvedBy: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        CurrentApprover: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        ProposedApprover: {
           select: {
             id: true,
             name: true,
