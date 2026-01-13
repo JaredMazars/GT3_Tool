@@ -70,9 +70,10 @@ export const GET = secureRoute.query({
 
     const { serviceLine, userId, assignmentType } = queryResult.data;
 
+    let data;
     if (serviceLine) {
       const users = await getServiceLineUsers(serviceLine);
-      return NextResponse.json(successResponse(users));
+      data = users;
     } else if (userId) {
       const serviceLines = await getUserServiceLines(userId);
       
@@ -83,10 +84,10 @@ export const GET = secureRoute.query({
             return { ...sl, assignmentType: slAssignmentType };
           })
         );
-        return NextResponse.json(successResponse(serviceLineWithTypes));
+        data = serviceLineWithTypes;
+      } else {
+        data = serviceLines;
       }
-      
-      return NextResponse.json(successResponse(serviceLines));
     } else {
       const allData = await Promise.all(
         VALID_SERVICE_LINES.map(async (sl) => ({
@@ -94,8 +95,14 @@ export const GET = secureRoute.query({
           users: await getServiceLineUsers(sl),
         }))
       );
-      return NextResponse.json(successResponse(allData));
+      data = allData;
     }
+
+    const response = NextResponse.json(successResponse(data));
+    // Prevent browser caching for user-specific data
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    return response;
   },
 });
 

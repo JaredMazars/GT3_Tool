@@ -185,11 +185,18 @@ export default function UserManagementPage() {
     }
   };
 
-  const fetchUserServiceLines = async (userId: string): Promise<ServiceLineUser[]> => {
+  const fetchUserServiceLines = async (
+    userId: string,
+    bustCache = false
+  ): Promise<ServiceLineUser[]> => {
+    const cacheBuster = bustCache ? `&_t=${Date.now()}` : '';
+    const url = `/api/admin/service-line-access?userId=${userId}${cacheBuster}`;
+    
     setLoadingServiceLines(true);
     try {
-      const response = await fetch(`/api/admin/service-line-access?userId=${userId}`, {
+      const response = await fetch(url, {
         credentials: 'include',
+        cache: 'no-store', // Force no HTTP caching
       });
       if (response.ok) {
         const data = await response.json();
@@ -226,8 +233,8 @@ export default function UserManagementPage() {
       });
 
       if (response.ok) {
-        // Fetch updated service lines first
-        const updatedServiceLines = await fetchUserServiceLines(selectedUser.id);
+        // Fetch updated service lines with cache bust
+        const updatedServiceLines = await fetchUserServiceLines(selectedUser.id, true);
         
         // Update both the modal state and main user list
         setSelectedUser((current) => 
@@ -285,18 +292,19 @@ export default function UserManagementPage() {
           });
 
           if (response.ok) {
-            // Fetch updated service lines
-            const updatedServiceLines = await fetchUserServiceLines(selectedUser.id);
+            // Wait a brief moment for cache invalidation to complete
+            await new Promise(resolve => setTimeout(resolve, 100));
             
-            // Update both the modal state and main user list
+            // Fetch updated service lines for modal with cache bust
+            const updatedServiceLines = await fetchUserServiceLines(selectedUser.id, true);
+            
+            // Update modal state
             setSelectedUser((current) => 
               current ? { ...current, serviceLines: updatedServiceLines } : current
             );
-            setSystemUsers((current) =>
-              current.map((user) =>
-                user.id === selectedUser.id ? { ...user, serviceLines: updatedServiceLines } : user
-              )
-            );
+            
+            // Refetch entire user list to ensure main list is fresh
+            await fetchSystemUsers();
           } else {
             const errorData = await response.json();
             console.error('Failed to remove service line:', errorData);
@@ -327,8 +335,8 @@ export default function UserManagementPage() {
       });
 
       if (response.ok) {
-        // Fetch updated service lines
-        const updatedServiceLines = await fetchUserServiceLines(selectedUser.id);
+        // Fetch updated service lines with cache bust
+        const updatedServiceLines = await fetchUserServiceLines(selectedUser.id, true);
         
         // Update both the modal state and main user list
         setSelectedUser((current) => 
