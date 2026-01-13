@@ -1297,8 +1297,8 @@ export const CreateReviewNoteSchema = z.object({
   priority: ReviewNotePriorityEnum.default('MEDIUM'),
   categoryId: z.number().int().positive().optional(),
   dueDate: z.coerce.date().optional(),
-  assignedTo: safeIdentifier(1000).optional(),
-  assignees: z.array(safeIdentifier(1000)).max(50).optional(),
+  assignedTo: z.string().max(450).optional(),
+  assignees: z.array(z.string().max(450)).max(50).optional(),
 }).strict();
 
 // Update review note schema
@@ -1315,7 +1315,7 @@ export const UpdateReviewNoteSchema = z.object({
   priority: ReviewNotePriorityEnum.optional(),
   categoryId: z.number().int().positive().nullable().optional(),
   dueDate: z.coerce.date().nullable().optional(),
-  assignedTo: safeIdentifier(1000).nullable().optional(),
+  assignedTo: z.string().max(450).nullable().optional(),
 }).strict();
 
 // Change review note status schema
@@ -1327,7 +1327,7 @@ export const ChangeReviewNoteStatusSchema = z.object({
 
 // Assign review note schema
 export const AssignReviewNoteSchema = z.object({
-  assignedTo: safeIdentifier(1000),
+  assignedTo: z.string().max(450),
 }).strict();
 
 // Create review note comment schema
@@ -1342,8 +1342,8 @@ export const ReviewNoteFilterSchema = z.object({
   status: z.union([ReviewNoteStatusEnum, z.array(ReviewNoteStatusEnum)]).optional(),
   priority: z.union([ReviewNotePriorityEnum, z.array(ReviewNotePriorityEnum)]).optional(),
   categoryId: z.union([z.number().int().positive(), z.array(z.number().int().positive())]).optional(),
-  assignedTo: z.union([safeIdentifier(1000), z.array(safeIdentifier(1000))]).optional(),
-  raisedBy: z.union([safeIdentifier(1000), z.array(safeIdentifier(1000))]).optional(),
+  assignedTo: z.union([z.string().max(450), z.array(z.string().max(450))]).optional(),
+  raisedBy: z.union([z.string().max(450), z.array(z.string().max(450))]).optional(),
   dueDateFrom: z.coerce.date().optional(),
   dueDateTo: z.coerce.date().optional(),
   overdue: z.boolean().optional(),
@@ -1377,8 +1377,8 @@ export const ReviewNoteReportFilterSchema = z.object({
   status: z.array(ReviewNoteStatusEnum).optional(),
   priority: z.array(ReviewNotePriorityEnum).optional(),
   categoryId: z.array(z.number().int().positive()).max(50).optional(),
-  assignedTo: z.array(safeIdentifier(1000)).max(50).optional(),
-  raisedBy: z.array(safeIdentifier(1000)).max(50).optional(),
+  assignedTo: z.array(z.string().max(450)).max(50).optional(),
+  raisedBy: z.array(z.string().max(450)).max(50).optional(),
   dateFrom: z.coerce.date().optional(),
   dateTo: z.coerce.date().optional(),
   includeComments: z.boolean().default(true),
