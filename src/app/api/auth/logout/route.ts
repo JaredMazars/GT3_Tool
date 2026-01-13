@@ -40,12 +40,12 @@ export async function GET(request: NextRequest) {
   const clientIdentifier = getClientIdentifier(request);
   clearRateLimitsForIdentifier(clientIdentifier);
   
-  // Redirect directly to login with prompt=login to force re-authentication
-  // This skips the Azure AD logout account picker and provides a cleaner experience
+  // Redirect to login with prompt=select_account to show account picker
+  // This provides the same experience as a fresh login
   // Use NEXTAUTH_URL for deployed environments (Azure App Service, behind proxies)
   const baseUrl = process.env.NEXTAUTH_URL || request.url;
   const loginUrl = new URL('/api/auth/login', baseUrl);
-  loginUrl.searchParams.set('prompt', 'login');
+  loginUrl.searchParams.set('prompt', 'select_account');
   loginUrl.searchParams.set('callbackUrl', '/dashboard');
   const response = NextResponse.redirect(loginUrl);
   
@@ -89,9 +89,9 @@ export async function POST(request: NextRequest) {
   const clientIdentifier = getClientIdentifier(request);
   clearRateLimitsForIdentifier(clientIdentifier);
   
-  // Return login URL with prompt=login to force re-authentication
-  // This skips the Azure AD logout account picker and provides a cleaner experience
-  const loginUrl = `${process.env.NEXTAUTH_URL}/api/auth/login?prompt=login&callbackUrl=${encodeURIComponent('/dashboard')}`;
+  // Return login URL with prompt=select_account to show account picker
+  // This provides the same experience as a fresh login
+  const loginUrl = `${process.env.NEXTAUTH_URL}/api/auth/login?prompt=select_account&callbackUrl=${encodeURIComponent('/dashboard')}`;
   const response = NextResponse.json({ 
     success: true, 
     message: 'Logged out successfully',
