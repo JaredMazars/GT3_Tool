@@ -49,12 +49,15 @@ export const GET = secureRoute.query({
     }
 
     // Add cache headers for successful responses
-    // Permissions rarely change, so we can cache aggressively
+    // NOTE: Using no-cache instead of aggressive caching to prevent permission
+    // leakage when users switch accounts in the same browser session.
+    // The React Query cache (client-side) handles performance optimization.
     if (response.status === 200) {
       response.headers.set(
         'Cache-Control',
-        'private, max-age=60, stale-while-revalidate=300'
+        'private, no-cache, must-revalidate'
       );
+      response.headers.set('Vary', 'Cookie');
     }
 
     return response;

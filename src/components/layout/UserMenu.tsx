@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { UserCircle, LogOut } from 'lucide-react';
 import type { SessionUser } from '@/lib/services/auth/auth';
 
@@ -12,6 +13,7 @@ export default function UserMenu({ user }: UserMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -48,6 +50,15 @@ export default function UserMenu({ user }: UserMenuProps) {
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
+    
+    // CRITICAL: Clear React Query cache to prevent permission data from persisting
+    // between user sessions. Without this, permissions from the previous user
+    // (e.g., admin access) can leak to the next user (security issue).
+    queryClient.clear();
+    
+    // Small delay to ensure cache clearing completes before redirect
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     // Use GET endpoint for server-side redirect instead of POST with client-side redirect
     // This ensures browser processes Set-Cookie headers before following redirect
     window.location.href = '/api/auth/logout';
