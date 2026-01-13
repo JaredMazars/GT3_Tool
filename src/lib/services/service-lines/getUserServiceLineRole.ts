@@ -28,12 +28,10 @@ export async function getUserServiceLineRole(
       actualUserId = user.id;
     }
 
-    const serviceLineUser = await prisma.serviceLineUser.findUnique({
+    const serviceLineUser = await prisma.serviceLineUser.findFirst({
       where: {
-        userId_subServiceLineGroup: {
-          userId: actualUserId,
-          subServiceLineGroup,
-        },
+        userId: actualUserId,
+        subServiceLineGroup,
       },
       select: {
         role: true,

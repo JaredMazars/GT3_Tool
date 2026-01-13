@@ -198,12 +198,10 @@ export async function checkTaskAccess(
 
     if (serviceLineExternal?.SubServlineGroupCode) {
       // Check if user has access to this sub-group with ADMINISTRATOR or PARTNER role
-      const serviceLineUser = await prisma.serviceLineUser.findUnique({
+      const serviceLineUser = await prisma.serviceLineUser.findFirst({
         where: {
-          userId_subServiceLineGroup: { 
-            userId, 
-            subServiceLineGroup: serviceLineExternal.SubServlineGroupCode 
-          },
+          userId, 
+          subServiceLineGroup: serviceLineExternal.SubServlineGroupCode,
         },
         select: { role: true },
       });
@@ -244,12 +242,10 @@ export async function checkTaskAccess(
     // Get user's role in this sub-group if available
     let userServiceLineRole: string | undefined;
     if (serviceLineExternal?.SubServlineGroupCode) {
-      const userSubGroupAssignment = await prisma.serviceLineUser.findUnique({
+      const userSubGroupAssignment = await prisma.serviceLineUser.findFirst({
         where: {
-          userId_subServiceLineGroup: { 
-            userId, 
-            subServiceLineGroup: serviceLineExternal.SubServlineGroupCode 
-          },
+          userId, 
+          subServiceLineGroup: serviceLineExternal.SubServlineGroupCode,
         },
         select: { role: true },
       });

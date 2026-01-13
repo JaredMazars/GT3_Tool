@@ -440,12 +440,10 @@ export async function checkSubGroupAccess(
       return true;
     }
 
-    const assignment = await prisma.serviceLineUser.findUnique({
+    const assignment = await prisma.serviceLineUser.findFirst({
       where: {
-        userId_subServiceLineGroup: {
-          userId,
-          subServiceLineGroup: subGroupCode,
-        },
+        userId,
+        subServiceLineGroup: subGroupCode,
       },
     });
 

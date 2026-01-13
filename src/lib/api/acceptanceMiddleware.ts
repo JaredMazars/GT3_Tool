@@ -189,12 +189,10 @@ export async function canApproveAcceptanceValidation(
       return false;
     }
 
-    const serviceLineAccess = await prisma.serviceLineUser.findUnique({
+    const serviceLineAccess = await prisma.serviceLineUser.findFirst({
       where: {
-        userId_subServiceLineGroup: {
-          userId,
-          subServiceLineGroup: serviceLineMapping.SubServlineGroupCode,
-        },
+        userId,
+        subServiceLineGroup: serviceLineMapping.SubServlineGroupCode,
       },
       select: { role: true },
     });

@@ -477,12 +477,10 @@ export const POST = secureRoute.mutationWithParams({
     });
     let isServiceLineAdmin = false;
     if (serviceLineMapping?.SubServlineGroupCode) {
-      const serviceLineAccess = await prisma.serviceLineUser.findUnique({
+      const serviceLineAccess = await prisma.serviceLineUser.findFirst({
         where: {
-          userId_subServiceLineGroup: {
-            userId: user.id,
-            subServiceLineGroup: serviceLineMapping.SubServlineGroupCode,
-          },
+          userId: user.id,
+          subServiceLineGroup: serviceLineMapping.SubServlineGroupCode,
         },
         select: { role: true },
       });
