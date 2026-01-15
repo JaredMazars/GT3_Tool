@@ -34,7 +34,8 @@ export type WorkflowType =
   | 'CONTINUANCE'
   | 'ENGAGEMENT_LETTER'
   | 'DPA'
-  | 'REVIEW_NOTE';
+  | 'REVIEW_NOTE'
+  | 'VAULT_DOCUMENT';
 
 /**
  * Approval with related data

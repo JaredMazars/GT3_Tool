@@ -20,6 +20,7 @@ import {
   Filter,
   FileBarChart,
   ClipboardCheck,
+  FolderOpen,
 } from 'lucide-react';
 import { isValidServiceLine, formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';
 import { formatTaskStage, getTaskStageColor } from '@/lib/utils/taskStages';
@@ -39,6 +40,7 @@ import { EmployeePlannerList } from '@/components/features/planning/EmployeePlan
 import { ClientPlannerList } from '@/components/features/planning/ClientPlannerList';
 import { MyReportsView } from '@/components/features/reports/MyReportsView';
 import { MyApprovalsView } from '@/components/features/approvals';
+import { DocumentCard, DocumentFilterBar } from '@/components/features/document-vault';
 import type { EmployeePlannerFilters as EmployeePlannerFiltersType, ClientPlannerFilters as ClientPlannerFiltersType } from '@/components/features/planning';
 import { EmployeeStatusBadge } from '@/components/shared/EmployeeStatusBadge';
 import { ClickableEmployeeBadge } from '@/components/shared/ClickableEmployeeBadge';
@@ -58,6 +60,100 @@ import { ClientsFilters, ClientsFiltersType } from '@/components/features/client
 import { TasksFilters, TasksFiltersType } from '@/components/features/tasks/TasksFilters';
 import { PlannerOptimisticProvider } from '@/contexts/PlannerOptimisticContext';
 
+// Vault Documents View Component
+function VaultDocumentsView({ serviceLine }: { serviceLine: string }) {
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [categories, setCategories] = useState<Array<{ id: number; name: string }>>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [filters, setFilters] = useState<any>({ serviceLine: serviceLine.toUpperCase() });
+
+  // Fetch categories
+  useEffect(() => {
+    fetch('/api/document-vault/categories')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setCategories(data.data.map((cat: any) => ({ id: cat.id, name: cat.name })));
+        }
+      })
+      .catch(err => console.error('Failed to load categories:', err));
+  }, []);
+
+  // Fetch documents
+  useEffect(() => {
+    setIsLoading(true);
+    const params = new URLSearchParams();
+    
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) params.append(key, String(value));
+    });
+
+    fetch(`/api/document-vault?${params}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setDocuments(data.data.documents);
+        } else {
+          setError(data.error || 'Failed to load documents');
+        }
+      })
+      .catch(err => {
+        setError('Failed to load documents');
+        console.error(err);
+      })
+      .finally(() => setIsLoading(false));
+  }, [filters]);
+
+  if (isLoading && documents.length === 0) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">
+        {error}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Filters */}
+      <DocumentFilterBar
+        onFilterChange={(newFilters) => {
+          setFilters({
+            ...newFilters,
+            serviceLine: serviceLine.toUpperCase(),
+          });
+        }}
+        categories={categories}
+      />
+
+      {/* Document Grid */}
+      {documents.length === 0 ? (
+        <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate text-center py-12">
+          <FolderOpen className="mx-auto h-12 w-12 text-forvis-gray-400" />
+          <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No documents found</h3>
+          <p className="mt-1 text-sm text-forvis-gray-500">
+            No documents available for this service line
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {documents.map((doc: any) => (
+            <DocumentCard key={doc.id} document={doc} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SubServiceLineWorkspacePage() {
   const router = useRouter();
   const params = useParams();
@@ -70,7 +166,7 @@ export default function SubServiceLineWorkspacePage() {
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [currentUserSubGroupRole, setCurrentUserSubGroupRole] = useState<string>('VIEWER');
   
-  const [activeTab, setActiveTab] = useState<'groups' | 'clients' | 'tasks' | 'planner' | 'my-tasks' | 'my-planning' | 'my-reports' | 'my-approvals'>('clients');
+  const [activeTab, setActiveTab] = useState<'groups' | 'clients' | 'tasks' | 'planner' | 'vault' | 'my-tasks' | 'my-planning' | 'my-reports' | 'my-approvals'>('clients');
   const [searchTerm, setSearchTerm] = useState(''); // Only used for tasks tab
   const [debouncedSearch, setDebouncedSearch] = useState(''); // Only used for tasks tab
   const [currentPage, setCurrentPage] = useState(1);
@@ -666,6 +762,8 @@ export default function SubServiceLineWorkspacePage() {
                   ? `Tasks in ${subServiceLineGroupDescription}`
                   : activeTab === 'planner'
                   ? 'Team resource planning and allocation'
+                  : activeTab === 'vault'
+                  ? `${formatServiceLineName(serviceLine)} policies, procedures, and templates`
                   : activeTab === 'my-tasks'
                   ? `Your tasks in ${subServiceLineGroupDescription}`
                   : 'Your personal planning and schedule'}
@@ -760,6 +858,19 @@ export default function SubServiceLineWorkspacePage() {
                     <div className="flex items-center space-x-2">
                       <LayoutGrid className="h-4 w-4" />
                       <span>Planner</span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('vault')}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 ${
+                      activeTab === 'vault'
+                        ? 'bg-white text-forvis-blue-600 shadow-sm'
+                        : 'text-white hover:bg-white/20'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <FolderOpen className="h-4 w-4" />
+                      <span>Vault</span>
                     </div>
                   </button>
                 </nav>
@@ -1049,6 +1160,9 @@ export default function SubServiceLineWorkspacePage() {
           ) : activeTab === 'my-approvals' ? (
             /* My Approvals View with Sub-tabs */
             <MyApprovalsView />
+          ) : activeTab === 'vault' ? (
+            /* Vault Documents */
+            <VaultDocumentsView serviceLine={serviceLine} />
           ) : activeTab === 'groups' ? (
             /* Groups List */
             <div className="bg-forvis-gray-50 rounded-lg border border-forvis-gray-200 shadow-sm p-4">

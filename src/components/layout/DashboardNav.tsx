@@ -37,6 +37,7 @@ export default function DashboardNav() {
   const { hasFeature: hasTemplatesAccess } = useFeature(Feature.MANAGE_TEMPLATES);
   const { hasFeature: hasExternalLinksAccess } = useFeature(Feature.MANAGE_EXTERNAL_LINKS);
   const { hasFeature: hasToolsAccess } = useFeature(Feature.MANAGE_TOOLS);
+  const { hasFeature: hasVaultManagementAccess } = useFeature(Feature.MANAGE_VAULT_DOCUMENTS);
 
   // Fetch external links with React Query caching
   const { data: externalLinks = [] } = useExternalLinks();
@@ -143,6 +144,13 @@ export default function DashboardNav() {
       label: 'External Links',
       href: '/dashboard/admin/external-links',
       description: 'Manage external software links',
+    });
+  }
+  if (hasVaultManagementAccess) {
+    adminMenuItems.push({
+      label: 'Vault Management',
+      href: '/dashboard/admin/document-vault',
+      description: 'Manage document approval workflows',
     });
   }
   if (hasAdminAccess) {

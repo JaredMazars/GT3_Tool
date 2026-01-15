@@ -50,6 +50,10 @@ export enum Feature {
   MANAGE_EXTERNAL_LINKS = 'manage_external_links',
   MANAGE_TOOLS = 'manage_tools',
 
+  // Document Vault
+  ACCESS_DOCUMENT_VAULT = 'access_document_vault',
+  MANAGE_VAULT_DOCUMENTS = 'manage_vault_documents',
+
   // Advanced
   USE_AI_TOOLS = 'use_ai_tools',
   EXPORT_REPORTS = 'export_reports',
@@ -108,6 +112,10 @@ export const FEATURE_CATEGORIES = {
     Feature.MANAGE_EXTERNAL_LINKS,
     Feature.MANAGE_TOOLS,
   ],
+  DOCUMENT_VAULT: [
+    Feature.ACCESS_DOCUMENT_VAULT,
+    Feature.MANAGE_VAULT_DOCUMENTS,
+  ],
   ADVANCED: [
     Feature.USE_AI_TOOLS,
     Feature.EXPORT_REPORTS,
@@ -154,6 +162,9 @@ export const FEATURE_DESCRIPTIONS: Record<Feature, string> = {
   [Feature.MANAGE_TEMPLATES]: 'Create and edit templates',
   [Feature.MANAGE_EXTERNAL_LINKS]: 'Manage external software links',
   [Feature.MANAGE_TOOLS]: 'Create and manage tools and their assignments',
+
+  [Feature.ACCESS_DOCUMENT_VAULT]: 'Access the document vault',
+  [Feature.MANAGE_VAULT_DOCUMENTS]: 'Upload, archive, and manage vault documents',
 
   [Feature.USE_AI_TOOLS]: 'Use AI-powered tools and features',
   [Feature.EXPORT_REPORTS]: 'Export reports and data',

@@ -42,6 +42,9 @@ export function SharedServiceCard({ serviceLineData }: SharedServiceCardProps) {
   const bgColor = getServiceLineBgColor(serviceLine);
   const borderColor = getServiceLineBorderColor(serviceLine);
 
+  // All shared services route to their main page
+  const href = `/dashboard/${serviceLine.toLowerCase()}`;
+
   const getDescription = (line: ServiceLine | string) => {
     switch (line) {
       case ServiceLine.QRM:
@@ -63,7 +66,7 @@ export function SharedServiceCard({ serviceLineData }: SharedServiceCardProps) {
 
   return (
     <Link
-      href={`/dashboard/${serviceLine.toLowerCase()}`}
+      href={href}
       className="group block rounded-lg border border-forvis-gray-200 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden"
       style={{
         background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',

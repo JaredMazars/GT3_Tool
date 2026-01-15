@@ -1418,4 +1418,94 @@ export const ResolveChangeRequestSchema = z.object({
 export type CreateChangeRequestInput = z.infer<typeof CreateChangeRequestSchema>;
 export type ResolveChangeRequestInput = z.infer<typeof ResolveChangeRequestSchema>;
 
+// =============================================================================
+// Document Vault Schemas
+// =============================================================================
+
+// Document types enum
+const VaultDocumentTypeEnum = z.enum(['POLICY', 'SOP', 'TEMPLATE', 'MARKETING', 'TRAINING', 'OTHER']);
+const VaultDocumentScopeEnum = z.enum(['GLOBAL', 'SERVICE_LINE']);
+
+// Create vault document schema (for metadata - file handled separately)
+export const CreateVaultDocumentSchema = z.object({
+  title: safeString(200, 3),
+  description: safeString(1000).optional(),
+  documentType: VaultDocumentTypeEnum,
+  categoryId: z.number().int().positive(),
+  scope: VaultDocumentScopeEnum,
+  serviceLine: safeIdentifier(50).optional(),
+  tags: z.array(safeString(50)).max(10).optional(),
+  effectiveDate: z.string().datetime().optional(),
+  expiryDate: z.string().datetime().optional(),
+}).strict().refine(
+  data => data.scope === 'GLOBAL' || data.serviceLine,
+  { message: 'Service line required for SERVICE_LINE scope', path: ['serviceLine'] }
+).refine(
+  data => !data.effectiveDate || !data.expiryDate || new Date(data.effectiveDate) <= new Date(data.expiryDate),
+  { message: 'Expiry date must be after effective date', path: ['expiryDate'] }
+);
+
+// Update vault document schema
+export const UpdateVaultDocumentSchema = z.object({
+  title: safeString(200, 3).optional(),
+  description: safeString(1000).optional(),
+  categoryId: z.number().int().positive().optional(),
+  documentType: VaultDocumentTypeEnum.optional(),
+  tags: z.array(safeString(50)).max(10).optional(),
+  effectiveDate: z.string().datetime().optional(),
+  expiryDate: z.string().datetime().optional(),
+}).strict();
+
+// Document filters schema
+export const VaultDocumentFiltersSchema = z.object({
+  search: safeString(200).optional(),
+  categoryId: z.number().int().positive().optional(),
+  documentType: VaultDocumentTypeEnum.optional(),
+  scope: VaultDocumentScopeEnum.optional(),
+  serviceLine: safeIdentifier(50).optional(),
+  tags: z.array(safeString(50)).max(10).optional(),
+  page: z.number().int().positive().default(1),
+  limit: z.number().int().min(1).max(100).default(20),
+}).strict();
+
+// Create category schema
+export const CreateVaultCategorySchema = z.object({
+  name: safeString(200, 2),
+  description: safeString(500).optional(),
+  icon: safeIdentifier(50).optional(),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+  documentType: VaultDocumentTypeEnum.optional(),
+  sortOrder: z.number().int().min(0).max(9999).optional(),
+}).strict();
+
+// Update category schema
+export const UpdateVaultCategorySchema = z.object({
+  name: safeString(200, 2).optional(),
+  description: safeString(500).optional(),
+  icon: safeIdentifier(50).optional(),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+  documentType: VaultDocumentTypeEnum.optional(),
+  active: z.boolean().optional(),
+  sortOrder: z.number().int().min(0).max(9999).optional(),
+}).strict();
+
+// Archive document schema
+export const ArchiveVaultDocumentSchema = z.object({
+  reason: safeString(500).optional(),
+}).strict();
+
+// New version upload schema
+export const NewVersionSchema = z.object({
+  changeNotes: safeString(500).optional(),
+}).strict();
+
+// Inferred types
+export type CreateVaultDocumentInput = z.infer<typeof CreateVaultDocumentSchema>;
+export type UpdateVaultDocumentInput = z.infer<typeof UpdateVaultDocumentSchema>;
+export type VaultDocumentFiltersInput = z.infer<typeof VaultDocumentFiltersSchema>;
+export type CreateVaultCategoryInput = z.infer<typeof CreateVaultCategorySchema>;
+export type UpdateVaultCategoryInput = z.infer<typeof UpdateVaultCategorySchema>;
+export type ArchiveVaultDocumentInput = z.infer<typeof ArchiveVaultDocumentSchema>;
+export type NewVersionInput = z.infer<typeof NewVersionSchema>;
+
 

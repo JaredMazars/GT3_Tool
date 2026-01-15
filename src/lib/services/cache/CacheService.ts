@@ -30,6 +30,7 @@ export const CACHE_PREFIXES = {
   SERVICE_LINE: 'sl:',
   NOTIFICATION: 'notif:',
   ANALYTICS: 'analytics:',
+  DOCUMENT_VAULT: 'document:vault:',
 } as const;
 
 export type CachePrefix = typeof CACHE_PREFIXES[keyof typeof CACHE_PREFIXES];

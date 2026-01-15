@@ -76,6 +76,32 @@ export const PAGE_PERMISSIONS = {
   },
 
   // ========================================
+  // DOCUMENT VAULT (All Users Can View)
+  // ========================================
+  '/dashboard/document-vault': {
+    [SystemRole.SYSTEM_ADMIN]: PageAccessLevel.FULL,
+    [SystemRole.USER]: PageAccessLevel.FULL,
+  },
+  '/dashboard/document-vault/:id': {
+    [SystemRole.SYSTEM_ADMIN]: PageAccessLevel.FULL,
+    [SystemRole.USER]: PageAccessLevel.FULL,
+  },
+  
+  // Document Vault Admin (System Admin + Service Line Admins)
+  '/dashboard/admin/document-vault': {
+    [SystemRole.SYSTEM_ADMIN]: PageAccessLevel.FULL,
+    [SystemRole.USER]: PageAccessLevel.NONE,
+  },
+  '/dashboard/admin/document-vault/upload': {
+    [SystemRole.SYSTEM_ADMIN]: PageAccessLevel.FULL,
+    [SystemRole.USER]: PageAccessLevel.NONE,
+  },
+  '/dashboard/admin/document-vault/categories': {
+    [SystemRole.SYSTEM_ADMIN]: PageAccessLevel.FULL,
+    [SystemRole.USER]: PageAccessLevel.NONE,
+  },
+
+  // ========================================
   // SERVICE LINE PAGES (All Users)
   // ========================================
   '/dashboard/:serviceLine': {

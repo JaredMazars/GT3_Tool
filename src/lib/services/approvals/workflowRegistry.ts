@@ -3,7 +3,7 @@
  * Registry of all approval workflows with their configuration
  */
 
-import { UserCog, CheckCircle, FileText, Shield, MessageSquare, RefreshCw } from 'lucide-react';
+import { UserCog, CheckCircle, FileText, Shield, MessageSquare, RefreshCw, FolderOpen } from 'lucide-react';
 import { prisma } from '@/lib/db/prisma';
 import type { WorkflowRegistryEntry, WorkflowType } from '@/types/approval';
 
@@ -203,6 +203,43 @@ export const WORKFLOW_REGISTRY: Record<WorkflowType, WorkflowRegistryEntry> = {
     getDisplayDescription: (data: any) => {
       const taskName = data?.Task?.TaskDesc || data?.Task?.TaskCode || 'Unknown Task';
       return `Task: ${taskName}`;
+    },
+  },
+
+  VAULT_DOCUMENT: {
+    name: 'Vault Document',
+    icon: FolderOpen,
+    defaultRoute: 'service-line-admin-approval',
+    fetchData: async (workflowId: number) => {
+      return await prisma.vaultDocument.findUnique({
+        where: { id: workflowId },
+        include: {
+          Category: {
+            select: {
+              id: true,
+              name: true,
+              documentType: true,
+            },
+          },
+          User: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+      });
+    },
+    getDisplayTitle: (data: any) => {
+      const docType = data?.documentType || 'Document';
+      const title = data?.title || 'Unknown Document';
+      return `${docType}: ${title}`;
+    },
+    getDisplayDescription: (data: any) => {
+      const category = data?.Category?.name || 'Uncategorized';
+      const scope = data?.scope === 'GLOBAL' ? 'Global' : `${data?.serviceLine || 'Service Line'}`;
+      return `Category: ${category} | Scope: ${scope}`;
     },
   },
 };

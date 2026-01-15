@@ -14,6 +14,7 @@ const dpaContainerName = 'dpa';
 const acceptanceDocumentsContainerName = 'acceptance-documents';
 const reviewNotesContainerName = 'review-notes';
 const newsBulletinsContainerName = 'news-bulletins';
+const documentVaultContainerName = 'document-vault';
 
 /**
  * Get Blob Service Client
@@ -403,6 +404,33 @@ export async function initNewsBulletinsStorage(): Promise<void> {
     }
   } catch (error) {
     logger.error('Failed to initialize news bulletins blob storage:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get Document Vault Container Client
+ */
+function getDocumentVaultContainerClient() {
+  const blobServiceClient = getBlobServiceClient();
+  return blobServiceClient.getContainerClient(documentVaultContainerName);
+}
+
+/**
+ * Initialize document vault blob storage container
+ * Creates container if it doesn't exist
+ */
+export async function initDocumentVaultStorage(): Promise<void> {
+  try {
+    const containerClient = getDocumentVaultContainerClient();
+    const exists = await containerClient.exists();
+
+    if (!exists) {
+      await containerClient.create();
+      logger.info(`Created blob container: ${documentVaultContainerName}`);
+    }
+  } catch (error) {
+    logger.error('Failed to initialize document vault blob storage:', error);
     throw error;
   }
 }
@@ -899,6 +927,143 @@ export async function generateDpaSasUrl(
     return sasUrl;
   } catch (error) {
     logger.error('Failed to generate SAS URL for DPA:', error);
+    throw error;
+  }
+}
+
+// =====================================================
+// Document Vault Functions
+// =====================================================
+
+/**
+ * Upload vault document to Azure Blob Storage
+ * @param buffer - File buffer
+ * @param fileName - Original file name
+ * @param documentId - Document ID
+ * @param version - Document version
+ * @returns Blob path
+ */
+export async function uploadVaultDocument(
+  buffer: Buffer,
+  fileName: string,
+  documentId: number,
+  version: number
+): Promise<string> {
+  try {
+    const containerClient = getDocumentVaultContainerClient();
+    
+    // Sanitize filename
+    const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const timestamp = Date.now();
+    const blobName = `${documentId}/${version}_${timestamp}_${sanitizedFileName}`;
+    
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    // Upload file
+    await blockBlobClient.uploadData(buffer, {
+      blobHTTPHeaders: {
+        blobContentType: getContentType(fileName),
+      },
+    });
+
+    logger.info(`Uploaded vault document to blob storage: ${blobName}`);
+    return blobName;
+  } catch (error) {
+    logger.error('Failed to upload vault document to blob storage:', error);
+    throw error;
+  }
+}
+
+/**
+ * Download vault document from Azure Blob Storage
+ * @param blobName - Blob name/path
+ * @returns File buffer
+ */
+export async function downloadVaultDocument(blobName: string): Promise<Buffer> {
+  try {
+    const containerClient = getDocumentVaultContainerClient();
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    const downloadResponse = await blockBlobClient.download();
+    const downloaded = await streamToBuffer(
+      downloadResponse.readableStreamBody!
+    );
+
+    logger.info(`Downloaded vault document from blob storage: ${blobName}`);
+    return downloaded;
+  } catch (error) {
+    logger.error('Failed to download vault document from blob storage:', error);
+    throw error;
+  }
+}
+
+/**
+ * Generate a SAS token URL for secure vault document access
+ * @param blobName - Blob name/path
+ * @param expiresInMinutes - Token expiration in minutes (default: 60)
+ * @returns SAS URL
+ */
+export async function generateVaultDocumentSasUrl(
+  blobName: string,
+  expiresInMinutes: number = 60
+): Promise<string> {
+  try {
+    const containerClient = getDocumentVaultContainerClient();
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    // Parse connection string to get account name and key
+    const parts = connectionString!.split(';');
+    const accountName = parts
+      .find((p) => p.startsWith('AccountName='))
+      ?.split('=')[1];
+    const accountKey = parts
+      .find((p) => p.startsWith('AccountKey='))
+      ?.split('=')[1];
+
+    if (!accountName || !accountKey) {
+      throw new Error('Invalid connection string format');
+    }
+
+    const sharedKeyCredential = new StorageSharedKeyCredential(
+      accountName,
+      accountKey
+    );
+
+    const startsOn = new Date();
+    const expiresOn = new Date(startsOn.getTime() + expiresInMinutes * 60000);
+
+    const sasToken = generateBlobSASQueryParameters(
+      {
+        containerName: documentVaultContainerName,
+        blobName,
+        permissions: BlobSASPermissions.parse('r'), // Read permission
+        startsOn,
+        expiresOn,
+      },
+      sharedKeyCredential
+    ).toString();
+
+    const sasUrl = `${blockBlobClient.url}?${sasToken}`;
+    return sasUrl;
+  } catch (error) {
+    logger.error('Failed to generate SAS URL for vault document:', error);
+    throw error;
+  }
+}
+
+/**
+ * Delete vault document from Azure Blob Storage
+ * @param blobName - Blob name/path
+ */
+export async function deleteVaultDocument(blobName: string): Promise<void> {
+  try {
+    const containerClient = getDocumentVaultContainerClient();
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    await blockBlobClient.delete();
+    logger.info(`Deleted vault document from blob storage: ${blobName}`);
+  } catch (error) {
+    logger.error('Failed to delete vault document from blob storage:', error);
     throw error;
   }
 }
