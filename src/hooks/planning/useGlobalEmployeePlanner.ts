@@ -149,5 +149,6 @@ export function useGlobalEmployeePlanner({
     gcTime: 10 * 60 * 1000,
     refetchOnMount: true,
     refetchOnWindowFocus: false,
+    placeholderData: (previousData) => previousData, // Show stale data while refetching
   });
 }

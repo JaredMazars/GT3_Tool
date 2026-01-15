@@ -353,11 +353,24 @@ export default function SubServiceLineWorkspacePage() {
   // This ensures changes made in one view are visible in the other
   React.useEffect(() => {
     if (activeTab === 'planner') {
-      // Invalidate all planner queries to force fresh data fetch
-      queryClient.invalidateQueries({
-        queryKey: ['planner'],
-        refetchType: 'all'
-      });
+      const refreshData = async () => {
+        // Invalidate all planner queries
+        await queryClient.invalidateQueries({
+          queryKey: ['planner'],
+          refetchType: 'all'
+        });
+        await queryClient.invalidateQueries({
+          queryKey: ['global-planner'],
+          refetchType: 'all'
+        });
+        // Force immediate refetch of active queries
+        await queryClient.refetchQueries({
+          queryKey: ['planner'],
+          type: 'active'
+        });
+      };
+      
+      refreshData();
     }
   }, [plannerView, queryClient, activeTab]);
 

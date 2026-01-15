@@ -98,15 +98,29 @@ export default function StaffPlannerPage() {
   // Refetch planner data when switching between Employee/Client views
   // This ensures changes made in one view are visible in the other
   useEffect(() => {
-    // Invalidate all planner queries to force fresh data fetch
-    queryClient.invalidateQueries({
-      queryKey: ['global-planner'],
-      refetchType: 'all'
-    });
-    queryClient.invalidateQueries({
-      queryKey: ['planner'],
-      refetchType: 'all'
-    });
+    const refreshData = async () => {
+      // Invalidate all planner queries
+      await queryClient.invalidateQueries({
+        queryKey: ['global-planner'],
+        refetchType: 'all'
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ['planner'],
+        refetchType: 'all'
+      });
+      // Explicitly refetch both Employee and Client queries
+      // This ensures both views have fresh data when switching
+      await queryClient.refetchQueries({
+        queryKey: ['global-planner', 'employees'],
+        type: 'active'
+      });
+      await queryClient.refetchQueries({
+        queryKey: ['global-planner', 'clients'],
+        type: 'active'
+      });
+    };
+    
+    refreshData();
   }, [plannerView, queryClient]);
 
   // Transform employee planner data to GanttTimeline format
@@ -367,17 +381,14 @@ export default function StaffPlannerPage() {
                           currentUserRole={currentUserRole}
                           onAllocationUpdate={async () => {
                             // Invalidate BOTH cache types for cross-view sync
-                            await queryClient.invalidateQueries({
+                            // Don't wait for refetch - let view-switching and staleTime handle it
+                            queryClient.invalidateQueries({
                               queryKey: ['global-planner'],
                               refetchType: 'all',
                             });
-                            await queryClient.invalidateQueries({
+                            queryClient.invalidateQueries({
                               queryKey: ['planner'],
                               refetchType: 'all',
-                            });
-                            await queryClient.refetchQueries({
-                              queryKey: ['global-planner'],
-                              type: 'active',
                             });
                           }}
                           serviceLine=""
@@ -443,17 +454,14 @@ export default function StaffPlannerPage() {
                     isGlobalView={true}
                     onAllocationUpdate={async () => {
                       // Invalidate BOTH cache types for cross-view sync
-                      await queryClient.invalidateQueries({
+                      // Don't wait for refetch - let view-switching and staleTime handle it
+                      queryClient.invalidateQueries({
                         queryKey: ['global-planner'],
                         refetchType: 'all',
                       });
-                      await queryClient.invalidateQueries({
+                      queryClient.invalidateQueries({
                         queryKey: ['planner'],
                         refetchType: 'all',
-                      });
-                      await queryClient.refetchQueries({
-                        queryKey: ['global-planner'],
-                        type: 'active',
                       });
                     }}
                   />

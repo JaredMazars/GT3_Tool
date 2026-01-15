@@ -133,5 +133,6 @@ export function useEmployeePlanner({
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
     refetchOnMount: true, // Always refetch when view mounts - ensures data freshness after updates
     refetchOnWindowFocus: false, // Don't refetch on window focus to avoid excessive requests
+    placeholderData: (previousData) => previousData, // Show stale data while refetching
   });
 }
