@@ -98,29 +98,16 @@ export default function StaffPlannerPage() {
   // Refetch planner data when switching between Employee/Client views
   // This ensures changes made in one view are visible in the other
   useEffect(() => {
-    const refreshData = async () => {
-      // Invalidate all planner queries
-      await queryClient.invalidateQueries({
-        queryKey: ['global-planner'],
-        refetchType: 'all'
-      });
-      await queryClient.invalidateQueries({
-        queryKey: ['planner'],
-        refetchType: 'all'
-      });
-      // Explicitly refetch both Employee and Client queries
-      // This ensures both views have fresh data when switching
-      await queryClient.refetchQueries({
-        queryKey: ['global-planner', 'employees'],
-        type: 'active'
-      });
-      await queryClient.refetchQueries({
-        queryKey: ['global-planner', 'clients'],
-        type: 'active'
-      });
-    };
-    
-    refreshData();
+    // Invalidate all planner data when switching views
+    // The new view's queries will automatically fetch fresh data on mount (refetchOnMount: true)
+    queryClient.invalidateQueries({ 
+      queryKey: ['global-planner'],
+      refetchType: 'none' // Don't refetch now - let components handle it when they mount
+    });
+    queryClient.invalidateQueries({ 
+      queryKey: ['planner'],
+      refetchType: 'none'
+    });
   }, [plannerView, queryClient]);
 
   // Transform employee planner data to GanttTimeline format
@@ -391,8 +378,8 @@ export default function StaffPlannerPage() {
                               refetchType: 'all',
                             });
                           }}
-                          serviceLine=""
-                          subServiceLineGroup=""
+                          serviceLine={undefined}
+                          subServiceLineGroup={undefined}
                         />
 
                         {/* Timeline Pagination Controls */}

@@ -353,26 +353,27 @@ export default function SubServiceLineWorkspacePage() {
   // This ensures changes made in one view are visible in the other
   React.useEffect(() => {
     if (activeTab === 'planner') {
-      const refreshData = async () => {
-        // Invalidate all planner queries
-        await queryClient.invalidateQueries({
-          queryKey: ['planner'],
-          refetchType: 'all'
-        });
-        await queryClient.invalidateQueries({
-          queryKey: ['global-planner'],
-          refetchType: 'all'
-        });
-        // Force immediate refetch of active queries
-        await queryClient.refetchQueries({
-          queryKey: ['planner'],
-          type: 'active'
-        });
-      };
-      
-      refreshData();
+      // Invalidate all planner data when switching between employee/client views
+      // The new view's queries will automatically fetch fresh data on mount (refetchOnMount: true)
+      queryClient.invalidateQueries({ 
+        queryKey: ['planner'],
+        refetchType: 'none' // Don't refetch now - let components handle it when they mount
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ['global-planner'],
+        refetchType: 'none'
+      });
     }
   }, [plannerView, queryClient, activeTab]);
+
+  // Ensure fresh data when navigating to planner tab
+  React.useEffect(() => {
+    if (activeTab === 'planner') {
+      // Invalidate to ensure fresh data when tab becomes active
+      queryClient.invalidateQueries({ queryKey: ['planner'] });
+      queryClient.invalidateQueries({ queryKey: ['global-planner'] });
+    }
+  }, [activeTab, queryClient]);
 
   // Filter options are now fetched inside PlannerFilters component
 

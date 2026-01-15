@@ -40,8 +40,8 @@ interface AdminPlanningModalProps {
     allocatedPercentage: number;
     role: ServiceLineRole | string;
   }) => Promise<void>;
-  serviceLine: string;
-  subServiceLineGroup: string;
+  serviceLine?: string; // Optional - undefined for global planner
+  subServiceLineGroup?: string; // Optional - undefined for global planner
   userId: string; // May be "employee-282" format for unregistered employees
   employeeId: number; // Actual Employee table ID
   userName: string;
@@ -84,9 +84,17 @@ export function AdminPlanningModal({
   const { data: clientResults = [], isLoading: isLoadingClients } = useQuery({
     queryKey: ['clients', 'search', debouncedClientSearch, serviceLine, subServiceLineGroup],
     queryFn: async () => {
-      const response = await fetch(
-        `/api/clients?search=${encodeURIComponent(debouncedClientSearch)}&serviceLine=${serviceLine}&subServiceLineGroup=${subServiceLineGroup}&limit=10`
-      );
+      const params = new URLSearchParams();
+      params.set('search', encodeURIComponent(debouncedClientSearch));
+      params.set('limit', '10');
+      
+      // Only add service line filters if provided (not in global view)
+      if (serviceLine && subServiceLineGroup) {
+        params.set('serviceLine', serviceLine);
+        params.set('subServiceLineGroup', subServiceLineGroup);
+      }
+      
+      const response = await fetch(`/api/clients?${params.toString()}`);
       if (!response.ok) throw new Error('Failed to fetch clients');
       const result = await response.json();
       return result.data?.clients || result.clients || [];
@@ -183,7 +191,19 @@ export function AdminPlanningModal({
       setIsLoadingTasks(true);
       
       try {
-        const url = `/api/tasks?serviceLine=${serviceLine}&subServiceLineGroup=${subServiceLineGroup}&status=Active&clientCode=${encodeURIComponent(client.clientCode)}&limit=100&_t=${Date.now()}`;
+        const params = new URLSearchParams();
+        params.set('status', 'Active');
+        params.set('clientCode', client.clientCode);
+        params.set('limit', '100');
+        params.set('_t', Date.now().toString());
+        
+        // Only add service line filters if provided (not in global view)
+        if (serviceLine && subServiceLineGroup) {
+          params.set('serviceLine', serviceLine);
+          params.set('subServiceLineGroup', subServiceLineGroup);
+        }
+        
+        const url = `/api/tasks?${params.toString()}`;
         
         const response = await fetch(url, {
           cache: 'no-store',

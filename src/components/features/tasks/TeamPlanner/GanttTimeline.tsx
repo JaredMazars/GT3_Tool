@@ -21,8 +21,8 @@ interface GanttTimelineProps {
   teamMembers: any[];
   currentUserRole: ServiceLineRole | string;
   onAllocationUpdate: () => void | Promise<void>;
-  serviceLine?: string;
-  subServiceLineGroup?: string;
+  serviceLine?: string; // Optional - undefined for global planner
+  subServiceLineGroup?: string; // Optional - undefined for global planner
 }
 
 export function GanttTimeline({ 
@@ -242,20 +242,21 @@ export function GanttTimeline({
   }, []);
 
   const handleCreateAllocation = useCallback((userId: string, startDate?: Date, endDate?: Date) => {
-    
+
     // Find the team member
     const member = teamMembers.find(m => m.userId === userId);
     if (!member) {
-      setErrorModal({ 
-        isOpen: true, 
-        message: 'Team member not found. Please refresh the page and try again.', 
-        title: 'Not Found' 
+      setErrorModal({
+        isOpen: true,
+        message: 'Team member not found. Please refresh the page and try again.',
+        title: 'Not Found'
       });
       return;
     }
 
-    // If admin and service line context available, show admin planning modal
-    if (canEdit && serviceLine && subServiceLineGroup) {
+    // For planner view (taskId === 0), show admin planning modal to select client/task
+    // Works for both global planner (serviceLine/subServiceLineGroup undefined) and service-line planner
+    if (canEdit && taskId === 0) {
       setSelectedUserId(userId);
       // Get the employeeId from the member
       const employeeId = (member as any).employeeId;
@@ -305,7 +306,7 @@ export function GanttTimeline({
     setSelectedAllocation(newAllocation);
     setCreatingForUserId(userId);
     setIsModalOpen(true);
-  }, [teamMembers, taskId, canEdit, serviceLine, subServiceLineGroup]);
+  }, [teamMembers, taskId, canEdit]);
 
   const handleSelectionStart = useCallback((userId: string, columnIndex: number) => {
     if (!canEdit) {
@@ -1100,7 +1101,7 @@ export function GanttTimeline({
       />
 
       {/* Admin Planning Modal */}
-      {serviceLine && subServiceLineGroup && selectedUserId && selectedEmployeeId && (
+      {selectedUserId && selectedEmployeeId && (
         <AdminPlanningModal
           isOpen={isAdminPlanningModalOpen}
           onClose={() => {
