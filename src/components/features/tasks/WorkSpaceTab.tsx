@@ -13,7 +13,7 @@ interface Tool {
   description?: string;
   icon?: string;
   componentPath: string;
-  subTabs?: {
+  ToolSubTab?: {
     id: number;
     name: string;
     code: string;
@@ -27,7 +27,7 @@ interface TaskTool {
   taskId: number;
   toolId: number;
   sortOrder: number;
-  tool: Tool;
+  Tool: Tool;
 }
 
 interface WorkSpaceTabProps {
@@ -63,7 +63,7 @@ export function WorkSpaceTab({ taskId, subServiceLineGroup, initialNoteId }: Wor
       // If initialNoteId provided, find and select Review Notebook tool
       if (initialNoteId) {
         const reviewNotebookTool = taskTools.find(
-          (tt) => tt.tool.code === 'review-notebook'
+          (tt) => tt.Tool.code === 'review-notebook'
         );
         if (reviewNotebookTool) {
           setActiveToolId(reviewNotebookTool.toolId);
@@ -219,12 +219,12 @@ export function WorkSpaceTab({ taskId, subServiceLineGroup, initialNoteId }: Wor
                     }
                   `}
                 >
-                  <span className="text-sm font-medium">{taskTool.tool.name}</span>
+                  <span className="text-sm font-medium">{taskTool.Tool.name}</span>
                   <div
                     onClick={(e) => {
                       e.stopPropagation();
                       if (!removeToolMutation.isPending) {
-                        handleRemoveTool(taskTool.toolId, taskTool.tool.name);
+                        handleRemoveTool(taskTool.toolId, taskTool.Tool.name);
                       }
                     }}
                     role="button"
@@ -234,7 +234,7 @@ export function WorkSpaceTab({ taskId, subServiceLineGroup, initialNoteId }: Wor
                         e.preventDefault();
                         e.stopPropagation();
                         if (!removeToolMutation.isPending) {
-                          handleRemoveTool(taskTool.toolId, taskTool.tool.name);
+                          handleRemoveTool(taskTool.toolId, taskTool.Tool.name);
                         }
                       }
                     }}
@@ -275,20 +275,20 @@ export function WorkSpaceTab({ taskId, subServiceLineGroup, initialNoteId }: Wor
                 );
               }
 
-              const ToolComponent = getToolComponent(activeTool.tool.code);
+              const ToolComponent = getToolComponent(activeTool.Tool.code);
               
               return ToolComponent ? (
                 <ToolComponent 
                   taskId={taskId}
                   toolId={activeTool.toolId}
-                  subTabs={activeTool.tool.subTabs}
+                  subTabs={activeTool.Tool.ToolSubTab}
                   initialNoteId={initialNoteId}
                 />
               ) : (
                 <Banner
                   variant="warning"
                   title="Tool Not Available"
-                  message={`The tool "${activeTool.tool.code}" is not registered in the system. Please ensure the tool component is properly registered.`}
+                  message={`The tool "${activeTool.Tool.code}" is not registered in the system. Please ensure the tool component is properly registered.`}
                 />
               );
             })()}
@@ -335,9 +335,9 @@ export function WorkSpaceTab({ taskId, subServiceLineGroup, initialNoteId }: Wor
                     {tool.description && (
                       <p className="text-sm text-forvis-gray-600">{tool.description}</p>
                     )}
-                    {tool.subTabs && tool.subTabs.length > 0 && (
+                    {tool.ToolSubTab && tool.ToolSubTab.length > 0 && (
                       <p className="text-xs text-forvis-gray-500 mt-2">
-                        {tool.subTabs.length} sub-tab{tool.subTabs.length !== 1 ? 's' : ''}
+                        {tool.ToolSubTab.length} sub-tab{tool.ToolSubTab.length !== 1 ? 's' : ''}
                       </p>
                     )}
                   </button>

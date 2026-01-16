@@ -12,6 +12,7 @@ Next.js 14 (App Router) | TypeScript (strict) | Prisma | React Query | Azure Ope
 - AI: See `.cursor/rules/ai-patterns.mdc`
 - Blob Storage: See `.cursor/rules/blob-storage-rules.mdc`
 - Approval System: See `.cursor/rules/approval-system-rules.mdc`
+- Tool System: See `.cursor/rules/tool-system-rules.mdc`
 
 ## TypeScript
 

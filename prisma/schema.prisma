@@ -1119,14 +1119,16 @@ model ReviewNote {
   rejectionReason                   String?                @db.NVarChar(Max)
   createdAt                         DateTime               @default(now())
   updatedAt                         DateTime               @updatedAt
-  currentOwner                      String?                @db.NVarChar(450)
-  lastRespondedBy                   String?                @db.NVarChar(450)
+  currentOwner                      String?
+  lastRespondedBy                   String?
   lastRespondedAt                   DateTime?
   User_ReviewNote_addressedByToUser User?                  @relation("ReviewNote_addressedByToUser", fields: [addressedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
   User_ReviewNote_assignedToToUser  User?                  @relation("ReviewNote_assignedToToUser", fields: [assignedTo], references: [id], onDelete: NoAction, onUpdate: NoAction)
   ReviewCategory                    ReviewCategory?        @relation(fields: [categoryId], references: [id])
   User_ReviewNote_clearedByToUser   User?                  @relation("ReviewNote_clearedByToUser", fields: [clearedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  User_ReviewNote_raisedByToUser    User                   @relation("ReviewNote_raisedByToUser", fields: [raisedBy], references: [id], onUpdate: NoAction)
+  User_ReviewNote_raisedByToUser       User                   @relation("ReviewNote_raisedByToUser", fields: [raisedBy], references: [id], onUpdate: NoAction)
+  User_ReviewNote_currentOwnerToUser   User?                  @relation("ReviewNote_currentOwnerToUser", fields: [currentOwner], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  User_ReviewNote_lastRespondedByToUser User?                 @relation("ReviewNote_lastRespondedByToUser", fields: [lastRespondedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
   Task                              Task                   @relation(fields: [taskId], references: [id], onDelete: Cascade)
   ReviewNoteAssignee                ReviewNoteAssignee[]
   ReviewNoteAttachment              ReviewNoteAttachment[]
@@ -1695,6 +1697,8 @@ model User {
   ReviewNote_ReviewNote_assignedToToUser                                                                 ReviewNote[]                        @relation("ReviewNote_assignedToToUser")
   ReviewNote_ReviewNote_clearedByToUser                                                                  ReviewNote[]                        @relation("ReviewNote_clearedByToUser")
   ReviewNote_ReviewNote_raisedByToUser                                                                   ReviewNote[]                        @relation("ReviewNote_raisedByToUser")
+  ReviewNote_ReviewNote_currentOwnerToUser                                                               ReviewNote[]                        @relation("ReviewNote_currentOwnerToUser")
+  ReviewNote_ReviewNote_lastRespondedByToUser                                                            ReviewNote[]                        @relation("ReviewNote_lastRespondedByToUser")
   ReviewNoteAssignee_ReviewNoteAssignee_assignedByToUser                                                 ReviewNoteAssignee[]                @relation("ReviewNoteAssignee_assignedByToUser")
   ReviewNoteAssignee_ReviewNoteAssignee_userIdToUser                                                     ReviewNoteAssignee[]                @relation("ReviewNoteAssignee_userIdToUser")
   ReviewNoteAttachment                                                                                   ReviewNoteAttachment[]

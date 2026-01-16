@@ -654,18 +654,62 @@ export async function changeReviewNoteStatus(
       throw new AppError(404, 'Review note not found', ErrorCodes.NOT_FOUND);
     }
 
-    // Determine user role
+    // If already in target status, return the note (idempotent operation)
+    if (existingNote.status === newStatus) {
+      logger.info('Review note already in target status, returning existing note', {
+        reviewNoteId: id,
+        status: newStatus,
+        userId,
+      });
+      
+      return await prisma.reviewNote.findUnique({
+        where: { id },
+        select: reviewNoteSelect,
+      }) as ReviewNoteWithRelations;
+    }
+
+    // Determine user role - use context-aware role selection when user has multiple roles
     let userRole: 'RAISER' | 'ASSIGNEE' | 'PARTNER' | 'SYSTEM_ADMIN';
     
     // Check system admin first
     if (userSystemRole === 'SYSTEM_ADMIN') {
       userRole = 'SYSTEM_ADMIN';
-    } else if (existingNote.raisedBy === userId) {
-      userRole = 'RAISER';
-    } else if (existingNote.assignedTo === userId) {
-      userRole = 'ASSIGNEE';
     } else {
-      userRole = 'PARTNER';
+      const isRaiser = existingNote.raisedBy === userId;
+      const isAssignee = existingNote.assignedTo === userId;
+      
+      // If user has multiple roles, try each one to find valid transition
+      if (isRaiser && isAssignee) {
+        // Try assignee first for ADDRESSED transitions (handling work)
+        // Try raiser first for CLEARED/REJECTED transitions (reviewing completed work)
+        const tryAssigneeFirst = ['ADDRESSED', 'IN_PROGRESS'].includes(newStatus);
+        const primaryRole = tryAssigneeFirst ? 'ASSIGNEE' : 'RAISER';
+        const secondaryRole = tryAssigneeFirst ? 'RAISER' : 'ASSIGNEE';
+        
+        const primaryTransition = validateStatusTransition(
+          existingNote.status as ReviewNoteStatus,
+          newStatus,
+          primaryRole
+        );
+        
+        if (primaryTransition) {
+          userRole = primaryRole;
+        } else {
+          // Try secondary role
+          const secondaryTransition = validateStatusTransition(
+            existingNote.status as ReviewNoteStatus,
+            newStatus,
+            secondaryRole
+          );
+          userRole = secondaryTransition ? secondaryRole : primaryRole;
+        }
+      } else if (isAssignee) {
+        userRole = 'ASSIGNEE';
+      } else if (isRaiser) {
+        userRole = 'RAISER';
+      } else {
+        userRole = 'PARTNER';
+      }
     }
 
     // Validate transition
@@ -678,9 +722,18 @@ export async function changeReviewNoteStatus(
     if (!transition) {
       throw new AppError(
         400,
-        'Invalid status transition',
+        `Invalid status transition: Cannot transition from ${existingNote.status} to ${newStatus} with role ${userRole}`,
         ErrorCodes.VALIDATION_ERROR,
-        { currentStatus: existingNote.status, newStatus, userRole }
+        { 
+          currentStatus: existingNote.status, 
+          newStatus, 
+          userRole, 
+          userId, 
+          raisedBy: existingNote.raisedBy, 
+          assignedTo: existingNote.assignedTo,
+          isRaiser: existingNote.raisedBy === userId,
+          isAssignee: existingNote.assignedTo === userId
+        }
       );
     }
 
