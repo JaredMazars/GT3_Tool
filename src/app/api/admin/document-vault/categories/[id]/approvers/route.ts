@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
-import { invalidateDocumentVaultCache } from '@/lib/services/document-vault/documentVaultCache';
+import { invalidateDocumentVaultCache, invalidateCategoriesCache } from '@/lib/services/document-vault/documentVaultCache';
 
 // Validation schema for approvers
 const CategoryApproversSchema = z.object({
@@ -19,7 +19,7 @@ const CategoryApproversSchema = z.object({
  * List all approvers for a category in order
  */
 export const GET = secureRoute.queryWithParams<{ id: string }>({
-  feature: Feature.MANAGE_DOCUMENT_VAULT,
+  feature: Feature.MANAGE_VAULT_DOCUMENTS,
   handler: async (request, { user, params }) => {
     const categoryId = parseInt(params.id);
     
@@ -89,8 +89,8 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
  * Replace all approvers for a category
  * Body: { approvers: string[] } - Array of user IDs in desired order
  */
-export const POST = secureRoute.mutationWithParams<{ id: string }>({
-  feature: Feature.MANAGE_DOCUMENT_VAULT,
+export const POST = secureRoute.mutationWithParams<typeof CategoryApproversSchema, { id: string }>({
+  feature: Feature.MANAGE_VAULT_DOCUMENTS,
   schema: CategoryApproversSchema,
   handler: async (request, { user, data, params }) => {
     const categoryId = parseInt(params.id);
@@ -184,7 +184,7 @@ export const POST = secureRoute.mutationWithParams<{ id: string }>({
     }));
 
     // Invalidate cache
-    await invalidateDocumentVaultCache();
+    await invalidateCategoriesCache();
 
     return NextResponse.json(successResponse({
       message: `Successfully assigned ${data.approvers.length} approver(s) to category "${category.name}"`,
@@ -199,8 +199,8 @@ export const POST = secureRoute.mutationWithParams<{ id: string }>({
  * Remove all approvers from a category
  * WARNING: This will block document uploads to this category
  */
-export const DELETE = secureRoute.mutationWithParams<{ id: string }>({
-  feature: Feature.MANAGE_DOCUMENT_VAULT,
+export const DELETE = secureRoute.mutationWithParams<z.ZodAny, { id: string }>({
+  feature: Feature.MANAGE_VAULT_DOCUMENTS,
   handler: async (request, { user, params }) => {
     const categoryId = parseInt(params.id);
     
@@ -224,7 +224,7 @@ export const DELETE = secureRoute.mutationWithParams<{ id: string }>({
     });
 
     // Invalidate cache
-    await invalidateDocumentVaultCache();
+    await invalidateCategoriesCache();
 
     return NextResponse.json(successResponse({
       message: `Removed ${deleted.count} approver(s) from category "${category.name}"`,

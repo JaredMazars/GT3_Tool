@@ -118,7 +118,7 @@ export const POST = secureRoute.mutation({
     });
 
     const allocation = await prisma.nonClientAllocation.create({
-      data: { employeeId, eventType, startDate, endDate, allocatedHours, allocatedPercentage, notes: notes || null, createdBy: user.id },
+      data: { employeeId, eventType, startDate, endDate, allocatedHours, allocatedPercentage, notes: notes || null, createdBy: user.id, updatedAt: new Date() },
       select: {
         id: true, employeeId: true, eventType: true, startDate: true, endDate: true,
         allocatedHours: true, allocatedPercentage: true, notes: true,

@@ -101,10 +101,11 @@ export async function generateVaultDocumentSuggestions(
 
     categories.forEach(cat => {
       if (cat.documentType) {
-        if (!categoriesByType[cat.documentType]) {
-          categoriesByType[cat.documentType] = [];
+        const docType = cat.documentType;
+        if (!categoriesByType[docType]) {
+          categoriesByType[docType] = [];
         }
-        categoriesByType[cat.documentType].push(cat);
+        categoriesByType[docType]!.push(cat);
       } else {
         uncategorized.push(cat);
       }
@@ -128,7 +129,7 @@ export async function generateVaultDocumentSuggestions(
     Object.keys(categoriesByType).forEach(type => {
       if (!typeOrder.includes(type)) {
         categoryContext += `\n${type} Categories:\n`;
-        categoriesByType[type].forEach(cat => {
+        categoriesByType[type]!.forEach(cat => {
           categoryContext += `  - ${cat.name}: ${cat.description || 'No description'}\n`;
         });
       }

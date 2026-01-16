@@ -77,11 +77,21 @@ export function ApproverDisplay({ approval, compact = false }: ApproverDisplayPr
     if (!user) return '?';
     
     if (user.name) {
-      const parts = user.name.trim().split(' ');
+      const parts = user.name.trim().split(' ').filter(p => p.length > 0);
       if (parts.length >= 2) {
-        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+        const firstPart = parts[0];
+        const lastPart = parts[parts.length - 1];
+        if (firstPart && lastPart && firstPart[0] && lastPart[0]) {
+          return (firstPart[0] + lastPart[0]).toUpperCase();
+        }
       }
-      return parts[0].substring(0, 2).toUpperCase();
+      const firstPart = parts[0];
+      if (firstPart) {
+        if (firstPart.length >= 2) {
+          return firstPart.substring(0, 2).toUpperCase();
+        }
+        return firstPart[0]?.toUpperCase() || '?';
+      }
     }
     return user.email.substring(0, 2).toUpperCase();
   };

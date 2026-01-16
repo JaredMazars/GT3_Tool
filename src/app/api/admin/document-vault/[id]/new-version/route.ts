@@ -114,7 +114,15 @@ export const POST = secureRoute.fileUpload({
     const newVersion = document.version + 1;
 
     // Upload new version to blob storage
-    const blobPath = await uploadVaultDocument(buffer, file.name, documentId, newVersion);
+    const blobPath = await uploadVaultDocument(
+      buffer,
+      file.name,
+      documentId,
+      newVersion,
+      document.scope,
+      document.documentType,
+      document.VaultDocumentCategory.name
+    );
 
     // Mark current version as superseded
     await prisma.vaultDocumentVersion.updateMany({

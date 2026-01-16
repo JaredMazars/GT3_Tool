@@ -148,7 +148,7 @@ export function UnifiedApprovalCard({
             <div className="flex items-center space-x-4 text-xs text-forvis-gray-600">
               <div className="flex items-center space-x-1">
                 <User className="h-3 w-3" />
-                <span>Requested by {approval.RequestedBy.name || 'Unknown'}</span>
+                <span>Requested by {approval.User_Approval_requestedByIdToUser.name || 'Unknown'}</span>
               </div>
               <div className="flex items-center space-x-1">
                 <Clock className="h-3 w-3" />

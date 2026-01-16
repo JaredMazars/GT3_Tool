@@ -188,14 +188,14 @@ export class ApprovalService {
               status: 'PENDING',
             },
             include: {
-              AssignedToUser: {
+              User_ApprovalStep_assignedToUserIdToUser: {
                 select: {
                   id: true,
                   name: true,
                   email: true,
                 },
               },
-              DelegatedToUser: {
+              User_ApprovalStep_delegatedToUserIdToUser: {
                 select: {
                   id: true,
                   name: true,
@@ -203,7 +203,7 @@ export class ApprovalService {
               },
             },
           },
-          RequestedBy: {
+          User_Approval_requestedByIdToUser: {
             select: {
               id: true,
               name: true,

@@ -38,16 +38,17 @@ export interface ChangeRequest {
     clientNameFull: string | null;
     GSClientID: string;
   };
-  RequestedBy?: {
+  User_ClientPartnerManagerChangeRequest_requestedByIdToUser?: {
+    name: string | null;
+    id?: string;
+  };
+  User_ClientPartnerManagerChangeRequest_resolvedByIdToUser?: {
     name: string | null;
   };
-  ResolvedBy?: {
+  User_ClientPartnerManagerChangeRequest_currentEmployeeApprovedByIdToUser?: {
     name: string | null;
   };
-  CurrentApprover?: {
-    name: string | null;
-  };
-  ProposedApprover?: {
+  User_ClientPartnerManagerChangeRequest_proposedEmployeeApprovedByIdToUser?: {
     name: string | null;
   };
 }
@@ -210,7 +211,7 @@ export async function createChangeRequest(
             GSClientID: true,
           },
         },
-        RequestedBy: {
+        User_ClientPartnerManagerChangeRequest_requestedByIdToUser: {
           select: { name: true },
         },
       },
@@ -326,16 +327,16 @@ export async function getChangeRequests(
             GSClientID: true,
           },
         },
-        RequestedBy: {
+        User_ClientPartnerManagerChangeRequest_requestedByIdToUser: {
           select: { name: true },
         },
-        ResolvedBy: {
+        User_ClientPartnerManagerChangeRequest_resolvedByIdToUser: {
           select: { name: true },
         },
-        CurrentApprover: {
+        User_ClientPartnerManagerChangeRequest_currentEmployeeApprovedByIdToUser: {
           select: { name: true },
         },
-        ProposedApprover: {
+        User_ClientPartnerManagerChangeRequest_proposedEmployeeApprovedByIdToUser: {
           select: { name: true },
         },
       },
@@ -372,7 +373,7 @@ export async function approveChangeRequest(
             clientManager: true,
           },
         },
-        RequestedBy: {
+        User_ClientPartnerManagerChangeRequest_requestedByIdToUser: {
           select: {
             id: true,
             name: true,
@@ -482,16 +483,16 @@ export async function approveChangeRequest(
                 GSClientID: true,
               },
             },
-            RequestedBy: {
+            User_ClientPartnerManagerChangeRequest_requestedByIdToUser: {
               select: { name: true },
             },
-            ResolvedBy: {
+            User_ClientPartnerManagerChangeRequest_resolvedByIdToUser: {
               select: { name: true },
             },
-            CurrentApprover: {
+            User_ClientPartnerManagerChangeRequest_currentEmployeeApprovedByIdToUser: {
               select: { name: true },
             },
-            ProposedApprover: {
+            User_ClientPartnerManagerChangeRequest_proposedEmployeeApprovedByIdToUser: {
               select: { name: true },
             },
           },
@@ -529,16 +530,16 @@ export async function approveChangeRequest(
               GSClientID: true,
             },
           },
-          RequestedBy: {
+          User_ClientPartnerManagerChangeRequest_requestedByIdToUser: {
             select: { name: true },
           },
-          ResolvedBy: {
+          User_ClientPartnerManagerChangeRequest_resolvedByIdToUser: {
             select: { name: true },
           },
-          CurrentApprover: {
+          User_ClientPartnerManagerChangeRequest_currentEmployeeApprovedByIdToUser: {
             select: { name: true },
           },
-          ProposedApprover: {
+          User_ClientPartnerManagerChangeRequest_proposedEmployeeApprovedByIdToUser: {
             select: { name: true },
           },
         },
@@ -600,16 +601,16 @@ export async function approveChangeRequest(
                 GSClientID: true,
               },
             },
-            RequestedBy: {
+            User_ClientPartnerManagerChangeRequest_requestedByIdToUser: {
               select: { name: true },
             },
-            ResolvedBy: {
+            User_ClientPartnerManagerChangeRequest_resolvedByIdToUser: {
               select: { name: true },
             },
-            CurrentApprover: {
+            User_ClientPartnerManagerChangeRequest_currentEmployeeApprovedByIdToUser: {
               select: { name: true },
             },
-            ProposedApprover: {
+            User_ClientPartnerManagerChangeRequest_proposedEmployeeApprovedByIdToUser: {
               select: { name: true },
             },
           },
@@ -638,7 +639,7 @@ export async function approveChangeRequest(
       );
 
       await notificationService.createNotification(
-        request.RequestedBy.id,
+        request.User_ClientPartnerManagerChangeRequest_requestedByIdToUser!.id!,
         'CHANGE_REQUEST_APPROVED',
         approvalNotification.title,
         approvalNotification.message,
@@ -716,7 +717,7 @@ export async function rejectChangeRequest(
             clientNameFull: true,
           },
         },
-        RequestedBy: {
+        User_ClientPartnerManagerChangeRequest_requestedByIdToUser: {
           select: {
             id: true,
             name: true,
@@ -787,16 +788,16 @@ export async function rejectChangeRequest(
             GSClientID: true,
           },
         },
-        RequestedBy: {
+        User_ClientPartnerManagerChangeRequest_requestedByIdToUser: {
           select: { name: true },
         },
-        ResolvedBy: {
+        User_ClientPartnerManagerChangeRequest_resolvedByIdToUser: {
           select: { name: true },
         },
-        CurrentApprover: {
+        User_ClientPartnerManagerChangeRequest_currentEmployeeApprovedByIdToUser: {
           select: { name: true },
         },
-        ProposedApprover: {
+        User_ClientPartnerManagerChangeRequest_proposedEmployeeApprovedByIdToUser: {
           select: { name: true },
         },
       },
@@ -812,7 +813,7 @@ export async function rejectChangeRequest(
     );
 
     await notificationService.createNotification(
-      request.RequestedBy.id,
+      request.User_ClientPartnerManagerChangeRequest_requestedByIdToUser!.id!,
       'CHANGE_REQUEST_REJECTED',
       rejectionNotification.title,
       rejectionNotification.message,

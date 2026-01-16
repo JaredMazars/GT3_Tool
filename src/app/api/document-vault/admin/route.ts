@@ -418,6 +418,7 @@ export const POST = secureRoute.fileUpload({
             description: `Review and approve document upload: ${document.title} (${document.documentType})`,
             requestedById: user.id,
             requiresAllSteps: true, // Sequential approval - all must approve in order
+            updatedAt: new Date(),
           },
         });
 
@@ -432,6 +433,7 @@ export const POST = secureRoute.fileUpload({
                 isRequired: true,
                 assignedToUserId: approver.userId,
                 status: 'PENDING',
+                updatedAt: new Date(),
               },
             })
           )
@@ -441,7 +443,7 @@ export const POST = secureRoute.fileUpload({
         if (steps.length > 0) {
           await tx.approval.update({
             where: { id: newApproval.id },
-            data: { currentStepId: steps[0].id },
+            data: { currentStepId: steps[0]!.id },
           });
         }
 

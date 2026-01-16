@@ -91,6 +91,7 @@ export const POST = secureRoute.mutation({
         serviceLine: data.serviceLine,
         sortOrder: data.sortOrder ?? 0,
         active: data.active ?? true,
+        updatedAt: new Date(),
       },
       select: {
         id: true,

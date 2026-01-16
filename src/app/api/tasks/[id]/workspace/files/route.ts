@@ -46,7 +46,7 @@ export const GET = secureRoute.queryWithParams({
 
     // Build where clause with proper typing
     const whereClause: Prisma.WorkspaceFileWhereInput = {
-      Folder: {
+      WorkspaceFolder: {
         taskId,
         active: true,
       },
@@ -71,7 +71,7 @@ export const GET = secureRoute.queryWithParams({
         version: true,
         createdAt: true,
         updatedAt: true,
-        Folder: {
+        WorkspaceFolder: {
           select: {
             id: true,
             name: true,

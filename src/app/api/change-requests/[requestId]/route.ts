@@ -40,25 +40,25 @@ export const GET = secureRoute.queryWithParams<{ requestId: string }>({
         currentEmployeeApprovedById: true,
         proposedEmployeeApprovedAt: true,
         proposedEmployeeApprovedById: true,
-        RequestedBy: {
+        User_ClientPartnerManagerChangeRequest_requestedByIdToUser: {
           select: {
             id: true,
             name: true,
           },
         },
-        ResolvedBy: {
+        User_ClientPartnerManagerChangeRequest_resolvedByIdToUser: {
           select: {
             id: true,
             name: true,
           },
         },
-        CurrentApprover: {
+        User_ClientPartnerManagerChangeRequest_currentEmployeeApprovedByIdToUser: {
           select: {
             id: true,
             name: true,
           },
         },
-        ProposedApprover: {
+        User_ClientPartnerManagerChangeRequest_proposedEmployeeApprovedByIdToUser: {
           select: {
             id: true,
             name: true,
@@ -98,7 +98,7 @@ export const GET = secureRoute.queryWithParams<{ requestId: string }>({
       });
 
       // Check if user is the requester
-      const isRequester = changeRequest.RequestedBy.id === user.id;
+      const isRequester = changeRequest.User_ClientPartnerManagerChangeRequest_requestedByIdToUser.id === user.id;
 
       if (!proposedEmployee && !currentEmployee && !isRequester) {
         throw new AppError(

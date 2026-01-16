@@ -21,7 +21,7 @@ export const GET = secureRoute.queryWithParams({
         name: true,
         code: true,
         description: true,
-        serviceLines: {
+        ServiceLineTool: {
           where: { active: true },
           select: {
             subServiceLineGroup: true,
@@ -35,7 +35,7 @@ export const GET = secureRoute.queryWithParams({
     }
 
     // Extract unique sub-service line groups
-    const assignments = [...new Set(tool.serviceLines.map((sl) => sl.subServiceLineGroup))];
+    const assignments = [...new Set(tool.ServiceLineTool.map((sl) => sl.subServiceLineGroup))];
 
     return NextResponse.json(
       successResponse({
@@ -99,7 +99,7 @@ export const PUT = secureRoute.mutationWithParams({
         name: true,
         code: true,
         description: true,
-        serviceLines: {
+        ServiceLineTool: {
           where: { active: true },
           select: {
             subServiceLineGroup: true,
@@ -108,7 +108,7 @@ export const PUT = secureRoute.mutationWithParams({
       },
     });
 
-    const assignments = [...new Set(updatedTool!.serviceLines.map((sl) => sl.subServiceLineGroup))];
+    const assignments = [...new Set(updatedTool!.ServiceLineTool.map((sl) => sl.subServiceLineGroup))];
 
     return NextResponse.json(
       successResponse({

@@ -42,8 +42,8 @@ export const GET = secureRoute.queryWithParams({
         updatedAt: true,
         _count: {
           select: {
-            Files: true,
-            ChildFolders: true,
+            WorkspaceFile: true,
+            other_WorkspaceFolder: true,
           },
         },
       },

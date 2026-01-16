@@ -28,7 +28,7 @@ export const WORKFLOW_REGISTRY: Record<WorkflowType, WorkflowRegistryEntry> = {
               groupCode: true,
             },
           },
-          RequestedBy: {
+          User_ClientPartnerManagerChangeRequest_requestedByIdToUser: {
             select: {
               id: true,
               name: true,

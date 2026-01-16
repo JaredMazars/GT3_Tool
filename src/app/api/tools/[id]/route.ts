@@ -27,7 +27,7 @@ export const GET = secureRoute.queryWithParams({
         sortOrder: true,
         createdAt: true,
         updatedAt: true,
-        subTabs: {
+        ToolSubTab: {
           orderBy: { sortOrder: 'asc' },
           select: {
             id: true,
@@ -39,16 +39,16 @@ export const GET = secureRoute.queryWithParams({
             sortOrder: true,
           },
         },
-        serviceLines: {
+        ServiceLineTool: {
           select: {
             subServiceLineGroup: true,
           },
         },
         _count: {
           select: {
-            tasks: true,
-            subTabs: true,
-            serviceLines: true,
+            TaskTool: true,
+            ToolSubTab: true,
+            ServiceLineTool: true,
           },
         },
       },
@@ -124,7 +124,7 @@ export const PUT = secureRoute.mutationWithParams({
         sortOrder: true,
         createdAt: true,
         updatedAt: true,
-        subTabs: {
+        ToolSubTab: {
           orderBy: { sortOrder: 'asc' },
           select: {
             id: true,
@@ -136,16 +136,16 @@ export const PUT = secureRoute.mutationWithParams({
             sortOrder: true,
           },
         },
-        serviceLines: {
+        ServiceLineTool: {
           select: {
             subServiceLineGroup: true,
           },
         },
         _count: {
           select: {
-            tasks: true,
-            subTabs: true,
-            serviceLines: true,
+            TaskTool: true,
+            ToolSubTab: true,
+            ServiceLineTool: true,
           },
         },
       },
@@ -171,7 +171,7 @@ export const DELETE = secureRoute.mutationWithParams({
         id: true,
         _count: {
           select: {
-            tasks: true,
+            TaskTool: true,
           },
         },
       },
@@ -182,12 +182,12 @@ export const DELETE = secureRoute.mutationWithParams({
     }
 
     // Check if tool is in use
-    if (existingTool._count.tasks > 0) {
+    if (existingTool._count.TaskTool > 0) {
       throw new AppError(
         400,
         'Cannot delete tool that is assigned to tasks. Deactivate it instead.',
         ErrorCodes.VALIDATION_ERROR,
-        { toolId, tasksCount: existingTool._count.tasks }
+        { toolId, tasksCount: existingTool._count.TaskTool }
       );
     }
 

@@ -6,6 +6,7 @@ import { RegisterToolSchema } from '@/lib/validation/schemas';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { getToolConfigByCode } from '@/components/tools/ToolRegistry.server';
 
+
 /**
  * POST /api/tools/register
  * Register a tool from code registry to database
@@ -96,7 +97,8 @@ export const POST = secureRoute.mutation({
           active: true,
           sortOrder: true,
           createdAt: true,
-          subTabs: {
+          updatedAt: true,
+          ToolSubTab: {
             orderBy: { sortOrder: 'asc' },
             select: {
               id: true,
@@ -106,16 +108,9 @@ export const POST = secureRoute.mutation({
               sortOrder: true,
             },
           },
-          serviceLines: {
+          ServiceLineTool: {
             select: {
               subServiceLineGroup: true,
-            },
-          },
-          _count: {
-            select: {
-              tasks: true,
-              subTabs: true,
-              serviceLines: true,
             },
           },
         },

@@ -108,22 +108,22 @@ export const GET = secureRoute.query({
                     groupCode: true,
                   },
                 },
-                RequestedBy: {
+                User_ClientPartnerManagerChangeRequest_requestedByIdToUser: {
                   select: {
                     name: true,
                   },
                 },
-                ResolvedBy: {
+                User_ClientPartnerManagerChangeRequest_resolvedByIdToUser: {
                   select: {
                     name: true,
                   },
                 },
-                CurrentApprover: {
+                User_ClientPartnerManagerChangeRequest_currentEmployeeApprovedByIdToUser: {
                   select: {
                     name: true,
                   },
                 },
-                ProposedApprover: {
+                User_ClientPartnerManagerChangeRequest_proposedEmployeeApprovedByIdToUser: {
                   select: {
                     name: true,
                   },
@@ -146,18 +146,18 @@ export const GET = secureRoute.query({
                 status: req.status,
                 requestedAt: req.requestedAt,
                 requestedById: req.requestedById,
-                requestedByName: req.RequestedBy?.name ?? null,
+                requestedByName: req.User_ClientPartnerManagerChangeRequest_requestedByIdToUser?.name ?? null,
                 resolvedAt: req.resolvedAt,
                 resolvedById: req.resolvedById,
-                resolvedByName: req.ResolvedBy?.name ?? null,
+                resolvedByName: req.User_ClientPartnerManagerChangeRequest_resolvedByIdToUser?.name ?? null,
                 resolutionComment: req.resolutionComment,
                 requiresDualApproval: req.requiresDualApproval,
                 currentEmployeeApprovedAt: req.currentEmployeeApprovedAt,
                 currentEmployeeApprovedById: req.currentEmployeeApprovedById,
-                currentEmployeeApprovedByName: req.CurrentApprover?.name ?? null,
+                currentEmployeeApprovedByName: req.User_ClientPartnerManagerChangeRequest_currentEmployeeApprovedByIdToUser?.name ?? null,
                 proposedEmployeeApprovedAt: req.proposedEmployeeApprovedAt,
                 proposedEmployeeApprovedById: req.proposedEmployeeApprovedById,
-                proposedEmployeeApprovedByName: req.ProposedApprover?.name ?? null,
+                proposedEmployeeApprovedByName: req.User_ClientPartnerManagerChangeRequest_proposedEmployeeApprovedByIdToUser?.name ?? null,
                 client: {
                   GSClientID: req.Client.GSClientID,
                   clientCode: req.Client.clientCode,

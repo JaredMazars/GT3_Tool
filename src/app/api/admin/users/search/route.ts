@@ -10,7 +10,7 @@ import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
  * Search users by name or email (for admin functions like assigning approvers)
  */
 export const GET = secureRoute.query({
-  feature: Feature.MANAGE_DOCUMENT_VAULT,
+  feature: Feature.MANAGE_VAULT_DOCUMENTS,
   handler: async (request, { user }) => {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');

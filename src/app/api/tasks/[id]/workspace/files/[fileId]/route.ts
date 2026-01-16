@@ -22,7 +22,7 @@ export const GET = secureRoute.queryWithParams({
     const file = await prisma.workspaceFile.findFirst({
       where: {
         id: fileId,
-        Folder: {
+        WorkspaceFolder: {
           taskId,
           active: true,
         },
@@ -92,7 +92,7 @@ export const DELETE = secureRoute.mutationWithParams({
     const file = await prisma.workspaceFile.findFirst({
       where: {
         id: fileId,
-        Folder: {
+        WorkspaceFolder: {
           taskId,
           active: true,
         },

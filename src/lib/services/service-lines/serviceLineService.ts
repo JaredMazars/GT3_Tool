@@ -597,32 +597,39 @@ export async function grantServiceLineAccess(
       const parentId = (maxParent?.parentAssignmentId || 0) + 1;
 
       // Create/update records for all sub-groups
-      await prisma.$transaction(
-        subGroups.map(sg =>
-          prisma.serviceLineUser.upsert({
+      await prisma.$transaction(async (tx) => {
+        for (const sg of subGroups) {
+          const existing = await tx.serviceLineUser.findFirst({
             where: {
-              userId_subServiceLineGroup_masterCode: {
-                userId,
-                subServiceLineGroup: sg.code,
-                masterCode,
-              },
-            },
-            update: {
-              role: role as string,
-              assignmentType: 'MAIN_SERVICE_LINE',
-              parentAssignmentId: parentId,
-            },
-            create: {
               userId,
               subServiceLineGroup: sg.code,
               masterCode,
-              role: role as string,
-              assignmentType: 'MAIN_SERVICE_LINE',
-              parentAssignmentId: parentId,
             },
-          })
-        )
-      );
+          });
+
+          if (existing) {
+            await tx.serviceLineUser.update({
+              where: { id: existing.id },
+              data: {
+                role: role as string,
+                assignmentType: 'MAIN_SERVICE_LINE',
+                parentAssignmentId: parentId,
+              },
+            });
+          } else {
+            await tx.serviceLineUser.create({
+              data: {
+                userId,
+                subServiceLineGroup: sg.code,
+                masterCode,
+                role: role as string,
+                assignmentType: 'MAIN_SERVICE_LINE',
+                parentAssignmentId: parentId,
+              },
+            });
+          }
+        }
+      });
 
       logger.info('Granted main service line access', { userId, masterCode, role, subGroupCount: subGroups.length });
     } else {
@@ -644,32 +651,39 @@ export async function grantServiceLineAccess(
       });
 
       // Create assignments for each sub-group with its master code
-      const upserts = mappings.map(mapping =>
-        prisma.serviceLineUser.upsert({
-          where: {
-            userId_subServiceLineGroup_masterCode: {
+      await prisma.$transaction(async (tx) => {
+        for (const mapping of mappings) {
+          const existing = await tx.serviceLineUser.findFirst({
+            where: {
               userId,
               subServiceLineGroup: mapping.SubServlineGroupCode!,
               masterCode: mapping.masterCode!,
             },
-          },
-          update: {
-            role: role as string,
-            assignmentType: 'SPECIFIC_SUBGROUP',
-            parentAssignmentId: null,
-          },
-          create: {
-            userId,
-            subServiceLineGroup: mapping.SubServlineGroupCode!,
-            masterCode: mapping.masterCode,
-            role: role as string,
-            assignmentType: 'SPECIFIC_SUBGROUP',
-            parentAssignmentId: null,
-          },
-        })
-      );
+          });
 
-      await prisma.$transaction(upserts);
+          if (existing) {
+            await tx.serviceLineUser.update({
+              where: { id: existing.id },
+              data: {
+                role: role as string,
+                assignmentType: 'SPECIFIC_SUBGROUP',
+                parentAssignmentId: null,
+              },
+            });
+          } else {
+            await tx.serviceLineUser.create({
+              data: {
+                userId,
+                subServiceLineGroup: mapping.SubServlineGroupCode!,
+                masterCode: mapping.masterCode,
+                role: role as string,
+                assignmentType: 'SPECIFIC_SUBGROUP',
+                parentAssignmentId: null,
+              },
+            });
+          }
+        }
+      });
 
       logger.info('Granted specific sub-group access', { userId, subGroupCodes, role });
     }

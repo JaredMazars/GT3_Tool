@@ -42,12 +42,12 @@ export type WorkflowType =
  */
 export interface ApprovalWithSteps extends Approval {
   ApprovalStep: ApprovalStep[];
-  RequestedBy: {
+  User_Approval_requestedByIdToUser: {
     id: string;
     name: string | null;
     email: string;
   };
-  CompletedBy?: {
+  User_Approval_completedByIdToUser?: {
     id: string;
     name: string | null;
   } | null;
@@ -57,16 +57,16 @@ export interface ApprovalWithSteps extends Approval {
  * Approval step with user data
  */
 export interface ApprovalStepWithUsers extends ApprovalStep {
-  AssignedToUser?: {
+  User_ApprovalStep_assignedToUserIdToUser?: {
     id: string;
     name: string | null;
     email: string;
   } | null;
-  ApprovedBy?: {
+  User_ApprovalStep_approvedByIdToUser?: {
     id: string;
     name: string | null;
   } | null;
-  DelegatedToUser?: {
+  User_ApprovalStep_delegatedToUserIdToUser?: {
     id: string;
     name: string | null;
   } | null;

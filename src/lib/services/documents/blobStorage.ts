@@ -1058,6 +1058,9 @@ export async function moveVaultDocumentFromTemp(
     // Extract original filename from temp path
     const tempParts = tempBlobName.split('/');
     const tempFileName = tempParts[tempParts.length - 1];
+    if (!tempFileName) {
+      throw new Error('Invalid temp blob name: could not extract filename');
+    }
     // Remove timestamp prefix from filename
     const fileName = tempFileName.substring(tempFileName.indexOf('_') + 1);
     

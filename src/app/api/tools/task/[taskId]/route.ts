@@ -25,7 +25,7 @@ export const GET = secureRoute.queryWithParams({
         sortOrder: true,
         addedBy: true,
         createdAt: true,
-        tool: {
+        Tool: {
           select: {
             id: true,
             name: true,
@@ -34,7 +34,7 @@ export const GET = secureRoute.queryWithParams({
             icon: true,
             componentPath: true,
             active: true,
-            subTabs: {
+            ToolSubTab: {
               where: { active: true },
               orderBy: { sortOrder: 'asc' },
               select: {
@@ -122,7 +122,7 @@ export const POST = secureRoute.mutationWithParams({
         sortOrder: true,
         addedBy: true,
         createdAt: true,
-        tool: {
+        Tool: {
           select: {
             id: true,
             name: true,
@@ -131,7 +131,7 @@ export const POST = secureRoute.mutationWithParams({
             icon: true,
             componentPath: true,
             active: true,
-            subTabs: {
+            ToolSubTab: {
               where: { active: true },
               orderBy: { sortOrder: 'asc' },
               select: {

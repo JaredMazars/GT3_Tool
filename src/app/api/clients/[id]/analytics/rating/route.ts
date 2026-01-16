@@ -292,6 +292,7 @@ export const POST = secureRoute.aiWithParams<
           financialRatios: financialRatiosJson,
           confidence: result.confidence,
           analyzedBy: user.email!,
+          updatedAt: new Date(),
         },
         select: { id: true },
       });

@@ -88,7 +88,7 @@ export const GET = secureRoute.query({
         isPinned: true, isActive: true, documentFileName: true, documentFilePath: true,
         documentFileSize: true, documentUploadedAt: true, showDocumentLink: true,
         createdAt: true, updatedAt: true,
-        createdBy: { select: { id: true, name: true, email: true } },
+        User: { select: { id: true, name: true, email: true } },
       },
       orderBy: [{ isPinned: 'desc' }, { effectiveDate: 'desc' }],
       skip: (filters.page - 1) * filters.pageSize,
@@ -141,6 +141,7 @@ export const POST = secureRoute.mutation({
         documentUploadedAt: data.documentUploadedAt ?? null,
         showDocumentLink: data.showDocumentLink ?? false,
         createdById: user.id,
+        updatedAt: new Date(),
       },
       select: {
         id: true, title: true, summary: true, body: true, category: true,
@@ -149,7 +150,7 @@ export const POST = secureRoute.mutation({
         isPinned: true, isActive: true, documentFileName: true, documentFilePath: true,
         documentFileSize: true, documentUploadedAt: true, showDocumentLink: true,
         createdAt: true, updatedAt: true,
-        createdBy: { select: { id: true, name: true, email: true } },
+        User: { select: { id: true, name: true, email: true } },
       },
     });
 

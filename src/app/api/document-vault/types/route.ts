@@ -10,7 +10,7 @@ import { successResponse } from '@/lib/utils/apiUtils';
  * Available to all authenticated users
  */
 export const GET = secureRoute.query({
-  feature: Feature.ACCESS_VAULT_DOCUMENTS,
+  feature: Feature.ACCESS_DOCUMENT_VAULT,
   handler: async (request, { user }) => {
     const types = await prisma.vaultDocumentType.findMany({
       where: { active: true },

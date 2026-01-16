@@ -4,6 +4,7 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 
+
 /**
  * GET /api/tools/available?subServiceLineGroup=TAX-CORP
  * Get tools available for a specific sub-service line group
@@ -32,15 +33,26 @@ export const GET = secureRoute.query({
       );
     }
 
+    // Get all service line tools for the group first
+    const serviceLineTools = await prisma.serviceLineTool.findMany({
+      where: {
+        subServiceLineGroup: subServiceLineGroup,
+        active: true,
+        Tool: {
+          active: true,
+        },
+      },
+      select: {
+        toolId: true,
+      },
+    });
+
+    const toolIds = serviceLineTools.map(slt => slt.toolId);
+
     const tools = await prisma.tool.findMany({
       where: {
+        id: { in: toolIds },
         active: true,
-        serviceLines: {
-          some: {
-            subServiceLineGroup: subServiceLineGroup,
-            active: true,
-          },
-        },
       },
       select: {
         id: true,
@@ -50,7 +62,7 @@ export const GET = secureRoute.query({
         icon: true,
         componentPath: true,
         sortOrder: true,
-        subTabs: {
+        ToolSubTab: {
           where: { active: true },
           orderBy: { sortOrder: 'asc' },
           select: {
@@ -68,10 +80,6 @@ export const GET = secureRoute.query({
     return NextResponse.json(successResponse(tools));
   },
 });
-
-
-
-
 
 
 

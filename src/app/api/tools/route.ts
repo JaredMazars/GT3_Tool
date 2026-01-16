@@ -28,7 +28,7 @@ export const GET = secureRoute.query({
         sortOrder: true,
         createdAt: true,
         updatedAt: true,
-        subTabs: {
+        ToolSubTab: {
           where: { active: true },
           orderBy: { sortOrder: 'asc' },
           select: {
@@ -39,16 +39,16 @@ export const GET = secureRoute.query({
             sortOrder: true,
           },
         },
-        serviceLines: {
+        ServiceLineTool: {
           select: {
             subServiceLineGroup: true,
           },
         },
         _count: {
           select: {
-            tasks: true,
-            subTabs: true,
-            serviceLines: true,
+            TaskTool: true,
+            ToolSubTab: true,
+            ServiceLineTool: true,
           },
         },
       },
@@ -105,7 +105,7 @@ export const POST = secureRoute.mutation({
         sortOrder: true,
         createdAt: true,
         updatedAt: true,
-        subTabs: {
+        ToolSubTab: {
           select: {
             id: true,
             name: true,
@@ -114,16 +114,16 @@ export const POST = secureRoute.mutation({
             sortOrder: true,
           },
         },
-        serviceLines: {
+        ServiceLineTool: {
           select: {
             subServiceLineGroup: true,
           },
         },
         _count: {
           select: {
-            tasks: true,
-            subTabs: true,
-            serviceLines: true,
+            TaskTool: true,
+            ToolSubTab: true,
+            ServiceLineTool: true,
           },
         },
       },

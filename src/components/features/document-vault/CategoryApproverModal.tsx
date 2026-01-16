@@ -128,7 +128,12 @@ export function CategoryApproverModal({ isOpen, onClose, category, onSuccess }: 
     if (index === 0) return;
     
     const updated = [...approvers];
-    [updated[index - 1], updated[index]] = [updated[index], updated[index - 1]];
+    const temp = updated[index - 1];
+    const current = updated[index];
+    if (temp && current) {
+      updated[index - 1] = current;
+      updated[index] = temp;
+    }
     
     // Update step orders
     const reordered = updated.map((approver, i) => ({
@@ -142,7 +147,12 @@ export function CategoryApproverModal({ isOpen, onClose, category, onSuccess }: 
     if (index === approvers.length - 1) return;
     
     const updated = [...approvers];
-    [updated[index], updated[index + 1]] = [updated[index + 1], updated[index]];
+    const current = updated[index];
+    const next = updated[index + 1];
+    if (current && next) {
+      updated[index] = next;
+      updated[index + 1] = current;
+    }
     
     // Update step orders
     const reordered = updated.map((approver, i) => ({
