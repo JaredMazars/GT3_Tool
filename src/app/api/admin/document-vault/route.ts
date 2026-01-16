@@ -5,7 +5,7 @@ import { CreateVaultDocumentSchema } from '@/lib/validation/schemas';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { canManageVaultDocuments } from '@/lib/services/document-vault/documentVaultAuthorization';
-import { uploadVaultDocument, initDocumentVaultStorage } from '@/lib/services/documents/blobStorage';
+import { uploadVaultDocument, initDocumentVaultStorage, moveVaultDocumentFromTemp } from '@/lib/services/documents/blobStorage';
 import { extractVaultDocumentMetadata } from '@/lib/services/documents/vaultDocumentExtraction';
 import { approvalService } from '@/lib/services/approvals/approvalService';
 import { invalidateDocumentVaultCache } from '@/lib/services/document-vault/documentVaultCache';
@@ -91,12 +91,47 @@ export const POST = secureRoute.fileUpload({
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
 
+      // Validate category has approvers
+      const categoryWithApprovers = await prisma.vaultDocumentCategory.findUnique({
+        where: { id: validatedMetadata.categoryId },
+        select: {
+          id: true,
+          name: true,
+          active: true,
+          _count: {
+            select: { CategoryApprover: true },
+          },
+        },
+      });
+
+      if (!categoryWithApprovers) {
+        return NextResponse.json(
+          { error: 'Category not found' },
+          { status: 404 }
+        );
+      }
+
+      if (!categoryWithApprovers.active) {
+        return NextResponse.json(
+          { error: 'Cannot upload to inactive category' },
+          { status: 400 }
+        );
+      }
+
+      if (categoryWithApprovers._count.CategoryApprover === 0) {
+        return NextResponse.json(
+          { error: 'Cannot upload to this category. No approvers assigned. Contact administrator to add approvers first.' },
+          { status: 400 }
+        );
+      }
+
       // Create document record (status: PENDING_APPROVAL)
       const document = await prisma.vaultDocument.create({
         data: {
           title: validatedMetadata.title,
           description: validatedMetadata.description,
           documentType: validatedMetadata.documentType,
+          documentVersion: validatedMetadata.documentVersion,
           fileName: file.name,
           filePath: '', // Will be updated after upload
           fileSize: file.size,
@@ -116,15 +151,42 @@ export const POST = secureRoute.fileUpload({
           id: true,
           title: true,
           documentType: true,
-          Category: {
+          VaultDocumentCategory: {
             select: { name: true },
           },
         },
       });
 
-      // Upload to blob storage
+      // Upload to blob storage or move from temp location
       await initDocumentVaultStorage();
-      const blobPath = await uploadVaultDocument(buffer, file.name, document.id, 1);
+      let blobPath: string;
+      
+      if (validatedMetadata.tempBlobPath) {
+        // AI extraction workflow - move from temp to permanent location
+        logger.info('Moving document from temp to permanent location', {
+          tempPath: validatedMetadata.tempBlobPath,
+          documentId: document.id,
+        });
+        blobPath = await moveVaultDocumentFromTemp(
+          validatedMetadata.tempBlobPath,
+          document.id,
+          1,
+          validatedMetadata.scope,
+          validatedMetadata.documentType,
+          document.VaultDocumentCategory.name
+        );
+      } else {
+        // Standard upload workflow
+        blobPath = await uploadVaultDocument(
+          buffer,
+          file.name,
+          document.id,
+          1,
+          validatedMetadata.scope,
+          validatedMetadata.documentType,
+          document.VaultDocumentCategory.name
+        );
+      }
 
       // Update document with blob path
       await prisma.vaultDocument.update({
@@ -144,46 +206,94 @@ export const POST = secureRoute.fileUpload({
         },
       });
 
-      // Start AI extraction in background (don't wait)
-      extractVaultDocumentMetadata(
-        buffer,
-        document.id,
-        validatedMetadata.title,
-        validatedMetadata.documentType,
-        document.Category.name
-      ).then(async (extracted) => {
+      // Start AI extraction in background (don't wait) - only if not using AI extraction workflow
+      if (!validatedMetadata.tempBlobPath) {
+        // Standard workflow - extract metadata in background
+        extractVaultDocumentMetadata(
+          buffer,
+          document.id,
+          validatedMetadata.title,
+          validatedMetadata.documentType,
+          document.VaultDocumentCategory.name
+        ).then(async (extracted) => {
+          await prisma.vaultDocument.update({
+            where: { id: document.id },
+            data: {
+              aiExtractionStatus: 'SUCCESS',
+              aiSummary: extracted.summary,
+              aiKeyPoints: JSON.stringify(extracted.keyPoints),
+              aiExtractedText: extracted.extractedText,
+            },
+          });
+          logger.info('AI extraction completed', { documentId: document.id });
+        }).catch(async (error) => {
+          await prisma.vaultDocument.update({
+            where: { id: document.id },
+            data: { aiExtractionStatus: 'FAILED' },
+          });
+          logger.error('AI extraction failed', { documentId: document.id, error });
+        });
+      } else {
+        // AI extraction workflow - metadata already extracted during preview
+        // Mark as success immediately since extraction was done upfront
         await prisma.vaultDocument.update({
           where: { id: document.id },
-          data: {
-            aiExtractionStatus: 'SUCCESS',
-            aiSummary: extracted.summary,
-            aiKeyPoints: JSON.stringify(extracted.keyPoints),
-            aiExtractedText: extracted.extractedText,
-          },
+          data: { aiExtractionStatus: 'SUCCESS' },
         });
-        logger.info('AI extraction completed', { documentId: document.id });
-      }).catch(async (error) => {
-        await prisma.vaultDocument.update({
-          where: { id: document.id },
-          data: { aiExtractionStatus: 'FAILED' },
-        });
-        logger.error('AI extraction failed', { documentId: document.id, error });
+        logger.info('Using pre-extracted AI suggestions', { documentId: document.id });
+      }
+
+      // Get category approvers for approval workflow
+      const categoryApprovers = await prisma.categoryApprover.findMany({
+        where: { categoryId: validatedMetadata.categoryId },
+        select: {
+          userId: true,
+          stepOrder: true,
+        },
+        orderBy: { stepOrder: 'asc' },
       });
 
-      // Create approval request
-      const approval = await approvalService.createApproval({
-        workflowType: 'VAULT_DOCUMENT',
-        workflowId: document.id,
-        title: `${validatedMetadata.documentType}: ${validatedMetadata.title}`,
-        requestedById: user.id,
-        context: {
-          documentId: document.id,
-          title: validatedMetadata.title,
-          documentType: validatedMetadata.documentType,
-          category: document.Category.name,
-          scope: validatedMetadata.scope,
-          serviceLine: validatedMetadata.serviceLine,
-        },
+      // Create approval with sequential steps from category approvers
+      const approval = await prisma.$transaction(async (tx) => {
+        // Create the approval
+        const newApproval = await tx.approval.create({
+          data: {
+            workflowType: 'VAULT_DOCUMENT',
+            workflowId: document.id,
+            status: 'PENDING',
+            priority: 'MEDIUM',
+            title: `Document Approval: ${validatedMetadata.title}`,
+            description: `Review and approve document upload: ${validatedMetadata.title} (${validatedMetadata.documentType})`,
+            requestedById: user.id,
+            requiresAllSteps: true, // Sequential approval - all must approve in order
+          },
+        });
+
+        // Create approval steps from category approvers
+        const steps = await Promise.all(
+          categoryApprovers.map((approver) =>
+            tx.approvalStep.create({
+              data: {
+                approvalId: newApproval.id,
+                stepOrder: approver.stepOrder,
+                stepType: 'USER_APPROVAL',
+                isRequired: true,
+                assignedToUserId: approver.userId,
+                status: 'PENDING',
+              },
+            })
+          )
+        );
+
+        // Set first step as current
+        if (steps.length > 0) {
+          await tx.approval.update({
+            where: { id: newApproval.id },
+            data: { currentStepId: steps[0].id },
+          });
+        }
+
+        return newApproval;
       });
 
       // Link approval to document
@@ -255,7 +365,7 @@ export const GET = secureRoute.query({
         createdAt: true,
         publishedAt: true,
         archivedAt: true,
-        Category: {
+        VaultDocumentCategory: {
           select: {
             id: true,
             name: true,
@@ -265,6 +375,29 @@ export const GET = secureRoute.query({
           select: {
             name: true,
             email: true,
+          },
+        },
+        Approval: {
+          select: {
+            id: true,
+            status: true,
+            requiresAllSteps: true,
+            ApprovalStep: {
+              select: {
+                id: true,
+                stepOrder: true,
+                status: true,
+                approvedAt: true,
+                User_ApprovalStep_assignedToUserIdToUser: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                  },
+                },
+              },
+              orderBy: { stepOrder: 'asc' },
+            },
           },
         },
       },

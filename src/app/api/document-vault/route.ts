@@ -72,8 +72,17 @@ export const GET = secureRoute.query({
           { status: 403 }
         );
       }
-      where.serviceLine = filters.serviceLine;
-      delete where.OR; // Remove OR clause if specific service line requested
+      
+      // Include both service line specific documents AND global documents
+      where.OR = [
+        { 
+          scope: 'SERVICE_LINE',
+          serviceLine: filters.serviceLine 
+        },
+        { 
+          scope: 'GLOBAL' 
+        }
+      ];
     }
 
     // Apply other filters
@@ -110,7 +119,7 @@ export const GET = secureRoute.query({
           publishedAt: true,
           fileSize: true,
           mimeType: true,
-          Category: {
+          VaultDocumentCategory: {
             select: {
               id: true,
               name: true,

@@ -228,6 +228,36 @@ export async function invalidateCategoriesCache(): Promise<void> {
 }
 
 /**
+ * Generate cache key for document types (active only)
+ */
+export function getDocumentTypesActiveCacheKey(): string {
+  return `${DOCUMENT_VAULT_CACHE_PREFIX}:types:active`;
+}
+
+/**
+ * Generate cache key for all document types (including inactive)
+ */
+export function getDocumentTypesAllCacheKey(): string {
+  return `${DOCUMENT_VAULT_CACHE_PREFIX}:types:all`;
+}
+
+/**
+ * Invalidate document types cache
+ * Call this after: create, update, delete document type operations
+ */
+export async function invalidateDocumentTypesCache(): Promise<void> {
+  try {
+    await Promise.all([
+      cache.delete(getDocumentTypesActiveCacheKey()),
+      cache.delete(getDocumentTypesAllCacheKey()),
+    ]);
+    logger.info('Invalidated document types cache');
+  } catch (error) {
+    logger.error('Failed to invalidate document types cache', { error });
+  }
+}
+
+/**
  * Clear all document vault cache
  * Use sparingly - only for major changes
  */

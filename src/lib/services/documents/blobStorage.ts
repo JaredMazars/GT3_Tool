@@ -947,15 +947,22 @@ export async function uploadVaultDocument(
   buffer: Buffer,
   fileName: string,
   documentId: number,
-  version: number
+  version: number,
+  scope: string,
+  documentType: string,
+  categoryName: string
 ): Promise<string> {
   try {
     const containerClient = getDocumentVaultContainerClient();
     
-    // Sanitize filename
+    // Sanitize components for path
+    const sanitizedCategory = categoryName.replace(/[^a-zA-Z0-9]/g, '-').replace(/-+/g, '-');
     const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const scopePath = scope === 'GLOBAL' ? 'global' : scope;
     const timestamp = Date.now();
-    const blobName = `${documentId}/${version}_${timestamp}_${sanitizedFileName}`;
+    
+    // Build hierarchical path: vault/{scope}/{documentType}/{category}/{documentId}/v{version}_{timestamp}_{filename}
+    const blobName = `vault/${scopePath}/${documentType}/${sanitizedCategory}/${documentId}/v${version}_${timestamp}_${sanitizedFileName}`;
     
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
@@ -964,6 +971,13 @@ export async function uploadVaultDocument(
       blobHTTPHeaders: {
         blobContentType: getContentType(fileName),
       },
+      metadata: {
+        documentId: documentId.toString(),
+        version: version.toString(),
+        scope,
+        documentType,
+        categoryName,
+      },
     });
 
     logger.info(`Uploaded vault document to blob storage: ${blobName}`);
@@ -971,6 +985,133 @@ export async function uploadVaultDocument(
   } catch (error) {
     logger.error('Failed to upload vault document to blob storage:', error);
     throw error;
+  }
+}
+
+/**
+ * Upload vault document to temporary location for preview/extraction
+ * Used during AI extraction workflow before final submission
+ * @param buffer - File buffer
+ * @param fileName - Original filename
+ * @param userId - User ID for organizing temp files
+ * @returns Temporary blob path
+ */
+export async function uploadVaultDocumentTemp(
+  buffer: Buffer,
+  fileName: string,
+  userId: string
+): Promise<string> {
+  try {
+    const containerClient = getDocumentVaultContainerClient();
+    
+    // Sanitize filename
+    const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const timestamp = Date.now();
+    
+    // Use vault/temp prefix for consistency
+    const blobName = `vault/temp/${userId}/${timestamp}_${sanitizedFileName}`;
+    
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    // Upload file
+    await blockBlobClient.uploadData(buffer, {
+      blobHTTPHeaders: {
+        blobContentType: getContentType(fileName),
+      },
+      metadata: {
+        tempUpload: 'true',
+        uploadedAt: new Date().toISOString(),
+        userId,
+      },
+    });
+
+    logger.info(`Uploaded vault document to temp storage: ${blobName}`);
+    return blobName;
+  } catch (error) {
+    logger.error('Failed to upload vault document to temp storage:', error);
+    throw error;
+  }
+}
+
+/**
+ * Move vault document from temporary location to permanent location
+ * Used after user submits form with AI-extracted data
+ * @param tempBlobName - Temporary blob path
+ * @param documentId - Document ID for permanent location
+ * @param version - Document version
+ * @param scope - Document scope (GLOBAL or service line code)
+ * @param documentType - Document type code
+ * @param categoryName - Category name
+ * @returns Permanent blob path
+ */
+export async function moveVaultDocumentFromTemp(
+  tempBlobName: string,
+  documentId: number,
+  version: number,
+  scope: string,
+  documentType: string,
+  categoryName: string
+): Promise<string> {
+  try {
+    const containerClient = getDocumentVaultContainerClient();
+    
+    // Extract original filename from temp path
+    const tempParts = tempBlobName.split('/');
+    const tempFileName = tempParts[tempParts.length - 1];
+    // Remove timestamp prefix from filename
+    const fileName = tempFileName.substring(tempFileName.indexOf('_') + 1);
+    
+    // Sanitize components
+    const sanitizedCategory = categoryName.replace(/[^a-zA-Z0-9]/g, '-').replace(/-+/g, '-');
+    const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const scopePath = scope === 'GLOBAL' ? 'global' : scope;
+    const timestamp = Date.now();
+    
+    // Build hierarchical permanent path
+    const permanentBlobName = `vault/${scopePath}/${documentType}/${sanitizedCategory}/${documentId}/v${version}_${timestamp}_${sanitizedFileName}`;
+    
+    const sourceClient = containerClient.getBlockBlobClient(tempBlobName);
+    const destClient = containerClient.getBlockBlobClient(permanentBlobName);
+    
+    // Copy blob to permanent location
+    const copyPoller = await destClient.beginCopyFromURL(sourceClient.url);
+    await copyPoller.pollUntilDone();
+    
+    // Add metadata to permanent blob
+    await destClient.setMetadata({
+      documentId: documentId.toString(),
+      version: version.toString(),
+      scope,
+      documentType,
+      categoryName,
+    });
+    
+    // Delete temporary blob
+    await sourceClient.delete();
+    
+    logger.info(`Moved vault document from temp to permanent: ${tempBlobName} -> ${permanentBlobName}`);
+    return permanentBlobName;
+  } catch (error) {
+    logger.error('Failed to move vault document from temp storage:', error);
+    throw error;
+  }
+}
+
+/**
+ * Delete temporary vault document
+ * Used for cleanup when user cancels upload or extraction fails
+ * @param tempBlobName - Temporary blob path
+ */
+export async function deleteVaultDocumentTemp(tempBlobName: string): Promise<void> {
+  try {
+    const containerClient = getDocumentVaultContainerClient();
+    const blockBlobClient = containerClient.getBlockBlobClient(tempBlobName);
+    
+    await blockBlobClient.delete();
+    logger.info(`Deleted temp vault document: ${tempBlobName}`);
+  } catch (error) {
+    logger.error('Failed to delete temp vault document:', error);
+    // Don't throw - temp file cleanup failure shouldn't block operations
   }
 }
 

@@ -102,3 +102,16 @@ VALUES (
   CURRENT_TIMESTAMP,
   CURRENT_TIMESTAMP
 );
+
+-- Administrator Approval (for Document Vault uploads)
+INSERT INTO ApprovalRoute (workflowType, routeName, description, routeConfig, isActive, isDefault, createdAt, updatedAt)
+VALUES (
+  'VAULT_DOCUMENT',
+  'admin-approval',
+  'Requires administrator approval for document vault uploads',
+  '{"steps":[{"stepOrder":1,"stepType":"ROLE","assignedToRole":"ADMINISTRATOR","isRequired":true}],"requiresAllSteps":true}',
+  1,
+  1,
+  CURRENT_TIMESTAMP,
+  CURRENT_TIMESTAMP
+);

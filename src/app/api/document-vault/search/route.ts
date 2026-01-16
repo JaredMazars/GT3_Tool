@@ -89,7 +89,7 @@ export const GET = secureRoute.query({
         aiSummary: true,
         tags: true,
         publishedAt: true,
-        Category: {
+        VaultDocumentCategory: {
           select: {
             id: true,
             name: true,

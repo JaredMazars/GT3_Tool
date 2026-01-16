@@ -91,7 +91,23 @@ export const GET = secureRoute.query({
         _count: {
           select: {
             VaultDocument: true,
+            CategoryApprover: true,
           },
+        },
+        CategoryApprover: {
+          select: {
+            id: true,
+            userId: true,
+            stepOrder: true,
+            User_CategoryApprover_userIdToUser: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+          orderBy: { stepOrder: 'asc' },
         },
       },
       orderBy: { sortOrder: 'asc' },
@@ -100,7 +116,15 @@ export const GET = secureRoute.query({
     const result = categories.map(cat => ({
       ...cat,
       documentCount: cat._count.VaultDocument,
+      approverCount: cat._count.CategoryApprover,
+      approvers: cat.CategoryApprover.map(a => ({
+        id: a.id,
+        userId: a.userId,
+        stepOrder: a.stepOrder,
+        user: a.User_CategoryApprover_userIdToUser,
+      })),
       _count: undefined,
+      CategoryApprover: undefined,
     }));
 
     return NextResponse.json(successResponse(result));

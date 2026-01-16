@@ -78,6 +78,7 @@ export interface VaultDocumentListItemDTO {
   publishedAt: Date | null;
   fileSize: number;
   mimeType: string;
+  Approval?: VaultDocumentApprovalDTO | null;
 }
 
 export interface VaultDocumentDetailDTO extends VaultDocumentDTO {
@@ -119,4 +120,56 @@ export interface UpdateVaultDocumentInput {
   tags?: string[];
   effectiveDate?: string;
   expiryDate?: string;
+}
+
+/**
+ * Category Approver Types
+ * For managing approvers assigned to document vault categories
+ */
+export interface CategoryApprover {
+  id: number;
+  categoryId: number;
+  userId: string;
+  stepOrder: number;
+  createdAt: Date;
+  createdBy: string;
+  user: {
+    id: string;
+    name: string | null;
+    email: string;
+  };
+}
+
+export interface VaultCategoryWithApprovers extends VaultDocumentCategoryDTO {
+  approvers: CategoryApprover[];
+  approverCount: number;
+  documentCount?: number;
+}
+
+export interface CategoryApproverAssignment {
+  userId: string;
+  stepOrder: number;
+}
+
+/**
+ * Approval Step Types
+ * For displaying approval status and progress
+ */
+export interface ApprovalStepDTO {
+  id: number;
+  stepOrder: number;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SKIPPED';
+  approvedAt: Date | null;
+  User_ApprovalStep_assignedToUserIdToUser: {
+    id: string;
+    name: string | null;
+    email: string;
+  } | null;
+}
+
+export interface VaultDocumentApprovalDTO {
+  id: number;
+  status: string;
+  requiresAllSteps: boolean;
+  steps: ApprovalStepDTO[];
 }

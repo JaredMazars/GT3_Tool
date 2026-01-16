@@ -4,7 +4,7 @@ import { Feature } from '@/lib/permissions/features';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { AppError, ErrorCodes, handleApiError } from '@/lib/utils/errorHandler';
-import { uploadVaultDocument, initDocumentVaultStorage } from '@/lib/services/documents/blobStorage';
+import { uploadVaultDocument, initDocumentVaultStorage, moveVaultDocumentFromTemp } from '@/lib/services/documents/blobStorage';
 import { extractVaultDocumentMetadata } from '@/lib/services/documents/vaultDocumentExtraction';
 import { approvalService } from '@/lib/services/approvals/approvalService';
 import { invalidateDocumentVaultCache } from '@/lib/services/document-vault/documentVaultCache';
@@ -53,10 +53,17 @@ export const GET = secureRoute.query({
       }
     }
 
-    // Build query
+    // Build query - include both service line specific AND global documents
     const where: any = {
-      scope: 'SERVICE_LINE',
-      serviceLine,
+      OR: [
+        {
+          scope: 'SERVICE_LINE',
+          serviceLine,
+        },
+        {
+          scope: 'GLOBAL',
+        }
+      ]
     };
 
     if (status && status !== 'all') {
@@ -84,11 +91,40 @@ export const GET = secureRoute.query({
         createdAt: true,
         updatedAt: true,
         uploadedBy: true,
-        Category: {
+        VaultDocumentCategory: {
           select: {
             id: true,
             name: true,
             documentType: true,
+          },
+        },
+        User: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
+        Approval: {
+          select: {
+            id: true,
+            status: true,
+            requiresAllSteps: true,
+            ApprovalStep: {
+              select: {
+                id: true,
+                stepOrder: true,
+                status: true,
+                approvedAt: true,
+                User_ApprovalStep_assignedToUserIdToUser: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                  },
+                },
+              },
+              orderBy: { stepOrder: 'asc' },
+            },
           },
         },
       },
@@ -104,6 +140,7 @@ export const GET = secureRoute.query({
 /**
  * POST /api/document-vault/admin
  * Upload new vault document (service line scoped)
+ * Supports both old format (individual fields) and new format (metadata JSON with AI extraction)
  */
 export const POST = secureRoute.fileUpload({
   feature: Feature.MANAGE_VAULT_DOCUMENTS,
@@ -113,16 +150,27 @@ export const POST = secureRoute.fileUpload({
       const formData = await request.formData();
       const file = formData.get('file') as File;
       
-      // Get metadata from individual form fields
-      const title = formData.get('title') as string;
-      const description = formData.get('description') as string || '';
-      const documentType = formData.get('documentType') as string;
-      const categoryId = parseInt(formData.get('categoryId') as string);
-      const scope = formData.get('scope') as string;
-      const serviceLine = formData.get('serviceLine') as string;
-      const tagsJson = formData.get('tags') as string;
-      const effectiveDate = formData.get('effectiveDate') as string;
-      const expiryDate = formData.get('expiryDate') as string;
+      // Check if using new format (metadata JSON) or old format (individual fields)
+      const metadataJson = formData.get('metadata') as string;
+      let metadata: any;
+      
+      if (metadataJson) {
+        // New format with AI extraction support
+        metadata = JSON.parse(metadataJson);
+      } else {
+        // Old format - convert individual fields to metadata object
+        metadata = {
+          title: formData.get('title') as string,
+          description: (formData.get('description') as string) || undefined,
+          documentType: formData.get('documentType') as string,
+          categoryId: parseInt(formData.get('categoryId') as string),
+          scope: formData.get('scope') as string,
+          serviceLine: formData.get('serviceLine') as string,
+          tags: formData.get('tags') ? JSON.parse(formData.get('tags') as string) : undefined,
+          effectiveDate: (formData.get('effectiveDate') as string) || undefined,
+          expiryDate: (formData.get('expiryDate') as string) || undefined,
+        };
+      }
 
       if (!file) {
         throw new AppError(
@@ -132,10 +180,19 @@ export const POST = secureRoute.fileUpload({
         );
       }
 
-      if (!title || !documentType || !categoryId || !scope || !serviceLine) {
+      if (!metadata.title || !metadata.documentType || !metadata.categoryId || !metadata.scope) {
         throw new AppError(
           400,
           'Missing required fields',
+          ErrorCodes.VALIDATION_ERROR
+        );
+      }
+
+      // Only validate serviceLine if scope is SERVICE_LINE
+      if (metadata.scope === 'SERVICE_LINE' && !metadata.serviceLine) {
+        throw new AppError(
+          400,
+          'Service line is required for SERVICE_LINE scope',
           ErrorCodes.VALIDATION_ERROR
         );
       }
@@ -148,7 +205,7 @@ export const POST = secureRoute.fileUpload({
         const serviceLineRole = await prisma.serviceLineUser.findFirst({
           where: {
             userId: user.id,
-            subServiceLineGroup: serviceLine,
+            subServiceLineGroup: metadata.serviceLine,
             role: 'ADMINISTRATOR',
           },
         });
@@ -200,35 +257,58 @@ export const POST = secureRoute.fileUpload({
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
 
-      // Parse tags
-      let tags = null;
-      if (tagsJson) {
-        try {
-          tags = JSON.stringify(JSON.parse(tagsJson));
-        } catch (e) {
-          logger.warn('Failed to parse tags JSON', { tagsJson });
-        }
+      // Validate category has approvers
+      const categoryWithApprovers = await prisma.vaultDocumentCategory.findUnique({
+        where: { id: metadata.categoryId },
+        select: {
+          id: true,
+          name: true,
+          active: true,
+          _count: {
+            select: { CategoryApprover: true },
+          },
+        },
+      });
+
+      if (!categoryWithApprovers) {
+        throw new AppError(404, 'Category not found', ErrorCodes.NOT_FOUND);
       }
+
+      if (!categoryWithApprovers.active) {
+        throw new AppError(400, 'Cannot upload to inactive category', ErrorCodes.VALIDATION_ERROR);
+      }
+
+      if (categoryWithApprovers._count.CategoryApprover === 0) {
+        throw new AppError(
+          400,
+          'Cannot upload to this category. No approvers assigned. Contact administrator to add approvers first.',
+          ErrorCodes.VALIDATION_ERROR
+        );
+      }
+
+      // Parse tags
+      const tags = metadata.tags ? JSON.stringify(metadata.tags) : null;
 
       // Create document record (status: PENDING_APPROVAL)
       const document = await prisma.vaultDocument.create({
         data: {
-          title,
-          description,
-          documentType,
+          title: metadata.title,
+          description: metadata.description,
+          documentType: metadata.documentType,
+          documentVersion: metadata.documentVersion,
           fileName: file.name,
           filePath: '', // Will be updated after upload
           fileSize: file.size,
           mimeType: file.type,
-          categoryId,
-          scope,
-          serviceLine,
+          categoryId: metadata.categoryId,
+          scope: metadata.scope,
+          serviceLine: metadata.serviceLine,
           version: 1,
           status: 'PENDING_APPROVAL',
           aiExtractionStatus: 'PENDING',
           tags,
-          effectiveDate: effectiveDate ? new Date(effectiveDate) : null,
-          expiryDate: expiryDate ? new Date(expiryDate) : null,
+          effectiveDate: metadata.effectiveDate ? new Date(metadata.effectiveDate) : null,
+          expiryDate: metadata.expiryDate ? new Date(metadata.expiryDate) : null,
           uploadedBy: user.id,
         },
         select: {
@@ -236,15 +316,42 @@ export const POST = secureRoute.fileUpload({
           title: true,
           documentType: true,
           serviceLine: true,
-          Category: {
+          VaultDocumentCategory: {
             select: { name: true },
           },
         },
       });
 
-      // Upload to blob storage
+      // Upload to blob storage or move from temp location
       await initDocumentVaultStorage();
-      const blobPath = await uploadVaultDocument(buffer, file.name, document.id, 1);
+      let blobPath: string;
+      
+      if (metadata.tempBlobPath) {
+        // AI extraction workflow - move from temp to permanent location
+        logger.info('Moving document from temp to permanent location', {
+          tempPath: metadata.tempBlobPath,
+          documentId: document.id,
+        });
+        blobPath = await moveVaultDocumentFromTemp(
+          metadata.tempBlobPath,
+          document.id,
+          1,
+          metadata.scope,
+          metadata.documentType,
+          document.VaultDocumentCategory.name
+        );
+      } else {
+        // Standard upload workflow
+        blobPath = await uploadVaultDocument(
+          buffer,
+          file.name,
+          document.id,
+          1,
+          metadata.scope,
+          metadata.documentType,
+          document.VaultDocumentCategory.name
+        );
+      }
 
       // Update document with blob path
       await prisma.vaultDocument.update({
@@ -264,30 +371,81 @@ export const POST = secureRoute.fileUpload({
         },
       });
 
-      // Start AI extraction in background (don't wait)
-      extractVaultDocumentMetadata(
-        buffer,
-        document.id,
-        document.title,
-        document.documentType,
-        document.Category.name
-      ).catch((err) => {
-        logger.error('Background AI extraction failed', err, {
-          documentId: document.id,
+      // Start AI extraction in background (don't wait) - only if not using AI extraction workflow
+      if (!metadata.tempBlobPath) {
+        // Standard workflow - extract metadata in background
+        extractVaultDocumentMetadata(
+          buffer,
+          document.id,
+          document.title,
+          document.documentType,
+          document.VaultDocumentCategory.name
+        ).catch((err) => {
+          logger.error('Background AI extraction failed', err, {
+            documentId: document.id,
+          });
         });
+      } else {
+        // AI extraction workflow - metadata already extracted during preview
+        // Mark as success immediately since extraction was done upfront
+        await prisma.vaultDocument.update({
+          where: { id: document.id },
+          data: { aiExtractionStatus: 'SUCCESS' },
+        });
+        logger.info('Using pre-extracted AI suggestions', { documentId: document.id });
+      }
+
+      // Get category approvers for approval workflow
+      const categoryApprovers = await prisma.categoryApprover.findMany({
+        where: { categoryId: metadata.categoryId },
+        select: {
+          userId: true,
+          stepOrder: true,
+        },
+        orderBy: { stepOrder: 'asc' },
       });
 
-      // Create approval request
-      const approval = await approvalService.createApproval({
-        workflowType: 'VAULT_DOCUMENT',
-        workflowId: document.id,
-        title: `Document Upload: ${document.title}`,
-        requestedById: user.id,
-        context: {
-          documentType: document.documentType,
-          serviceLine: document.serviceLine,
-          categoryName: document.Category.name,
-        },
+      // Create approval with sequential steps from category approvers
+      const approval = await prisma.$transaction(async (tx) => {
+        // Create the approval
+        const newApproval = await tx.approval.create({
+          data: {
+            workflowType: 'VAULT_DOCUMENT',
+            workflowId: document.id,
+            status: 'PENDING',
+            priority: 'MEDIUM',
+            title: `Document Approval: ${document.title}`,
+            description: `Review and approve document upload: ${document.title} (${document.documentType})`,
+            requestedById: user.id,
+            requiresAllSteps: true, // Sequential approval - all must approve in order
+          },
+        });
+
+        // Create approval steps from category approvers
+        const steps = await Promise.all(
+          categoryApprovers.map((approver) =>
+            tx.approvalStep.create({
+              data: {
+                approvalId: newApproval.id,
+                stepOrder: approver.stepOrder,
+                stepType: 'USER_APPROVAL',
+                isRequired: true,
+                assignedToUserId: approver.userId,
+                status: 'PENDING',
+              },
+            })
+          )
+        );
+
+        // Set first step as current
+        if (steps.length > 0) {
+          await tx.approval.update({
+            where: { id: newApproval.id },
+            data: { currentStepId: steps[0].id },
+          });
+        }
+
+        return newApproval;
       });
 
       // Link approval to document

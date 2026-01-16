@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { Download, Calendar, Tag, ArrowLeft, FileText, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button, LoadingSpinner } from '@/components/ui';
+import { useFeature } from '@/hooks/permissions/useFeature';
+import { Feature } from '@/lib/permissions/features';
 
 export function DocumentDetailClient({ documentId }: { documentId: string }) {
   const router = useRouter();
@@ -11,9 +13,20 @@ export function DocumentDetailClient({ documentId }: { documentId: string }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Check if user has admin permissions
+  const { hasFeature: canManageVault, isLoading: isCheckingPermissions } = useFeature(Feature.MANAGE_VAULT_DOCUMENTS);
 
   useEffect(() => {
-    fetch(`/api/document-vault/${documentId}`)
+    // Wait for permissions check to complete
+    if (isCheckingPermissions) return;
+
+    // Use admin endpoint if user has management permissions, public endpoint otherwise
+    const endpoint = canManageVault 
+      ? `/api/admin/document-vault/${documentId}`
+      : `/api/document-vault/${documentId}`;
+
+    fetch(endpoint)
       .then(res => res.json())
       .then(data => {
         if (data.success) {
@@ -27,23 +40,31 @@ export function DocumentDetailClient({ documentId }: { documentId: string }) {
         console.error(err);
       })
       .finally(() => setIsLoading(false));
-  }, [documentId]);
+  }, [documentId, canManageVault, isCheckingPermissions]);
 
   const handleDownload = async () => {
     setIsDownloading(true);
     try {
-      const response = await fetch(`/api/document-vault/${documentId}/download`);
+      // Use admin endpoint if user has management permissions
+      const endpoint = canManageVault 
+        ? `/api/admin/document-vault/${documentId}/download`
+        : `/api/document-vault/${documentId}/download`;
+        
+      console.log('Downloading from:', endpoint, 'canManageVault:', canManageVault);
+        
+      const response = await fetch(endpoint);
       const data = await response.json();
       
       if (data.success) {
         // Open download URL
         window.open(data.data.downloadUrl, '_blank');
       } else {
-        alert('Failed to download document');
+        console.error('Download failed:', data);
+        alert(`Failed to download document: ${data.error || 'Unknown error'}`);
       }
     } catch (err) {
+      console.error('Download error:', err);
       alert('Failed to download document');
-      console.error(err);
     } finally {
       setIsDownloading(false);
     }
@@ -87,11 +108,11 @@ export function DocumentDetailClient({ documentId }: { documentId: string }) {
             <span className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium bg-forvis-blue-100 text-forvis-blue-800">
               {document.documentType}
             </span>
-            <span 
+            <span
               className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium text-white"
-              style={{ backgroundColor: document.Category.color || '#2E5AAC' }}
+              style={{ backgroundColor: document.VaultDocumentCategory.color || '#2E5AAC' }}
             >
-              {document.Category.name}
+              {document.VaultDocumentCategory.name}
             </span>
             {document.serviceLine && (
               <span className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium bg-forvis-gray-100 text-forvis-gray-700">
@@ -241,7 +262,12 @@ export function DocumentDetailClient({ documentId }: { documentId: string }) {
                 {version.version !== document.version && (
                   <button
                     onClick={() => {
-                      fetch(`/api/document-vault/${documentId}/download?version=${version.version}`)
+                      // Use admin endpoint if user has management permissions
+                      const endpoint = canManageVault 
+                        ? `/api/admin/document-vault/${documentId}/download?version=${version.version}`
+                        : `/api/document-vault/${documentId}/download?version=${version.version}`;
+                        
+                      fetch(endpoint)
                         .then(res => res.json())
                         .then(data => {
                           if (data.success) {

@@ -214,7 +214,7 @@ export const WORKFLOW_REGISTRY: Record<WorkflowType, WorkflowRegistryEntry> = {
       return await prisma.vaultDocument.findUnique({
         where: { id: workflowId },
         include: {
-          Category: {
+          VaultDocumentCategory: {
             select: {
               id: true,
               name: true,
@@ -237,7 +237,7 @@ export const WORKFLOW_REGISTRY: Record<WorkflowType, WorkflowRegistryEntry> = {
       return `${docType}: ${title}`;
     },
     getDisplayDescription: (data: any) => {
-      const category = data?.Category?.name || 'Uncategorized';
+      const category = data?.VaultDocumentCategory?.name || 'Uncategorized';
       const scope = data?.scope === 'GLOBAL' ? 'Global' : `${data?.serviceLine || 'Service Line'}`;
       return `Category: ${category} | Scope: ${scope}`;
     },

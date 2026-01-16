@@ -53,7 +53,7 @@ export const POST = secureRoute.fileUpload({
         status: true,
         version: true,
         categoryId: true,
-        Category: {
+        VaultDocumentCategory: {
           select: { name: true },
         },
       },
@@ -161,7 +161,7 @@ export const POST = secureRoute.fileUpload({
       documentId,
       document.title,
       document.documentType,
-      document.Category.name
+      document.VaultDocumentCategory.name
     ).then(async (extracted) => {
       await prisma.vaultDocument.update({
         where: { id: documentId },

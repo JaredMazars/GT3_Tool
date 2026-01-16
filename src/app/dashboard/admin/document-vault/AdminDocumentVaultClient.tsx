@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Upload, Settings, FileText, Clock, Archive } from 'lucide-react';
 import { Button, LoadingSpinner } from '@/components/ui';
+import { ApproverDisplay } from '@/components/features/document-vault';
 import Link from 'next/link';
 
 export function AdminDocumentVaultClient() {
@@ -78,6 +79,12 @@ export function AdminDocumentVaultClient() {
             Manage Categories
           </Button>
         </Link>
+        <Link href="/dashboard/admin/document-vault/types">
+          <Button variant="secondary">
+            <Settings className="h-4 w-4 mr-2" />
+            Manage Document Types
+          </Button>
+        </Link>
       </div>
 
       {/* Tabs */}
@@ -147,7 +154,13 @@ export function AdminDocumentVaultClient() {
                   Category
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-forvis-gray-700 uppercase tracking-wider">
+                  Scope
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-forvis-gray-700 uppercase tracking-wider">
                   Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-forvis-gray-700 uppercase tracking-wider">
+                  Approvers
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-forvis-gray-700 uppercase tracking-wider">
                   Version
@@ -172,7 +185,18 @@ export function AdminDocumentVaultClient() {
                     {doc.documentType}
                   </td>
                   <td className="px-6 py-4 text-sm text-forvis-gray-600">
-                    {doc.Category.name}
+                    {doc.VaultDocumentCategory.name}
+                  </td>
+                  <td className="px-6 py-4 text-sm">
+                    {doc.scope === 'GLOBAL' ? (
+                      <span className="inline-flex px-2 py-1 rounded text-xs font-medium bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 border border-purple-300">
+                        Global
+                      </span>
+                    ) : (
+                      <span className="inline-flex px-2 py-1 rounded text-xs font-medium bg-forvis-gray-100 text-forvis-gray-700">
+                        {doc.serviceLine}
+                      </span>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-sm">
                     <span
@@ -188,6 +212,9 @@ export function AdminDocumentVaultClient() {
                     >
                       {doc.status}
                     </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <ApproverDisplay approval={doc.Approval} />
                   </td>
                   <td className="px-6 py-4 text-sm text-forvis-gray-600">
                     v{doc.version}

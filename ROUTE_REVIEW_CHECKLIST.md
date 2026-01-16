@@ -222,7 +222,7 @@ For routes that call external APIs or services:
 
 | Category | Total | Reviewed | Status |
 |----------|-------|----------|--------|
-| Admin | 34 | 34 | ✅ Complete |
+| Admin | 42 | 34 | 🔄 Needs Review (8 newly added routes) |
 | Auth | 6 | 6 | ✅ Complete |
 | BD | 29 | 29 | ✅ Complete |
 | Clients | 22 | 22 | ✅ Complete |
@@ -232,12 +232,12 @@ For routes that call external APIs or services:
 | Notifications | 7 | 7 | ✅ Complete |
 | Users | 6 | 6 | ✅ Complete |
 | Tools | 14 | 14 | ✅ Complete |
-| Utility | 85 | 85 | ✅ Complete |
-| **Total** | **345** | **315** | 🔄 **30 NEW ROUTES DISCOVERED - AWAITING REVIEW** |
+| Utility | 87 | 85 | 🔄 Needs Review (2 newly added routes) |
+| **Total** | **355** | **325** | 🔄 **40 NEW ROUTES DISCOVERED - AWAITING REVIEW** |
 
 ---
 
-## Admin Routes (25)
+## Admin Routes (42)
 
 ### External Links
 
@@ -549,6 +549,57 @@ For routes that call external APIs or services:
   - **Reviewed**: 2024-12-19
   - **Fix Applied**: Removed broken `isSystemAdmin()` reference (was causing runtime error after import was removed). Replaced `Number.parseInt()` with `parseNumericId()` utility for both template and section IDs. Feature permission handles authorization.
 
+### Document Vault
+
+- [ ] `GET /api/admin/document-vault/types` - List all document types
+  - **File**: `src/app/api/admin/document-vault/types/route.ts`
+  - **Frontend**: 
+    - Page: `src/app/dashboard/admin/document-vault/types/page.tsx`
+  - **Reviewed**: [Pending]
+  - **Notes**: Uses `secureRoute.query` with `Feature.MANAGE_VAULT_DOCUMENTS`. SYSTEM_ADMIN role check. Needs review.
+
+- [ ] `POST /api/admin/document-vault/types` - Create new document type
+  - **File**: `src/app/api/admin/document-vault/types/route.ts`
+  - **Frontend**: 
+    - Page: `src/app/dashboard/admin/document-vault/types/page.tsx`
+  - **Reviewed**: [Pending]
+  - **Notes**: Uses `secureRoute.mutation` with `Feature.MANAGE_VAULT_DOCUMENTS`. SYSTEM_ADMIN only. Has unique constraint check. Needs review.
+
+- [ ] `PATCH /api/admin/document-vault/types/[id]` - Update document type
+  - **File**: `src/app/api/admin/document-vault/types/[id]/route.ts`
+  - **Frontend**: 
+    - Page: `src/app/dashboard/admin/document-vault/types/page.tsx`
+  - **Reviewed**: [Pending]
+  - **Notes**: Uses `secureRoute.mutationWithParams` with `Feature.MANAGE_VAULT_DOCUMENTS`. SYSTEM_ADMIN only. Has cache invalidation. Needs review.
+
+- [ ] `DELETE /api/admin/document-vault/types/[id]` - Delete document type
+  - **File**: `src/app/api/admin/document-vault/types/[id]/route.ts`
+  - **Frontend**: 
+    - Page: `src/app/dashboard/admin/document-vault/types/page.tsx`
+  - **Reviewed**: [Pending]
+  - **Notes**: Uses `secureRoute.mutationWithParams` with `Feature.MANAGE_VAULT_DOCUMENTS`. SYSTEM_ADMIN only. Needs orphan check. Needs review.
+
+- [ ] `GET /api/admin/document-vault/categories/[id]/approvers` - List category approvers
+  - **File**: `src/app/api/admin/document-vault/categories/[id]/approvers/route.ts`
+  - **Frontend**: 
+    - Component: `CategoryApproverModal.tsx`
+  - **Reviewed**: [Pending]
+  - **Notes**: Uses `secureRoute.query` with `Feature.MANAGE_DOCUMENT_VAULT`. Returns approvers with user details. Needs review.
+
+- [ ] `POST /api/admin/document-vault/categories/[id]/approvers` - Set category approvers
+  - **File**: `src/app/api/admin/document-vault/categories/[id]/approvers/route.ts`
+  - **Frontend**: 
+    - Component: `CategoryApproverModal.tsx`
+  - **Reviewed**: [Pending]
+  - **Notes**: Uses `secureRoute.mutation` with `Feature.MANAGE_DOCUMENT_VAULT`. Uses transaction for atomic updates. Has cache invalidation. Needs review.
+
+- [ ] `DELETE /api/admin/document-vault/categories/[id]/approvers` - Remove category approvers
+  - **File**: `src/app/api/admin/document-vault/categories/[id]/approvers/route.ts`
+  - **Frontend**: 
+    - Component: `CategoryApproverModal.tsx`
+  - **Reviewed**: [Pending]
+  - **Notes**: Uses `secureRoute.mutation` with `Feature.MANAGE_DOCUMENT_VAULT`. Has cache invalidation. Needs review.
+
 ### Users
 
 - [x] `GET /api/admin/users` - List users
@@ -599,6 +650,13 @@ For routes that call external APIs or services:
     - Page: `src/app/dashboard/admin/users/page.tsx`
   - **Reviewed**: 2024-12-19
   - **Fix Applied**: Added `Feature.MANAGE_USERS` permission. Removed broken `isSystemAdmin()` reference (was causing runtime error). Added userId param validation. Used `successResponse` wrapper. Schema already fixed in POST review.
+
+- [ ] `GET /api/admin/users/search` - Search users by name or email
+  - **File**: `src/app/api/admin/users/search/route.ts`
+  - **Frontend**: 
+    - Component: `CategoryApproverModal.tsx`
+  - **Reviewed**: [Pending]
+  - **Notes**: Uses `secureRoute.query` with `Feature.MANAGE_DOCUMENT_VAULT`. Has 2 character min query length. Max 20 results with deterministic ordering. Needs review.
 
 ---
 
@@ -2458,7 +2516,7 @@ For routes that call external APIs or services:
 
 ---
 
-## Utility Routes (10)
+## Utility Routes (12)
 
 ### Employee Routes
 
@@ -2503,6 +2561,22 @@ For routes that call external APIs or services:
   - **Reviewed**: 2024-12-19
   - **Issues Found**: None - already using secureRoute.query correctly.
   - **Fix Applied**: None needed.
+
+### Document Vault
+
+- [ ] `POST /api/document-vault/extract` - Upload document and extract field suggestions
+  - **File**: `src/app/api/document-vault/extract/route.ts`
+  - **Frontend**: 
+    - Component: `DocumentUploadForm.tsx`
+  - **Reviewed**: [Pending]
+  - **Notes**: Uses `secureRoute.fileUpload` with `Feature.MANAGE_VAULT_DOCUMENTS`. AI endpoint with Azure OpenAI extraction. 50MB file size limit with MIME type allowlist. Needs review.
+
+- [ ] `GET /api/document-vault/types` - Get active document types
+  - **File**: `src/app/api/document-vault/types/route.ts`
+  - **Frontend**: 
+    - Component: `DocumentUploadForm.tsx`
+  - **Reviewed**: [Pending]
+  - **Notes**: Uses `secureRoute.query` with `Feature.ACCESS_VAULT_DOCUMENTS`. Returns active types only with explicit select fields. Needs review.
 
 ### Search Routes
 

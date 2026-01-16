@@ -7,6 +7,94 @@ import { prisma } from '@/lib/db/prisma';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { SystemRole } from '@/types';
 import { invalidateCategoriesCache } from '@/lib/services/document-vault/documentVaultCache';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+
+/**
+ * GET /api/admin/document-vault/categories/[id]
+ * Get single category with approver information
+ */
+export const GET = secureRoute.queryWithParams<{ id: string }>({
+  feature: Feature.MANAGE_VAULT_DOCUMENTS,
+  handler: async (request, { user, params }) => {
+    const categoryId = parseInt(params.id);
+
+    if (isNaN(categoryId)) {
+      throw new AppError(400, 'Invalid category ID', ErrorCodes.VALIDATION_ERROR);
+    }
+
+    // Only SYSTEM_ADMIN can view category details
+    const userRecord = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { role: true },
+    });
+
+    if (userRecord?.role !== SystemRole.SYSTEM_ADMIN) {
+      return NextResponse.json(
+        { error: 'Only system administrators can manage categories' },
+        { status: 403 }
+      );
+    }
+
+    const category = await prisma.vaultDocumentCategory.findUnique({
+      where: { id: categoryId },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        icon: true,
+        color: true,
+        documentType: true,
+        active: true,
+        sortOrder: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: {
+          select: {
+            VaultDocument: true,
+            CategoryApprover: true,
+          },
+        },
+        CategoryApprover: {
+          select: {
+            id: true,
+            userId: true,
+            stepOrder: true,
+            createdAt: true,
+            User_CategoryApprover_userIdToUser: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+          orderBy: { stepOrder: 'asc' },
+        },
+      },
+    });
+
+    if (!category) {
+      throw new AppError(404, 'Category not found', ErrorCodes.NOT_FOUND);
+    }
+
+    const result = {
+      ...category,
+      documentCount: category._count.VaultDocument,
+      approverCount: category._count.CategoryApprover,
+      approvers: category.CategoryApprover.map(a => ({
+        id: a.id,
+        userId: a.userId,
+        stepOrder: a.stepOrder,
+        createdAt: a.createdAt,
+        user: a.User_CategoryApprover_userIdToUser,
+      })),
+      _count: undefined,
+      CategoryApprover: undefined,
+    };
+
+    return NextResponse.json(successResponse(result));
+  },
+});
 
 /**
  * PATCH /api/admin/document-vault/categories/[id]
@@ -73,13 +161,24 @@ export const PATCH = secureRoute.mutationWithParams<typeof UpdateVaultCategorySc
         documentType: true,
         active: true,
         sortOrder: true,
+        _count: {
+          select: {
+            CategoryApprover: true,
+          },
+        },
       },
     });
+
+    const result = {
+      ...updated,
+      approverCount: updated._count.CategoryApprover,
+      _count: undefined,
+    };
 
     // Invalidate cache
     await invalidateCategoriesCache();
 
-    return NextResponse.json(successResponse(updated));
+    return NextResponse.json(successResponse(result));
   },
 });
 

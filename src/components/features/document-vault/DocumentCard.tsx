@@ -40,7 +40,11 @@ export function DocumentCard({ document }: DocumentCardProps) {
               >
                 {document.category.name}
               </span>
-              {document.serviceLine && (
+              {document.scope === 'GLOBAL' ? (
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 border border-purple-300">
+                  Global
+                </span>
+              ) : (
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-forvis-gray-100 text-forvis-gray-700">
                   {document.serviceLine}
                 </span>

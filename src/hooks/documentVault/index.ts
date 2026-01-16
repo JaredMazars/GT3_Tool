@@ -5,3 +5,4 @@ export {
   useDownloadDocument, 
   useSearchDocuments 
 } from './useDocuments';
+export { useDocumentTypes } from './useDocumentTypes';

@@ -26,7 +26,7 @@ export function VaultDocumentApprovalItem({ workflowData }: VaultDocumentApprova
             </h3>
             <div className="flex items-center gap-2 mt-1 text-sm text-forvis-gray-600">
               <FolderOpen className="h-4 w-4" />
-              <span>{document?.Category?.name || 'Uncategorized'}</span>
+              <span>{document?.VaultDocumentCategory?.name || 'Uncategorized'}</span>
             </div>
           </div>
         </div>

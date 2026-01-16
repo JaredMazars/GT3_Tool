@@ -65,7 +65,7 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
         publishedAt: true,
         createdAt: true,
         updatedAt: true,
-        Category: {
+        VaultDocumentCategory: {
           select: {
             id: true,
             name: true,

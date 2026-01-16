@@ -1431,12 +1431,14 @@ export const CreateVaultDocumentSchema = z.object({
   title: safeString(200, 3),
   description: safeString(1000).optional(),
   documentType: VaultDocumentTypeEnum,
+  documentVersion: safeString(50).optional(), // AI-detected internal version from document content
   categoryId: z.number().int().positive(),
   scope: VaultDocumentScopeEnum,
   serviceLine: safeIdentifier(50).optional(),
   tags: z.array(safeString(50)).max(10).optional(),
   effectiveDate: z.string().datetime().optional(),
   expiryDate: z.string().datetime().optional(),
+  tempBlobPath: z.string().optional(), // For AI extraction workflow - path to temp uploaded file
 }).strict().refine(
   data => data.scope === 'GLOBAL' || data.serviceLine,
   { message: 'Service line required for SERVICE_LINE scope', path: ['serviceLine'] }
@@ -1451,6 +1453,7 @@ export const UpdateVaultDocumentSchema = z.object({
   description: safeString(1000).optional(),
   categoryId: z.number().int().positive().optional(),
   documentType: VaultDocumentTypeEnum.optional(),
+  documentVersion: safeString(50).optional(),
   tags: z.array(safeString(50)).max(10).optional(),
   effectiveDate: z.string().datetime().optional(),
   expiryDate: z.string().datetime().optional(),
@@ -1489,6 +1492,19 @@ export const UpdateVaultCategorySchema = z.object({
   sortOrder: z.number().int().min(0).max(9999).optional(),
 }).strict();
 
+/**
+ * Category Approvers Schema
+ * For assigning approvers to document vault categories
+ */
+export const CategoryApproversSchema = z.object({
+  approvers: z.array(z.string().min(1, 'User ID cannot be empty'))
+    .min(1, 'At least one approver is required')
+    .max(10, 'Maximum 10 approvers allowed')
+    .refine((arr) => new Set(arr).size === arr.length, {
+      message: 'Duplicate approvers are not allowed',
+    }),
+}).strict();
+
 // Archive document schema
 export const ArchiveVaultDocumentSchema = z.object({
   reason: safeString(500).optional(),
@@ -1499,13 +1515,36 @@ export const NewVersionSchema = z.object({
   changeNotes: safeString(500).optional(),
 }).strict();
 
+// Create document type schema
+export const CreateDocumentTypeSchema = z.object({
+  code: safeIdentifier(50, 2).regex(/^[A-Z_]+$/, 'Code must be uppercase with underscores only (e.g., CUSTOM_TYPE)'),
+  name: safeString(100, 2),
+  description: safeString(500).optional(),
+  icon: safeIdentifier(50).optional(),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+  sortOrder: z.number().int().min(0).max(9999).optional(),
+}).strict();
+
+// Update document type schema (code is immutable)
+export const UpdateDocumentTypeSchema = z.object({
+  name: safeString(100, 2).optional(),
+  description: safeString(500).optional(),
+  icon: safeIdentifier(50).optional(),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+  active: z.boolean().optional(),
+  sortOrder: z.number().int().min(0).max(9999).optional(),
+}).strict();
+
 // Inferred types
 export type CreateVaultDocumentInput = z.infer<typeof CreateVaultDocumentSchema>;
 export type UpdateVaultDocumentInput = z.infer<typeof UpdateVaultDocumentSchema>;
 export type VaultDocumentFiltersInput = z.infer<typeof VaultDocumentFiltersSchema>;
 export type CreateVaultCategoryInput = z.infer<typeof CreateVaultCategorySchema>;
 export type UpdateVaultCategoryInput = z.infer<typeof UpdateVaultCategorySchema>;
+export type CategoryApproversInput = z.infer<typeof CategoryApproversSchema>;
 export type ArchiveVaultDocumentInput = z.infer<typeof ArchiveVaultDocumentSchema>;
 export type NewVersionInput = z.infer<typeof NewVersionSchema>;
+export type CreateDocumentTypeInput = z.infer<typeof CreateDocumentTypeSchema>;
+export type UpdateDocumentTypeInput = z.infer<typeof UpdateDocumentTypeSchema>;
 
 
