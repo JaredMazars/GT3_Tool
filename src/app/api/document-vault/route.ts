@@ -135,9 +135,11 @@ export const GET = secureRoute.query({
       prisma.vaultDocument.count({ where }),
     ]);
 
-    // Parse tags from JSON
+    // Parse tags from JSON and map VaultDocumentCategory to category
     const documentsWithTags = documents.map(doc => ({
       ...doc,
+      category: doc.VaultDocumentCategory,
+      VaultDocumentCategory: undefined,
       tags: doc.tags ? JSON.parse(doc.tags) : null,
     }));
 

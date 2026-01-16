@@ -337,7 +337,9 @@ export function TaskDetailContent({
 
   const getDefaultTab = () => {
     // If initialNoteId is provided, open to workspace tab
-    if (initialNoteId) return 'workspace';
+    if (initialNoteId) {
+      return 'workspace';
+    }
     
     if (!task) return 'acceptance';
     
@@ -390,8 +392,21 @@ export function TaskDetailContent({
     employeeStatus: (member as any).employeeStatus,
   }));
 
+  // Ensure workspace tab is selected when initialNoteId is provided - run FIRST
+  useEffect(() => {
+    if (initialNoteId) {
+      setActiveTab('workspace');
+      setHasManuallySelectedTab(false); // Allow this to be overridden later if needed, but workspace is set first
+    }
+  }, [initialNoteId]);
+  
   useEffect(() => {
     const tab = searchParams.get('tab');
+    // If we have initialNoteId, ignore URL params for tab selection
+    if (initialNoteId) {
+      return;
+    }
+    
     if (tab) {
       setActiveTab(tab);
       setHasManuallySelectedTab(true);
@@ -399,7 +414,7 @@ export function TaskDetailContent({
       // Only set default tab if user hasn't manually selected one
       setActiveTab(getDefaultTab());
     }
-  }, [searchParams, task, hasManuallySelectedTab]);
+  }, [searchParams, task, hasManuallySelectedTab, initialNoteId]);
 
   useEffect(() => {
     const fetchCurrentUserRole = async () => {

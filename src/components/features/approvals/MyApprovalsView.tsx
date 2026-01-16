@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ClipboardCheck, Bell, Archive } from 'lucide-react';
 import { useApprovals } from '@/hooks/approvals/useApprovals';
 import { LoadingSpinner } from '@/components/ui';

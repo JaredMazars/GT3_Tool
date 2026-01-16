@@ -336,41 +336,70 @@ export const GET = secureRoute.query({
             ],
       });
 
+      // Get unique service line codes to fetch mappings
+      const uniqueServLineCodes = [...new Set(
+        reviewNotes
+          .filter((note) => note.Task.Client !== null)
+          .map((note) => note.Task.ServLineCode)
+      )];
+
+      // Fetch service line external mappings
+      const serviceLineMappings = await prisma.serviceLineExternal.findMany({
+        where: {
+          ServLineCode: {
+            in: uniqueServLineCodes,
+          },
+        },
+        select: {
+          ServLineCode: true,
+          SubServlineGroupCode: true,
+          masterCode: true,
+        },
+      });
+
+      // Create a map for quick lookup
+      const serviceLineMap = new Map(
+        serviceLineMappings.map((sl) => [sl.ServLineCode, sl])
+      );
+
       const reviewNoteApprovals: ReviewNoteApproval[] = reviewNotes
         .filter((note) => note.Task.Client !== null)
-        .map((note) => ({
-          id: note.id,
-          taskId: note.taskId,
-          taskName: note.Task.TaskDesc,
-          taskCode: note.Task.TaskCode,
-          title: note.title,
-          description: note.description,
-          status: note.status,
-          priority: note.priority,
-          dueDate: note.dueDate,
-          raisedBy: note.raisedBy,
-          raisedByName: note.User_ReviewNote_raisedByToUser?.name ?? null,
-          assignedTo: note.assignedTo,
-          assignedToName: note.User_ReviewNote_assignedToToUser?.name ?? null,
-          currentOwner: note.currentOwner,
-          createdAt: note.createdAt,
-          updatedAt: note.updatedAt,
-          clearedAt: note.clearedAt,
-          clearedBy: note.clearedBy,
-          clearedByName: note.User_ReviewNote_clearedByToUser?.name ?? null,
-          clearanceComment: note.clearanceComment,
-          rejectedAt: note.rejectedAt,
-          rejectionReason: note.rejectionReason,
-          actionRequired:
-            note.assignedTo === user.id || note.currentOwner === user.id
-              ? ('ASSIGNEE' as const)
-              : ('RAISER' as const),
-          clientId: note.Task.Client!.id,
-          clientGSID: note.Task.Client!.GSClientID,
-          servLineCode: note.Task.ServLineCode,
-          subServlineGroupCode: null,
-          masterCode: null,
-        }));
+        .map((note) => {
+          const serviceLineMapping = serviceLineMap.get(note.Task.ServLineCode);
+          return {
+            id: note.id,
+            taskId: note.taskId,
+            taskName: note.Task.TaskDesc,
+            taskCode: note.Task.TaskCode,
+            title: note.title,
+            description: note.description,
+            status: note.status,
+            priority: note.priority,
+            dueDate: note.dueDate,
+            raisedBy: note.raisedBy,
+            raisedByName: note.User_ReviewNote_raisedByToUser?.name ?? null,
+            assignedTo: note.assignedTo,
+            assignedToName: note.User_ReviewNote_assignedToToUser?.name ?? null,
+            currentOwner: note.currentOwner,
+            createdAt: note.createdAt,
+            updatedAt: note.updatedAt,
+            clearedAt: note.clearedAt,
+            clearedBy: note.clearedBy,
+            clearedByName: note.User_ReviewNote_clearedByToUser?.name ?? null,
+            clearanceComment: note.clearanceComment,
+            rejectedAt: note.rejectedAt,
+            rejectionReason: note.rejectionReason,
+            actionRequired:
+              note.assignedTo === user.id || note.currentOwner === user.id
+                ? ('ASSIGNEE' as const)
+                : ('RAISER' as const),
+            clientId: note.Task.Client!.id,
+            clientGSID: note.Task.Client!.GSClientID,
+            servLineCode: note.Task.ServLineCode,
+            subServlineGroupCode: serviceLineMapping?.SubServlineGroupCode ?? null,
+            masterCode: serviceLineMapping?.masterCode ?? null,
+          };
+        });
 
       // 4. Get centralized approvals (VAULT_DOCUMENT, etc.)
       // These use the unified approval system

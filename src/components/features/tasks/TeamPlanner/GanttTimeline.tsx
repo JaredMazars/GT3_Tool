@@ -660,10 +660,6 @@ export function GanttTimeline({
   }, [selectedUserId, onAllocationUpdate]);
 
   const handleUpdateDates = useCallback(async (allocationId: number, startDate: Date, endDate: Date, isNonClientEvent: boolean) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GanttTimeline.tsx:661',message:'Employee tile drag/resize started',data:{allocationId,startDate:startDate.toISOString(),endDate:endDate.toISOString()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'N'})}).catch(()=>{});
-    // #endregion
-    
     // Find the allocation being updated and its user
     // NOW WITH CONTEXT: Use isNonClientEvent to search the correct allocation type
     let userId: string | null = null;
@@ -766,10 +762,6 @@ export function GanttTimeline({
         const errorMessage = errorData.error || 'Failed to update dates';
         throw new Error(errorMessage);
       }
-
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GanttTimeline.tsx:768',message:'Employee save succeeded - calling callback',data:{allocationId,hasCallback:!!onAllocationUpdate},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'K'})}).catch(()=>{});
-      // #endregion
 
       // Invalidate cache to ensure all views stay in sync
       if (onAllocationUpdate) {

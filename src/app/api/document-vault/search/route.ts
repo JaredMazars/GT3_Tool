@@ -115,6 +115,8 @@ export const GET = secureRoute.query({
 
       return {
         ...doc,
+        category: doc.VaultDocumentCategory,
+        VaultDocumentCategory: undefined,
         tags: doc.tags ? JSON.parse(doc.tags) : null,
         relevance,
       };

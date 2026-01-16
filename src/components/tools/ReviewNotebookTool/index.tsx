@@ -14,6 +14,8 @@ import ReviewNoteAnalytics from './components/ReviewNoteAnalytics';
 import { ReviewNoteStatus } from '@/types/review-notes';
 
 export function ReviewNotebookTool({ taskId, initialNoteId }: ToolComponentProps) {
+  // If initialNoteId is provided, determine which tab it should be in
+  // For now, default to 'active' - the ReviewNoteList component will handle finding it
   const [activeTab, setActiveTab] = useState<'active' | 'resolved' | 'analytics'>('active');
 
   const tabs = [

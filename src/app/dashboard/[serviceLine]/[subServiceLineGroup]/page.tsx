@@ -40,7 +40,7 @@ import { EmployeePlannerList } from '@/components/features/planning/EmployeePlan
 import { ClientPlannerList } from '@/components/features/planning/ClientPlannerList';
 import { MyReportsView } from '@/components/features/reports/MyReportsView';
 import { MyApprovalsView } from '@/components/features/approvals';
-import { DocumentCard, DocumentFilterBar } from '@/components/features/document-vault';
+import { DocumentCard, DocumentFilterBar, DocumentDetailModal } from '@/components/features/document-vault';
 import type { EmployeePlannerFilters as EmployeePlannerFiltersType, ClientPlannerFilters as ClientPlannerFiltersType } from '@/components/features/planning';
 import { EmployeeStatusBadge } from '@/components/shared/EmployeeStatusBadge';
 import { ClickableEmployeeBadge } from '@/components/shared/ClickableEmployeeBadge';
@@ -67,6 +67,7 @@ function VaultDocumentsView({ serviceLine }: { serviceLine: string }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<any>({ serviceLine: serviceLine.toUpperCase() });
+  const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(null);
 
   // Fetch categories
   useEffect(() => {
@@ -146,10 +147,21 @@ function VaultDocumentsView({ serviceLine }: { serviceLine: string }) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {documents.map((doc: any) => (
-            <DocumentCard key={doc.id} document={doc} />
+            <DocumentCard 
+              key={doc.id} 
+              document={doc} 
+              onClick={(id) => setSelectedDocumentId(id)}
+            />
           ))}
         </div>
       )}
+
+      {/* Document Detail Modal */}
+      <DocumentDetailModal
+        isOpen={selectedDocumentId !== null}
+        onClose={() => setSelectedDocumentId(null)}
+        documentId={selectedDocumentId}
+      />
     </div>
   );
 }

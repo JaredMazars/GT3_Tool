@@ -131,6 +131,7 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
       ...document,
       aiKeyPoints: document.aiKeyPoints ? JSON.parse(document.aiKeyPoints) : null,
       tags: document.tags ? JSON.parse(document.tags) : null,
+      category: document.VaultDocumentCategory,
       uploader: document.User,
       versions: document.VaultDocumentVersion,
     };
@@ -138,6 +139,7 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
     // Remove User field (we already have uploader)
     delete (result as any).User;
     delete (result as any).VaultDocumentVersion;
+    delete (result as any).VaultDocumentCategory;
 
     // Cache result
     await cacheDocumentDetail(documentId, result);

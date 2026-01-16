@@ -19,7 +19,6 @@ interface ReviewNoteApprovalItemProps {
 }
 
 export function ReviewNoteApprovalItem({ note, onOpenTaskModal, showArchived = false }: ReviewNoteApprovalItemProps) {
-
   const getButtonConfig = () => {
     if (showArchived) {
       return {
@@ -156,7 +155,9 @@ export function ReviewNoteApprovalItem({ note, onOpenTaskModal, showArchived = f
           <Button 
             variant={buttonConfig.variant}
             size="sm"
-            onClick={() => {
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
               if (onOpenTaskModal) {
                 onOpenTaskModal({
                   taskId: note.taskId.toString(),

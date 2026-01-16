@@ -1,18 +1,22 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Download, Calendar, Tag, ArrowLeft, FileText, Sparkles } from 'lucide-react';
+import { Download, Calendar, Tag, ArrowLeft, FileText, Sparkles, Eye } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button, LoadingSpinner } from '@/components/ui';
 import { useFeature } from '@/hooks/permissions/useFeature';
 import { Feature } from '@/lib/permissions/features';
+import { DocumentPreviewModal } from '@/components/features/document-vault/DocumentPreviewModal';
 
-export function DocumentDetailClient({ documentId }: { documentId: string }) {
+export function DocumentDetailClient({ documentId, hideBackButton = false }: { documentId: string; hideBackButton?: boolean }) {
   const router = useRouter();
   const [document, setDocument] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isViewing, setIsViewing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewData, setPreviewData] = useState<{ downloadUrl: string; fileName: string; mimeType: string } | null>(null);
   
   // Check if user has admin permissions
   const { hasFeature: canManageVault, isLoading: isCheckingPermissions } = useFeature(Feature.MANAGE_VAULT_DOCUMENTS);
@@ -41,6 +45,37 @@ export function DocumentDetailClient({ documentId }: { documentId: string }) {
       })
       .finally(() => setIsLoading(false));
   }, [documentId, canManageVault, isCheckingPermissions]);
+
+  const handleView = async () => {
+    setIsViewing(true);
+    try {
+      // Use admin endpoint if user has management permissions
+      const endpoint = canManageVault 
+        ? `/api/admin/document-vault/${documentId}/download`
+        : `/api/document-vault/${documentId}/download`;
+        
+      const response = await fetch(endpoint);
+      const data = await response.json();
+      
+      if (data.success) {
+        // Set preview data and show modal
+        setPreviewData({
+          downloadUrl: data.data.downloadUrl,
+          fileName: data.data.fileName,
+          mimeType: document?.mimeType || 'application/octet-stream',
+        });
+        setShowPreviewModal(true);
+      } else {
+        console.error('View failed:', data);
+        alert(`Failed to view document: ${data.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('View error:', err);
+      alert('Failed to view document');
+    } finally {
+      setIsViewing(false);
+    }
+  };
 
   const handleDownload = async () => {
     setIsDownloading(true);
@@ -81,10 +116,12 @@ export function DocumentDetailClient({ documentId }: { documentId: string }) {
   if (error || !document) {
     return (
       <div className="space-y-4">
-        <Button variant="secondary" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
-        </Button>
+        {!hideBackButton && (
+          <Button variant="secondary" onClick={() => router.back()}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+        )}
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">
           {error || 'Document not found'}
         </div>
@@ -95,10 +132,12 @@ export function DocumentDetailClient({ documentId }: { documentId: string }) {
   return (
     <div className="space-y-6">
       {/* Back Button */}
-      <Button variant="secondary" onClick={() => router.back()}>
-        <ArrowLeft className="h-4 w-4 mr-2" />
-        Back to Vault
-      </Button>
+      {!hideBackButton && (
+        <Button variant="secondary" onClick={() => router.back()}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Vault
+        </Button>
+      )}
 
       {/* Document Header */}
       <div className="flex items-start justify-between gap-4">
@@ -110,9 +149,9 @@ export function DocumentDetailClient({ documentId }: { documentId: string }) {
             </span>
             <span
               className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium text-white"
-              style={{ backgroundColor: document.VaultDocumentCategory.color || '#2E5AAC' }}
+              style={{ backgroundColor: document.category?.color || '#2E5AAC' }}
             >
-              {document.VaultDocumentCategory.name}
+              {document.category?.name}
             </span>
             {document.serviceLine && (
               <span className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium bg-forvis-gray-100 text-forvis-gray-700">
@@ -124,19 +163,34 @@ export function DocumentDetailClient({ documentId }: { documentId: string }) {
             </span>
           </div>
         </div>
-        <Button variant="primary" onClick={handleDownload} disabled={isDownloading}>
-          {isDownloading ? (
-            <>
-              <LoadingSpinner size="sm" />
-              Downloading...
-            </>
-          ) : (
-            <>
-              <Download className="h-4 w-4 mr-2" />
-              Download
-            </>
-          )}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={handleView} disabled={isViewing}>
+            {isViewing ? (
+              <>
+                <LoadingSpinner size="sm" />
+                Loading...
+              </>
+            ) : (
+              <>
+                <Eye className="h-4 w-4 mr-2" />
+                View
+              </>
+            )}
+          </Button>
+          <Button variant="primary" onClick={handleDownload} disabled={isDownloading}>
+            {isDownloading ? (
+              <>
+                <LoadingSpinner size="sm" />
+                Downloading...
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4 mr-2" />
+                Download
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Description */}
@@ -284,6 +338,21 @@ export function DocumentDetailClient({ documentId }: { documentId: string }) {
             ))}
           </div>
         </div>
+      )}
+
+      {/* Document Preview Modal */}
+      {showPreviewModal && previewData && (
+        <DocumentPreviewModal
+          isOpen={showPreviewModal}
+          onClose={() => {
+            setShowPreviewModal(false);
+            setPreviewData(null);
+          }}
+          downloadUrl={previewData.downloadUrl}
+          fileName={previewData.fileName}
+          mimeType={previewData.mimeType}
+          onDownload={handleDownload}
+        />
       )}
     </div>
   );

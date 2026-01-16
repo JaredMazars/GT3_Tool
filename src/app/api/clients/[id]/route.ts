@@ -202,13 +202,6 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
       taskCountsByServiceLine,
     };
 
-    // #region agent log
-    const task479954FromResponse = enrichedTasks.find((t: any) => t.id === 479954);
-    if (task479954FromResponse) {
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'clients/[id]/route.ts:responseData479954',message:'Task 479954 in API response',data:{task479954:task479954FromResponse,hasDpaUploaded:'dpaUploaded' in task479954FromResponse,dpaUploadedValue:task479954FromResponse.dpaUploaded},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'K'})}).catch(()=>{});
-    }
-    // #endregion
-
     return NextResponse.json(successResponse(responseData));
   },
 });

@@ -145,10 +145,6 @@ export const GET = secureRoute.queryWithParams({
     const startDate = new Date();
     startDate.setMonth(startDate.getMonth() - 24);
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'tasks/[id]/analytics/graphs/route.ts:149',message:'Date range calculated',data:{startDate:startDate.toISOString(),endDate:endDate.toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'task-graph-debug',hypothesisId:'H2'})}).catch(()=>{});
-    // #endregion
-
     // Fetch task info first to get GSTaskID
     const task = await prisma.task.findUnique({
       where: { id: taskId },
@@ -163,10 +159,6 @@ export const GET = secureRoute.queryWithParams({
     if (!task) {
       throw new AppError(404, 'Task not found', ErrorCodes.NOT_FOUND);
     }
-
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'tasks/[id]/analytics/graphs/route.ts:162',message:'Task found',data:{taskId,GSTaskID:task.GSTaskID,TaskCode:task.TaskCode},timestamp:Date.now(),sessionId:'debug-session',runId:'task-graph-debug',hypothesisId:'H1'})}).catch(()=>{});
-    // #endregion
 
     // PARALLEL QUERY BATCH: Fetch opening balance aggregates and current period transaction aggregates simultaneously
     // OPTIMIZATION: Use database aggregation for both opening balance AND period transactions
@@ -211,16 +203,8 @@ export const GET = secureRoute.queryWithParams({
       dateRange: { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
     });
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'tasks/[id]/analytics/graphs/route.ts:213',message:'Aggregates fetched from database',data:{openingAggregatesCount:openingBalanceAggregates.length,periodAggregatesCount:periodTransactionAggregates.length,openingSample:openingBalanceAggregates[0],periodSample:periodTransactionAggregates[0]},timestamp:Date.now(),sessionId:'debug-session',runId:'task-graph-debug',hypothesisId:'H1,H2,H3'})}).catch(()=>{});
-    // #endregion
-
     // Calculate opening WIP balance from aggregates (much faster than processing individual records)
     const openingWipBalance = calculateOpeningBalanceFromAggregates(openingBalanceAggregates);
-
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'tasks/[id]/analytics/graphs/route.ts:221',message:'Opening balance calculated',data:{openingWipBalance},timestamp:Date.now(),sessionId:'debug-session',runId:'task-graph-debug',hypothesisId:'H5'})}).catch(()=>{});
-    // #endregion
 
     // Helper function to aggregate transactions from database aggregates
     const aggregateTransactions = (aggregates: typeof periodTransactionAggregates, openingBalance: number = 0): TaskGraphData => {
@@ -271,10 +255,6 @@ export const GET = secureRoute.queryWithParams({
       // Convert to sorted array with cumulative WIP balance
       const sortedDates = Array.from(dailyMap.keys()).sort();
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'tasks/[id]/analytics/graphs/route.ts:275',message:'Daily map created',data:{dailyMapSize:dailyMap.size,sortedDatesCount:sortedDates.length,firstDate:sortedDates[0],lastDate:sortedDates[sortedDates.length-1]},timestamp:Date.now(),sessionId:'debug-session',runId:'task-graph-debug',hypothesisId:'H3'})}).catch(()=>{});
-      // #endregion
-
       let cumulativeWIP = openingBalance;
       
       const dailyMetrics: DailyMetrics[] = sortedDates.map(date => {
@@ -320,10 +300,6 @@ export const GET = secureRoute.queryWithParams({
       // Downsample if needed
       const downsampledMetrics = downsampleDailyMetrics(dailyMetrics, targetPoints);
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'tasks/[id]/analytics/graphs/route.ts:294',message:'Metrics downsampled',data:{originalCount:dailyMetrics.length,downsampledCount:downsampledMetrics.length,firstMetric:dailyMetrics[0],lastMetric:dailyMetrics[dailyMetrics.length-1]},timestamp:Date.now(),sessionId:'debug-session',runId:'task-graph-debug',hypothesisId:'H4'})}).catch(()=>{});
-      // #endregion
-
       return {
         dailyMetrics: downsampledMetrics,
         summary,
@@ -332,10 +308,6 @@ export const GET = secureRoute.queryWithParams({
 
     // Aggregate all transactions
     const graphData = aggregateTransactions(periodTransactionAggregates, openingWipBalance);
-
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'tasks/[id]/analytics/graphs/route.ts:305',message:'Final graph data',data:{dailyMetricsCount:graphData.dailyMetrics.length,summary:graphData.summary},timestamp:Date.now(),sessionId:'debug-session',runId:'task-graph-debug',hypothesisId:'ALL'})}).catch(()=>{});
-    // #endregion
 
     const responseData: GraphDataResponse = {
       taskId: task.id,

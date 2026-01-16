@@ -1,20 +1,34 @@
 'use client';
 
 import { FileText, Download, Calendar, Tag } from 'lucide-react';
-import Link from 'next/link';
 import type { VaultDocumentListItemDTO } from '@/types/documentVault';
 
 interface DocumentCardProps {
   document: VaultDocumentListItemDTO;
+  onClick?: (documentId: number) => void;
 }
 
-export function DocumentCard({ document }: DocumentCardProps) {
+export function DocumentCard({ document, onClick }: DocumentCardProps) {
+  const handleClick = () => {
+    if (onClick) {
+      onClick(document.id);
+    }
+  };
+
   return (
-    <Link href={`/dashboard/document-vault/${document.id}`}>
-      <div 
-        className="rounded-lg border border-forvis-blue-100 p-4 shadow-corporate hover:shadow-corporate-md transition-all duration-200 cursor-pointer h-full"
-        style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
-      >
+    <div 
+      onClick={handleClick}
+      className="rounded-lg border border-forvis-blue-100 p-4 shadow-corporate hover:shadow-corporate-md transition-all duration-200 cursor-pointer h-full"
+      style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleClick();
+        }
+      }}
+    >
         <div className="flex items-start gap-3">
           <div
             className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm"
@@ -87,7 +101,6 @@ export function DocumentCard({ document }: DocumentCardProps) {
             </div>
           </div>
         </div>
-      </div>
-    </Link>
+    </div>
   );
 }

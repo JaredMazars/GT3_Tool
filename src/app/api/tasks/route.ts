@@ -319,12 +319,6 @@ export const GET = secureRoute.query({
         wipData = { netWip };
       }
 
-      // #region agent log
-      if (task.id === 479954) {
-        fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'tasks/route.ts:transform479954',message:'Transforming task 479954',data:{taskId:task.id,TaskEngagementLetter:task.TaskEngagementLetter,uploadedField:task.TaskEngagementLetter?.uploaded,dpaUploadedField:task.TaskEngagementLetter?.dpaUploaded,hasClient:!!task.Client},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'G,H'})}).catch(()=>{});
-      }
-      // #endregion
-
       return {
         id: task.id,
         name: task.TaskDesc,

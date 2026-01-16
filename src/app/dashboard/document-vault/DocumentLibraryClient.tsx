@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronRight, FileText, Settings } from 'lucide-react';
-import { DocumentCard, DocumentFilterBar, ServiceLineVaultAdmin } from '@/components/features/document-vault';
+import { DocumentCard, DocumentFilterBar, ServiceLineVaultAdmin, DocumentDetailModal } from '@/components/features/document-vault';
 import { LoadingSpinner } from '@/components/ui';
 import { formatServiceLineName } from '@/lib/utils/serviceLineUtils';
 import { useCurrentUser, useUserServiceLineRole } from '@/hooks/auth/usePermissions';
@@ -24,6 +24,7 @@ export function DocumentLibraryClient() {
   const [filters, setFilters] = useState<any>(
     serviceLine ? { serviceLine: serviceLine.toUpperCase() } : {}
   );
+  const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(null);
 
   // Check if user can administer documents for this service line
   const isSystemAdmin = currentUser?.systemRole === 'SYSTEM_ADMIN';
@@ -178,7 +179,11 @@ export function DocumentLibraryClient() {
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {documents.map(doc => (
-                      <DocumentCard key={doc.id} document={doc} />
+                      <DocumentCard 
+                        key={doc.id} 
+                        document={doc} 
+                        onClick={(id) => setSelectedDocumentId(id)}
+                      />
                     ))}
                   </div>
                 )}
@@ -195,6 +200,13 @@ export function DocumentLibraryClient() {
           />
         )}
       </div>
+
+      {/* Document Detail Modal */}
+      <DocumentDetailModal
+        isOpen={selectedDocumentId !== null}
+        onClose={() => setSelectedDocumentId(null)}
+        documentId={selectedDocumentId}
+      />
     </div>
   );
 }

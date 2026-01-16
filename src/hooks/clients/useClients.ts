@@ -228,13 +228,6 @@ export function useClient(
       
       const result = await response.json();
       
-      // #region agent log
-      const task479954 = result?.data?.tasks?.find((t: any) => t.id === 479954);
-      if (task479954) {
-        fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useClient:fetchResponse479954',message:'Fetched task 479954 from API',data:{task479954:task479954,hasDpaUploaded:'dpaUploaded' in task479954,dpaUploadedValue:task479954.dpaUploaded,hasClient:'Client' in task479954,clientValue:task479954.Client},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'J,K'})}).catch(()=>{});
-      }
-      // #endregion
-      
       return result.success ? result.data : result;
     },
     enabled: enabled && !!GSClientID,
