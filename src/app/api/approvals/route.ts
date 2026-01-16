@@ -4,6 +4,7 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { prisma } from '@/lib/db/prisma';
 import { logger } from '@/lib/utils/logger';
 import { canApproveAcceptance, canApproveEngagementLetter } from '@/lib/services/tasks/taskAuthorization';
+import { approvalService } from '@/lib/services/approvals/approvalService';
 import type {
   ApprovalsResponse,
   ChangeRequestApproval,
@@ -24,6 +25,7 @@ import type {
  * - Engagement letters where user can approve
  * - DPAs where user can approve
  * - Review notes where user is assignee or raiser with actionable status
+ * - Centralized approvals (VAULT_DOCUMENT, etc.) from the unified approval system
  */
 export const GET = secureRoute.query({
   handler: async (request, { user }) => {
@@ -370,16 +372,28 @@ export const GET = secureRoute.query({
           masterCode: null,
         }));
 
+      // 4. Get centralized approvals (VAULT_DOCUMENT, etc.)
+      // These use the unified approval system
+      const centralizedData = await approvalService.getUserApprovals(user.id);
+      
+      // Filter based on archived flag
+      // Note: Archived/completed centralized approvals are not yet implemented
+      const centralizedApprovals = showArchived
+        ? []
+        : centralizedData.approvals;
+
       // Calculate total count
       const totalCount =
         changeRequests.length +
         clientAcceptances.length +
-        reviewNoteApprovals.length;
+        reviewNoteApprovals.length +
+        centralizedApprovals.length;
 
       const response: ApprovalsResponse = {
         changeRequests,
         clientAcceptances,
         reviewNotes: reviewNoteApprovals,
+        centralizedApprovals,
         totalCount,
       };
 
@@ -390,6 +404,7 @@ export const GET = secureRoute.query({
         changeRequests: changeRequests.length,
         clientAcceptances: clientAcceptances.length,
         reviewNotes: reviewNoteApprovals.length,
+        centralizedApprovals: centralizedApprovals.length,
       });
 
       return NextResponse.json(successResponse(response), {

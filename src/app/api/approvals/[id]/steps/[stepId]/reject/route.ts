@@ -2,9 +2,11 @@ import { NextResponse } from 'next/server';
 import { secureRoute } from '@/lib/api/secureRoute';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { approvalService } from '@/lib/services/approvals/approvalService';
+import { handleVaultDocumentApprovalComplete } from '@/lib/services/document-vault/documentVaultWorkflow';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { z } from 'zod';
 import { invalidateApprovalsCache } from '@/lib/services/cache/cacheInvalidation';
+import { logger } from '@/lib/utils/logger';
 
 const RejectStepSchema = z.object({
   comment: z.string().min(1, 'Rejection reason is required'),
@@ -25,6 +27,28 @@ export const POST = secureRoute.mutationWithParams<typeof RejectStepSchema, { id
 
     // Reject the step
     const result = await approvalService.rejectStep(stepId, user.id, data.comment);
+
+    // If approval is rejected, trigger workflow-specific handlers
+    if (result.approval.status === 'REJECTED' && result.approval.workflowType === 'VAULT_DOCUMENT') {
+      try {
+        await handleVaultDocumentApprovalComplete(
+          result.approval.workflowId,
+          'REJECTED',
+          user.id,
+          data.comment
+        );
+        logger.info('Vault document rejected, set to DRAFT', {
+          workflowId: result.approval.workflowId,
+          approvalId: result.approval.id,
+        });
+      } catch (error) {
+        logger.error('Failed to handle document rejection', {
+          workflowId: result.approval.workflowId,
+          error,
+        });
+        // Don't fail the rejection - just log the error
+      }
+    }
 
     // Invalidate approvals cache
     await invalidateApprovalsCache();

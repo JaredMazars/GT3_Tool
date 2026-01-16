@@ -71,6 +71,10 @@ export const SERVICE_LINE_ROLE_FEATURES: Record<ServiceLineRole, Feature[]> = {
     Feature.MANAGE_EXTERNAL_LINKS,
     Feature.MANAGE_TOOLS,
 
+    // Document Vault
+    Feature.ACCESS_DOCUMENT_VAULT,
+    Feature.MANAGE_VAULT_DOCUMENTS,
+
     // Advanced
     Feature.USE_AI_TOOLS,
     Feature.EXPORT_REPORTS,
@@ -109,6 +113,9 @@ export const SERVICE_LINE_ROLE_FEATURES: Record<ServiceLineRole, Feature[]> = {
     Feature.MANAGE_OPPORTUNITIES,
     Feature.VIEW_BD_ANALYTICS,
 
+    // Document Vault
+    Feature.ACCESS_DOCUMENT_VAULT,
+
     // Advanced
     Feature.USE_AI_TOOLS,
     Feature.EXPORT_REPORTS,
@@ -138,6 +145,9 @@ export const SERVICE_LINE_ROLE_FEATURES: Record<ServiceLineRole, Feature[]> = {
     Feature.MANAGE_WORKSPACE_FILES,
     Feature.MANAGE_WORKSPACE_FOLDERS,
 
+    // Document Vault
+    Feature.ACCESS_DOCUMENT_VAULT,
+
     // Advanced
     Feature.USE_AI_TOOLS,
     Feature.EXPORT_REPORTS,
@@ -158,6 +168,9 @@ export const SERVICE_LINE_ROLE_FEATURES: Record<ServiceLineRole, Feature[]> = {
     Feature.ACCESS_WORKSPACE,
     Feature.MANAGE_WORKSPACE_FILES,
 
+    // Document Vault
+    Feature.ACCESS_DOCUMENT_VAULT,
+
     // Advanced
     Feature.USE_AI_TOOLS,
     Feature.VIEW_WIP_DATA,
@@ -176,6 +189,9 @@ export const SERVICE_LINE_ROLE_FEATURES: Record<ServiceLineRole, Feature[]> = {
     // Workspace
     Feature.ACCESS_WORKSPACE,
     Feature.MANAGE_WORKSPACE_FILES,
+
+    // Document Vault
+    Feature.ACCESS_DOCUMENT_VAULT,
   ],
 
   [ServiceLineRole.VIEWER]: [
@@ -189,6 +205,9 @@ export const SERVICE_LINE_ROLE_FEATURES: Record<ServiceLineRole, Feature[]> = {
 
     // Workspace
     Feature.ACCESS_WORKSPACE,
+
+    // Document Vault
+    Feature.ACCESS_DOCUMENT_VAULT,
   ],
 };
 

@@ -3,6 +3,8 @@
  * Types for the My Approvals feature aggregating all pending approvals
  */
 
+import type { ApprovalWithSteps } from '@/types/approval';
+
 /**
  * Change Request Approval
  * Client Partner/Manager change requests requiring user approval
@@ -146,6 +148,7 @@ export interface ApprovalsResponse {
   changeRequests: ChangeRequestApproval[];
   clientAcceptances: ClientAcceptanceApproval[];
   reviewNotes: ReviewNoteApproval[];
+  centralizedApprovals: ApprovalWithSteps[];
   totalCount: number;
 }
 

@@ -36,12 +36,12 @@ export async function canManageVaultDocuments(
       return true;
     }
 
-    // If checking for a specific service line, verify user is an ADMINISTRATOR for that service line
+    // If checking for a specific service line, verify user is an ADMINISTRATOR for that master service line
     if (serviceLine) {
       const serviceLineAssignment = await prisma.serviceLineUser.findFirst({
         where: {
           userId,
-          subServiceLineGroup: serviceLine,
+          masterCode: serviceLine,
           role: 'ADMINISTRATOR',
         },
       });
@@ -98,11 +98,11 @@ export async function canViewDocument(
         return true;
       }
 
-      // Check if user has access to this service line
+      // Check if user has access to this master service line
       const serviceLineAccess = await prisma.serviceLineUser.findFirst({
         where: {
           userId,
-          subServiceLineGroup: document.serviceLine,
+          masterCode: document.serviceLine,
         },
       });
 
@@ -147,12 +147,12 @@ export async function canArchiveDocument(
       return true;
     }
 
-    // For service line scoped documents, check if user is admin for that service line
+    // For service line scoped documents, check if user is admin for that master service line
     if (document.scope === 'SERVICE_LINE' && document.serviceLine) {
       const serviceLineAssignment = await prisma.serviceLineUser.findFirst({
         where: {
           userId,
-          subServiceLineGroup: document.serviceLine,
+          masterCode: document.serviceLine,
           role: 'ADMINISTRATOR',
         },
       });
@@ -173,7 +173,7 @@ export async function canArchiveDocument(
  * Used to filter documents that user can manage
  * 
  * @param userId - User ID
- * @returns Array of service line codes
+ * @returns Array of master service line codes (TAX, AUDIT, etc.)
  */
 export async function getUserAdminServiceLines(
   userId: string
@@ -193,16 +193,20 @@ export async function getUserAdminServiceLines(
       return allServiceLines.map(sl => sl.code);
     }
 
-    // Get service lines where user is ADMINISTRATOR
+    // Get master service lines where user is ADMINISTRATOR
     const adminServiceLines = await prisma.serviceLineUser.findMany({
       where: {
         userId,
         role: 'ADMINISTRATOR',
       },
-      select: { subServiceLineGroup: true },
+      select: { masterCode: true },
+      distinct: ['masterCode'],
     });
 
-    return adminServiceLines.map(sl => sl.subServiceLineGroup);
+    // Return master codes, filtering out nulls
+    return adminServiceLines
+      .map(sl => sl.masterCode)
+      .filter((code): code is string => code !== null);
   } catch (error) {
     console.error('Error getting user admin service lines:', error);
     return [];
@@ -214,7 +218,7 @@ export async function getUserAdminServiceLines(
  * Used to filter documents user can view
  * 
  * @param userId - User ID
- * @returns Array of service line codes
+ * @returns Array of master service line codes (TAX, AUDIT, etc.)
  */
 export async function getUserAccessibleServiceLines(
   userId: string
@@ -234,14 +238,17 @@ export async function getUserAccessibleServiceLines(
       return allServiceLines.map(sl => sl.code);
     }
 
-    // Get service lines where user has any assignment
+    // Get master service lines where user has any assignment
     const serviceLineAssignments = await prisma.serviceLineUser.findMany({
       where: { userId },
-      select: { subServiceLineGroup: true },
-      distinct: ['subServiceLineGroup'],
+      select: { masterCode: true },
+      distinct: ['masterCode'],
     });
 
-    return serviceLineAssignments.map(sl => sl.subServiceLineGroup);
+    // Return master codes (TAX, AUDIT, etc.), filtering out nulls
+    return serviceLineAssignments
+      .map(sl => sl.masterCode)
+      .filter((code): code is string => code !== null);
   } catch (error) {
     console.error('Error getting user accessible service lines:', error);
     return [];

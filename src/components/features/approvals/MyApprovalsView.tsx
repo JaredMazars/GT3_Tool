@@ -7,8 +7,10 @@ import { LoadingSpinner } from '@/components/ui';
 import { ChangeRequestApprovalItem } from './ChangeRequestApprovalItem';
 import { ClientAcceptanceApprovalItem } from './ClientAcceptanceApprovalItem';
 import { ReviewNoteApprovalItem } from './ReviewNoteApprovalItem';
+import { UnifiedApprovalCard } from './UnifiedApprovalCard';
 import { NotificationItem } from '@/components/features/notifications/NotificationItem';
 import { useNotifications } from '@/hooks/notifications/useNotifications';
+import { useApproveStep, useRejectStep } from '@/hooks/approvals/useUnifiedApprovals';
 import { ApproveChangeRequestModal } from '@/components/features/clients/ApproveChangeRequestModal';
 import { TaskDetailModal } from '@/components/features/tasks/TaskDetail/TaskDetailModal';
 import { 
@@ -20,7 +22,7 @@ import {
 import type { ReadStatusFilter } from '@/types/notification';
 
 type TabType = 'approvals' | 'notifications';
-type ApprovalTypeTab = 'all' | 'changeRequests' | 'clientAcceptance' | 'reviewNotes';
+type ApprovalTypeTab = 'all' | 'changeRequests' | 'clientAcceptance' | 'reviewNotes' | 'vaultDocuments';
 
 export function MyApprovalsView() {
   const [activeSubTab, setActiveSubTab] = useState<TabType>('approvals');
@@ -39,6 +41,8 @@ export function MyApprovalsView() {
   } | null>(null);
   
   const { data: approvalsData, isLoading: isLoadingApprovals, refetch } = useApprovals(showArchived);
+  const approveStep = useApproveStep();
+  const rejectStep = useRejectStep();
   
   // Build notification filters
   const notificationFilters = useMemo(() => {
@@ -315,6 +319,36 @@ export function MyApprovalsView() {
                           </span>
                         )}
                       </button>
+
+                      <button
+                        onClick={() => setActiveApprovalType('vaultDocuments')}
+                        disabled={(approvalsData.centralizedApprovals?.length || 0) === 0}
+                        className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-t-lg transition-all duration-200 border-b-2 ${
+                          activeApprovalType === 'vaultDocuments'
+                            ? 'border-forvis-blue-500 text-white shadow-sm'
+                            : (approvalsData.centralizedApprovals?.length || 0) === 0
+                            ? 'border-transparent text-forvis-gray-400 cursor-not-allowed'
+                            : 'border-transparent text-forvis-gray-700 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
+                        }`}
+                        style={
+                          activeApprovalType === 'vaultDocuments'
+                            ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }
+                            : {}
+                        }
+                      >
+                        <span>Vault Documents</span>
+                        {(approvalsData.centralizedApprovals?.length || 0) > 0 && (
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              activeApprovalType === 'vaultDocuments'
+                                ? 'bg-white/30 text-white'
+                                : 'bg-forvis-blue-100 text-forvis-blue-700'
+                            }`}
+                          >
+                            {approvalsData.centralizedApprovals?.length || 0}
+                          </span>
+                        )}
+                      </button>
                     </nav>
                   </div>
 
@@ -386,11 +420,42 @@ export function MyApprovalsView() {
                         </div>
                       )}
 
+                    {/* Centralized Approvals (Vault Documents, etc.) */}
+                    {(activeApprovalType === 'all' || activeApprovalType === 'vaultDocuments') &&
+                      approvalsData.centralizedApprovals &&
+                      approvalsData.centralizedApprovals.length > 0 && (
+                        <div>
+                          {activeApprovalType === 'all' && (
+                            <h3 className="text-sm font-semibold text-forvis-gray-900 uppercase tracking-wider mb-3">
+                              Document Vault Approvals ({approvalsData.centralizedApprovals.length})
+                            </h3>
+                          )}
+                          <div className="space-y-3">
+                            {approvalsData.centralizedApprovals.map((approval) => (
+                              <UnifiedApprovalCard
+                                key={approval.id}
+                                approval={approval}
+                                onApprove={async (stepId, comment) => {
+                                  await approveStep.mutateAsync({ stepId, comment });
+                                  refetch();
+                                }}
+                                onReject={async (stepId, comment) => {
+                                  await rejectStep.mutateAsync({ stepId, comment });
+                                  refetch();
+                                }}
+                                isProcessing={approveStep.isPending || rejectStep.isPending}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                     {/* Empty State for Specific Tab */}
                     {activeApprovalType !== 'all' &&
                       ((activeApprovalType === 'changeRequests' && approvalsData.changeRequests.length === 0) ||
                         (activeApprovalType === 'clientAcceptance' && approvalsData.clientAcceptances.length === 0) ||
-                        (activeApprovalType === 'reviewNotes' && approvalsData.reviewNotes.length === 0)) && (
+                        (activeApprovalType === 'reviewNotes' && approvalsData.reviewNotes.length === 0) ||
+                        (activeApprovalType === 'vaultDocuments' && (approvalsData.centralizedApprovals?.length || 0) === 0)) && (
                         <div className="text-center py-12">
                           {showArchived ? (
                             <Archive className="mx-auto h-12 w-12 text-forvis-gray-400" />

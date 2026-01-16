@@ -41,10 +41,16 @@ export async function checkFeature(
 
     // If service line is provided, check service line role
     if (serviceLine) {
+      // Check both masterCode and subServiceLineGroup to handle both cases:
+      // - Master service lines (e.g., "TAX", "AUDIT")
+      // - Sub-service line groups (e.g., "TCN", "TCM")
       const serviceLineUser = await prisma.serviceLineUser.findFirst({
         where: {
           userId,
-          subServiceLineGroup: serviceLine,
+          OR: [
+            { masterCode: serviceLine },
+            { subServiceLineGroup: serviceLine },
+          ],
         },
         select: { role: true },
       });
@@ -142,10 +148,16 @@ export async function getUserFeatures(
 
     // If service line is provided, get features for that service line role
     if (serviceLine) {
+      // Check both masterCode and subServiceLineGroup to handle both cases:
+      // - Master service lines (e.g., "TAX", "AUDIT")
+      // - Sub-service line groups (e.g., "TCN", "TCM")
       const serviceLineUser = await prisma.serviceLineUser.findFirst({
         where: {
           userId,
-          subServiceLineGroup: serviceLine,
+          OR: [
+            { masterCode: serviceLine },
+            { subServiceLineGroup: serviceLine },
+          ],
         },
         select: { role: true },
       });

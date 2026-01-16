@@ -35,11 +35,11 @@ export const GET = secureRoute.query({
     const isSystemAdmin = user.systemRole === SystemRole.SYSTEM_ADMIN;
     
     if (!isSystemAdmin) {
-      // Check if user is admin for this service line
+      // Check if user is admin for this master service line
       const serviceLineRole = await prisma.serviceLineUser.findFirst({
         where: {
           userId: user.id,
-          subServiceLineGroup: serviceLine,
+          masterCode: serviceLine,
           role: 'ADMINISTRATOR',
         },
       });

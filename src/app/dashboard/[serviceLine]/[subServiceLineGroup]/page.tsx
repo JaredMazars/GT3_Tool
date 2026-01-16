@@ -689,11 +689,6 @@ export default function SubServiceLineWorkspacePage() {
     return null;
   }
 
-  // Show selector for shared services
-  if (isSharedService(serviceLine)) {
-    return <ServiceLineSelector />;
-  }
-
   // Only show full page loader on initial load
   if (isLoading && !isFetching) {
     return (
