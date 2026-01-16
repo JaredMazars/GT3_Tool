@@ -1454,9 +1454,12 @@ export const UpdateVaultDocumentSchema = z.object({
   categoryId: z.number().int().positive().optional(),
   documentType: VaultDocumentTypeEnum.optional(),
   documentVersion: safeString(50).optional(),
+  scope: VaultDocumentScopeEnum.optional(),
+  serviceLine: safeIdentifier(50).optional(),
   tags: z.array(safeString(50)).max(10).optional(),
-  effectiveDate: z.string().datetime().optional(),
-  expiryDate: z.string().datetime().optional(),
+  // Accept both date (YYYY-MM-DD) and datetime (ISO 8601) formats, or empty string
+  effectiveDate: z.union([z.string().date(), z.string().datetime(), z.literal('')]).optional(),
+  expiryDate: z.union([z.string().date(), z.string().datetime(), z.literal('')]).optional(),
 }).strict();
 
 // Document filters schema

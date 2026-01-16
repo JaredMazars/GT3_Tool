@@ -8,6 +8,7 @@ interface ApproverStep {
   stepOrder: number;
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SKIPPED';
   approvedAt: Date | null;
+  comment: string | null;
   User_ApprovalStep_assignedToUserIdToUser: {
     id: string;
     name: string | null;
@@ -31,6 +32,8 @@ interface ApproverDisplayProps {
  */
 export function ApproverDisplay({ approval, compact = false }: ApproverDisplayProps) {
   const [showTooltip, setShowTooltip] = useState(false);
+  const [showRejectionModal, setShowRejectionModal] = useState(false);
+  const [rejectionComment, setRejectionComment] = useState<string>('');
 
   // Handle no approval case
   if (!approval || !approval.ApprovalStep || approval.ApprovalStep.length === 0) {
@@ -45,12 +48,26 @@ export function ApproverDisplay({ approval, compact = false }: ApproverDisplayPr
   const approvedCount = steps.filter(step => step.status === 'APPROVED').length;
   const totalCount = steps.length;
   const hasRejection = steps.some(step => step.status === 'REJECTED');
+  const rejectedStep = steps.find(step => step.status === 'REJECTED');
+
+  const handleRejectedClick = () => {
+    if (rejectedStep && rejectedStep.comment) {
+      setRejectionComment(rejectedStep.comment);
+      setShowRejectionModal(true);
+    }
+  };
 
   // Determine overall status
   let statusBadge;
   if (hasRejection) {
     statusBadge = (
-      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+      <span 
+        onClick={handleRejectedClick}
+        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 ${
+          rejectedStep?.comment ? 'cursor-pointer hover:bg-red-200 transition-colors' : ''
+        }`}
+        title={rejectedStep?.comment ? 'Click to view rejection reason' : undefined}
+      >
         <XCircle className="h-3 w-3" />
         Rejected
       </span>
@@ -188,6 +205,11 @@ export function ApproverDisplay({ approval, compact = false }: ApproverDisplayPr
                         ? 'Pending'
                         : 'Waiting'}
                     </div>
+                    {step.status === 'REJECTED' && step.comment && (
+                      <div className="text-forvis-gray-700 mt-1 text-xs bg-red-50 p-1.5 rounded border border-red-200">
+                        {step.comment}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -198,6 +220,38 @@ export function ApproverDisplay({ approval, compact = false }: ApproverDisplayPr
 
       {/* Status Badge */}
       {statusBadge}
+
+      {/* Rejection Comment Modal */}
+      {showRejectionModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-corporate-lg max-w-md w-full mx-4 p-6">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-red-100">
+                <XCircle className="h-5 w-5 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-forvis-gray-900">Rejection Reason</h3>
+                <p className="text-xs text-forvis-gray-600 mt-0.5">
+                  Document approval was rejected
+                </p>
+              </div>
+            </div>
+            
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+              <p className="text-sm text-forvis-gray-900 whitespace-pre-wrap">{rejectionComment}</p>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowRejectionModal(false)}
+                className="px-4 py-2 bg-forvis-blue-600 text-white rounded-lg hover:bg-forvis-blue-700 transition-colors text-sm font-medium"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

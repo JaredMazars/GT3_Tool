@@ -123,6 +123,16 @@ export function parseDocumentId(id: string): number {
 }
 
 /**
+ * Parse and validate approval ID from route params
+ * @param id - String ID from route params
+ * @returns Validated numeric approval ID
+ * @throws AppError if ID is invalid
+ */
+export function parseApprovalId(id: string | undefined): number {
+  return parseNumericId(id, 'Approval');
+}
+
+/**
  * Fetch task by ID or throw 404 error
  * @param taskId - Task ID
  * @param include - Optional Prisma include object

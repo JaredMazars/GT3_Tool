@@ -153,6 +153,23 @@ export interface ApprovalsResponse {
 }
 
 /**
+ * Vault Document Timeline Data
+ * Data structure for displaying vault document approval timeline
+ */
+export interface VaultDocumentTimelineData {
+  requestedByName: string;
+  requestedAt: Date;
+  ApprovalStep: Array<{
+    stepOrder: number;
+    status: string;
+    approvedAt: Date | null;
+    User_ApprovalStep_assignedToUserIdToUser: {
+      name: string | null;
+    } | null;
+  }>;
+}
+
+/**
  * Approvals Count Response
  * Just the total count for badge display
  */

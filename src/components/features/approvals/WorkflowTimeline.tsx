@@ -2,13 +2,14 @@
 
 import { CheckCircle, Circle, XCircle, UserCheck } from 'lucide-react';
 import { formatDate } from '@/lib/utils/taskUtils';
-import type { ChangeRequestApproval, ClientAcceptanceApproval, ReviewNoteApproval } from '@/types/approvals';
+import type { ChangeRequestApproval, ClientAcceptanceApproval, ReviewNoteApproval, VaultDocumentTimelineData } from '@/types/approvals';
 
 interface WorkflowTimelineProps {
-  type: 'changeRequest' | 'clientAcceptance' | 'reviewNote';
+  type: 'changeRequest' | 'clientAcceptance' | 'reviewNote' | 'vaultDocument';
   request?: ChangeRequestApproval;
   acceptance?: ClientAcceptanceApproval;
   note?: ReviewNoteApproval;
+  vaultDocument?: VaultDocumentTimelineData;
 }
 
 interface TimelineStep {
@@ -18,7 +19,7 @@ interface TimelineStep {
   status: 'approved' | 'pending' | 'rejected';
 }
 
-export function WorkflowTimeline({ type, request, acceptance, note }: WorkflowTimelineProps) {
+export function WorkflowTimeline({ type, request, acceptance, note, vaultDocument }: WorkflowTimelineProps) {
   const getSteps = (): TimelineStep[] => {
     if (type === 'changeRequest' && request) {
       const steps: TimelineStep[] = [
@@ -102,6 +103,35 @@ export function WorkflowTimeline({ type, request, acceptance, note }: WorkflowTi
           status: note.clearedAt ? 'approved' : 'rejected',
         });
       }
+
+      return steps;
+    }
+
+    if (type === 'vaultDocument' && vaultDocument) {
+      const steps: TimelineStep[] = [
+        {
+          label: 'Submitted',
+          name: vaultDocument.requestedByName,
+          date: vaultDocument.requestedAt,
+          status: 'approved',
+        },
+      ];
+
+      // Add approval steps
+      const approvalSteps = vaultDocument.ApprovalStep
+        .sort((a, b) => a.stepOrder - b.stepOrder)
+        .map((step) => ({
+          label: `Approver ${step.stepOrder}`,
+          name: step.User_ApprovalStep_assignedToUserIdToUser?.name || 'Unassigned',
+          date: step.approvedAt,
+          status: step.status === 'APPROVED' 
+            ? 'approved' as const
+            : step.status === 'REJECTED' 
+            ? 'rejected' as const
+            : 'pending' as const,
+        }));
+
+      steps.push(...approvalSteps);
 
       return steps;
     }

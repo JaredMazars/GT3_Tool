@@ -93,16 +93,6 @@ export default function DashboardNav() {
       ]
     : [];
 
-  // Service line specific nav items
-  const serviceLineNavItems: NavItem[] = currentServiceLine
-    ? [
-        {
-          label: isSharedService(currentServiceLine) ? 'Services' : 'Clients',
-          href: `/dashboard/${currentServiceLine.toLowerCase()}`,
-        },
-      ]
-    : [];
-
   // Admin nav items - only show if user has admin access
   const adminMenuItems = [];
   if (hasUsersAccess) {
@@ -185,8 +175,8 @@ export default function DashboardNav() {
       ]
     : [];
 
-  // Left side nav items (Home, My Workspace, and service line items)
-  const leftNavItems: NavItem[] = [...baseNavItems, ...myWorkspaceNavItems, ...serviceLineNavItems];
+  // Left side nav items (Home, My Workspace)
+  const leftNavItems: NavItem[] = [...baseNavItems, ...myWorkspaceNavItems];
   
   // Right side nav items (Links and Admin)
   const rightNavItems: NavItem[] = [...linksNavItems, ...adminNavItems];

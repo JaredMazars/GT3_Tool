@@ -115,6 +115,7 @@ export const GET = secureRoute.query({
                 stepOrder: true,
                 status: true,
                 approvedAt: true,
+                comment: true,
                 User_ApprovalStep_assignedToUserIdToUser: {
                   select: {
                     id: true,

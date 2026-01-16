@@ -96,6 +96,35 @@ export function useDownloadDocument() {
 }
 
 /**
+ * Hook to get download URL for approval document (does not auto-open)
+ * Used by approvers to preview/download documents pending approval
+ */
+export function useDownloadApprovalDocument(documentId: number) {
+  return useQuery({
+    queryKey: ['approvalDocumentDownload', documentId],
+    queryFn: async () => {
+      const response = await fetch(`/api/approvals/vault-documents/${documentId}/download`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to get download URL');
+      }
+      
+      const data = await response.json();
+      if (!data.success) throw new Error(data.error || 'Failed to get download URL');
+      
+      return data.data as {
+        downloadUrl: string;
+        fileName: string;
+        mimeType: string;
+        expiresIn: number;
+      };
+    },
+    staleTime: 50 * 60 * 1000, // 50 minutes (URL valid for 60 minutes)
+    enabled: !!documentId,
+  });
+}
+
+/**
  * Hook to search documents
  */
 export function useSearchDocuments(query: string, enabled: boolean = true) {

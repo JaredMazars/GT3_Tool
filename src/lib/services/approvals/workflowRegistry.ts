@@ -211,9 +211,22 @@ export const WORKFLOW_REGISTRY: Record<WorkflowType, WorkflowRegistryEntry> = {
     icon: FolderOpen,
     defaultRoute: 'service-line-admin-approval',
     fetchData: async (workflowId: number) => {
-      return await prisma.vaultDocument.findUnique({
+      const document = await prisma.vaultDocument.findUnique({
         where: { id: workflowId },
-        include: {
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          documentType: true,
+          categoryId: true,
+          fileName: true,
+          mimeType: true,
+          scope: true,
+          serviceLine: true,
+          tags: true,
+          effectiveDate: true,
+          expiryDate: true,
+          documentVersion: true,
           VaultDocumentCategory: {
             select: {
               id: true,
@@ -230,6 +243,7 @@ export const WORKFLOW_REGISTRY: Record<WorkflowType, WorkflowRegistryEntry> = {
           },
         },
       });
+      return document;
     },
     getDisplayTitle: (data: any) => {
       const docType = data?.documentType || 'Document';

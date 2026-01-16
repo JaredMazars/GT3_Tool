@@ -51,6 +51,7 @@ export const GET = secureRoute.query({
         color: true,
         documentType: true,
         sortOrder: true,
+        active: true,
         _count: {
           select: {
             VaultDocument: {
@@ -58,6 +59,7 @@ export const GET = secureRoute.query({
                 status: 'PUBLISHED',
               },
             },
+            CategoryApprover: true,
           },
         },
       },
@@ -73,7 +75,9 @@ export const GET = secureRoute.query({
       color: cat.color,
       documentType: cat.documentType,
       sortOrder: cat.sortOrder,
+      active: cat.active,
       documentCount: cat._count.VaultDocument,
+      approverCount: cat._count.CategoryApprover,
     }));
 
     // Cache result

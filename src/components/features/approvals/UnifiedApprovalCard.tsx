@@ -1,11 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, Clock, User } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, User, Eye, Download, FileText } from 'lucide-react';
 import { Button, LoadingSpinner } from '@/components/ui';
 import { formatDate } from '@/lib/utils/taskUtils';
 import type { ApprovalWithSteps, WorkflowType } from '@/types/approval';
-import { getWorkflowRegistry, fetchWorkflowData, getWorkflowDisplayTitle, getWorkflowDisplayDescription } from '@/lib/services/approvals/workflowRegistry';
+import { getWorkflowRegistry, getWorkflowDisplayTitle, getWorkflowDisplayDescription } from '@/lib/services/approvals/workflowRegistry';
+import { useDownloadApprovalDocument } from '@/hooks/documentVault/useDocuments';
+import { DocumentPreviewModal } from '@/components/features/document-vault/DocumentPreviewModal';
+import { WorkflowTimeline } from './WorkflowTimeline';
+import { EditDocumentModal } from '@/components/features/document-vault/EditDocumentModal';
 
 interface UnifiedApprovalCardProps {
   approval: ApprovalWithSteps;
@@ -25,6 +29,9 @@ export function UnifiedApprovalCard({
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectComment, setRejectComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
 
   const workflowType = approval.workflowType as WorkflowType;
   const registry = getWorkflowRegistry(workflowType);
@@ -35,13 +42,31 @@ export function UnifiedApprovalCard({
   const totalSteps = approval.ApprovalStep.length;
   const completedSteps = approval.ApprovalStep.filter((s) => s.status === 'APPROVED').length;
 
-  // Fetch workflow-specific data
+  // For vault documents, fetch download URL
+  const isVaultDocument = workflowType === 'VAULT_DOCUMENT';
+  const {
+    data: downloadData,
+    isLoading: isLoadingDownload,
+    error: downloadError,
+  } = useDownloadApprovalDocument(isVaultDocument ? approval.workflowId : 0);
+
+  // Fetch workflow-specific data from API
   useEffect(() => {
     const loadData = async () => {
       try {
         setIsLoadingData(true);
-        const data = await fetchWorkflowData(workflowType, approval.workflowId);
-        setWorkflowData(data);
+        const response = await fetch(`/api/approvals/${approval.id}/workflow`);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch workflow data: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        if (result.success) {
+          setWorkflowData(result.data);
+        } else {
+          console.error('Error loading workflow data:', result.error);
+        }
       } catch (error) {
         console.error('Error loading workflow data:', error);
       } finally {
@@ -50,7 +75,21 @@ export function UnifiedApprovalCard({
     };
 
     loadData();
-  }, [workflowType, approval.workflowId]);
+  }, [approval.id]);
+
+  // Fetch categories when details modal opens for vault documents
+  useEffect(() => {
+    if (isVaultDocument && showDetailsModal) {
+      fetch('/api/document-vault/categories')
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            setCategories(data.data);
+          }
+        })
+        .catch(err => console.error('Failed to load categories:', err));
+    }
+  }, [isVaultDocument, showDetailsModal]);
 
   const handleApprove = async () => {
     if (!currentStep || !onApprove) return;
@@ -82,6 +121,21 @@ export function UnifiedApprovalCard({
   const displayDescription = workflowData
     ? getWorkflowDisplayDescription(workflowType, workflowData)
     : approval.description;
+
+  const handlePreview = () => {
+    setShowPreviewModal(true);
+  };
+
+  const handleDownload = () => {
+    if (downloadData?.downloadUrl) {
+      window.open(downloadData.downloadUrl, '_blank');
+    }
+  };
+
+  // Determine if preview is supported
+  const canPreview =
+    downloadData?.mimeType === 'application/pdf' ||
+    downloadData?.mimeType?.startsWith('image/');
 
   return (
     <div
@@ -123,6 +177,54 @@ export function UnifiedApprovalCard({
                 )}
               </div>
             </div>
+
+            {/* View Document Buttons (Vault Documents Only) */}
+            {isVaultDocument && (
+              <div className="mb-3">
+                {isLoadingDownload ? (
+                  <div className="flex items-center space-x-2 text-xs text-forvis-gray-600">
+                    <LoadingSpinner size="sm" />
+                    <span>Loading document...</span>
+                  </div>
+                ) : downloadError ? (
+                  <div className="text-xs text-red-600">
+                    Failed to load document preview
+                  </div>
+                ) : downloadData ? (
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setShowDetailsModal(true)}
+                      className="text-xs"
+                    >
+                      <FileText className="h-3 w-3 mr-1" />
+                      View Details
+                    </Button>
+                    {canPreview && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={handlePreview}
+                        className="text-xs"
+                      >
+                        <Eye className="h-3 w-3 mr-1" />
+                        Preview
+                      </Button>
+                    )}
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleDownload}
+                      className="text-xs"
+                    >
+                      <Download className="h-3 w-3 mr-1" />
+                      Download
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
+            )}
 
             {/* Progress Indicator */}
             {totalSteps > 1 && (
@@ -196,6 +298,23 @@ export function UnifiedApprovalCard({
         )}
       </div>
 
+      {/* Workflow Timeline for Vault Documents */}
+      {isVaultDocument && (
+        <WorkflowTimeline 
+          type="vaultDocument" 
+          vaultDocument={{
+            requestedByName: approval.User_Approval_requestedByIdToUser.name || 'Unknown',
+            requestedAt: approval.requestedAt,
+            ApprovalStep: approval.ApprovalStep.map(step => ({
+              stepOrder: step.stepOrder,
+              status: step.status,
+              approvedAt: step.approvedAt,
+              User_ApprovalStep_assignedToUserIdToUser: null
+            }))
+          }}
+        />
+      )}
+
       {/* Reject Modal */}
       {showRejectModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -234,6 +353,47 @@ export function UnifiedApprovalCard({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Preview Modal */}
+      {showPreviewModal && downloadData && (
+        <DocumentPreviewModal
+          isOpen={showPreviewModal}
+          onClose={() => setShowPreviewModal(false)}
+          downloadUrl={downloadData.downloadUrl}
+          fileName={downloadData.fileName}
+          mimeType={downloadData.mimeType}
+          onDownload={handleDownload}
+        />
+      )}
+
+      {/* Document Details Modal */}
+      {showDetailsModal && isVaultDocument && workflowData && (
+        <EditDocumentModal
+          isOpen={showDetailsModal}
+          onClose={() => setShowDetailsModal(false)}
+          document={workflowData}
+          categories={categories}
+          serviceLines={['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'BUSINESS_DEV', 'IT', 'FINANCE', 'HR', 'COUNTRY_MANAGEMENT']}
+          onSuccess={() => {
+            // Reload workflow data after successful update
+            const loadData = async () => {
+              try {
+                const response = await fetch(`/api/approvals/${approval.id}/workflow`);
+                if (response.ok) {
+                  const result = await response.json();
+                  if (result.success) {
+                    setWorkflowData(result.data);
+                  }
+                }
+              } catch (error) {
+                console.error('Error reloading workflow data:', error);
+              }
+            };
+            loadData();
+            setShowDetailsModal(false);
+          }}
+        />
       )}
     </div>
   );

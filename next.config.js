@@ -71,8 +71,8 @@ const nextConfig = {
           {
             key: 'Content-Security-Policy',
             value: process.env.NODE_ENV === 'development' 
-              ? "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.azure.com; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.blob.core.windows.net; font-src 'self' data:; connect-src 'self' https://*.azure.com https://*.microsoft.com http://127.0.0.1:* http://localhost:*;"
-              : "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.azure.com; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.blob.core.windows.net; font-src 'self' data:; connect-src 'self' https://*.azure.com https://*.microsoft.com;",
+              ? "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.azure.com; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.blob.core.windows.net; font-src 'self' data:; connect-src 'self' https://*.azure.com https://*.microsoft.com http://127.0.0.1:* http://localhost:*; frame-src 'self' https://*.blob.core.windows.net;"
+              : "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.azure.com; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.blob.core.windows.net; font-src 'self' data:; connect-src 'self' https://*.azure.com https://*.microsoft.com; frame-src 'self' https://*.blob.core.windows.net;",
           },
         ],
       },

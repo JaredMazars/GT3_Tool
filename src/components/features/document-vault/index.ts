@@ -8,3 +8,6 @@ export { DeleteCategoryModal } from './DeleteCategoryModal';
 export { DocumentTypeFormModal } from './DocumentTypeFormModal';
 export { DeleteDocumentTypeModal } from './DeleteDocumentTypeModal';
 export { ApproverDisplay } from './ApproverDisplay';
+export { ArchiveDocumentModal } from './ArchiveDocumentModal';
+export { EditDocumentModal } from './EditDocumentModal';
+export { SubmitDocumentModal } from './SubmitDocumentModal';

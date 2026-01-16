@@ -2,21 +2,39 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Upload, Settings, FileText, Clock, Archive } from 'lucide-react';
+import { Upload, Settings, FileText, Clock, Archive, Edit } from 'lucide-react';
 import { Button, LoadingSpinner } from '@/components/ui';
-import { ApproverDisplay } from '@/components/features/document-vault';
+import { ApproverDisplay, EditDocumentModal, SubmitDocumentModal } from '@/components/features/document-vault';
 import Link from 'next/link';
 
 export function AdminDocumentVaultClient() {
   const router = useRouter();
   const [documents, setDocuments] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'archived'>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [documentToEdit, setDocumentToEdit] = useState<any | null>(null);
+  const [submitModalOpen, setSubmitModalOpen] = useState(false);
+  const [documentToSubmit, setDocumentToSubmit] = useState<{ id: number; title: string; documentType?: string; version?: number } | null>(null);
 
   useEffect(() => {
     fetchDocuments();
+    fetchCategories();
   }, [activeTab]);
+
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch('/api/document-vault/categories');
+      const data = await response.json();
+      if (data.success) {
+        setCategories(data.data);
+      }
+    } catch (err) {
+      console.error('Failed to load categories:', err);
+    }
+  };
 
   const fetchDocuments = async () => {
     setIsLoading(true);
@@ -63,8 +81,63 @@ export function AdminDocumentVaultClient() {
     }
   };
 
+  const handleEdit = (doc: any) => {
+    setDocumentToEdit(doc);
+    setEditModalOpen(true);
+  };
+
+  const handleEditSuccess = () => {
+    fetchDocuments();
+    setEditModalOpen(false);
+    setDocumentToEdit(null);
+  };
+
+  const handleEditClose = () => {
+    setEditModalOpen(false);
+    setDocumentToEdit(null);
+  };
+
+  const handleSubmit = (doc: any) => {
+    setDocumentToSubmit({
+      id: doc.id,
+      title: doc.title,
+      documentType: doc.documentType,
+      version: doc.version,
+    });
+    setSubmitModalOpen(true);
+  };
+
+  const handleSubmitSuccess = () => {
+    fetchDocuments();
+    setSubmitModalOpen(false);
+    setDocumentToSubmit(null);
+  };
+
+  const handleSubmitClose = () => {
+    setSubmitModalOpen(false);
+    setDocumentToSubmit(null);
+  };
+
   return (
-    <div className="space-y-6">
+    <>
+      <EditDocumentModal
+        isOpen={editModalOpen}
+        onClose={handleEditClose}
+        onSuccess={handleEditSuccess}
+        document={documentToEdit}
+        categories={categories}
+        serviceLines={['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'BUSINESS_DEV', 'IT', 'FINANCE', 'HR', 'COUNTRY_MANAGEMENT']}
+      />
+
+      <SubmitDocumentModal
+        isOpen={submitModalOpen}
+        onClose={handleSubmitClose}
+        onSuccess={handleSubmitSuccess}
+        document={documentToSubmit}
+        isServiceLine={false}
+      />
+      
+      <div className="space-y-6">
       {/* Action Buttons */}
       <div className="flex gap-3">
         <Link href="/dashboard/admin/document-vault/upload">
@@ -222,15 +295,36 @@ export function AdminDocumentVaultClient() {
                   <td className="px-6 py-4 text-sm text-forvis-gray-600">
                     {new Date(doc.createdAt).toLocaleDateString()}
                   </td>
-                  <td className="px-6 py-4 text-sm text-right space-x-2">
-                    {doc.status !== 'ARCHIVED' && (
-                      <button
-                        onClick={() => handleArchive(doc.id)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        Archive
-                      </button>
-                    )}
+                  <td className="px-6 py-4 text-sm text-right">
+                    <div className="flex justify-end gap-2">
+                      {doc.status === 'DRAFT' && (
+                        <>
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={() => handleSubmit(doc)}
+                          >
+                            Submit for Approval
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => handleEdit(doc)}
+                          >
+                            Edit
+                          </Button>
+                        </>
+                      )}
+                      {doc.status !== 'ARCHIVED' && (
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => handleArchive(doc.id)}
+                        >
+                          Archive
+                        </Button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -238,6 +332,7 @@ export function AdminDocumentVaultClient() {
           </table>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }

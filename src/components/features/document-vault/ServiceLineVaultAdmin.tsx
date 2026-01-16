@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Upload, Edit, Archive, FileText, Clock, X, Plus } from 'lucide-react';
 import { Button, LoadingSpinner, Input } from '@/components/ui';
-import { DocumentUploadForm, ApproverDisplay } from '@/components/features/document-vault';
+import { DocumentUploadForm, ApproverDisplay, ArchiveDocumentModal, EditDocumentModal, SubmitDocumentModal } from '@/components/features/document-vault';
 import type { VaultDocumentType } from '@/types/documentVault';
 
 interface ServiceLineVaultAdminProps {
@@ -19,6 +19,12 @@ export function ServiceLineVaultAdmin({ serviceLine, isSystemAdmin }: ServiceLin
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [archiveModalOpen, setArchiveModalOpen] = useState(false);
+  const [documentToArchive, setDocumentToArchive] = useState<{ id: number; title: string; documentType?: string; version?: number } | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [documentToEdit, setDocumentToEdit] = useState<any | null>(null);
+  const [submitModalOpen, setSubmitModalOpen] = useState(false);
+  const [documentToSubmit, setDocumentToSubmit] = useState<{ id: number; title: string; documentType?: string; version?: number } | null>(null);
 
   // Fetch categories on mount
   useEffect(() => {
@@ -78,30 +84,93 @@ export function ServiceLineVaultAdmin({ serviceLine, isSystemAdmin }: ServiceLin
     }, 5000);
   };
 
-  const handleArchive = async (documentId: number) => {
-    if (!confirm('Are you sure you want to archive this document?')) return;
+  const handleArchive = (doc: any) => {
+    setDocumentToArchive({
+      id: doc.id,
+      title: doc.title,
+      documentType: doc.documentType,
+      version: doc.version,
+    });
+    setArchiveModalOpen(true);
+  };
 
-    try {
-      const response = await fetch(`/api/document-vault/admin/${documentId}/archive`, {
-        method: 'PATCH',
-      });
+  const handleArchiveSuccess = () => {
+    fetchDocuments();
+    setArchiveModalOpen(false);
+    setDocumentToArchive(null);
+  };
 
-      if (response.ok) {
-        fetchDocuments();
-      } else {
-        const data = await response.json();
-        alert(data.error || 'Failed to archive document');
-      }
-    } catch (err) {
-      alert('Failed to archive document');
-      console.error(err);
-    }
+  const handleArchiveClose = () => {
+    setArchiveModalOpen(false);
+    setDocumentToArchive(null);
+  };
+
+  const handleEdit = (doc: any) => {
+    setDocumentToEdit(doc);
+    setEditModalOpen(true);
+  };
+
+  const handleEditSuccess = () => {
+    fetchDocuments();
+    setEditModalOpen(false);
+    setDocumentToEdit(null);
+  };
+
+  const handleEditClose = () => {
+    setEditModalOpen(false);
+    setDocumentToEdit(null);
+  };
+
+  const handleSubmit = (doc: any) => {
+    setDocumentToSubmit({
+      id: doc.id,
+      title: doc.title,
+      documentType: doc.documentType,
+      version: doc.version,
+    });
+    setSubmitModalOpen(true);
+  };
+
+  const handleSubmitSuccess = () => {
+    fetchDocuments();
+    setSubmitModalOpen(false);
+    setDocumentToSubmit(null);
+  };
+
+  const handleSubmitClose = () => {
+    setSubmitModalOpen(false);
+    setDocumentToSubmit(null);
   };
 
   return (
-    <div className="space-y-6">
-      {/* Tab Navigation */}
-      <div className="border-b border-forvis-gray-200">
+    <>
+      <ArchiveDocumentModal
+        isOpen={archiveModalOpen}
+        onClose={handleArchiveClose}
+        onSuccess={handleArchiveSuccess}
+        document={documentToArchive}
+      />
+      
+      <EditDocumentModal
+        isOpen={editModalOpen}
+        onClose={handleEditClose}
+        onSuccess={handleEditSuccess}
+        document={documentToEdit}
+        categories={categories}
+        serviceLines={[serviceLine]}
+      />
+
+      <SubmitDocumentModal
+        isOpen={submitModalOpen}
+        onClose={handleSubmitClose}
+        onSuccess={handleSubmitSuccess}
+        document={documentToSubmit}
+        isServiceLine={true}
+      />
+      
+      <div className="space-y-6">
+        {/* Tab Navigation */}
+        <div className="border-b border-forvis-gray-200">
         <nav className="-mb-px flex space-x-8">
           <button
             onClick={() => setActiveTab('upload')}
@@ -261,15 +330,36 @@ export function ServiceLineVaultAdmin({ serviceLine, isSystemAdmin }: ServiceLin
                       <td className="px-6 py-4 text-sm text-forvis-gray-600">
                         {new Date(doc.createdAt).toLocaleDateString()}
                       </td>
-                      <td className="px-6 py-4 text-sm text-right space-x-2">
-                        {doc.status !== 'ARCHIVED' && (
-                          <button
-                            onClick={() => handleArchive(doc.id)}
-                            className="text-red-600 hover:text-red-700 font-medium"
-                          >
-                            Archive
-                          </button>
-                        )}
+                      <td className="px-6 py-4 text-sm text-right">
+                        <div className="flex justify-end gap-2">
+                          {doc.status === 'DRAFT' && (
+                            <>
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                onClick={() => handleSubmit(doc)}
+                              >
+                                Submit for Approval
+                              </Button>
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => handleEdit(doc)}
+                              >
+                                Edit
+                              </Button>
+                            </>
+                          )}
+                          {doc.status !== 'ARCHIVED' && (
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              onClick={() => handleArchive(doc)}
+                            >
+                              Archive
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -279,6 +369,7 @@ export function ServiceLineVaultAdmin({ serviceLine, isSystemAdmin }: ServiceLin
           )}
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }

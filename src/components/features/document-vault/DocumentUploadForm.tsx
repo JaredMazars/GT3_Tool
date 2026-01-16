@@ -19,34 +19,85 @@ interface DocumentUploadFormProps {
   onSuccess?: (documentId: number) => void;
   onCancel?: () => void;
   defaultServiceLine?: string; // Pre-set service line for service line context
+  
+  // Edit mode props
+  mode?: 'create' | 'edit';
+  documentToEdit?: {
+    id: number;
+    title: string;
+    description: string | null;
+    documentType: string;
+    categoryId: number;
+    scope: string;
+    serviceLine: string | null;
+    tags: string | null;
+    effectiveDate: Date | null;
+    expiryDate: Date | null;
+    documentVersion: string | null;
+    fileName: string;
+  };
 }
 
-export function DocumentUploadForm({ categories, serviceLines = [], onSuccess, onCancel, defaultServiceLine }: DocumentUploadFormProps) {
+export function DocumentUploadForm({ 
+  categories, 
+  serviceLines = [], 
+  onSuccess, 
+  onCancel, 
+  defaultServiceLine,
+  mode = 'create',
+  documentToEdit
+}: DocumentUploadFormProps) {
   const { types: documentTypes, isLoading: isLoadingTypes } = useDocumentTypes();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   
-  // AI Extraction state
+  // AI Extraction state (only for create mode)
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
   const [aiSuggestions, setAISuggestions] = useState<VaultDocumentSuggestions | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [tempBlobPath, setTempBlobPath] = useState<string | null>(null);
   
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    documentType: (documentTypes[0]?.code || 'POLICY') as VaultDocumentType,
-    documentVersion: '',
-    categoryId: 0,
-    scope: (defaultServiceLine ? 'SERVICE_LINE' : 'GLOBAL') as VaultDocumentScope,
-    serviceLine: defaultServiceLine || '',
-    tags: [] as string[],
-    tagInput: '',
-    effectiveDate: '',
-    expiryDate: '',
-  });
+  // Initialize form data based on mode
+  const getInitialFormData = () => {
+    if (mode === 'edit' && documentToEdit) {
+      const tags = documentToEdit.tags ? JSON.parse(documentToEdit.tags) : [];
+      return {
+        title: documentToEdit.title,
+        description: documentToEdit.description || '',
+        documentType: documentToEdit.documentType as VaultDocumentType,
+        documentVersion: documentToEdit.documentVersion || '',
+        categoryId: documentToEdit.categoryId,
+        scope: documentToEdit.scope as VaultDocumentScope,
+        serviceLine: documentToEdit.serviceLine || '',
+        tags: Array.isArray(tags) ? tags : [],
+        tagInput: '',
+        effectiveDate: documentToEdit.effectiveDate 
+          ? new Date(documentToEdit.effectiveDate).toISOString().split('T')[0]
+          : '',
+        expiryDate: documentToEdit.expiryDate 
+          ? new Date(documentToEdit.expiryDate).toISOString().split('T')[0]
+          : '',
+      };
+    }
+    
+    return {
+      title: '',
+      description: '',
+      documentType: (documentTypes[0]?.code || 'POLICY') as VaultDocumentType,
+      documentVersion: '',
+      categoryId: 0,
+      scope: (defaultServiceLine ? 'SERVICE_LINE' : 'GLOBAL') as VaultDocumentScope,
+      serviceLine: defaultServiceLine || '',
+      tags: [] as string[],
+      tagInput: '',
+      effectiveDate: '',
+      expiryDate: '',
+    };
+  };
+  
+  const [formData, setFormData] = useState(getInitialFormData());
 
   const filteredCategories = categories.filter(
     cat => !cat.documentType || cat.documentType === formData.documentType
@@ -208,7 +259,8 @@ export function DocumentUploadForm({ categories, serviceLines = [], onSuccess, o
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!file) {
+    // File is required in create mode, optional in edit mode
+    if (mode === 'create' && !file) {
       setError('Please select a file');
       return;
     }
@@ -245,7 +297,12 @@ export function DocumentUploadForm({ categories, serviceLines = [], onSuccess, o
 
     try {
       const data = new FormData();
-      data.append('file', file);
+      
+      // Add file if provided (required for create, optional for edit)
+      if (file) {
+        data.append('file', file);
+      }
+      
       data.append('metadata', JSON.stringify({
         title: formData.title.trim(),
         description: formData.description.trim() || undefined,
@@ -257,29 +314,39 @@ export function DocumentUploadForm({ categories, serviceLines = [], onSuccess, o
         tags: formData.tags.length > 0 ? formData.tags : undefined,
         effectiveDate: formData.effectiveDate || undefined,
         expiryDate: formData.expiryDate || undefined,
-        tempBlobPath: tempBlobPath || undefined,
+        tempBlobPath: mode === 'create' ? (tempBlobPath || undefined) : undefined,
       }));
 
-      // Use service line admin endpoint if in service line context, otherwise use global admin endpoint
-      const endpoint = defaultServiceLine ? '/api/document-vault/admin' : '/api/admin/document-vault';
+      let endpoint: string;
+      let method: string;
+      
+      if (mode === 'edit' && documentToEdit) {
+        // Edit mode: PATCH to update endpoint
+        endpoint = `/api/admin/document-vault/${documentToEdit.id}`;
+        method = 'PATCH';
+      } else {
+        // Create mode: POST to create endpoint
+        endpoint = defaultServiceLine ? '/api/document-vault/admin' : '/api/admin/document-vault';
+        method = 'POST';
+      }
       
       const response = await fetch(endpoint, {
-        method: 'POST',
+        method,
         body: data,
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Upload failed');
+        throw new Error(errorData.error || (mode === 'edit' ? 'Update failed' : 'Upload failed'));
       }
 
       const result = await response.json();
       
       if (onSuccess) {
-        onSuccess(result.data.id);
+        onSuccess(mode === 'edit' && documentToEdit ? documentToEdit.id : result.data.id);
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to upload document');
+      setError(err.message || (mode === 'edit' ? 'Failed to update document' : 'Failed to upload document'));
     } finally {
       setIsSubmitting(false);
     }
@@ -296,8 +363,13 @@ export function DocumentUploadForm({ categories, serviceLines = [], onSuccess, o
       {/* File Upload */}
       <div>
         <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
-          Document File *
+          Document File {mode === 'create' ? '*' : '(optional - replace existing)'}
         </label>
+        {mode === 'edit' && documentToEdit && !file && (
+          <div className="mb-2 text-sm text-forvis-gray-600">
+            Current file: <span className="font-medium">{documentToEdit.fileName}</span>
+          </div>
+        )}
         {!file ? (
           <div
             className="flex justify-center px-6 pt-5 pb-6 border-3 border-dashed rounded-xl cursor-pointer hover:border-forvis-blue-600 transition-colors"
@@ -335,7 +407,7 @@ export function DocumentUploadForm({ categories, serviceLines = [], onSuccess, o
               </button>
             </div>
             
-            {!aiSuggestions && !isExtracting && (
+            {mode === 'create' && !aiSuggestions && !isExtracting && (
               <div className="mt-4 pt-4 border-t border-forvis-blue-200">
                 <Button
                   type="button"
@@ -846,14 +918,18 @@ export function DocumentUploadForm({ categories, serviceLines = [], onSuccess, o
             Cancel
           </Button>
         )}
-        <Button type="submit" variant="primary" disabled={isSubmitting || !file}>
+        <Button 
+          type="submit" 
+          variant="primary" 
+          disabled={isSubmitting || (mode === 'create' && !file)}
+        >
           {isSubmitting ? (
             <>
               <LoadingSpinner size="sm" />
-              Uploading...
+              {mode === 'edit' ? 'Updating...' : 'Uploading...'}
             </>
           ) : (
-            'Upload Document'
+            mode === 'edit' ? 'Update Document' : 'Upload Document'
           )}
         </Button>
       </div>
