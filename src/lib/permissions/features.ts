@@ -49,6 +49,7 @@ export enum Feature {
   MANAGE_TEMPLATES = 'manage_templates',
   MANAGE_EXTERNAL_LINKS = 'manage_external_links',
   MANAGE_TOOLS = 'manage_tools',
+  ACCESS_BUG_REPORTS = 'access_bug_reports',
 
   // Document Vault
   ACCESS_DOCUMENT_VAULT = 'access_document_vault',
@@ -111,6 +112,7 @@ export const FEATURE_CATEGORIES = {
     Feature.MANAGE_TEMPLATES,
     Feature.MANAGE_EXTERNAL_LINKS,
     Feature.MANAGE_TOOLS,
+    Feature.ACCESS_BUG_REPORTS,
   ],
   DOCUMENT_VAULT: [
     Feature.ACCESS_DOCUMENT_VAULT,
@@ -162,6 +164,7 @@ export const FEATURE_DESCRIPTIONS: Record<Feature, string> = {
   [Feature.MANAGE_TEMPLATES]: 'Create and edit templates',
   [Feature.MANAGE_EXTERNAL_LINKS]: 'Manage external software links',
   [Feature.MANAGE_TOOLS]: 'Create and manage tools and their assignments',
+  [Feature.ACCESS_BUG_REPORTS]: 'View and manage user-reported bugs',
 
   [Feature.ACCESS_DOCUMENT_VAULT]: 'Access the document vault',
   [Feature.MANAGE_VAULT_DOCUMENTS]: 'Upload, archive, and manage vault documents',

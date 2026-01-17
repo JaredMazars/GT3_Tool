@@ -10,8 +10,10 @@ import {
   Settings,
   Grid2x2,
   Briefcase,
+  Bug,
 } from 'lucide-react';
 import { NotificationBell } from '@/components/features/notifications/NotificationBell';
+import { BugReportModal } from '@/components/features/bug-reports/BugReportModal';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';
 import { useFeature } from '@/hooks/permissions/useFeature';
@@ -27,6 +29,7 @@ interface NavItem {
 
 export default function DashboardNav() {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [bugReportModalOpen, setBugReportModalOpen] = useState(false);
   const pathname = usePathname();
   const menuRef = useRef<HTMLDivElement>(null);
   const { currentServiceLine } = useServiceLine();
@@ -163,6 +166,11 @@ export default function DashboardNav() {
       label: 'Page Permissions',
       href: '/dashboard/admin/page-permissions',
       description: 'Manage page-level access control',
+    });
+    adminMenuItems.push({
+      label: 'Bug Reports',
+      href: '/dashboard/admin/bug-reports',
+      description: 'View and manage user-reported bugs',
     });
   }
 
@@ -459,9 +467,26 @@ export default function DashboardNav() {
             
             {/* Notification Bell */}
             <NotificationBell />
+
+            {/* Bug Report Icon */}
+            <button
+              onClick={() => setBugReportModalOpen(true)}
+              className="relative p-2 text-white hover:bg-white/20 rounded-lg transition-colors"
+              aria-label="Report a bug"
+              title="Report a bug"
+            >
+              <Bug className="h-5 w-5" />
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Bug Report Modal */}
+      <BugReportModal
+        isOpen={bugReportModalOpen}
+        onClose={() => setBugReportModalOpen(false)}
+        initialUrl={typeof window !== 'undefined' ? window.location.href : ''}
+      />
     </nav>
   );
 }

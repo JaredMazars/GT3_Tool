@@ -15,6 +15,7 @@ const acceptanceDocumentsContainerName = 'acceptance-documents';
 const reviewNotesContainerName = 'review-notes';
 const newsBulletinsContainerName = 'news-bulletins';
 const documentVaultContainerName = 'document-vault';
+const bugReportsContainerName = 'bug-reports';
 
 /**
  * Get Blob Service Client
@@ -1208,6 +1209,171 @@ export async function deleteVaultDocument(blobName: string): Promise<void> {
     logger.info(`Deleted vault document from blob storage: ${blobName}`);
   } catch (error) {
     logger.error('Failed to delete vault document from blob storage:', error);
+    throw error;
+  }
+}
+
+// =====================================================
+// Bug Reports Functions
+// =====================================================
+
+/**
+ * Get Bug Reports Container Client
+ */
+function getBugReportsContainerClient() {
+  const blobServiceClient = getBlobServiceClient();
+  return blobServiceClient.getContainerClient(bugReportsContainerName);
+}
+
+/**
+ * Initialize bug reports blob storage container
+ * Creates container if it doesn't exist
+ */
+export async function initBugReportsStorage(): Promise<void> {
+  try {
+    const containerClient = getBugReportsContainerClient();
+    const exists = await containerClient.exists();
+
+    if (!exists) {
+      await containerClient.create();
+      logger.info(`Created blob container: ${bugReportsContainerName}`);
+    }
+  } catch (error) {
+    logger.error('Failed to initialize bug reports blob storage:', error);
+    throw error;
+  }
+}
+
+/**
+ * Upload bug report screenshot to Azure Blob Storage
+ * @param buffer - File buffer
+ * @param fileName - Original file name
+ * @param userId - User ID for folder organization
+ * @returns Blob path
+ */
+export async function uploadBugReportScreenshot(
+  buffer: Buffer,
+  fileName: string,
+  userId: string
+): Promise<string> {
+  try {
+    // Ensure container exists
+    await initBugReportsStorage();
+    
+    const containerClient = getBugReportsContainerClient();
+    const timestamp = Date.now();
+    const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const blobName = `${userId}/${timestamp}_${sanitizedFileName}`;
+
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    // Determine content type based on file extension
+    const contentType = getContentType(fileName);
+
+    await blockBlobClient.upload(buffer, buffer.length, {
+      blobHTTPHeaders: {
+        blobContentType: contentType,
+      },
+    });
+
+    logger.info(`Uploaded bug report screenshot to blob storage: ${blobName}`);
+    return blobName;
+  } catch (error) {
+    logger.error('Failed to upload bug report screenshot to blob storage:', error);
+    throw error;
+  }
+}
+
+/**
+ * Download bug report screenshot from Azure Blob Storage
+ * @param blobName - Blob name/path
+ * @returns File buffer
+ */
+export async function downloadBugReportScreenshot(blobName: string): Promise<Buffer> {
+  try {
+    const containerClient = getBugReportsContainerClient();
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    const downloadResponse = await blockBlobClient.download();
+    const downloaded = await streamToBuffer(
+      downloadResponse.readableStreamBody!
+    );
+
+    logger.info(`Downloaded bug report screenshot from blob storage: ${blobName}`);
+    return downloaded;
+  } catch (error) {
+    logger.error('Failed to download bug report screenshot from blob storage:', error);
+    throw error;
+  }
+}
+
+/**
+ * Delete bug report screenshot from Azure Blob Storage
+ * @param blobName - Blob name/path
+ */
+export async function deleteBugReportScreenshot(blobName: string): Promise<void> {
+  try {
+    const containerClient = getBugReportsContainerClient();
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    await blockBlobClient.delete();
+    logger.info(`Deleted bug report screenshot from blob storage: ${blobName}`);
+  } catch (error) {
+    logger.error('Failed to delete bug report screenshot from blob storage:', error);
+    throw error;
+  }
+}
+
+/**
+ * Generate a SAS token URL for secure bug report screenshot access
+ * @param blobName - Blob name/path
+ * @param expiresInMinutes - Token expiration in minutes (default: 60)
+ * @returns SAS URL
+ */
+export async function generateBugReportScreenshotSasUrl(
+  blobName: string,
+  expiresInMinutes: number = 60
+): Promise<string> {
+  try {
+    const containerClient = getBugReportsContainerClient();
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    // Parse connection string to get account name and key
+    const parts = connectionString!.split(';');
+    const accountName = parts
+      .find((p) => p.startsWith('AccountName='))
+      ?.split('=')[1];
+    const accountKey = parts
+      .find((p) => p.startsWith('AccountKey='))
+      ?.split('=')[1];
+
+    if (!accountName || !accountKey) {
+      throw new Error('Invalid connection string format');
+    }
+
+    const sharedKeyCredential = new StorageSharedKeyCredential(
+      accountName,
+      accountKey
+    );
+
+    const startsOn = new Date();
+    const expiresOn = new Date(startsOn.getTime() + expiresInMinutes * 60000);
+
+    const sasToken = generateBlobSASQueryParameters(
+      {
+        containerName: bugReportsContainerName,
+        blobName,
+        permissions: BlobSASPermissions.parse('r'), // Read permission
+        startsOn,
+        expiresOn,
+      },
+      sharedKeyCredential
+    ).toString();
+
+    const sasUrl = `${blockBlobClient.url}?${sasToken}`;
+    return sasUrl;
+  } catch (error) {
+    logger.error('Failed to generate SAS URL for bug report screenshot:', error);
     throw error;
   }
 }

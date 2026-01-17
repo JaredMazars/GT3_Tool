@@ -1550,4 +1550,39 @@ export type NewVersionInput = z.infer<typeof NewVersionSchema>;
 export type CreateDocumentTypeInput = z.infer<typeof CreateDocumentTypeSchema>;
 export type UpdateDocumentTypeInput = z.infer<typeof UpdateDocumentTypeSchema>;
 
+// =============================================================================
+// Bug Report Schemas
+// =============================================================================
+
+/**
+ * Schema for creating a bug report
+ * Screenshot is handled via formData, not in the schema
+ */
+export const CreateBugReportSchema = z.object({
+  url: safeUrl(500),
+  description: safeString(5000, 10),
+}).strict();
+
+/**
+ * Schema for updating a bug report (admin only)
+ */
+export const UpdateBugReportSchema = z.object({
+  status: z.enum(['OPEN', 'TESTING', 'RESOLVED']).optional(),
+  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).optional(),
+  resolutionNotes: safeString(5000).optional(),
+}).strict();
+
+/**
+ * Schema for bug report filters
+ */
+export const BugReportFiltersSchema = z.object({
+  status: z.enum(['OPEN', 'TESTING', 'RESOLVED']).optional(),
+  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).optional(),
+}).strict();
+
+// Inferred types
+export type CreateBugReportInput = z.infer<typeof CreateBugReportSchema>;
+export type UpdateBugReportInput = z.infer<typeof UpdateBugReportSchema>;
+export type BugReportFiltersInput = z.infer<typeof BugReportFiltersSchema>;
+
 

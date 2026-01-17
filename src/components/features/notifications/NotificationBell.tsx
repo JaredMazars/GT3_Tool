@@ -35,10 +35,10 @@ export function NotificationBell() {
         {/* Bell Button */}
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="relative p-2 text-white hover:text-white hover:bg-forvis-blue-700 rounded-lg transition-colors"
+          className="relative p-2 text-white hover:bg-white/20 rounded-lg transition-colors"
           aria-label="Notifications"
         >
-          <Bell className="h-6 w-6" />
+          <Bell className="h-5 w-5" />
           
           {/* Unread Badge */}
           {unreadCount !== undefined && unreadCount > 0 && (

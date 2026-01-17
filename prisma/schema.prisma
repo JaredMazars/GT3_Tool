@@ -370,6 +370,30 @@ model BDStage {
   @@index([serviceLine])
 }
 
+model BugReport {
+  id              Int       @id @default(autoincrement())
+  reportedBy      String
+  reportedAt      DateTime  @default(now())
+  url             String    @db.NVarChar(500)
+  description     String    @db.NVarChar(Max)
+  screenshotPath  String?   @db.NVarChar(500)
+  status          String    @default("OPEN") @db.NVarChar(20)
+  testedAt        DateTime?
+  testedBy        String?
+  resolvedAt      DateTime?
+  resolvedBy      String?
+  resolutionNotes String?   @db.NVarChar(Max)
+  priority        String    @default("MEDIUM") @db.NVarChar(20)
+  User_BugReport_reportedByToUser  User   @relation("BugReport_reportedByToUser", fields: [reportedBy], references: [id], onUpdate: NoAction)
+  User_BugReport_testedByToUser    User?  @relation("BugReport_testedByToUser", fields: [testedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  User_BugReport_resolvedByToUser  User?  @relation("BugReport_resolvedByToUser", fields: [resolvedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([reportedBy])
+  @@index([status])
+  @@index([reportedAt(sort: Desc)])
+  @@index([priority])
+}
+
 model Client {
   id                                Int                                 @id @default(autoincrement())
   clientCode                        String                              @unique @db.NVarChar(10)
@@ -1712,6 +1736,9 @@ model User {
   VaultDocumentVersion                                                                                   VaultDocumentVersion[]
   CategoryApprover_CategoryApprover_userIdToUser                                                         CategoryApprover[]                  @relation("CategoryApprover_userIdToUser")
   CategoryApprover_CategoryApprover_createdByToUser                                                      CategoryApprover[]                  @relation("CategoryApprover_createdByToUser")
+  BugReport_BugReport_reportedByToUser                                                                   BugReport[]                         @relation("BugReport_reportedByToUser")
+  BugReport_BugReport_testedByToUser                                                                     BugReport[]                         @relation("BugReport_testedByToUser")
+  BugReport_BugReport_resolvedByToUser                                                                   BugReport[]                         @relation("BugReport_resolvedByToUser")
 
   @@index([role])
 }
