@@ -49,9 +49,11 @@ export function LeaderGroupCard({
   const remainingCount = group.members.length - 5;
 
   const getInitials = (name: string) => {
-    const parts = name.trim().split(' ');
+    const parts = name.trim().split(' ').filter(p => p.length > 0);
     if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+      const first = parts[0]?.[0] || '';
+      const last = parts[parts.length - 1]?.[0] || '';
+      return `${first}${last}`.toUpperCase();
     }
     return name.substring(0, 2).toUpperCase();
   };
@@ -75,7 +77,7 @@ export function LeaderGroupCard({
             <div className="flex items-center gap-2 mt-1">
               {group.type === 'INDIVIDUAL' ? (
                 <Badge
-                  variant="warning"
+                  variant="yellow"
                   size="sm"
                   className="bg-yellow-100 text-yellow-800 border-yellow-300"
                 >
@@ -83,7 +85,7 @@ export function LeaderGroupCard({
                 </Badge>
               ) : (
                 <Badge
-                  variant="info"
+                  variant="blue"
                   size="sm"
                   className="bg-white/20 text-white border-white/30"
                 >
@@ -195,7 +197,7 @@ export function LeaderGroupCard({
                         <span className="text-sm font-medium text-forvis-gray-900 truncate">
                           {member.employee.EmpName}
                         </span>
-                        <Badge variant="secondary" size="sm">
+                        <Badge variant="default" size="sm">
                           {member.employee.EmpCode}
                         </Badge>
                       </div>

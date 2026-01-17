@@ -47,7 +47,7 @@ export const PUT = secureRoute.mutationWithParams<typeof UpdateLeaderGroupSchema
           throw new AppError(
             409,
             'A leader group with this name already exists',
-            ErrorCodes.DUPLICATE_ENTRY
+            ErrorCodes.CONFLICT
           );
         }
       }

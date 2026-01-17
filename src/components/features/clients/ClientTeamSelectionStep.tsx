@@ -260,11 +260,7 @@ export function ClientTeamSelectionStep({
           {/* Partner Selection */}
           <div>
             <SearchCombobox
-              label={
-                <>
-                  Partner (will approve this acceptance) <span className="text-red-500">*</span>
-                </>
-              }
+              label="Partner (will approve this acceptance) *"
               value={selectedPartner || null}
               onChange={(value) => setSelectedPartner(value as string || '')}
               onSearchChange={setPartnerSearch}
@@ -280,11 +276,7 @@ export function ClientTeamSelectionStep({
           {/* Manager Selection */}
           <div>
             <SearchCombobox
-              label={
-                <>
-                  Manager <span className="text-red-500">*</span>
-                </>
-              }
+              label="Manager *"
               value={selectedManager || null}
               onChange={(value) => setSelectedManager(value as string || '')}
               onSearchChange={setManagerSearch}
@@ -300,11 +292,7 @@ export function ClientTeamSelectionStep({
           {/* Incharge Selection */}
           <div>
             <SearchCombobox
-              label={
-                <>
-                  Incharge <span className="text-red-500">*</span>
-                </>
-              }
+              label="Incharge *"
               value={selectedIncharge || null}
               onChange={(value) => setSelectedIncharge(value as string || '')}
               onSearchChange={setInchargeSearch}

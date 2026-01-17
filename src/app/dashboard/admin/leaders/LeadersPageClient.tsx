@@ -86,6 +86,7 @@ export default function LeadersPageClient() {
       const timer = setTimeout(() => setSuccess(null), 5000);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [success]);
 
   const fetchGroups = async () => {

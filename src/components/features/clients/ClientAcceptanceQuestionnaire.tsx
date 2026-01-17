@@ -85,8 +85,8 @@ export function ClientAcceptanceQuestionnaire({
           const data = await res.json();
           if (data.data) {
             // Load answers
+            const loadedAnswers: AnswerState = {};
             if (data.data.ClientAcceptanceAnswer) {
-              const loadedAnswers: AnswerState = {};
               data.data.ClientAcceptanceAnswer.forEach((answerData: any) => {
                 if (answerData.AcceptanceQuestion?.questionKey) {
                   loadedAnswers[answerData.AcceptanceQuestion.questionKey] = {
@@ -462,32 +462,37 @@ export function ClientAcceptanceQuestionnaire({
           )}
 
           {/* Questionnaire Section Content */}
-          {activeTab > 1 && sections[activeTab - 2] && (
-            <div className="space-y-6">
-              <div className="mb-6">
-                <h3 className="text-xl font-semibold text-forvis-gray-900 mb-2">
-                  {sections[activeTab - 2].title}
-                </h3>
-                {sections[activeTab - 2].description && (
-                  <p className="text-sm text-forvis-gray-600">
-                    {sections[activeTab - 2].description}
-                  </p>
-                )}
-              </div>
+          {activeTab > 1 && (() => {
+            const currentSection = sections[activeTab - 2];
+            if (!currentSection) return null;
+            
+            return (
+              <div className="space-y-6">
+                <div className="mb-6">
+                  <h3 className="text-xl font-semibold text-forvis-gray-900 mb-2">
+                    {currentSection.title}
+                  </h3>
+                  {currentSection.description && (
+                    <p className="text-sm text-forvis-gray-600">
+                      {currentSection.description}
+                    </p>
+                  )}
+                </div>
 
-              {sections[activeTab - 2].questions.map((question) => (
-                <QuestionField
-                  key={question.questionKey}
-                  question={question}
-                  value={answers[question.questionKey]?.answer || ''}
-                  comment={answers[question.questionKey]?.comment || ''}
-                  onChange={(answer, comment) =>
-                    handleAnswerChange(question.questionKey, answer, comment)
-                  }
-                />
-              ))}
-            </div>
-          )}
+                {currentSection.questions.map((question) => (
+                  <QuestionField
+                    key={question.questionKey}
+                    question={question}
+                    value={answers[question.questionKey]?.answer || ''}
+                    comment={answers[question.questionKey]?.comment || ''}
+                    onChange={(answer, comment) =>
+                      handleAnswerChange(question.questionKey, answer, comment)
+                    }
+                  />
+                ))}
+              </div>
+            );
+          })()}
         </div>
 
         {/* Navigation */}

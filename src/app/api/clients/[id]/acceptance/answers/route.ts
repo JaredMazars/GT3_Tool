@@ -92,7 +92,7 @@ export const PUT = secureRoute.mutationWithParams<typeof SaveAnswerSchema, { id:
       // Process single (existing logic)
       let questionId = data.questionId;
       if (!questionId && data.questionKey) {
-        questionId = await getQuestionIdFromKey(data.questionKey);
+        questionId = await getQuestionIdFromKey(data.questionKey) ?? undefined;
         if (!questionId) {
           throw new AppError(404, 'Question not found', ErrorCodes.NOT_FOUND);
         }

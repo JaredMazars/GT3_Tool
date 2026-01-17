@@ -307,7 +307,7 @@ export function EmployeeSearchModal({
                           <span className="font-medium text-forvis-gray-900">
                             {employee.EmpName}
                           </span>
-                          <Badge variant="info" size="sm">
+                          <Badge variant="blue" size="sm">
                             {employee.EmpCode}
                           </Badge>
                         </div>

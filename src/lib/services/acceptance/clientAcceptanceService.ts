@@ -5,6 +5,7 @@
 
 import { prisma } from '@/lib/db/prisma';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+import { logger } from '@/lib/utils/logger';
 import { 
   CLIENT_ACCEPTANCE_QUESTIONNAIRE,
   type AcceptanceQuestionDef 

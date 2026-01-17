@@ -86,7 +86,9 @@ export const POST = secureRoute.mutationWithParams<never, { id: string }>({
 
         if (approval && approval.ApprovalStep.length > 0) {
           const currentStep = approval.ApprovalStep[0];
-          await approvalService.approveStep(currentStep.id, user.id);
+          if (currentStep) {
+            await approvalService.approveStep(currentStep.id, user.id);
+          }
         }
       } catch (error) {
         logger.error('Error completing approval workflow', { 
