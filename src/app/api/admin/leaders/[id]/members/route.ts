@@ -5,6 +5,7 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { AddLeaderGroupMembersSchema } from '@/lib/validation/schemas';
 import { logger } from '@/lib/utils/logger';
+import { z } from 'zod';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -14,12 +15,12 @@ export const dynamic = 'force-dynamic';
  * Add members to a leader group
  * Admin only - requires MANAGE_USERS feature
  */
-export const POST = secureRoute.mutation({
+export const POST = secureRoute.mutationWithParams<typeof AddLeaderGroupMembersSchema, { id: string }>({
   feature: Feature.MANAGE_USERS,
   schema: AddLeaderGroupMembersSchema,
   handler: async (request, { user, data, params }) => {
     try {
-      const groupId = parseInt(params?.id as string);
+      const groupId = parseInt(params.id);
 
       if (isNaN(groupId)) {
         throw new AppError(400, 'Invalid group ID', ErrorCodes.VALIDATION_ERROR);
@@ -93,15 +94,28 @@ export const POST = secureRoute.mutation({
         );
       }
 
-      // Add members to the group (skipDuplicates handles existing memberships)
-      await prisma.leaderGroupMember.createMany({
-        data: data.employeeIds.map((employeeId) => ({
+      // Get existing members to filter out duplicates (SQL Server doesn't support skipDuplicates)
+      const existingMembers = await prisma.leaderGroupMember.findMany({
+        where: {
           leaderGroupId: groupId,
-          employeeId,
-          addedById: user.id,
-        })),
-        skipDuplicates: true,
+          employeeId: { in: data.employeeIds },
+        },
+        select: { employeeId: true },
       });
+
+      const existingEmployeeIds = new Set(existingMembers.map((m) => m.employeeId));
+      const newEmployeeIds = data.employeeIds.filter((id) => !existingEmployeeIds.has(id));
+
+      // Only insert new members (skip duplicates)
+      if (newEmployeeIds.length > 0) {
+        await prisma.leaderGroupMember.createMany({
+          data: newEmployeeIds.map((employeeId) => ({
+            leaderGroupId: groupId,
+            employeeId,
+            addedById: user.id,
+          })),
+        });
+      }
 
       // Fetch the updated group with all members
       const updatedGroup = await prisma.leaderGroup.findUnique({
@@ -145,7 +159,9 @@ export const POST = secureRoute.mutation({
               },
             },
             orderBy: {
-              addedAt: 'asc',
+              employee: {
+                EmpName: 'asc',
+              },
             },
           },
         },
@@ -178,11 +194,11 @@ export const POST = secureRoute.mutation({
  * Remove a member from a leader group
  * Admin only - requires MANAGE_USERS feature
  */
-export const DELETE = secureRoute.mutation({
+export const DELETE = secureRoute.mutationWithParams<z.ZodSchema, { id: string }>({
   feature: Feature.MANAGE_USERS,
   handler: async (request: NextRequest, { user, params }) => {
     try {
-      const groupId = parseInt(params?.id as string);
+      const groupId = parseInt(params.id);
       const { searchParams } = new URL(request.url);
       const employeeIdParam = searchParams.get('employeeId');
 
@@ -291,7 +307,9 @@ export const DELETE = secureRoute.mutation({
               },
             },
             orderBy: {
-              addedAt: 'asc',
+              employee: {
+                EmpName: 'asc',
+              },
             },
           },
         },

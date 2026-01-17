@@ -59,7 +59,9 @@ export const GET = secureRoute.query({
               },
             },
             orderBy: {
-              addedAt: 'asc',
+              employee: {
+                EmpName: 'asc',
+              },
             },
           },
         },

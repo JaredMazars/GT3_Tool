@@ -193,7 +193,7 @@ export function LeaderGroupCard({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-forvis-gray-900 truncate">
-                          {member.employee.EmpNameFull}
+                          {member.employee.EmpName}
                         </span>
                         <Badge variant="secondary" size="sm">
                           {member.employee.EmpCode}

@@ -274,7 +274,7 @@ export default function LeadersPageClient() {
       setMemberToRemove({
         groupId,
         employeeId,
-        employeeName: member.employee.EmpNameFull,
+        employeeName: member.employee.EmpName,
       });
       setShowRemoveMemberConfirm(true);
     }

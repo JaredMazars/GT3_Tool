@@ -305,7 +305,7 @@ export function EmployeeSearchModal({
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="font-medium text-forvis-gray-900">
-                            {employee.EmpNameFull}
+                            {employee.EmpName}
                           </span>
                           <Badge variant="info" size="sm">
                             {employee.EmpCode}

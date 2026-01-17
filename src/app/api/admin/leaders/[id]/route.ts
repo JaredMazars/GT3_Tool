@@ -5,6 +5,7 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { UpdateLeaderGroupSchema } from '@/lib/validation/schemas';
 import { logger } from '@/lib/utils/logger';
+import { z } from 'zod';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -14,12 +15,12 @@ export const dynamic = 'force-dynamic';
  * Update a leader group's name and/or description
  * Admin only - requires MANAGE_USERS feature
  */
-export const PUT = secureRoute.mutation({
+export const PUT = secureRoute.mutationWithParams<typeof UpdateLeaderGroupSchema, { id: string }>({
   feature: Feature.MANAGE_USERS,
   schema: UpdateLeaderGroupSchema,
   handler: async (request, { user, data, params }) => {
     try {
-      const id = parseInt(params?.id as string);
+      const id = parseInt(params.id);
 
       if (isNaN(id)) {
         throw new AppError(400, 'Invalid group ID', ErrorCodes.VALIDATION_ERROR);
@@ -97,7 +98,9 @@ export const PUT = secureRoute.mutation({
               },
             },
             orderBy: {
-              addedAt: 'asc',
+              employee: {
+                EmpName: 'asc',
+              },
             },
           },
         },
@@ -129,11 +132,11 @@ export const PUT = secureRoute.mutation({
  * Delete a leader group (cascade deletes members)
  * Admin only - requires MANAGE_USERS feature
  */
-export const DELETE = secureRoute.mutation({
+export const DELETE = secureRoute.mutationWithParams<z.ZodSchema, { id: string }>({
   feature: Feature.MANAGE_USERS,
   handler: async (request, { user, params }) => {
     try {
-      const id = parseInt(params?.id as string);
+      const id = parseInt(params.id);
 
       if (isNaN(id)) {
         throw new AppError(400, 'Invalid group ID', ErrorCodes.VALIDATION_ERROR);
