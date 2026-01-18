@@ -54,18 +54,20 @@ export const POST = secureRoute.mutationWithParams<never, { id: string }>({
     const acceptance = await getOrCreateClientAcceptance(client.id, user.id);
 
     // Enrich client data with employee names
-    const [enrichedClient] = await enrichRecordsWithEmployeeNames([client], [
+    const enrichedClients = await enrichRecordsWithEmployeeNames([client], [
       { codeField: 'clientPartner', nameField: 'clientPartnerName' },
       { codeField: 'clientManager', nameField: 'clientManagerName' },
       { codeField: 'clientIncharge', nameField: 'clientInchargeName' },
     ]);
 
     // Enrich with employee status
-    await enrichObjectsWithEmployeeStatus([enrichedClient], [
+    await enrichObjectsWithEmployeeStatus(enrichedClients, [
       { codeField: 'clientPartner', statusField: 'clientPartnerStatus' },
       { codeField: 'clientManager', statusField: 'clientManagerStatus' },
       { codeField: 'clientIncharge', statusField: 'clientInchargeStatus' },
     ]);
+
+    const enrichedClient = enrichedClients[0]!;
 
     return NextResponse.json(successResponse({
       acceptance,

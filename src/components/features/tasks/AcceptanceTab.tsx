@@ -238,7 +238,7 @@ export function AcceptanceTab({ task, currentUserRole, onApprovalComplete, onNav
             
             <button
               onClick={() => setViewMode('questionnaire')}
-              disabled={task?.GSClientID && (!clientAcceptanceStatus?.approved || (clientAcceptanceStatus.validUntil && new Date(clientAcceptanceStatus.validUntil) < new Date()))}
+              disabled={Boolean(task?.GSClientID && (!clientAcceptanceStatus?.approved || (clientAcceptanceStatus.validUntil && new Date(clientAcceptanceStatus.validUntil) < new Date())))}
               className={`inline-flex items-center gap-2 px-6 py-3 text-sm font-bold rounded-lg shadow-lg transition-all ${
                 task?.GSClientID && (!clientAcceptanceStatus?.approved || (clientAcceptanceStatus.validUntil && new Date(clientAcceptanceStatus.validUntil) < new Date()))
                   ? 'text-forvis-gray-400 bg-forvis-gray-200 cursor-not-allowed opacity-60'
