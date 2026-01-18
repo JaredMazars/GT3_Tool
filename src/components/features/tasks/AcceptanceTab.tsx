@@ -10,6 +10,8 @@ import { kanbanKeys } from '@/hooks/tasks/useKanbanBoard';
 import { clientKeys } from '@/hooks/clients/useClients';
 import { useCanApproveAcceptance } from '@/hooks/auth/usePermissions';
 import { useQuestionnaire, deriveQuestionnaireStatus } from '@/hooks/acceptance/useAcceptanceQuestionnaire';
+import { useClientAcceptanceStatus } from '@/hooks/acceptance/useClientAcceptanceStatus';
+import { Banner } from '@/components/ui';
 import { AcceptanceQuestionnaire } from './acceptance/AcceptanceQuestionnaire';
 import { AcceptanceReview } from './acceptance/AcceptanceReview';
 import { AcceptanceTabSkeleton } from './acceptance/AcceptanceTabSkeleton';
@@ -38,6 +40,9 @@ export function AcceptanceTab({ task, currentUserRole, onApprovalComplete, onNav
   
   // Derive status from questionnaire data
   const status = deriveQuestionnaireStatus(questionnaireData);
+  
+  // Fetch client acceptance status if this is a client task
+  const { data: clientAcceptanceStatus, isLoading: isLoadingClientAcceptance } = useClientAcceptanceStatus(task?.GSClientID);
   
   const isApproved = task?.acceptanceApproved;
 
@@ -189,10 +194,61 @@ export function AcceptanceTab({ task, currentUserRole, onApprovalComplete, onNav
             <p className="text-xs text-forvis-gray-600 mb-6 p-3 bg-blue-50 rounded border border-blue-200">
               <strong>Note:</strong> Client Acceptance must be completed before Engagement Acceptance. This focuses on engagement-specific risks and team competency.
             </p>
+            
+            {/* Client Acceptance Status Banner */}
+            {task?.GSClientID && !isLoadingClientAcceptance && (
+              <div className="mb-6">
+                {!clientAcceptanceStatus?.exists && (
+                  <Banner
+                    variant="warning"
+                    title="Client Acceptance Required"
+                    message="Client Acceptance has not been started for this client. Please complete Client Acceptance before beginning Engagement Acceptance."
+                  />
+                )}
+                {clientAcceptanceStatus?.exists && !clientAcceptanceStatus.completed && (
+                  <Banner
+                    variant="info"
+                    title="Client Acceptance In Progress"
+                    message="Client Acceptance is in progress. Complete and get approval before starting Engagement Acceptance."
+                  />
+                )}
+                {clientAcceptanceStatus?.completed && !clientAcceptanceStatus.approved && (
+                  <Banner
+                    variant="info"
+                    title="Pending Approval"
+                    message="Client Acceptance has been submitted and is pending Partner approval."
+                  />
+                )}
+                {clientAcceptanceStatus?.approved && clientAcceptanceStatus.validUntil && new Date(clientAcceptanceStatus.validUntil) < new Date() && (
+                  <Banner
+                    variant="warning"
+                    title="Client Acceptance Expired"
+                    message="Client Acceptance has expired and requires reassessment."
+                  />
+                )}
+                {clientAcceptanceStatus?.approved && (!clientAcceptanceStatus.validUntil || new Date(clientAcceptanceStatus.validUntil) > new Date()) && (
+                  <Banner
+                    variant="success"
+                    title="Client Acceptance Approved"
+                    message={`Client Acceptance was approved on ${clientAcceptanceStatus.approvedAt ? new Date(clientAcceptanceStatus.approvedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}. You may proceed with Engagement Acceptance.`}
+                  />
+                )}
+              </div>
+            )}
+            
             <button
               onClick={() => setViewMode('questionnaire')}
-              className="inline-flex items-center gap-2 px-6 py-3 text-sm font-bold text-white rounded-lg shadow-lg hover:shadow-xl transition-all"
-              style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+              disabled={task?.GSClientID && (!clientAcceptanceStatus?.approved || (clientAcceptanceStatus.validUntil && new Date(clientAcceptanceStatus.validUntil) < new Date()))}
+              className={`inline-flex items-center gap-2 px-6 py-3 text-sm font-bold rounded-lg shadow-lg transition-all ${
+                task?.GSClientID && (!clientAcceptanceStatus?.approved || (clientAcceptanceStatus.validUntil && new Date(clientAcceptanceStatus.validUntil) < new Date()))
+                  ? 'text-forvis-gray-400 bg-forvis-gray-200 cursor-not-allowed opacity-60'
+                  : 'text-white hover:shadow-xl cursor-pointer'
+              }`}
+              style={
+                task?.GSClientID && (!clientAcceptanceStatus?.approved || (clientAcceptanceStatus.validUntil && new Date(clientAcceptanceStatus.validUntil) < new Date()))
+                  ? {}
+                  : { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }
+              }
             >
               <Play className="h-5 w-5" />
               Start Questionnaire
