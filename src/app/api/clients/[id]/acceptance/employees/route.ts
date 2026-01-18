@@ -1,36 +1,46 @@
 /**
  * GET /api/clients/[id]/acceptance/employees
- * Fetch employees filtered by role for team selection in client acceptance
+ * Fetch employees for team selection in client acceptance
+ * No category restrictions - any active employee can be partner, manager, or incharge
  */
 
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { successResponse } from '@/lib/utils/apiUtils';
+import { enrichEmployeesWithStatus } from '@/lib/services/employees/employeeStatusService';
 
 export const GET = secureRoute.queryWithParams<{ id: string }>({
   feature: Feature.MANAGE_CLIENT_ACCEPTANCE,
   handler: async (request, { user, params }) => {
     const { searchParams } = new URL(request.url);
     const role = searchParams.get('role');
+    const excludePartner = searchParams.get('excludePartner');
     const excludeManager = searchParams.get('excludeManager');
+    const currentManager = searchParams.get('currentManager');
+    const currentIncharge = searchParams.get('currentIncharge');
 
     let where: any = { Active: 'Yes' };
 
-    if (role === 'partner') {
-      // Partners: CARL, LOCAL, or DIR category codes
-      where.EmpCatCode = { in: ['CARL', 'LOCAL', 'DIR'] };
-    } else {
-      // Manager/Incharge: All staff excluding partners (NOT CARL, LOCAL, or DIR)
-      where.EmpCatCode = { notIn: ['CARL', 'LOCAL', 'DIR'] };
-
-      // For incharge, also exclude the selected manager
-      if (role === 'incharge' && excludeManager) {
-        where.EmpCode = { not: excludeManager };
-      }
+    // Build exclusion list to prevent same person in multiple roles
+    const excludeCodes: string[] = [];
+    
+    // Exclude selected partner from manager and incharge lists
+    if (excludePartner) {
+      excludeCodes.push(excludePartner);
+    }
+    
+    // For incharge, also exclude the selected manager
+    if (role === 'incharge' && excludeManager) {
+      excludeCodes.push(excludeManager);
+    }
+    
+    // Apply exclusions if any
+    if (excludeCodes.length > 0) {
+      where.EmpCode = { notIn: excludeCodes };
     }
 
-    const employees = await prisma.employee.findMany({
+    let employees = await prisma.employee.findMany({
       where,
       select: {
         EmpCode: true,
@@ -38,12 +48,66 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
         EmpCatCode: true,
         EmpCatDesc: true,
         OfficeCode: true,
+        Active: true,
       },
       orderBy: { EmpNameFull: 'asc' },
       take: 500, // Limit results
     });
 
-    return NextResponse.json(successResponse(employees), {
+    // Include current manager if not already in list (for historical data display)
+    if (role === 'manager' && currentManager) {
+      const hasCurrentManager = employees.some(emp => emp.EmpCode === currentManager);
+      if (!hasCurrentManager) {
+        const currentEmp = await prisma.employee.findFirst({
+          where: { EmpCode: currentManager },
+          select: {
+            EmpCode: true,
+            EmpNameFull: true,
+            EmpCatCode: true,
+            EmpCatDesc: true,
+            OfficeCode: true,
+            Active: true,
+          },
+        });
+        if (currentEmp && currentEmp.Active === 'Yes') {
+          // Add current manager to start of list
+          employees = [currentEmp, ...employees];
+        }
+      }
+    }
+
+    // Include current incharge if not already in list (for historical data display)
+    if (role === 'incharge' && currentIncharge) {
+      const hasCurrentIncharge = employees.some(emp => emp.EmpCode === currentIncharge);
+      if (!hasCurrentIncharge) {
+        const currentEmp = await prisma.employee.findFirst({
+          where: { EmpCode: currentIncharge },
+          select: {
+            EmpCode: true,
+            EmpNameFull: true,
+            EmpCatCode: true,
+            EmpCatDesc: true,
+            OfficeCode: true,
+            Active: true,
+          },
+        });
+        if (currentEmp && currentEmp.Active === 'Yes') {
+          // Add current incharge to start of list
+          employees = [currentEmp, ...employees];
+        }
+      }
+    }
+
+    // Enrich employees with user account status
+    const employeeCodes = employees.map(emp => emp.EmpCode);
+    const employeeStatusMap = await enrichEmployeesWithStatus(employeeCodes);
+    
+    const employeesWithStatus = employees.map(emp => ({
+      ...emp,
+      hasUserAccount: employeeStatusMap.get(emp.EmpCode)?.hasUserAccount ?? false,
+    }));
+
+    return NextResponse.json(successResponse(employeesWithStatus), {
       headers: {
         'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600', // Cache for 5 minutes
       },

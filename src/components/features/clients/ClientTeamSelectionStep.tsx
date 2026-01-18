@@ -6,15 +6,21 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Users, AlertCircle } from 'lucide-react';
 import { Button, Banner, Card, SearchCombobox } from '@/components/ui';
 import type { SearchComboboxOption } from '@/components/ui';
+import { EmployeeStatusBadge } from '@/components/shared/EmployeeStatusBadge';
 
 export interface TeamSelections {
   selectedPartnerCode: string;
   selectedManagerCode: string;
   selectedInchargeCode: string;
+}
+
+interface EmployeeStatus {
+  isActive: boolean;
+  hasUserAccount: boolean;
 }
 
 interface ClientTeamSelectionStepProps {
@@ -25,8 +31,14 @@ interface ClientTeamSelectionStepProps {
     groupCode: string;
     groupDesc: string | null;
     clientPartner: string;
+    clientPartnerName?: string;
+    clientPartnerStatus?: EmployeeStatus;
     clientManager: string;
+    clientManagerName?: string;
+    clientManagerStatus?: EmployeeStatus;
     clientIncharge: string;
+    clientInchargeName?: string;
+    clientInchargeStatus?: EmployeeStatus;
     industry: string | null;
     forvisMazarsIndustry: string | null;
     forvisMazarsSector: string | null;
@@ -41,6 +53,8 @@ interface Employee {
   EmpCatCode: string;
   EmpCatDesc: string;
   OfficeCode: string;
+  Active: string;
+  hasUserAccount?: boolean;
 }
 
 export function ClientTeamSelectionStep({
@@ -66,6 +80,9 @@ export function ClientTeamSelectionStep({
   const [inchargeSearch, setInchargeSearch] = useState('');
   
   const [error, setError] = useState<string | null>(null);
+  
+  // Track if we've initialized from clientData to prevent clearing on reload
+  const hasInitialized = useRef(false);
 
   // Helper function to filter and transform employees for SearchCombobox
   const filterOptions = (employees: Employee[], search: string): SearchComboboxOption[] => {
@@ -84,11 +101,31 @@ export function ClientTeamSelectionStep({
   };
 
   // Initialize with current values when clientData loads
+  // Validate that Partner, Manager, and Incharge are 3 separate individuals
   useEffect(() => {
-    if (clientData) {
-      setSelectedPartner(clientData.clientPartner || '');
-      setSelectedManager(clientData.clientManager || '');
-      setSelectedIncharge(clientData.clientIncharge || '');
+    if (clientData && !hasInitialized.current) {
+      const partner = clientData.clientPartner || '';
+      const manager = clientData.clientManager || '';
+      const incharge = clientData.clientIncharge || '';
+      
+      // Always set partner
+      setSelectedPartner(partner);
+      
+      // Only set manager if it's different from partner
+      if (manager && manager !== partner) {
+        setSelectedManager(manager);
+      } else {
+        setSelectedManager('');
+      }
+      
+      // Only set incharge if it's different from both partner and manager
+      if (incharge && incharge !== partner && incharge !== manager) {
+        setSelectedIncharge(incharge);
+      } else {
+        setSelectedIncharge('');
+      }
+      
+      hasInitialized.current = true;
     }
   }, [clientData]);
 
@@ -113,12 +150,17 @@ export function ClientTeamSelectionStep({
     loadPartners();
   }, [GSClientID]);
 
-  // Load managers
+  // Load managers (excluding selected partner) - only apply exclusion after initialization
   useEffect(() => {
     const loadManagers = async () => {
       setLoadingManagers(true);
       try {
-        const res = await fetch(`/api/clients/${GSClientID}/acceptance/employees?role=manager`);
+        const params = new URLSearchParams({ role: 'manager' });
+        if (hasInitialized.current && selectedPartner) params.append('excludePartner', selectedPartner);
+        if (clientData?.clientManager) params.append('currentManager', clientData.clientManager);
+        
+        const url = `/api/clients/${GSClientID}/acceptance/employees?${params.toString()}`;
+        const res = await fetch(url);
         if (res.ok) {
           const data = await res.json();
           setManagers(data.data || []);
@@ -132,21 +174,26 @@ export function ClientTeamSelectionStep({
       }
     };
     loadManagers();
-  }, [GSClientID]);
+  }, [GSClientID, selectedPartner, clientData?.clientManager]);
 
-  // Load incharges (excluding selected manager)
+  // Load incharges (excluding selected partner and manager) - only apply exclusion after initialization
   useEffect(() => {
     const loadIncharges = async () => {
       setLoadingIncharges(true);
       try {
-        const url = `/api/clients/${GSClientID}/acceptance/employees?role=incharge${selectedManager ? `&excludeManager=${selectedManager}` : ''}`;
+        const params = new URLSearchParams({ role: 'incharge' });
+        if (hasInitialized.current && selectedPartner) params.append('excludePartner', selectedPartner);
+        if (hasInitialized.current && selectedManager) params.append('excludeManager', selectedManager);
+        if (clientData?.clientIncharge) params.append('currentIncharge', clientData.clientIncharge);
+        
+        const url = `/api/clients/${GSClientID}/acceptance/employees?${params.toString()}`;
         const res = await fetch(url);
         if (res.ok) {
           const data = await res.json();
           setIncharges(data.data || []);
           
-          // If selected incharge is now the manager, clear it
-          if (selectedIncharge === selectedManager) {
+          // Only clear if we've finished initialization and there's actually a conflict
+          if (hasInitialized.current && selectedIncharge && (selectedIncharge === selectedPartner || selectedIncharge === selectedManager)) {
             setSelectedIncharge('');
           }
         } else {
@@ -159,7 +206,60 @@ export function ClientTeamSelectionStep({
       }
     };
     loadIncharges();
-  }, [GSClientID, selectedManager, selectedIncharge]);
+  }, [GSClientID, selectedPartner, selectedManager, selectedIncharge, clientData?.clientIncharge]);
+
+  // Handle partner selection changes
+  const handlePartnerChange = (value: string | number | null) => {
+    const newPartner = (value as string) || '';
+    setSelectedPartner(newPartner);
+    
+    // Clear manager if it's the same as the new partner
+    if (newPartner && selectedManager === newPartner) {
+      setSelectedManager('');
+    }
+    
+    // Clear incharge if it's the same as the new partner
+    if (newPartner && selectedIncharge === newPartner) {
+      setSelectedIncharge('');
+    }
+  };
+
+  // Handle manager selection changes
+  const handleManagerChange = (value: string | number | null) => {
+    const newManager = (value as string) || '';
+    
+    // Prevent selecting the same person as partner
+    if (newManager && newManager === selectedPartner) {
+      setError('Manager cannot be the same person as Partner');
+      return;
+    }
+    
+    setSelectedManager(newManager);
+    
+    // Clear incharge if it's the same as the new manager
+    if (newManager && selectedIncharge === newManager) {
+      setSelectedIncharge('');
+    }
+  };
+
+  // Handle incharge selection changes
+  const handleInchargeChange = (value: string | number | null) => {
+    const newIncharge = (value as string) || '';
+    
+    // Prevent selecting the same person as partner
+    if (newIncharge && newIncharge === selectedPartner) {
+      setError('Incharge cannot be the same person as Partner');
+      return;
+    }
+    
+    // Prevent selecting the same person as manager
+    if (newIncharge && newIncharge === selectedManager) {
+      setError('Incharge cannot be the same person as Manager');
+      return;
+    }
+    
+    setSelectedIncharge(newIncharge);
+  };
 
   const handleContinue = () => {
     if (!selectedPartner || !selectedManager || !selectedIncharge) {
@@ -167,8 +267,8 @@ export function ClientTeamSelectionStep({
       return;
     }
 
-    if (selectedManager === selectedIncharge) {
-      setError('Manager and Incharge cannot be the same person');
+    if (selectedPartner === selectedManager || selectedPartner === selectedIncharge || selectedManager === selectedIncharge) {
+      setError('Partner, Manager, and Incharge must be 3 different people');
       return;
     }
 
@@ -191,7 +291,10 @@ export function ClientTeamSelectionStep({
     );
   }
 
-  const canContinue = selectedPartner && selectedManager && selectedIncharge && selectedManager !== selectedIncharge;
+  const canContinue = selectedPartner && selectedManager && selectedIncharge && 
+    selectedPartner !== selectedManager && 
+    selectedPartner !== selectedIncharge && 
+    selectedManager !== selectedIncharge;
 
   return (
     <Card>
@@ -262,7 +365,7 @@ export function ClientTeamSelectionStep({
             <SearchCombobox
               label="Partner (will approve this acceptance) *"
               value={selectedPartner || null}
-              onChange={(value) => setSelectedPartner(value as string || '')}
+              onChange={handlePartnerChange}
               onSearchChange={setPartnerSearch}
               options={filterOptions(partners, partnerSearch)}
               placeholder="Select Partner..."
@@ -278,7 +381,7 @@ export function ClientTeamSelectionStep({
             <SearchCombobox
               label="Manager *"
               value={selectedManager || null}
-              onChange={(value) => setSelectedManager(value as string || '')}
+              onChange={handleManagerChange}
               onSearchChange={setManagerSearch}
               options={filterOptions(managers, managerSearch)}
               placeholder="Select Manager..."
@@ -294,7 +397,7 @@ export function ClientTeamSelectionStep({
             <SearchCombobox
               label="Incharge *"
               value={selectedIncharge || null}
-              onChange={(value) => setSelectedIncharge(value as string || '')}
+              onChange={handleInchargeChange}
               onSearchChange={setInchargeSearch}
               options={filterOptions(incharges, inchargeSearch)}
               placeholder="Select Incharge..."
@@ -312,16 +415,45 @@ export function ClientTeamSelectionStep({
         {/* Current Assignments Reference */}
         {clientData.clientPartner && (
           <div className="rounded-lg bg-forvis-gray-50 p-4 mb-6">
-            <h4 className="text-xs font-semibold text-forvis-gray-700 mb-2">Current Assignments (for reference)</h4>
-            <div className="text-xs text-forvis-gray-600 space-y-1">
-              <div>
-                <span className="font-medium">Partner:</span> {clientData.clientPartner}
+            <h4 className="text-xs font-semibold text-forvis-gray-700 mb-3">Current Assignments (for reference)</h4>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-forvis-gray-600 w-20">Partner:</span>
+                <EmployeeStatusBadge
+                  name={`${clientData.clientPartnerName || clientData.clientPartner} [${clientData.clientPartner}]`}
+                  isActive={clientData.clientPartnerStatus?.isActive ?? true}
+                  hasUserAccount={clientData.clientPartnerStatus?.hasUserAccount ?? false}
+                  variant="text"
+                  iconSize="sm"
+                />
               </div>
-              <div>
-                <span className="font-medium">Manager:</span> {clientData.clientManager || 'Not assigned'}
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-forvis-gray-600 w-20">Manager:</span>
+                {clientData.clientManager ? (
+                  <EmployeeStatusBadge
+                    name={`${clientData.clientManagerName || clientData.clientManager} [${clientData.clientManager}]`}
+                    isActive={clientData.clientManagerStatus?.isActive ?? true}
+                    hasUserAccount={clientData.clientManagerStatus?.hasUserAccount ?? false}
+                    variant="text"
+                    iconSize="sm"
+                  />
+                ) : (
+                  <span className="text-xs text-forvis-gray-500">Not assigned</span>
+                )}
               </div>
-              <div>
-                <span className="font-medium">Incharge:</span> {clientData.clientIncharge || 'Not assigned'}
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-forvis-gray-600 w-20">Incharge:</span>
+                {clientData.clientIncharge ? (
+                  <EmployeeStatusBadge
+                    name={`${clientData.clientInchargeName || clientData.clientIncharge} [${clientData.clientIncharge}]`}
+                    isActive={clientData.clientInchargeStatus?.isActive ?? true}
+                    hasUserAccount={clientData.clientInchargeStatus?.hasUserAccount ?? false}
+                    variant="text"
+                    iconSize="sm"
+                  />
+                ) : (
+                  <span className="text-xs text-forvis-gray-500">Not assigned</span>
+                )}
               </div>
             </div>
           </div>

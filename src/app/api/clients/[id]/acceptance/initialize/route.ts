@@ -11,6 +11,8 @@ import { validateClientPartner } from '@/lib/services/clients/partnerValidation'
 import { successResponse } from '@/lib/utils/apiUtils';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { GSClientIDSchema } from '@/lib/validation/schemas';
+import { enrichRecordsWithEmployeeNames } from '@/lib/services/employees/employeeQueries';
+import { enrichObjectsWithEmployeeStatus } from '@/lib/services/employees/employeeStatusService';
 
 export const POST = secureRoute.mutationWithParams<never, { id: string }>({
   feature: Feature.MANAGE_CLIENT_ACCEPTANCE,
@@ -51,21 +53,41 @@ export const POST = secureRoute.mutationWithParams<never, { id: string }>({
 
     const acceptance = await getOrCreateClientAcceptance(client.id, user.id);
 
+    // Enrich client data with employee names
+    const [enrichedClient] = await enrichRecordsWithEmployeeNames([client], [
+      { codeField: 'clientPartner', nameField: 'clientPartnerName' },
+      { codeField: 'clientManager', nameField: 'clientManagerName' },
+      { codeField: 'clientIncharge', nameField: 'clientInchargeName' },
+    ]);
+
+    // Enrich with employee status
+    await enrichObjectsWithEmployeeStatus([enrichedClient], [
+      { codeField: 'clientPartner', statusField: 'clientPartnerStatus' },
+      { codeField: 'clientManager', statusField: 'clientManagerStatus' },
+      { codeField: 'clientIncharge', statusField: 'clientInchargeStatus' },
+    ]);
+
     return NextResponse.json(successResponse({
       acceptance,
       client: {
-        id: client.id,
-        clientCode: client.clientCode,
-        clientNameFull: client.clientNameFull,
-        groupCode: client.groupCode,
-        groupDesc: client.groupDesc,
-        clientPartner: client.clientPartner,
-        clientManager: client.clientManager,
-        clientIncharge: client.clientIncharge,
-        industry: client.industry,
-        forvisMazarsIndustry: client.forvisMazarsIndustry,
-        forvisMazarsSector: client.forvisMazarsSector,
-        forvisMazarsSubsector: client.forvisMazarsSubsector,
+        id: enrichedClient.id,
+        clientCode: enrichedClient.clientCode,
+        clientNameFull: enrichedClient.clientNameFull,
+        groupCode: enrichedClient.groupCode,
+        groupDesc: enrichedClient.groupDesc,
+        clientPartner: enrichedClient.clientPartner,
+        clientPartnerName: enrichedClient.clientPartnerName,
+        clientPartnerStatus: enrichedClient.clientPartnerStatus,
+        clientManager: enrichedClient.clientManager,
+        clientManagerName: enrichedClient.clientManagerName,
+        clientManagerStatus: enrichedClient.clientManagerStatus,
+        clientIncharge: enrichedClient.clientIncharge,
+        clientInchargeName: enrichedClient.clientInchargeName,
+        clientInchargeStatus: enrichedClient.clientInchargeStatus,
+        industry: enrichedClient.industry,
+        forvisMazarsIndustry: enrichedClient.forvisMazarsIndustry,
+        forvisMazarsSector: enrichedClient.forvisMazarsSector,
+        forvisMazarsSubsector: enrichedClient.forvisMazarsSubsector,
       },
       currentPartnerValidation: {
         isValid: validation.isValid,
