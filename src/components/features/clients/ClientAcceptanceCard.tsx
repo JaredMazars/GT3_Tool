@@ -31,7 +31,6 @@ export function ClientAcceptanceCard({
   onStartAcceptance,
   onReviewAcceptance,
 }: ClientAcceptanceCardProps) {
-  const [showDetails, setShowDetails] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -234,19 +233,6 @@ export function ClientAcceptanceCard({
               </Button>
             )}
           </div>
-
-          {/* View Details Toggle - Bottom of card (only for approved) */}
-          {status?.approved && (
-            <div className="mt-4 pt-4 border-t border-forvis-gray-200">
-              <Button
-                variant="secondary"
-                onClick={() => setShowDetails(!showDetails)}
-                className="w-full"
-              >
-                {showDetails ? 'Hide Details' : 'View Details'}
-              </Button>
-            </div>
-          )}
         </div>
       </Card>
 
