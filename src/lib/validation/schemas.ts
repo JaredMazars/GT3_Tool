@@ -478,21 +478,12 @@ export const NotificationFiltersSchema = z.object({
 /**
  * Template schemas
  */
-export const CreateTemplateSchema = z.object({
-  name: z.string().min(1).max(200),
-  description: z.string().optional(),
-  type: z.enum(['ENGAGEMENT_LETTER', 'PROPOSAL', 'AGREEMENT']),
-  serviceLine: z.string().optional(),
-  content: z.string(),
-  active: z.boolean().default(true),
-}).strict();
 
 export const UpdateTemplateSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   description: z.string().optional(),
   type: z.enum(['ENGAGEMENT_LETTER', 'PROPOSAL', 'AGREEMENT']).optional(),
   serviceLine: z.string().nullable().optional(),
-  content: z.string().optional(),
   active: z.boolean().optional(),
 }).strict();
 
@@ -516,6 +507,39 @@ export const UpdateTemplateSectionSchema = z.object({
   order: z.number().int().positive().optional(),
   applicableServiceLines: z.array(z.string()).nullable().optional(),
   applicableProjectTypes: z.array(z.string()).nullable().optional(),
+}).strict();
+
+/**
+ * Template creation with sections (bulk creation from AI extraction)
+ */
+export const CreateTemplateWithSectionsSchema = z.object({
+  name: z.string().min(1).max(200),
+  description: z.string().max(1000).optional(),
+  type: z.enum(['ENGAGEMENT_LETTER', 'PROPOSAL', 'AGREEMENT']),
+  serviceLine: z.string().optional(),
+  active: z.boolean().default(true),
+  tempBlobPath: z.string().optional(), // For cleanup after creation
+  sections: z.array(z.object({
+    sectionKey: z.string().min(1).max(100),
+    title: z.string().min(1).max(200),
+    content: z.string().min(1),
+    isRequired: z.boolean().default(true),
+    isAiAdaptable: z.boolean().default(false),
+    order: z.number().int().min(0),
+    applicableServiceLines: z.array(z.string()).optional(),
+    applicableProjectTypes: z.array(z.string()).optional(),
+  })).min(1, 'At least one section is required'),
+}).strict();
+
+/**
+ * Template version schemas
+ */
+export const CreateVersionSchema = z.object({
+  changeNotes: z.string().max(1000).optional(),
+}).strict();
+
+export const VersionActionSchema = z.object({
+  action: z.enum(['activate', 'restore']),
 }).strict();
 
 /**
@@ -604,7 +628,6 @@ export type CreateNotificationPreferenceInput = z.infer<typeof CreateNotificatio
 export type UpdateInAppNotificationInput = z.infer<typeof UpdateInAppNotificationSchema>;
 export type SendUserMessageInput = z.infer<typeof SendUserMessageSchema>;
 export type NotificationFiltersInput = z.infer<typeof NotificationFiltersSchema>;
-export type CreateTemplateInput = z.infer<typeof CreateTemplateSchema>;
 export type UpdateTemplateInput = z.infer<typeof UpdateTemplateSchema>;
 export type CreateTemplateSectionInput = z.infer<typeof CreateTemplateSectionSchema>;
 export type UpdateTemplateSectionInput = z.infer<typeof UpdateTemplateSectionSchema>;

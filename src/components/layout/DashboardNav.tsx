@@ -83,17 +83,41 @@ export default function DashboardNav() {
     : [];
 
   // Admin nav items - only show if user has admin access
+  // Sorted alphabetically by label
   const adminMenuItems = [];
-  if (hasUsersAccess) {
+  if (hasAdminAccess) {
     adminMenuItems.push({
-      label: 'User Management',
-      href: '/dashboard/admin/users',
-      description: 'Manage users and permissions',
+      label: 'Bug Reports',
+      href: '/dashboard/admin/bug-reports',
+      description: 'View and manage user-reported bugs',
     });
+  }
+  if (hasExternalLinksAccess) {
+    adminMenuItems.push({
+      label: 'External Links',
+      href: '/dashboard/admin/external-links',
+      description: 'Manage external software links',
+    });
+  }
+  if (hasUsersAccess) {
     adminMenuItems.push({
       label: 'Leaders',
       href: '/dashboard/admin/leaders',
       description: 'Manage firm-wide leader groups',
+    });
+  }
+  if (hasAdminAccess) {
+    adminMenuItems.push({
+      label: 'Page Permissions',
+      href: '/dashboard/admin/page-permissions',
+      description: 'Manage page-level access control',
+    });
+  }
+  if (hasToolsAccess) {
+    adminMenuItems.push({
+      label: 'Review Note Categories',
+      href: '/dashboard/admin/review-categories',
+      description: 'Manage review note categories',
     });
   }
   if (hasServiceLineAccess) {
@@ -131,18 +155,11 @@ export default function DashboardNav() {
       description: 'Manage tools and service line assignments',
     });
   }
-  if (hasToolsAccess) {
+  if (hasUsersAccess) {
     adminMenuItems.push({
-      label: 'Review Note Categories',
-      href: '/dashboard/admin/review-categories',
-      description: 'Manage review note categories',
-    });
-  }
-  if (hasExternalLinksAccess) {
-    adminMenuItems.push({
-      label: 'External Links',
-      href: '/dashboard/admin/external-links',
-      description: 'Manage external software links',
+      label: 'User Management',
+      href: '/dashboard/admin/users',
+      description: 'Manage users and permissions',
     });
   }
   if (hasVaultManagementAccess) {
@@ -150,18 +167,6 @@ export default function DashboardNav() {
       label: 'Vault Management',
       href: '/dashboard/admin/document-vault',
       description: 'Manage document approval workflows',
-    });
-  }
-  if (hasAdminAccess) {
-    adminMenuItems.push({
-      label: 'Page Permissions',
-      href: '/dashboard/admin/page-permissions',
-      description: 'Manage page-level access control',
-    });
-    adminMenuItems.push({
-      label: 'Bug Reports',
-      href: '/dashboard/admin/bug-reports',
-      description: 'View and manage user-reported bugs',
     });
   }
 

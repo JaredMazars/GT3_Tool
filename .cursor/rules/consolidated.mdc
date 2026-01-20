@@ -450,12 +450,21 @@ await prisma.yourTable.update({
 
 ## Code Quality
 
+**Directory Structure:**
+- API Routes: `/src/app/api/<domain>/` (clients/, tasks/, admin/)
+- Services: `/src/lib/services/<domain>/` (clients/, tasks/, templates/)
+- Components: `ui/`, `layout/`, `shared/`, `features/<domain>/`
+- Hooks: `/src/hooks/<domain>/` (tasks/, clients/, templates/, approvals/)
+- Types: `/src/types/` (flat structure, domain-specific files)
+- Utils: `/src/lib/utils/` (flat structure, single-purpose utilities)
+- Constants: `/src/constants/` (flat structure)
+- Tools: `/src/lib/tools/<tool-name>/` (complex tools with api/, services/, types/ subdirs)
+
+**File Standards:**
 - Extract utilities for 3+ uses
 - Files under 500 lines
 - camelCase file names
 - No duplicates, no deprecated code
-- Business logic in `/src/lib/services/<domain>/`
-- Components: `ui/`, `layout/`, `shared/`, `features/<domain>/`
 
 ## AI Assistant
 

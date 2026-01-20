@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db/prisma';
 import { logger } from '@/lib/utils/logger';
 import { getApplicableTemplates } from './templateService';
 import { adaptSection } from './aiAdaptation';
+import { getActiveVersion } from './templateVersionService';
 
 export interface TaskContext {
   taskId: number;
@@ -24,10 +25,13 @@ export interface GeneratedTemplate {
     title: string;
     wasAiAdapted: boolean;
   }>;
+  versionId?: number;  // Version ID used for generation (for audit trail)
+  version?: number;    // Version number used
 }
 
 /**
  * Generate a document from template for a specific task
+ * Uses active version for generation and locks to that version for audit trail
  */
 export async function generateFromTemplate(
   templateId: number,
@@ -35,7 +39,100 @@ export async function generateFromTemplate(
   useAiAdaptation: boolean = true
 ): Promise<GeneratedTemplate> {
   try {
-    // Get template with sections
+    // Get active version (preferred) or fall back to template sections
+    const activeVersion = await getActiveVersion(templateId);
+    
+    if (activeVersion) {
+      // Use version-based generation
+      logger.info('Generating from active template version', {
+        templateId,
+        versionId: activeVersion.id,
+        version: activeVersion.version,
+      });
+
+      // Filter sections applicable to this task
+      const applicableSections = activeVersion.TemplateSectionVersion.filter((section) => {
+        // If section has no applicability constraints, it's always included
+        if (!section.applicableServiceLines && !section.applicableProjectTypes) {
+          return true;
+        }
+
+        // Check service line applicability
+        if (section.applicableServiceLines) {
+          const serviceLines = JSON.parse(section.applicableServiceLines);
+          if (!serviceLines.includes(taskContext.serviceLine)) {
+            return false;
+          }
+        }
+
+        // Check task type applicability
+        if (section.applicableProjectTypes) {
+          const taskTypes = JSON.parse(section.applicableProjectTypes);
+          if (!taskTypes.includes(taskContext.taskType)) {
+            return false;
+          }
+        }
+
+        return true;
+      });
+
+      // Build context data for placeholder replacement
+      const contextData = buildContextData(taskContext);
+
+      // Process sections
+      const processedSections: Array<{
+        sectionKey: string;
+        title: string;
+        content: string;
+        wasAiAdapted: boolean;
+      }> = [];
+
+      for (const section of applicableSections) {
+        let content = section.content;
+        let wasAiAdapted = false;
+
+        // Replace placeholders first
+        content = replacePlaceholders(content, contextData);
+
+        // Apply AI adaptation if needed
+        if (useAiAdaptation && section.isAiAdaptable) {
+          try {
+            content = await adaptSection(section.title, content, taskContext);
+            wasAiAdapted = true;
+          } catch (error) {
+            logger.error(`Failed to adapt section ${section.title}:`, error);
+            // Fall back to placeholder-replaced content
+          }
+        }
+
+        processedSections.push({
+          sectionKey: section.sectionKey,
+          title: section.title,
+          content,
+          wasAiAdapted,
+        });
+      }
+
+      // Combine all sections into final document
+      const finalContent = processedSections
+        .map((section) => section.content)
+        .join('\n\n');
+
+      return {
+        content: finalContent,
+        sectionsUsed: processedSections.map((s) => ({
+          sectionKey: s.sectionKey,
+          title: s.title,
+          wasAiAdapted: s.wasAiAdapted,
+        })),
+        versionId: activeVersion.id,
+        version: activeVersion.version,
+      };
+    }
+
+    // Fallback: Use template directly (legacy behavior for templates without versions)
+    logger.warn('No active version found, using template sections directly (legacy mode)', { templateId });
+    
     const template = await prisma.template.findUnique({
       where: { id: templateId },
       include: {
@@ -214,12 +311,43 @@ function buildContextData(context: TaskContext): Record<string, string> {
 
 /**
  * Replace placeholders in content with actual values
+ * Logs warnings for unknown placeholders (not in data context)
  */
 function replacePlaceholders(
   content: string,
   data: Record<string, string>
 ): string {
   let result = content;
+
+  // Extract all placeholders from content
+  const placeholderRegex = /\{\{([a-zA-Z_][a-zA-Z0-9_]*)\}\}/g;
+  const detectedPlaceholders = new Set<string>();
+  let match;
+  
+  while ((match = placeholderRegex.exec(content)) !== null) {
+    if (match[1]) {
+      detectedPlaceholders.add(match[1]);
+    }
+  }
+
+  // Check for unknown placeholders and log warnings
+  const knownPlaceholders = Object.keys(data);
+  const unknownPlaceholders = Array.from(detectedPlaceholders).filter(
+    (p) => !knownPlaceholders.includes(p)
+  );
+
+  if (unknownPlaceholders.length > 0) {
+    logger.warn('Template contains unknown placeholders that will not be replaced', {
+      unknownPlaceholders,
+      knownPlaceholders,
+    });
+  }
+
+  // Log available placeholders for debugging
+  logger.debug('Available placeholders for template generation', {
+    placeholders: knownPlaceholders,
+    detectedInTemplate: Array.from(detectedPlaceholders),
+  });
 
   // Replace all {{placeholder}} patterns
   Object.keys(data).forEach((key) => {

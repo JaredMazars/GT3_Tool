@@ -549,6 +549,48 @@ For routes that call external APIs or services:
   - **Reviewed**: 2024-12-19
   - **Fix Applied**: Removed broken `isSystemAdmin()` reference (was causing runtime error after import was removed). Replaced `Number.parseInt()` with `parseNumericId()` utility for both template and section IDs. Feature permission handles authorization.
 
+- [ ] `POST /api/admin/templates/extract` - AI-powered template extraction from PDF/DOCX
+  - **File**: `src/app/api/admin/templates/extract/route.ts`
+  - **Frontend**: 
+    - Component: Template extraction wizard
+  - **Reviewed**: Not yet reviewed
+  - **Notes**: ✅ **IMPLEMENTED** - Uses `secureRoute.ai()` with `Feature.MANAGE_TEMPLATES` for AI endpoints with strict rate limiting. Validates file type (PDF/DOCX) and size (50MB max) using allowlist. Uploads to temp blob storage. Uses Document Intelligence for text extraction and Azure OpenAI for structure analysis. Returns suggestions for template creation with sections and placeholders.
+
+- [ ] `POST /api/admin/templates/migrate` - One-time migration to versioned templates
+  - **File**: `src/app/api/admin/templates/migrate/route.ts`
+  - **Frontend**: 
+    - Page: `src/app/dashboard/admin/templates/page.tsx` (migration button)
+  - **Reviewed**: Not yet reviewed
+  - **Notes**: ✅ **IMPLEMENTED** - Uses `secureRoute.mutation()` with `Feature.MANAGE_TEMPLATES`. Creates version 1 from current state for each template. Returns 207 Multi-Status if partial failures occur. Should be idempotent (skips templates that already have versions). Needs review for error handling and transaction safety.
+
+- [ ] `GET /api/admin/templates/[id]/versions` - Get version history for template
+  - **File**: `src/app/api/admin/templates/[id]/versions/route.ts`
+  - **Frontend**: 
+    - Component: Template version history viewer
+  - **Reviewed**: Not yet reviewed
+  - **Notes**: ✅ **IMPLEMENTED** - Uses `secureRoute.queryWithParams()` with `Feature.MANAGE_TEMPLATES`. Uses `parseInt()` for ID parsing - **should use `parseNumericId()` utility**. Returns version history with sections. Needs explicit `select` fields verification and deterministic ordering.
+
+- [ ] `POST /api/admin/templates/[id]/versions` - Create new version from current state
+  - **File**: `src/app/api/admin/templates/[id]/versions/route.ts`
+  - **Frontend**: 
+    - Component: Template version creation modal
+  - **Reviewed**: Not yet reviewed
+  - **Notes**: ✅ **IMPLEMENTED** - Uses `secureRoute.mutationWithParams()` with `Feature.MANAGE_TEMPLATES` and `CreateVersionSchema`. Uses `parseInt()` for ID parsing - **should use `parseNumericId()` utility**. Creates snapshot of current template state with sections. Needs verification of explicit field mapping and transaction safety.
+
+- [ ] `GET /api/admin/templates/[id]/versions/[versionId]` - Get specific version details
+  - **File**: `src/app/api/admin/templates/[id]/versions/[versionId]/route.ts`
+  - **Frontend**: 
+    - Component: Version comparison/preview modal
+  - **Reviewed**: Not yet reviewed
+  - **Notes**: ✅ **IMPLEMENTED** - Uses `secureRoute.queryWithParams()` with `Feature.MANAGE_TEMPLATES`. Uses `parseInt()` for versionId parsing - **should use `parseNumericId()` utility**. Returns version with sections. Needs explicit `select` fields verification.
+
+- [ ] `PUT /api/admin/templates/[id]/versions/[versionId]` - Activate or restore version
+  - **File**: `src/app/api/admin/templates/[id]/versions/[versionId]/route.ts`
+  - **Frontend**: 
+    - Component: Version management actions
+  - **Reviewed**: Not yet reviewed
+  - **Notes**: ✅ **IMPLEMENTED** - Uses `secureRoute.mutationWithParams()` with `Feature.MANAGE_TEMPLATES` and `VersionActionSchema`. Uses `parseInt()` for versionId parsing - **should use `parseNumericId()` utility**. Supports two actions: 'activate' (sets as current active version) and 'restore' (creates new version from historical version). Needs transaction safety verification for restore operation.
+
 ### Document Vault
 
 - [ ] `GET /api/admin/document-vault/types` - List all document types

@@ -2,12 +2,20 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
-import { CreateTemplateSchema } from '@/lib/validation/schemas';
+import { 
+  CreateTemplateWithSectionsSchema,
+} from '@/lib/validation/schemas';
 import {
   getTemplates,
   createTemplate,
   type TemplateFilter,
 } from '@/lib/services/templates/templateService';
+import { prisma } from '@/lib/db/prisma';
+import { 
+  moveTemplateFromTemp,
+  deleteTemplateTemp,
+} from '@/lib/services/documents/blobStorage';
+import { logger } from '@/lib/utils/logger';
 
 // Validation schema for query parameters
 const TemplateQueryParamsSchema = z.object({
@@ -53,22 +61,108 @@ export const GET = secureRoute.query({
 
 /**
  * POST /api/admin/templates
- * Create a new template
+ * Create a new template with sections
  */
 export const POST = secureRoute.mutation({
   feature: Feature.MANAGE_TEMPLATES,
-  schema: CreateTemplateSchema,
+  schema: CreateTemplateWithSectionsSchema,
   handler: async (request, { user, data }) => {
     // Feature permission check is handled by secureRoute
 
-    const template = await createTemplate({
-      name: data.name,
-      description: data.description,
-      type: data.type,
-      serviceLine: data.serviceLine,
-      content: data.content,
-      active: data.active,
-      createdBy: user.id,
+    // Create template with sections using transaction
+    const template = await prisma.$transaction(async (tx) => {
+        // 1. Create template
+        const newTemplate = await tx.template.create({
+          data: {
+            name: data.name,
+            description: data.description,
+            type: data.type,
+            serviceLine: data.serviceLine,
+            active: data.active ?? true,
+            createdBy: user.id,
+          },
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            type: true,
+            serviceLine: true,
+            active: true,
+            createdBy: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        });
+
+        // 2. Create sections in bulk
+        await tx.templateSection.createMany({
+          data: data.sections.map((section) => ({
+            templateId: newTemplate.id,
+            sectionKey: section.sectionKey,
+            title: section.title,
+            content: section.content,
+            isRequired: section.isRequired ?? true,
+            isAiAdaptable: section.isAiAdaptable ?? false,
+            order: section.order,
+            applicableServiceLines: section.applicableServiceLines
+              ? JSON.stringify(section.applicableServiceLines)
+              : null,
+            applicableProjectTypes: section.applicableProjectTypes
+              ? JSON.stringify(section.applicableProjectTypes)
+              : null,
+          })),
+        });
+
+        // 3. Fetch complete template with sections
+        const completeTemplate = await tx.template.findUnique({
+          where: { id: newTemplate.id },
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            type: true,
+            serviceLine: true,
+            active: true,
+            createdBy: true,
+            createdAt: true,
+            updatedAt: true,
+            TemplateSection: {
+              select: {
+                id: true,
+                sectionKey: true,
+                title: true,
+                content: true,
+                isRequired: true,
+                isAiAdaptable: true,
+                order: true,
+                applicableServiceLines: true,
+                applicableProjectTypes: true,
+              },
+              orderBy: { order: 'asc' },
+            },
+          },
+        });
+
+        return completeTemplate;
+      });
+
+    // Move temp blob to permanent storage if applicable
+    if ('tempBlobPath' in data && data.tempBlobPath) {
+      try {
+        await moveTemplateFromTemp(data.tempBlobPath, template.id);
+      } catch (error) {
+        logger.error('Failed to move template from temp storage', { 
+          templateId: template.id,
+          tempBlobPath: data.tempBlobPath,
+          error,
+        });
+        // Don't fail the request - template is already created
+      }
+    }
+
+    logger.info('Created template with sections', {
+      templateId: template.id,
+      sectionCount: data.sections.length,
     });
 
     return NextResponse.json(successResponse(template), { status: 201 });

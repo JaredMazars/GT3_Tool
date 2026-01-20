@@ -76,11 +76,12 @@ function getContainerClient() {
 export async function initEngagementLettersStorage(): Promise<void> {
   try {
     const containerClient = getEngagementLettersContainerClient();
-    const exists = await containerClient.exists();
-
-    if (!exists) {
-      await containerClient.create();
+    const createResponse = await containerClient.createIfNotExists();
+    
+    if (createResponse.succeeded) {
       logger.info(`Created blob container: ${engagementLettersContainerName}`);
+    } else {
+      logger.debug(`Blob container already exists: ${engagementLettersContainerName}`);
     }
   } catch (error) {
     logger.error('Failed to initialize engagement letters blob storage:', error);
@@ -95,11 +96,12 @@ export async function initEngagementLettersStorage(): Promise<void> {
 export async function initDpaStorage(): Promise<void> {
   try {
     const containerClient = getDpaContainerClient();
-    const exists = await containerClient.exists();
-
-    if (!exists) {
-      await containerClient.create();
+    const createResponse = await containerClient.createIfNotExists();
+    
+    if (createResponse.succeeded) {
       logger.info(`Created blob container: ${dpaContainerName}`);
+    } else {
+      logger.debug(`Blob container already exists: ${dpaContainerName}`);
     }
   } catch (error) {
     logger.error('Failed to initialize DPA blob storage:', error);
@@ -114,11 +116,12 @@ export async function initDpaStorage(): Promise<void> {
 export async function initAcceptanceDocumentsStorage(): Promise<void> {
   try {
     const containerClient = getAcceptanceDocumentsContainerClient();
-    const exists = await containerClient.exists();
-
-    if (!exists) {
-      await containerClient.create();
+    const createResponse = await containerClient.createIfNotExists();
+    
+    if (createResponse.succeeded) {
       logger.info(`Created blob container: ${acceptanceDocumentsContainerName}`);
+    } else {
+      logger.debug(`Blob container already exists: ${acceptanceDocumentsContainerName}`);
     }
   } catch (error) {
     logger.error('Failed to initialize acceptance documents blob storage:', error);
@@ -133,11 +136,12 @@ export async function initAcceptanceDocumentsStorage(): Promise<void> {
 export async function initReviewNotesStorage(): Promise<void> {
   try {
     const containerClient = getReviewNotesContainerClient();
-    const exists = await containerClient.exists();
-
-    if (!exists) {
-      await containerClient.create();
+    const createResponse = await containerClient.createIfNotExists();
+    
+    if (createResponse.succeeded) {
       logger.info(`Created blob container: ${reviewNotesContainerName}`);
+    } else {
+      logger.debug(`Blob container already exists: ${reviewNotesContainerName}`);
     }
   } catch (error) {
     logger.error('Failed to initialize review notes blob storage:', error);
@@ -152,11 +156,12 @@ export async function initReviewNotesStorage(): Promise<void> {
 export async function initBlobStorage(): Promise<void> {
   try {
     const containerClient = getContainerClient();
-    const exists = await containerClient.exists();
-
-    if (!exists) {
-      await containerClient.create();
+    const createResponse = await containerClient.createIfNotExists();
+    
+    if (createResponse.succeeded) {
       logger.info(`Created blob container: ${acceptanceDocumentsContainerName}`);
+    } else {
+      logger.debug(`Blob container already exists: ${acceptanceDocumentsContainerName}`);
     }
   } catch (error) {
     logger.error('Failed to initialize blob storage:', error);
@@ -397,11 +402,12 @@ function getNewsBulletinsContainerClient() {
 export async function initNewsBulletinsStorage(): Promise<void> {
   try {
     const containerClient = getNewsBulletinsContainerClient();
-    const exists = await containerClient.exists();
-
-    if (!exists) {
-      await containerClient.create();
+    const createResponse = await containerClient.createIfNotExists();
+    
+    if (createResponse.succeeded) {
       logger.info(`Created blob container: ${newsBulletinsContainerName}`);
+    } else {
+      logger.debug(`Blob container already exists: ${newsBulletinsContainerName}`);
     }
   } catch (error) {
     logger.error('Failed to initialize news bulletins blob storage:', error);
@@ -424,11 +430,12 @@ function getDocumentVaultContainerClient() {
 export async function initDocumentVaultStorage(): Promise<void> {
   try {
     const containerClient = getDocumentVaultContainerClient();
-    const exists = await containerClient.exists();
-
-    if (!exists) {
-      await containerClient.create();
+    const createResponse = await containerClient.createIfNotExists();
+    
+    if (createResponse.succeeded) {
       logger.info(`Created blob container: ${documentVaultContainerName}`);
+    } else {
+      logger.debug(`Blob container already exists: ${documentVaultContainerName}`);
     }
   } catch (error) {
     logger.error('Failed to initialize document vault blob storage:', error);
@@ -1214,6 +1221,180 @@ export async function deleteVaultDocument(blobName: string): Promise<void> {
 }
 
 // =====================================================
+// Template Storage Functions
+// =====================================================
+
+const templatesContainerName = 'templates';
+
+/**
+ * Get Templates Container Client
+ */
+function getTemplatesContainerClient() {
+  const blobServiceClient = getBlobServiceClient();
+  return blobServiceClient.getContainerClient(templatesContainerName);
+}
+
+/**
+ * Initialize templates blob storage container
+ * Creates container if it doesn't exist
+ */
+export async function initTemplatesStorage(): Promise<void> {
+  try {
+    const containerClient = getTemplatesContainerClient();
+    const createResponse = await containerClient.createIfNotExists();
+    
+    if (createResponse.succeeded) {
+      logger.info(`Created blob container: ${templatesContainerName}`);
+    } else {
+      logger.debug(`Blob container already exists: ${templatesContainerName}`);
+    }
+  } catch (error) {
+    logger.error('Failed to initialize templates blob storage:', error);
+    throw error;
+  }
+}
+
+/**
+ * Upload template source document to temporary storage for AI extraction
+ * Used during template creation workflow before user confirms
+ * @param buffer - File buffer
+ * @param fileName - Original filename
+ * @param userId - User ID for isolation
+ * @returns Temporary blob path
+ */
+export async function uploadTemplateTemp(
+  buffer: Buffer,
+  fileName: string,
+  userId: string
+): Promise<string> {
+  try {
+    const containerClient = getTemplatesContainerClient();
+    
+    // Sanitize filename
+    const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const timestamp = Date.now();
+    
+    // Use temp prefix for temporary uploads
+    const blobName = `temp/${userId}/${timestamp}_${sanitizedFileName}`;
+    
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    // Upload file
+    await blockBlobClient.uploadData(buffer, {
+      blobHTTPHeaders: {
+        blobContentType: getContentType(fileName),
+      },
+      metadata: {
+        tempUpload: 'true',
+        uploadedAt: new Date().toISOString(),
+        userId,
+      },
+    });
+
+    logger.info(`Uploaded template to temp storage: ${blobName}`);
+    return blobName;
+  } catch (error) {
+    logger.error('Failed to upload template to temp storage:', error);
+    throw error;
+  }
+}
+
+/**
+ * Move template from temporary location to permanent location
+ * Used after user confirms template creation
+ * @param tempBlobName - Temporary blob path
+ * @param templateId - Template ID for permanent location
+ * @returns Permanent blob path
+ */
+export async function moveTemplateFromTemp(
+  tempBlobName: string,
+  templateId: number
+): Promise<string> {
+  try {
+    const containerClient = getTemplatesContainerClient();
+    
+    // Extract original filename from temp path
+    const tempParts = tempBlobName.split('/');
+    const tempFileName = tempParts[tempParts.length - 1];
+    if (!tempFileName) {
+      throw new Error('Invalid temp blob name: could not extract filename');
+    }
+    // Remove timestamp prefix from filename
+    const fileName = tempFileName.substring(tempFileName.indexOf('_') + 1);
+    
+    // Sanitize filename
+    const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const timestamp = Date.now();
+    
+    // Build permanent path: templates/{templateId}/original_{timestamp}_{filename}
+    const permanentBlobName = `templates/${templateId}/original_${timestamp}_${sanitizedFileName}`;
+    
+    const sourceClient = containerClient.getBlockBlobClient(tempBlobName);
+    const destClient = containerClient.getBlockBlobClient(permanentBlobName);
+    
+    // Copy blob to permanent location
+    const copyPoller = await destClient.beginCopyFromURL(sourceClient.url);
+    await copyPoller.pollUntilDone();
+    
+    // Add metadata to permanent blob
+    await destClient.setMetadata({
+      templateId: templateId.toString(),
+      storedAt: new Date().toISOString(),
+    });
+    
+    // Delete temporary blob
+    await sourceClient.delete();
+    
+    logger.info(`Moved template from temp to permanent: ${tempBlobName} -> ${permanentBlobName}`);
+    return permanentBlobName;
+  } catch (error) {
+    logger.error('Failed to move template from temp storage:', error);
+    throw error;
+  }
+}
+
+/**
+ * Delete temporary template document
+ * Used for cleanup when user cancels upload or extraction fails
+ * @param tempBlobName - Temporary blob path
+ */
+export async function deleteTemplateTemp(tempBlobName: string): Promise<void> {
+  try {
+    const containerClient = getTemplatesContainerClient();
+    const blockBlobClient = containerClient.getBlockBlobClient(tempBlobName);
+    
+    await blockBlobClient.delete();
+    logger.info(`Deleted temp template: ${tempBlobName}`);
+  } catch (error) {
+    logger.error('Failed to delete temp template:', error);
+    // Don't throw - temp file cleanup failure shouldn't block operations
+  }
+}
+
+/**
+ * Download template source document from Azure Blob Storage
+ * @param blobName - Blob name/path
+ * @returns File buffer
+ */
+export async function downloadTemplate(blobName: string): Promise<Buffer> {
+  try {
+    const containerClient = getTemplatesContainerClient();
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    const downloadResponse = await blockBlobClient.download();
+    const downloaded = await streamToBuffer(
+      downloadResponse.readableStreamBody!
+    );
+
+    logger.info(`Downloaded template from blob storage: ${blobName}`);
+    return downloaded;
+  } catch (error) {
+    logger.error('Failed to download template from blob storage:', error);
+    throw error;
+  }
+}
+
+// =====================================================
 // Bug Reports Functions
 // =====================================================
 
@@ -1232,11 +1413,12 @@ function getBugReportsContainerClient() {
 export async function initBugReportsStorage(): Promise<void> {
   try {
     const containerClient = getBugReportsContainerClient();
-    const exists = await containerClient.exists();
-
-    if (!exists) {
-      await containerClient.create();
+    const createResponse = await containerClient.createIfNotExists();
+    
+    if (createResponse.succeeded) {
       logger.info(`Created blob container: ${bugReportsContainerName}`);
+    } else {
+      logger.debug(`Blob container already exists: ${bugReportsContainerName}`);
     }
   } catch (error) {
     logger.error('Failed to initialize bug reports blob storage:', error);

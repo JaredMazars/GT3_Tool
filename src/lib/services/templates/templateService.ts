@@ -13,7 +13,6 @@ export interface CreateTemplateData {
   description?: string;
   type: string;
   serviceLine?: string;
-  content: string;
   active?: boolean;
   createdBy: string;
 }
@@ -23,7 +22,6 @@ export interface UpdateTemplateData {
   description?: string;
   type?: string;
   serviceLine?: string | null;
-  content?: string;
   active?: boolean;
 }
 
@@ -95,7 +93,6 @@ export async function getTemplates(filter?: TemplateFilter) {
         description: true,
         type: true,
         serviceLine: true,
-        content: true,
         active: true,
         createdBy: true,
         createdAt: true,
@@ -138,7 +135,6 @@ export async function getTemplateById(id: number) {
         description: true,
         type: true,
         serviceLine: true,
-        content: true,
         active: true,
         createdBy: true,
         createdAt: true,
@@ -178,7 +174,6 @@ export async function createTemplate(data: CreateTemplateData) {
         description: data.description,
         type: data.type,
         serviceLine: data.serviceLine,
-        content: data.content,
         active: data.active ?? true,
         createdBy: data.createdBy,
       },
@@ -188,7 +183,6 @@ export async function createTemplate(data: CreateTemplateData) {
         description: true,
         type: true,
         serviceLine: true,
-        content: true,
         active: true,
         createdBy: true,
         createdAt: true,
@@ -230,7 +224,6 @@ export async function updateTemplate(id: number, data: UpdateTemplateData) {
         ...(data.description !== undefined && { description: data.description }),
         ...(data.type && { type: data.type }),
         ...(data.serviceLine !== undefined && { serviceLine: data.serviceLine }),
-        ...(data.content && { content: data.content }),
         ...(data.active !== undefined && { active: data.active }),
       },
       select: {
@@ -239,7 +232,6 @@ export async function updateTemplate(id: number, data: UpdateTemplateData) {
         description: true,
         type: true,
         serviceLine: true,
-        content: true,
         active: true,
         createdBy: true,
         createdAt: true,
@@ -570,7 +562,6 @@ export async function copyTemplate(id: number, createdBy: string) {
         description: originalTemplate.description,
         type: originalTemplate.type,
         serviceLine: originalTemplate.serviceLine,
-        content: originalTemplate.content,
         active: false, // Set to inactive by default
         createdBy,
         TemplateSection: {
@@ -592,7 +583,6 @@ export async function copyTemplate(id: number, createdBy: string) {
         description: true,
         type: true,
         serviceLine: true,
-        content: true,
         active: true,
         createdBy: true,
         createdAt: true,

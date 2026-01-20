@@ -94,7 +94,7 @@ export async function POST(
       useAiAdaptation
     );
 
-    // Save generated content to database
+    // Save generated content to database with version tracking
     await prisma.taskEngagementLetter.upsert({
       where: { taskId },
       create: {
@@ -102,6 +102,7 @@ export async function POST(
         generated: true,
         content: generated.content,
         templateId: finalTemplateId,
+        templateVersionId: generated.versionId, // Lock to version used
         generatedBy: user.id,
         generatedAt: new Date(),
       },
@@ -109,6 +110,7 @@ export async function POST(
         generated: true,
         content: generated.content,
         templateId: finalTemplateId,
+        templateVersionId: generated.versionId,
         generatedBy: user.id,
         generatedAt: new Date(),
       },
@@ -120,6 +122,8 @@ export async function POST(
         generated: true,
         sectionsUsed: generated.sectionsUsed,
         templateId: finalTemplateId,
+        templateVersionId: generated.versionId,
+        version: generated.version,
         aiAdaptationUsed: useAiAdaptation,
       }),
       { status: 200 }

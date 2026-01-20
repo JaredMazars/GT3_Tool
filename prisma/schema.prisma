@@ -1603,13 +1603,16 @@ model TaskEngagementLetter {
   dpaHasPartnerSignature  Boolean?
   dpaHasClientSignature   Boolean?
   dpaExtractedText        String?   @db.NVarChar(Max)
-  Task                    Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  templateVersionId       Int?
+  Task                    Task              @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  TemplateVersion         TemplateVersion?  @relation(fields: [templateVersionId], references: [id], onDelete: SetNull)
 
   @@index([dpaExtractionStatus], map: "idx_taskengagementletter_dpaextractionstatus")
   @@index([dpaLetterDate], map: "idx_taskengagementletter_dpaletterdate")
   @@index([elExtractionStatus], map: "idx_taskengagementletter_elextractionstatus")
   @@index([elLetterDate], map: "idx_taskengagementletter_elletterdate")
   @@index([taskId])
+  @@index([templateVersionId])
 }
 
 model TaskStage {
@@ -1705,16 +1708,15 @@ model Template {
   description     String?
   type            String
   serviceLine     String?
-  projectType     String?
-  content         String            @db.NVarChar(Max)
   active          Boolean           @default(true)
   createdBy       String
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
+  currentVersion  Int               @default(1)
   TemplateSection TemplateSection[]
+  TemplateVersion TemplateVersion[]
 
   @@index([active])
-  @@index([projectType])
   @@index([serviceLine])
   @@index([type])
 }
@@ -1736,6 +1738,46 @@ model TemplateSection {
 
   @@index([sectionKey])
   @@index([templateId])
+}
+
+model TemplateVersion {
+  id                      Int                       @id @default(autoincrement())
+  templateId              Int
+  version                 Int
+  name                    String
+  description             String?
+  type                    String
+  serviceLine             String?
+  isActive                Boolean                   @default(false)
+  createdBy               String
+  createdAt               DateTime                  @default(now())
+  changeNotes             String?                   @db.NVarChar(Max)
+  Template                Template                  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  TemplateSectionVersion  TemplateSectionVersion[]
+  TaskEngagementLetter    TaskEngagementLetter[]
+
+  @@unique([templateId, version], map: "UQ_TemplateVersion_Number")
+  @@index([templateId])
+  @@index([templateId, isActive])
+  @@index([createdAt])
+}
+
+model TemplateSectionVersion {
+  id                     Int             @id @default(autoincrement())
+  templateVersionId      Int
+  sectionKey             String
+  title                  String
+  content                String          @db.NVarChar(Max)
+  isRequired             Boolean         @default(true)
+  isAiAdaptable          Boolean         @default(false)
+  order                  Int
+  applicableServiceLines String?         @db.NVarChar(Max)
+  applicableProjectTypes String?         @db.NVarChar(Max)
+  createdAt              DateTime        @default(now())
+  TemplateVersion        TemplateVersion @relation(fields: [templateVersionId], references: [id], onDelete: Cascade)
+
+  @@index([templateVersionId])
+  @@index([templateVersionId, order])
 }
 
 model Tool {

@@ -35,6 +35,46 @@ export class DocumentIntelligence {
   }
 
   /**
+   * Extract text from document buffer (PDF or Word)
+   * Automatically detects format and uses appropriate extraction method
+   */
+  async extractTextFromDocument(buffer: Buffer, mimeType: string): Promise<string> {
+    if (mimeType === 'application/pdf') {
+      return this.extractTextFromPDF(buffer);
+    } else if (
+      mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+      mimeType === 'application/msword'
+    ) {
+      return this.extractTextFromWord(buffer);
+    }
+    throw new Error(`Unsupported document type: ${mimeType}. Supported types: PDF, DOCX`);
+  }
+
+  /**
+   * Extract text from Word document using mammoth library
+   */
+  private async extractTextFromWord(buffer: Buffer): Promise<string> {
+    try {
+      logger.info('Starting Word document text extraction with mammoth');
+      
+      // Dynamic import to avoid Next.js SSR issues
+      const mammoth = await import('mammoth');
+      const result = await mammoth.extractRawText({ buffer });
+      
+      if (!result.value || result.value.trim().length === 0) {
+        throw new Error('No text could be extracted from the Word document');
+      }
+      
+      logger.info(`Successfully extracted ${result.value.length} characters from Word document`);
+      
+      return result.value;
+    } catch (error) {
+      logger.error('Error extracting text from Word document:', error);
+      throw new Error(`Failed to extract content from Word document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
    * Extract text from PDF buffer using Document Intelligence Read API
    */
   async extractTextFromPDF(buffer: Buffer): Promise<string> {

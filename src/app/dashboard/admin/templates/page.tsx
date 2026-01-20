@@ -2,11 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { FileText, Plus } from 'lucide-react';
+import { FileText, Plus, Upload } from 'lucide-react';
 import { TemplateList } from '@/components/features/templates/TemplateList';
+import { TemplateUploadWizard } from '@/components/features/templates/wizard/TemplateUploadWizard';
+import { TemplateManualWizard } from '@/components/features/templates/wizard/TemplateManualWizard';
 import { ViewOnlyBadge } from '@/components/shared/ViewOnlyBadge';
 import { EditActionWrapper } from '@/components/shared/EditActionWrapper';
 import { usePageAccess } from '@/hooks/permissions/usePageAccess';
+import { Banner } from '@/components/ui';
 
 interface TemplateSection {
   id: number;
@@ -51,6 +54,9 @@ export default function TemplatesPage() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showUploadWizard, setShowUploadWizard] = useState(false);
+  const [showManualWizard, setShowManualWizard] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string>('');
 
   useEffect(() => {
     fetchTemplates();
@@ -126,7 +132,7 @@ export default function TemplatesPage() {
   };
 
   const handleCreateNew = () => {
-    router.push('/dashboard/admin/templates/new');
+    setShowManualWizard(true);
   };
 
   const handleCopy = async (id: number) => {
@@ -151,6 +157,20 @@ export default function TemplatesPage() {
     }
   };
 
+  const handleUploadSuccess = (templateId: number) => {
+    setSuccessMessage('Template created successfully from uploaded document');
+    setTimeout(() => setSuccessMessage(''), 5000);
+    fetchTemplates();
+    router.push(`/dashboard/admin/templates/${templateId}`);
+  };
+
+  const handleManualSuccess = (templateId: number) => {
+    setSuccessMessage('Template created successfully');
+    setTimeout(() => setSuccessMessage(''), 5000);
+    fetchTemplates();
+    router.push(`/dashboard/admin/templates/${templateId}`);
+  };
+
   return (
     <div className="min-h-screen bg-forvis-gray-50">
       <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
@@ -173,13 +193,37 @@ export default function TemplatesPage() {
             </div>
             
             <EditActionWrapper>
-              <button onClick={handleCreateNew} className="btn-primary flex items-center">
-                <Plus className="h-5 w-5 mr-2" />
-                Create Template
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowUploadWizard(true)}
+                  className="btn-primary flex items-center"
+                  style={{
+                    background: 'linear-gradient(to right, #2E5AAC, #25488A)',
+                  }}
+                >
+                  <Upload className="h-5 w-5 mr-2" />
+                  Upload Template
+                </button>
+                <button onClick={handleCreateNew} className="btn-secondary flex items-center">
+                  <Plus className="h-5 w-5 mr-2" />
+                  Create Manual
+                </button>
+              </div>
             </EditActionWrapper>
           </div>
         </div>
+
+        {/* Success Message */}
+        {successMessage && (
+          <div className="mb-6">
+            <Banner
+              variant="success"
+              message={successMessage}
+              dismissible
+              onDismiss={() => setSuccessMessage('')}
+            />
+          </div>
+        )}
 
         {/* Content */}
         {loading ? (
@@ -202,6 +246,24 @@ export default function TemplatesPage() {
           />
         )}
       </div>
+
+      {/* Upload Wizard Modal */}
+      {showUploadWizard && (
+        <TemplateUploadWizard
+          isOpen={showUploadWizard}
+          onClose={() => setShowUploadWizard(false)}
+          onSuccess={handleUploadSuccess}
+        />
+      )}
+
+      {/* Manual Wizard Modal */}
+      {showManualWizard && (
+        <TemplateManualWizard
+          isOpen={showManualWizard}
+          onClose={() => setShowManualWizard(false)}
+          onSuccess={handleManualSuccess}
+        />
+      )}
     </div>
   );
 }
