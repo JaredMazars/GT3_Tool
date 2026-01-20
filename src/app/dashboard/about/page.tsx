@@ -135,7 +135,7 @@ export default function AboutPage() {
         style={{ width: '1600px', height: '900px' }}
       >
         {/* Background Image */}
-        <div className="absolute inset-0 flex items-start justify-center pt-4 pointer-events-none">
+        <div className="absolute inset-0 flex items-start justify-center pt-24 pointer-events-none">
         <div 
           className="relative rounded-2xl overflow-hidden"
           style={{
@@ -160,7 +160,7 @@ export default function AboutPage() {
         {/* Content */}
         <div className="relative h-full px-6 pb-6 flex flex-col">
           {/* Title */}
-          <div className="text-center -mt-10 -mb-6">
+          <div className="text-center mt-10 -mb-6">
             <div 
               className="inline-block px-4 py-1.5 rounded-lg shadow-corporate"
               style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)' }}
