@@ -534,7 +534,6 @@ export async function copyTemplate(id: number, createdBy: string) {
         description: true,
         type: true,
         serviceLine: true,
-        content: true,
         TemplateSection: {
           select: {
             sectionKey: true,

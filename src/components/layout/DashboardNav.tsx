@@ -10,6 +10,7 @@ import {
   Settings,
   Grid2x2,
   Bug,
+  Info,
 } from 'lucide-react';
 import { NotificationBell } from '@/components/features/notifications/NotificationBell';
 import { BugReportModal } from '@/components/features/bug-reports/BugReportModal';
@@ -456,6 +457,16 @@ export default function DashboardNav() {
             
             {/* Notification Bell */}
             <NotificationBell />
+
+            {/* About Icon */}
+            <Link
+              href="/dashboard/about"
+              className="relative p-2 text-white hover:bg-white/20 rounded-lg transition-colors"
+              aria-label="About GT3"
+              title="About GT3"
+            >
+              <Info className="h-5 w-5" />
+            </Link>
 
             {/* Bug Report Icon */}
             <button

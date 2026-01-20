@@ -134,7 +134,7 @@ export function PlaceholderPanel({
               <button
                 key={placeholder.name}
                 onClick={() => {
-                  if (onPlaceholderClick) {
+                  if (onPlaceholderClick && placeholder.sectionIndices[0] !== undefined) {
                     onPlaceholderClick(
                       placeholder.sectionIndices[0],
                       placeholder.name

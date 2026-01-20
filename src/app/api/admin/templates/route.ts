@@ -146,6 +146,13 @@ export const POST = secureRoute.mutation({
         return completeTemplate;
       });
 
+    if (!template) {
+      return NextResponse.json(
+        { error: 'Failed to create template' },
+        { status: 500 }
+      );
+    }
+
     // Move temp blob to permanent storage if applicable
     if ('tempBlobPath' in data && data.tempBlobPath) {
       try {

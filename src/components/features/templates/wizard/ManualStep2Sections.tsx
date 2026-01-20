@@ -73,7 +73,7 @@ export function ManualStep2Sections({
 
   const handleEditSection = (index: number, field: string, value: any) => {
     const newSections = [...wizardData.sections];
-    newSections[index] = { ...newSections[index], [field]: value };
+    newSections[index] = { ...newSections[index], [field]: value } as ExtractedTemplateBlock;
     updateWizardData({ sections: newSections });
   };
 
@@ -87,6 +87,9 @@ export function ManualStep2Sections({
 
     const newSections = [...wizardData.sections];
     const draggedItem = newSections[draggedIndex];
+    
+    if (!draggedItem) return;
+    
     newSections.splice(draggedIndex, 1);
     newSections.splice(index, 0, draggedItem);
 

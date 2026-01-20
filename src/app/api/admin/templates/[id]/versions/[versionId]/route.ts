@@ -21,6 +21,13 @@ import {
 export const GET = secureRoute.queryWithParams({
   feature: Feature.MANAGE_TEMPLATES,
   handler: async (request: NextRequest, { params }) => {
+    if (!params.versionId) {
+      return NextResponse.json(
+        { error: 'Version ID is required' },
+        { status: 400 }
+      );
+    }
+
     const versionId = parseInt(params.versionId);
 
     if (isNaN(versionId)) {
@@ -51,6 +58,13 @@ export const PUT = secureRoute.mutationWithParams({
   feature: Feature.MANAGE_TEMPLATES,
   schema: VersionActionSchema,
   handler: async (request: NextRequest, { user, params, data }) => {
+    if (!params.versionId) {
+      return NextResponse.json(
+        { error: 'Version ID is required' },
+        { status: 400 }
+      );
+    }
+
     const versionId = parseInt(params.versionId);
 
     if (isNaN(versionId)) {

@@ -53,7 +53,7 @@ export function Step2Processing({
 
       // Update wizard data with extraction results
       updateWizardData({
-        sections: result.sections,
+        sections: result.blocks,
         tempBlobPath: result.tempBlobPath,
         originalFileName: result.originalFileName,
         extractedTextLength: result.extractedTextLength,

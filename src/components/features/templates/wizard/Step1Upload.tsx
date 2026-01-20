@@ -59,10 +59,12 @@ export function Step1Upload({
 
       if (acceptedFiles.length > 0) {
         const file = acceptedFiles[0];
-        updateWizardData({
-          file,
-          templateName: file.name.replace(/\.(pdf|docx?|PDF|DOCX?)$/, ''),
-        });
+        if (file) {
+          updateWizardData({
+            file,
+            templateName: file.name.replace(/\.(pdf|docx?|PDF|DOCX?)$/, ''),
+          });
+        }
       }
     },
     [updateWizardData]

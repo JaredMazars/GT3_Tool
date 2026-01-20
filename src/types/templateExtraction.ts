@@ -16,6 +16,8 @@ export interface ExtractedTemplateBlock {
   isRequired: boolean;      // Should appear in all generated docs
   isAiAdaptable: boolean;   // Can AI customize per task?
   suggestedPlaceholders: PlaceholderSuggestion[];
+  applicableServiceLines?: string[];  // Optional: which service lines this section applies to
+  applicableProjectTypes?: string[];  // Optional: which project types this section applies to
 }
 
 export interface ExtractedTemplate {

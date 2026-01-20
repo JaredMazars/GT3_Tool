@@ -32,7 +32,7 @@ export function Step3ReviewSections({
     updates: Partial<ExtractedTemplateBlock>
   ) => {
     const newSections = [...sections];
-    newSections[index] = { ...newSections[index], ...updates };
+    newSections[index] = { ...newSections[index], ...updates } as ExtractedTemplateBlock;
     updateWizardData({ sections: newSections });
   };
 
@@ -84,6 +84,9 @@ export function Step3ReviewSections({
 
     const newSections = [...sections];
     const draggedItem = newSections[draggedIndex];
+    
+    if (!draggedItem) return;
+    
     newSections.splice(draggedIndex, 1);
     newSections.splice(index, 0, draggedItem);
 
