@@ -118,6 +118,8 @@ export class CacheService {
         
         for (let i = 0; i < safeKeys.length; i++) {
           const originalKey = keys[i];
+          if (!originalKey) continue;
+          
           const value = values[i];
           
           if (value) {
@@ -144,7 +146,11 @@ export class CacheService {
     const now = Date.now();
     for (let i = 0; i < keys.length; i++) {
       const originalKey = keys[i];
+      if (!originalKey) continue;
+      
       const safeKey = safeKeys[i];
+      if (!safeKey) continue;
+      
       const entry = this.memoryCache.get(safeKey);
       
       if (!entry) {

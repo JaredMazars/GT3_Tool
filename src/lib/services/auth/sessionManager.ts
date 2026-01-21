@@ -17,6 +17,11 @@ import { logger } from '@/lib/utils/logger';
 import { getRedisClient } from '@/lib/cache/redisClient';
 
 /**
+ * Cache key prefixes
+ */
+const SESSION_ACTIVITY_PREFIX = 'session:activity:';
+
+/**
  * Session activity tracking
  */
 export interface SessionActivity {
@@ -245,7 +250,7 @@ export class SessionManager {
       // Enrich with activity data using pre-fetched map
       const enriched = sessions.map((session, index) => {
         const activityKey = activityKeys[index];
-        const activity = activitiesMap.get(activityKey);
+        const activity = activityKey ? activitiesMap.get(activityKey) : undefined;
         
         return {
           id: session.id,

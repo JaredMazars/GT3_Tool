@@ -212,7 +212,6 @@ export const GET = secureRoute.queryWithParams({
             try {
               await prisma.taskTeam.createMany({
                 data: taskTeamsToCreate,
-                skipDuplicates: true, // Handles race conditions gracefully
               });
 
               logger.info('Bulk created TaskTeam records', {
