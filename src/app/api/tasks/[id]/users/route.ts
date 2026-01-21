@@ -121,6 +121,51 @@ export const GET = secureRoute.queryWithParams({
           // Create a map for quick lookup
           const empCodeToRole = new Map(employeeCodesToMap.map(e => [e.code, e.role]));
 
+          // OPTIMIZATION: Batch fetch all possible matching users to avoid N+1 queries
+          // Build list of all possible email variations to search for
+          const emailSearchTerms: string[] = [];
+          const emailPrefixSearchTerms: string[] = [];
+          
+          for (const emp of employees) {
+            if (emp.WinLogon) {
+              emailSearchTerms.push(emp.WinLogon);
+              emailSearchTerms.push(`${emp.WinLogon}@mazarsinafrica.onmicrosoft.com`);
+              const prefix = emp.WinLogon.split('@')[0];
+              if (prefix) {
+                emailPrefixSearchTerms.push(prefix);
+              }
+            }
+          }
+
+          // Single batch query to fetch all matching users
+          const matchingUsers = emailSearchTerms.length > 0 ? await prisma.user.findMany({
+            where: {
+              OR: [
+                { email: { in: emailSearchTerms } },
+                ...(emailPrefixSearchTerms.length > 0 ? [
+                  { email: { startsWith: emailPrefixSearchTerms[0] } }
+                ] : []),
+              ],
+            },
+            select: { id: true, email: true },
+          }) : [];
+
+          // Create email lookup map for O(1) access
+          const emailToUserId = new Map<string, string>();
+          for (const user of matchingUsers) {
+            const emailLower = user.email.toLowerCase();
+            emailToUserId.set(emailLower, user.id);
+            
+            // Also map by prefix for matching
+            const prefix = user.email.split('@')[0]?.toLowerCase();
+            if (prefix && !emailToUserId.has(prefix)) {
+              emailToUserId.set(prefix, user.id);
+            }
+          }
+
+          // Collect TaskTeam records to create in bulk
+          const taskTeamsToCreate: Array<{ taskId: number; userId: string; role: string }> = [];
+
           for (const emp of employees) {
             if (!emp.WinLogon) {
               logger.warn('Employee missing WinLogon', { empCode: emp.EmpCode, taskId });
@@ -130,58 +175,56 @@ export const GET = secureRoute.queryWithParams({
             const role = empCodeToRole.get(emp.EmpCode);
             if (!role) continue;
 
+            // Look up matching user from our pre-fetched map
+            const winLogonLower = emp.WinLogon.toLowerCase();
+            const prefix = emp.WinLogon.split('@')[0]?.toLowerCase();
+            const matchingUserId = emailToUserId.get(winLogonLower) ||
+                                  emailToUserId.get(`${winLogonLower}@mazarsinafrica.onmicrosoft.com`) ||
+                                  (prefix ? emailToUserId.get(prefix) : undefined);
 
-            // Find matching user account
-            const matchingUser = await prisma.user.findFirst({
-              where: {
-                OR: [
-                  { email: { equals: emp.WinLogon } },
-                  { email: { startsWith: emp.WinLogon.split('@')[0] } },
-                  { email: { equals: `${emp.WinLogon}@mazarsinafrica.onmicrosoft.com` } },
-                ],
-              },
-              select: { id: true },
-            });
-
-
-            if (!matchingUser) {
+            if (!matchingUserId) {
               logger.warn('No user account found for employee', { empCode: emp.EmpCode, winLogon: emp.WinLogon, taskId });
               continue;
             }
 
             // Check if user already exists in team
-            if (existingUserIds.has(matchingUser.id)) {
+            if (existingUserIds.has(matchingUserId)) {
               continue; // User already in team, don't modify their existing role
             }
 
+            // Add to bulk create list
+            taskTeamsToCreate.push({
+              taskId,
+              userId: matchingUserId,
+              role,
+            });
 
-            // Create TaskTeam record
+            logger.info('Prepared TaskTeam record for partner/manager', {
+              taskId,
+              userId: matchingUserId,
+              role,
+              empCode: emp.EmpCode,
+            });
+          }
+
+          // Bulk create TaskTeam records (much faster than individual creates)
+          if (taskTeamsToCreate.length > 0) {
             try {
-              await prisma.taskTeam.create({
-                data: {
-                  taskId,
-                  userId: matchingUser.id,
-                  role,
-                },
+              await prisma.taskTeam.createMany({
+                data: taskTeamsToCreate,
+                skipDuplicates: true, // Handles race conditions gracefully
               });
 
-
-              logger.info('Auto-created TaskTeam record for partner/manager', {
+              logger.info('Bulk created TaskTeam records', {
                 taskId,
-                userId: matchingUser.id,
-                role,
-                empCode: emp.EmpCode,
+                count: taskTeamsToCreate.length,
               });
             } catch (createError: any) {
-              // Ignore duplicate key errors (race condition - another request created it)
-              if (createError.code !== 'P2002') {
-                logger.error('Failed to create TaskTeam record', {
-                  taskId,
-                  userId: matchingUser.id,
-                  role,
-                  error: createError,
-                });
-              }
+              logger.error('Failed to bulk create TaskTeam records', {
+                taskId,
+                count: taskTeamsToCreate.length,
+                error: createError,
+              });
             }
           }
 

@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { prisma } from '@/lib/db/prisma';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { UpdateNotificationPreferenceSchema } from '@/lib/validation/schemas';
 import { toTaskId } from '@/types/branded';
 
@@ -11,82 +10,75 @@ import { toTaskId } from '@/types/branded';
  * GET /api/tasks/[id]/notification-preferences
  * Get current user's notification preferences for this project
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const params = await context.params;
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_TASKS,
+  taskIdParam: 'id',
+  handler: async (request: NextRequest, { user, params }) => {
     const taskId = toTaskId(params.id);
 
-    // Check project access
-    const hasAccess = await checkTaskAccess(user.id, taskId);
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
     // Get all notification preferences for this user and project
+    // IDOR protection: only return preferences for the current user
     const preferences = await prisma.notificationPreference.findMany({
       where: {
         userId: user.id,
         taskId,
       },
-      orderBy: { notificationType: 'asc' },
+      select: {
+        id: true,
+        userId: true,
+        taskId: true,
+        notificationType: true,
+        emailEnabled: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: [
+        { notificationType: 'asc' },
+        { id: 'asc' }, // Deterministic secondary sort
+      ],
+      take: 100, // Reasonable limit for notification preferences per task
     });
 
-    return NextResponse.json(successResponse(preferences));
-  } catch (error) {
-    return handleApiError(error, 'GET /api/tasks/:id/notification-preferences');
-  }
-}
+    return NextResponse.json(
+      successResponse(preferences),
+      { headers: { 'Cache-Control': 'no-store' } }
+    );
+  },
+});
 
 /**
  * PUT /api/tasks/[id]/notification-preferences
  * Update notification preference for this project
  */
-export async function PUT(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const params = await context.params;
+export const PUT = secureRoute.mutationWithParams({
+  feature: Feature.ACCESS_TASKS,
+  taskIdParam: 'id',
+  schema: UpdateNotificationPreferenceSchema.strict(),
+  handler: async (request: NextRequest, { user, params, data }) => {
     const taskId = toTaskId(params.id);
 
-    // Check project access
-    const hasAccess = await checkTaskAccess(user.id, taskId);
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
+    // Get notificationType from query parameter
     const { searchParams } = new URL(request.url);
     const notificationType = searchParams.get('notificationType');
 
     if (!notificationType) {
-      return NextResponse.json(
-        { error: 'notificationType query parameter is required' },
-        { status: 400 }
+      throw new AppError(
+        400,
+        'notificationType query parameter is required',
+        ErrorCodes.VALIDATION_ERROR
       );
     }
 
-    const body = await request.json();
-    const validated = UpdateNotificationPreferenceSchema.parse(body);
-
     // Try to find existing preference
+    // IDOR protection: only find preferences for the current user
     const existing = await prisma.notificationPreference.findFirst({
       where: {
         userId: user.id,
         taskId,
         notificationType,
+      },
+      select: {
+        id: true,
       },
     });
 
@@ -95,7 +87,16 @@ export async function PUT(
       const updated = await prisma.notificationPreference.update({
         where: { id: existing.id },
         data: {
-          emailEnabled: validated.emailEnabled,
+          emailEnabled: data.emailEnabled,
+        },
+        select: {
+          id: true,
+          userId: true,
+          taskId: true,
+          notificationType: true,
+          emailEnabled: true,
+          createdAt: true,
+          updatedAt: true,
         },
       });
       return NextResponse.json(successResponse(updated));
@@ -106,13 +107,20 @@ export async function PUT(
           userId: user.id,
           taskId,
           notificationType,
-          emailEnabled: validated.emailEnabled,
+          emailEnabled: data.emailEnabled,
+        },
+        select: {
+          id: true,
+          userId: true,
+          taskId: true,
+          notificationType: true,
+          emailEnabled: true,
+          createdAt: true,
+          updatedAt: true,
         },
       });
       return NextResponse.json(successResponse(created), { status: 201 });
     }
-  } catch (error) {
-    return handleApiError(error, 'PUT /api/tasks/:id/notification-preferences');
-  }
-}
+  },
+});
 

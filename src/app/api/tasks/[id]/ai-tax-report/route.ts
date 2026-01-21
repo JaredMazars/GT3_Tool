@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { enforceRateLimit, RateLimitPresets } from '@/lib/utils/rateLimit';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { toTaskId } from '@/types/branded';
 import {
   getLatestAITaxReport,
@@ -9,46 +9,41 @@ import {
 
 export const maxDuration = 90; // 90 seconds timeout for AI generation
 
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    // Apply rate limiting for AI operations
-    enforceRateLimit(request, RateLimitPresets.AI_ENDPOINTS);
-    
-    const params = await context.params;
+/**
+ * GET /api/tasks/[id]/ai-tax-report
+ * Get latest AI tax report for a task
+ */
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_TASKS,
+  taskIdParam: 'id',
+  handler: async (request: NextRequest, { user, params }) => {
     const taskId = toTaskId(params.id);
-
     // Get report using tool handler
     const reportData = await getLatestAITaxReport(taskId);
 
     if (!reportData) {
-      return NextResponse.json({ error: 'No AI tax report found' }, { status: 404 });
+      throw new AppError(404, 'No AI tax report found', ErrorCodes.NOT_FOUND);
     }
 
-    return NextResponse.json(reportData);
-  } catch (error) {
-    return handleApiError(error, 'GET /api/tasks/[id]/ai-tax-report');
-  }
-}
+    return NextResponse.json(
+      reportData,
+      { headers: { 'Cache-Control': 'no-store' } }
+    );
+  },
+});
 
-export async function POST(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    // Apply rate limiting for AI operations
-    enforceRateLimit(request, RateLimitPresets.AI_ENDPOINTS);
-    
-    const params = await context.params;
+/**
+ * POST /api/tasks/[id]/ai-tax-report
+ * Generate new AI tax report for a task
+ */
+export const POST = secureRoute.aiWithParams({
+  feature: Feature.MANAGE_TASKS,
+  taskIdParam: 'id',
+  handler: async (request: NextRequest, { user, params }) => {
     const taskId = toTaskId(params.id);
-
     // Generate report using tool handler
     const report = await generateAITaxReport(taskId);
 
     return NextResponse.json(report);
-  } catch (error) {
-    return handleApiError(error, 'POST /api/tasks/[id]/ai-tax-report');
-  }
-}
+  },
+});

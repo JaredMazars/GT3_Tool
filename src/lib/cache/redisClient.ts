@@ -232,82 +232,16 @@ export function getRedisStatus(): {
 }
 
 /**
- * Get cached data with automatic deserialization
- * Returns null if key doesn't exist or Redis is unavailable
+ * DEPRECATED: These functions are no longer exported. Use CacheService instead.
+ * 
+ * Internal cache functions - DO NOT USE DIRECTLY
+ * Use the CacheService singleton instead: @/lib/services/cache/CacheService
+ * 
+ * These functions bypass the in-memory fallback logic and should only be used
+ * internally by CacheService itself.
+ * 
+ * @deprecated Use cache.get(), cache.set(), cache.delete() from CacheService
  */
-export async function getCachedData<T>(key: string): Promise<T | null> {
-  const client = getRedisClient();
-  
-  // If Redis is not configured or unavailable, return null (cache miss)
-  if (!client || !isRedisAvailable()) {
-    return null;
-  }
-
-  try {
-    const data = await client.get(key);
-    if (!data) {
-      return null;
-    }
-    
-    return JSON.parse(data) as T;
-  } catch (error) {
-    logger.error('Failed to get cached data', {
-      key,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return null;
-  }
-}
-
-/**
- * Set cached data with automatic serialization and TTL
- * Silently fails if Redis is unavailable (no-op)
- */
-export async function setCachedData<T>(
-  key: string,
-  data: T,
-  ttl: number
-): Promise<void> {
-  const client = getRedisClient();
-  
-  // If Redis is not configured or unavailable, silently fail
-  if (!client || !isRedisAvailable()) {
-    return;
-  }
-
-  try {
-    const serialized = JSON.stringify(data);
-    await client.setex(key, ttl, serialized);
-  } catch (error) {
-    logger.error('Failed to set cached data', {
-      key,
-      ttl,
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-}
-
-/**
- * Invalidate (delete) cached data by key
- * Silently fails if Redis is unavailable (no-op)
- */
-export async function invalidateCachedData(key: string): Promise<void> {
-  const client = getRedisClient();
-  
-  // If Redis is not configured or unavailable, silently fail
-  if (!client || !isRedisAvailable()) {
-    return;
-  }
-
-  try {
-    await client.del(key);
-  } catch (error) {
-    logger.error('Failed to invalidate cached data', {
-      key,
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-}
 
 // Hot module reload cleanup for Next.js dev mode
 if (process.env.NODE_ENV === 'development') {

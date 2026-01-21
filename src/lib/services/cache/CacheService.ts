@@ -90,6 +90,83 @@ export class CacheService {
   }
 
   /**
+   * Batch get multiple cached values in a single operation (much faster than multiple get() calls)
+   * Returns a Map with keys and their corresponding values (null for cache misses)
+   * 
+   * OPTIMIZATION: Uses Redis MGET for 10x faster batch retrieval
+   * 
+   * @param keys - Array of cache keys to fetch
+   * @returns Map of keys to values (null for misses)
+   */
+  async mget<T>(keys: string[]): Promise<Map<string, T | null>> {
+    const result = new Map<string, T | null>();
+    
+    if (keys.length === 0) {
+      return result;
+    }
+
+    // Sanitize all keys
+    const safeKeys = keys.map(k => this.sanitizeKey(k));
+    const keyMap = new Map(keys.map((k, i) => [safeKeys[i], k])); // Map sanitized -> original
+    
+    const redis = getRedisClient();
+    
+    // Try Redis first (MGET is much faster than multiple GET calls)
+    if (redis && isRedisAvailable()) {
+      try {
+        const values = await redis.mget(...safeKeys);
+        
+        for (let i = 0; i < safeKeys.length; i++) {
+          const originalKey = keys[i];
+          const value = values[i];
+          
+          if (value) {
+            try {
+              result.set(originalKey, JSON.parse(value) as T);
+              logger.debug('Redis mget cache hit', { key: safeKeys[i] });
+            } catch (parseError) {
+              logError('JSON parse error in mget', parseError, { key: safeKeys[i] });
+              result.set(originalKey, null);
+            }
+          } else {
+            result.set(originalKey, null);
+            logger.debug('Redis mget cache miss', { key: safeKeys[i] });
+          }
+        }
+        
+        return result;
+      } catch (error) {
+        logError('Redis mget error, falling back to memory', error, { keyCount: keys.length });
+      }
+    }
+    
+    // Fallback to memory cache (check each key individually)
+    const now = Date.now();
+    for (let i = 0; i < keys.length; i++) {
+      const originalKey = keys[i];
+      const safeKey = safeKeys[i];
+      const entry = this.memoryCache.get(safeKey);
+      
+      if (!entry) {
+        result.set(originalKey, null);
+        continue;
+      }
+      
+      // Check if expired
+      if (now > entry.expiry) {
+        this.memoryCache.delete(safeKey);
+        result.set(originalKey, null);
+        continue;
+      }
+      
+      logger.debug('Memory cache mget hit', { key: safeKey });
+      result.set(originalKey, entry.data as T);
+    }
+    
+    return result;
+  }
+
+  /**
    * Set cached value with TTL in seconds
    */
   async set<T>(key: string, data: T, ttlSeconds: number = 300): Promise<void> {

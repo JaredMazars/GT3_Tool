@@ -95,29 +95,39 @@ export default function DashboardHomePage() {
         )}
 
         {/* Header */}
-        <div className="mb-8 text-center flex flex-col items-center" style={{ overflow: 'visible' }}>
+        <div className="mb-24 text-center flex flex-col items-center" style={{ overflow: 'visible' }}>
           <p className="text-sm font-medium text-forvis-blue-600 mb-0">
             {firstName ? `Welcome back, ${firstName}` : 'Welcome'}
           </p>
-          <div className="relative" style={{ width: '1400px', height: '350px', overflow: 'visible' }}>
+          <div className="relative" style={{ width: '800px', height: '300px', overflow: 'visible' }}>
             {/* Mazars Logo - Base Layer (No Animation) */}
             <div className="absolute" style={{ bottom: 0, left: '50%', transform: 'translateX(-50%)' }}>
-              <Image
-                src="/Forvis Mazars Logo.png"
-                alt="Forvis Mazars Logo"
-                width={1400}
-                height={420}
-                style={{ objectFit: 'contain' }}
-                priority
-              />
+              <div 
+                className="rounded-2xl" 
+                style={{ 
+                  border: '3px solid #2975c6',
+                  padding: '6px',
+                  background: 'white',
+                  display: 'inline-block'
+                }}
+              >
+                <Image
+                  src="/Forvis Mazars Logo.png"
+                  alt="Forvis Mazars Logo"
+                  width={450}
+                  height={135}
+                  style={{ objectFit: 'contain' }}
+                  priority
+                />
+              </div>
             </div>
             
             {/* GT3 Logo - Overlapping Layer (With Animation) */}
-            <div className="absolute" style={{ top: '-80px', left: '50%', transform: 'translateX(-50%) scale(0.6)', zIndex: 10 }}>
+            <div className="absolute" style={{ top: '-90px', left: '50%', transform: 'translateX(-50%) scale(0.6)', zIndex: 10 }}>
               <GT3Logo />
             </div>
           </div>
-          <p className="text-sm text-forvis-gray-600">
+          <p className="text-sm text-forvis-gray-600 mt-8">
             {availableServiceLines.length > 0 
               ? 'Select a service line to get started'
               : 'Learn more about our services below'}

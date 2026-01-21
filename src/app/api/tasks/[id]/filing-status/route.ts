@@ -3,7 +3,6 @@ import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { prisma } from '@/lib/db/prisma';
 import { parseTaskId, successResponse } from '@/lib/utils/apiUtils';
 import { toTaskId } from '@/types/branded';
-import { sanitizeText } from '@/lib/utils/sanitization';
 import { z } from 'zod';
 import { secureRoute } from '@/lib/api/secureRoute';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
@@ -80,12 +79,12 @@ export const POST = secureRoute.mutationWithParams({
     const filing = await prisma.filingStatus.create({
       data: {
         taskId,
-        filingType: sanitizeText(data.filingType, { maxLength: 100 }) || data.filingType,
-        description: data.description ? sanitizeText(data.description, { maxLength: 2000, allowNewlines: true }) : undefined,
+        filingType: data.filingType,
+        description: data.description,
         status: data.status || 'PENDING',
         deadline: data.deadline ? new Date(data.deadline) : null,
-        referenceNumber: data.referenceNumber ? sanitizeText(data.referenceNumber, { maxLength: 100 }) : undefined,
-        notes: data.notes ? sanitizeText(data.notes, { maxLength: 2000, allowNewlines: true }) : undefined,
+        referenceNumber: data.referenceNumber,
+        notes: data.notes,
         createdBy: user.id,
       },
       select: {

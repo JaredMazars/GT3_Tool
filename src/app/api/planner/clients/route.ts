@@ -131,24 +131,27 @@ export const GET = secureRoute.query({
     // Get external service line codes based on filters
     let externalServLineCodes: string[] = [];
     
+    // OPTIMIZATION: Consolidate redundant service line mapping queries into a single query
+    // Build conditional where clause and fetch all needed fields at once
+    const mappingWhere: any = {};
+    
     if (subServiceLineGroupFilters.length > 0) {
-      const mappings = await prisma.serviceLineExternal.findMany({
-        where: { SubServlineGroupCode: { in: subServiceLineGroupFilters } },
-        select: { ServLineCode: true }
-      });
-      externalServLineCodes = mappings.map(m => m.ServLineCode).filter((code): code is string => !!code);
+      mappingWhere.SubServlineGroupCode = { in: subServiceLineGroupFilters };
     } else if (serviceLineFilters.length > 0) {
-      const mappings = await prisma.serviceLineExternal.findMany({
-        where: { masterCode: { in: serviceLineFilters } },
-        select: { ServLineCode: true }
-      });
-      externalServLineCodes = mappings.map(m => m.ServLineCode).filter((code): code is string => !!code);
-    } else {
-      const allMappings = await prisma.serviceLineExternal.findMany({
-        select: { ServLineCode: true }
-      });
-      externalServLineCodes = [...new Set(allMappings.map(m => m.ServLineCode).filter((code): code is string => !!code))];
+      mappingWhere.masterCode = { in: serviceLineFilters };
     }
+    // else: no filter = fetch all (empty where clause)
+
+    // Single query fetching all needed fields (instead of 2 separate queries)
+    const allExternalMappings = await prisma.serviceLineExternal.findMany({
+      where: mappingWhere,
+      select: { ServLineCode: true, SubServlineGroupCode: true, SubServlineGroupDesc: true }
+    });
+
+    // Extract unique ServLineCodes
+    externalServLineCodes = [...new Set(
+      allExternalMappings.map(m => m.ServLineCode).filter((code): code is string => !!code)
+    )];
 
     if (externalServLineCodes.length === 0) {
       const emptyResponse = { 
@@ -159,12 +162,8 @@ export const GET = secureRoute.query({
       return NextResponse.json(successResponse(emptyResponse));
     }
 
-    // Get service line external mappings for display
+    // Build lookup map from already-fetched data (no second query needed)
     const servLineCodeToGroup = new Map<string, { code: string; desc: string }>();
-    const allExternalMappings = await prisma.serviceLineExternal.findMany({
-      where: { ServLineCode: { in: externalServLineCodes } },
-      select: { ServLineCode: true, SubServlineGroupCode: true, SubServlineGroupDesc: true }
-    });
     allExternalMappings.forEach(m => {
       if (m.ServLineCode) {
         servLineCodeToGroup.set(m.ServLineCode, {

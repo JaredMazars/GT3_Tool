@@ -3,16 +3,16 @@ import { secureRoute } from '@/lib/api/secureRoute';
 import { Feature } from '@/lib/permissions/features';
 import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
-import { successResponse } from '@/lib/utils/apiUtils';
+import { successResponse, parseNumericId } from '@/lib/utils/apiUtils';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
-import { invalidateDocumentVaultCache, invalidateCategoriesCache } from '@/lib/services/document-vault/documentVaultCache';
+import { invalidateCategoriesCache } from '@/lib/services/document-vault/documentVaultCache';
 
 // Validation schema for approvers
 const CategoryApproversSchema = z.object({
   approvers: z.array(z.string().min(1))
     .min(1, 'At least one approver is required')
     .max(10, 'Maximum 10 approvers allowed'),
-});
+}).strict();
 
 /**
  * GET /api/admin/document-vault/categories/[id]/approvers
@@ -21,11 +21,7 @@ const CategoryApproversSchema = z.object({
 export const GET = secureRoute.queryWithParams<{ id: string }>({
   feature: Feature.MANAGE_VAULT_DOCUMENTS,
   handler: async (request, { user, params }) => {
-    const categoryId = parseInt(params.id);
-    
-    if (isNaN(categoryId)) {
-      throw new AppError(400, 'Invalid category ID', ErrorCodes.VALIDATION_ERROR);
-    }
+    const categoryId = parseNumericId(params.id, 'Category');
 
     // Verify category exists
     const category = await prisma.vaultDocumentCategory.findUnique({
@@ -62,7 +58,11 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
           },
         },
       },
-      orderBy: { stepOrder: 'asc' },
+      orderBy: [
+        { stepOrder: 'asc' },
+        { id: 'asc' }, // Deterministic secondary sort
+      ],
+      take: 50,
     });
 
     // Transform to cleaner response format
@@ -93,11 +93,7 @@ export const POST = secureRoute.mutationWithParams<typeof CategoryApproversSchem
   feature: Feature.MANAGE_VAULT_DOCUMENTS,
   schema: CategoryApproversSchema,
   handler: async (request, { user, data, params }) => {
-    const categoryId = parseInt(params.id);
-    
-    if (isNaN(categoryId)) {
-      throw new AppError(400, 'Invalid category ID', ErrorCodes.VALIDATION_ERROR);
-    }
+    const categoryId = parseNumericId(params.id, 'Category');
 
     // Verify category exists
     const category = await prisma.vaultDocumentCategory.findUnique({
@@ -199,14 +195,10 @@ export const POST = secureRoute.mutationWithParams<typeof CategoryApproversSchem
  * Remove all approvers from a category
  * WARNING: This will block document uploads to this category
  */
-export const DELETE = secureRoute.mutationWithParams<z.ZodAny, { id: string }>({
+export const DELETE = secureRoute.mutationWithParams<z.ZodVoid, { id: string }>({
   feature: Feature.MANAGE_VAULT_DOCUMENTS,
   handler: async (request, { user, params }) => {
-    const categoryId = parseInt(params.id);
-    
-    if (isNaN(categoryId)) {
-      throw new AppError(400, 'Invalid category ID', ErrorCodes.VALIDATION_ERROR);
-    }
+    const categoryId = parseNumericId(params.id, 'Category');
 
     // Verify category exists
     const category = await prisma.vaultDocumentCategory.findUnique({

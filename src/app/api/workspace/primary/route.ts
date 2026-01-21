@@ -64,20 +64,70 @@ export const GET = secureRoute.query({
       
       const empCodes = userEmployees.map(e => e.EmpCode);
 
-      // Count tasks for each sub-service line group
-      const subGroupTaskCounts: Array<{
-        subGroup: string;
-        serviceLine: string;
-        taskCount: number;
-      }> = [];
+      // OPTIMIZATION: Batch fetch all service line mappings and codes at once
+      // Instead of sequential queries for each sub-group
+      const [allMappings, allServLineMappings] = await Promise.all([
+        // Get all masterCode mappings for user's sub-groups in one query
+        prisma.serviceLineExternal.findMany({
+          where: {
+            SubServlineGroupCode: { in: userSubGroups },
+            masterCode: { not: null },
+          },
+          select: {
+            SubServlineGroupCode: true,
+            ServLineCode: true,
+            masterCode: true,
+          },
+        }),
+        // Also get the task counts preparation data
+        prisma.serviceLineExternal.findMany({
+          where: {
+            SubServlineGroupCode: { in: userSubGroups },
+            ServLineCode: { not: null },
+          },
+          select: {
+            SubServlineGroupCode: true,
+            ServLineCode: true,
+          },
+        }),
+      ]);
 
-      for (const subGroup of userSubGroups) {
-        // Get ServLineCodes for this sub-group
-        const servLineCodes = await getServLineCodesBySubGroup(subGroup);
+      // Build lookup maps for O(1) access
+      const subGroupToMasterCode = new Map<string, string>();
+      const subGroupToServLineCodes = new Map<string, string[]>();
+
+      // Process mappings
+      for (const mapping of allMappings) {
+        if (mapping.SubServlineGroupCode && mapping.masterCode) {
+          // Store first masterCode found for each sub-group
+          if (!subGroupToMasterCode.has(mapping.SubServlineGroupCode)) {
+            subGroupToMasterCode.set(mapping.SubServlineGroupCode, mapping.masterCode);
+          }
+        }
+      }
+
+      // Process ServLineCode collections
+      for (const mapping of allServLineMappings) {
+        if (mapping.SubServlineGroupCode && mapping.ServLineCode) {
+          const existing = subGroupToServLineCodes.get(mapping.SubServlineGroupCode) || [];
+          existing.push(mapping.ServLineCode);
+          subGroupToServLineCodes.set(mapping.SubServlineGroupCode, existing);
+        }
+      }
+
+      // OPTIMIZATION: Parallelize all task count queries using Promise.all
+      const taskCountPromises = userSubGroups.map(async (subGroup) => {
+        const servLineCodes = subGroupToServLineCodes.get(subGroup) || [];
+        const masterCode = subGroupToMasterCode.get(subGroup);
 
         if (servLineCodes.length === 0) {
           logger.warn('Sub-group has no ServLineCodes', { subGroup });
-          continue;
+          return null;
+        }
+
+        if (!masterCode) {
+          logger.warn('Sub-group has no masterCode mapping', { subGroup });
+          return null;
         }
 
         // Count tasks where user is team member, partner, or manager
@@ -95,25 +145,21 @@ export const GET = secureRoute.query({
           },
         });
 
-        // Determine master code (serviceLine) for this sub-group
-        const mapping = await prisma.serviceLineExternal.findFirst({
-          where: {
-            SubServlineGroupCode: subGroup,
-            masterCode: { not: null },
-          },
-          select: {
-            masterCode: true,
-          },
-        });
+        return {
+          subGroup,
+          serviceLine: masterCode,
+          taskCount,
+        };
+      });
 
-        if (mapping?.masterCode) {
-          subGroupTaskCounts.push({
-            subGroup,
-            serviceLine: mapping.masterCode,
-            taskCount,
-          });
-        }
-      }
+      // Execute all count queries in parallel
+      const taskCountResults = await Promise.all(taskCountPromises);
+      
+      // Filter out null results and collect valid sub-group task counts
+      const subGroupTaskCounts = taskCountResults.filter(
+        (result): result is { subGroup: string; serviceLine: string; taskCount: number } => 
+          result !== null
+      );
 
       // Sort by task count (descending) and get the first one
       subGroupTaskCounts.sort((a, b) => b.taskCount - a.taskCount);

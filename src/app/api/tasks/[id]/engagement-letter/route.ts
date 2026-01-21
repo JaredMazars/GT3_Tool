@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db/prisma';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { canApproveEngagementLetter } from '@/lib/services/tasks/taskAuthorization';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { toTaskId } from '@/types/branded';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { invalidateClientCache } from '@/lib/services/cache/cacheInvalidation';
@@ -11,6 +11,7 @@ import { invalidateTaskListCache } from '@/lib/services/cache/listCache';
 import { uploadEngagementLetter } from '@/lib/services/documents/blobStorage';
 import { extractEngagementLetterMetadata } from '@/lib/services/documents/engagementLetterExtraction';
 import { logger } from '@/lib/utils/logger';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 
 /**
  * POST /api/tasks/[id]/engagement-letter
@@ -284,18 +285,11 @@ export async function POST(
  * GET /api/tasks/[id]/engagement-letter
  * Get engagement letter status
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { id } = await context.params;
-    const taskId = toTaskId(id);
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_TASKS,
+  taskIdParam: 'id',
+  handler: async (request: NextRequest, { user, params }) => {
+    const taskId = toTaskId(params.id);
 
     // Get task engagement letter
     const task = await prisma.task.findUnique({
@@ -314,23 +308,21 @@ export async function GET(
     });
 
     if (!task) {
-      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+      throw new AppError(404, 'Task not found', ErrorCodes.NOT_FOUND);
     }
 
     const engagementLetter = task.TaskEngagementLetter;
     return NextResponse.json(
       successResponse({
-        engagementLetterGenerated: engagementLetter?.generated || false,
-        engagementLetterUploaded: engagementLetter?.uploaded || false,
-        engagementLetterPath: engagementLetter?.filePath || null,
-        engagementLetterUploadedBy: engagementLetter?.uploadedBy || null,
-        engagementLetterUploadedAt: engagementLetter?.uploadedAt || null,
+        engagementLetterGenerated: engagementLetter?.generated ?? false,
+        engagementLetterUploaded: engagementLetter?.uploaded ?? false,
+        engagementLetterPath: engagementLetter?.filePath ?? null,
+        engagementLetterUploadedBy: engagementLetter?.uploadedBy ?? null,
+        engagementLetterUploadedAt: engagementLetter?.uploadedAt ?? null,
       }),
-      { status: 200 }
+      { headers: { 'Cache-Control': 'no-store' } }
     );
-  } catch (error) {
-    return handleApiError(error, 'GET /api/tasks/[id]/engagement-letter');
-  }
-}
+  },
+});
 
 

@@ -1,6 +1,10 @@
 ---
 description: When security implementation is needed
 alwaysApply: false
+version: 1.0.0
+lastUpdated: 2026-01-21
+changelog:
+  - "1.0.0 (2026-01-21): Initial security & access control documentation"
 ---
 # Security & Access Control
 
@@ -20,7 +24,31 @@ This document provides comprehensive security guidelines including the page perm
 
 ## Quick Reference
 
-**API Routes** (REQUIRED):
+### Common Security Tasks
+
+| Task | Pattern | Code Example |
+|------|---------|--------------|
+| Create API mutation | `secureRoute.mutation()` | `export const POST = secureRoute.mutation({ feature, schema, handler })` |
+| Create API query | `secureRoute.query()` | `export const GET = secureRoute.query({ feature, handler })` |
+| API with route params | `secureRoute.queryWithParams()` | `export const GET = secureRoute.queryWithParams({ taskIdParam: 'id', handler })` |
+| Protect page | `<PageAccessGuard>` | `<PageAccessGuard pathname="/dashboard/admin">{children}</PageAccessGuard>` |
+| Conditional UI | `<FeatureGate>` | `<FeatureGate feature={Feature.MANAGE_TASKS}><Button>Edit</Button></FeatureGate>` |
+| Check permission | `useFeature()` | `const canManage = useFeature(Feature.MANAGE_TASKS);` |
+| Check page access | `checkPageAccess()` | `const { canAccess, accessLevel } = await checkPageAccess(userId, pathname);` |
+| Validate input | Zod schema | `const data = CreateTaskSchema.parse(req.body);` |
+| Check user access | IDOR protection | `where: { id, team: { some: { userId } } }` |
+
+### Key Concepts
+
+**Role Hierarchy**: `SYSTEM_ADMIN` > `ADMINISTRATOR` > `PARTNER` > `MANAGER` > `SUPERVISOR` > `USER` > `VIEWER`
+
+**Access Levels**: `NONE` (redirect) | `VIEW` (read-only) | `FULL` (all actions)
+
+**4-Tier Lookup**: Redis Cache → Database Override → Code Override → Convention Default
+
+### Code Snippets
+
+**API Routes**:
 ```typescript
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 
@@ -43,12 +71,6 @@ import { useFeature } from '@/hooks/useFeature';
 <FeatureGate feature={Feature.MANAGE_TASKS}><Button>Edit</Button></FeatureGate>
 const canManage = useFeature(Feature.MANAGE_TASKS);
 ```
-
-**Role Hierarchy**: `SYSTEM_ADMIN` > `ADMINISTRATOR` > `PARTNER` > `MANAGER` > `SUPERVISOR` > `USER` > `VIEWER`
-
-**Access Levels**: `NONE` (redirect) | `VIEW` (read-only) | `FULL` (all actions)
-
-**4-Tier Lookup**: Redis Cache → Database Override → Code Override → Convention Default
 
 ## Overview
 
@@ -99,45 +121,49 @@ SYSTEM_ADMIN (bypasses all checks)
 
 ```mermaid
 graph TD
-    Request[User Requests Page] --> Guard[PageAccessGuard]
-    Guard --> CheckUser[Get User & Role]
-    CheckUser --> AdminCheck{SYSTEM_ADMIN?}
-    AdminCheck -->|Yes| GrantFull[Grant FULL Access]
-    AdminCheck -->|No| DetermineContext{Service Line Page?}
+    A[User Requests Page] --> B[PageAccessGuard]
+    B --> C[Get User and Role]
+    C --> D{Is SYSTEM_ADMIN?}
+    D -->|Yes| E[Grant FULL Access]
+    D -->|No| F{Is Service Line Page?}
     
-    DetermineContext -->|Yes| SLRole[Get Service Line Role]
-    DetermineContext -->|No| SysRole[Use System Role]
+    F -->|Yes| G[Get Service Line Role]
+    F -->|No| H[Use System Role]
     
-    SLRole --> CheckAssignment{Has SL Assignment?}
-    CheckAssignment -->|No| DenyAccess[Deny Access]
-    CheckAssignment -->|Yes| Tier1
-    SysRole --> Tier1
+    G --> I{Has Service Line Assignment?}
+    I -->|No| J[Deny Access - Redirect]
+    I -->|Yes| K
+    H --> K
     
-    Tier1{1. Redis Cache?}
-    Tier1 -->|Hit| CacheReturn[Return Cached Result]
-    Tier1 -->|Miss| Tier2
+    K{Tier 1: Redis Cache Hit?}
+    K -->|Yes| L[Return Cached Permission]
+    K -->|No| M{Tier 2: DB Override Exists?}
     
-    Tier2{2. DB Override?}
-    Tier2 -->|Found| CacheAndReturn[Cache & Return]
-    Tier2 -->|Not Found| Tier3
+    M -->|Yes| N[Cache and Return]
+    M -->|No| O{Tier 3: Code Config Exists?}
     
-    Tier3{3. Code Config?}
-    Tier3 -->|Found| ReturnResult[Return Result]
-    Tier3 -->|Not Found| Tier4
+    O -->|Yes| P[Return Code Permission]
+    O -->|No| Q[Tier 4: Apply Convention Default]
     
-    Tier4[4. Convention Default]
-    Tier4 --> ReturnResult
+    Q --> P
     
-    CacheReturn --> CheckLevel{Access Level?}
-    CacheAndReturn --> CheckLevel
-    ReturnResult --> CheckLevel
+    L --> R{What Access Level?}
+    N --> R
+    P --> R
     
-    CheckLevel -->|NONE| Redirect[Redirect to Dashboard]
-    CheckLevel -->|VIEW| ProvideViewOnly[Provide View-Only Context]
-    CheckLevel -->|FULL| ProvideFull[Provide Full Access Context]
+    R -->|NONE| S[Redirect to Dashboard]
+    R -->|VIEW| T[Provide View-Only Context]
+    R -->|FULL| U[Provide Full Access Context]
     
-    GrantFull --> ProvideFull
-    DenyAccess --> Redirect
+    E --> U
+    J --> S
+    
+    style A fill:#e1f5ff
+    style E fill:#c8e6c9
+    style U fill:#c8e6c9
+    style T fill:#fff9c4
+    style S fill:#ffcdd2
+    style J fill:#ffcdd2
 ```
 
 ### 4-Tier Lookup System
@@ -897,6 +923,42 @@ The page permissions system provides:
 4. Cache invalidation is automatic
 5. View-only mode preserves data integrity
 6. All pages must use PageAccessGuard
+
+## Rule Exceptions
+
+### When secureRoute May Not Be Required
+
+The `secureRoute` wrapper requirement may be relaxed only in these specific scenarios:
+
+1. **Public Endpoints**: Truly public APIs with no user context
+   - Example: Health check endpoints, public documentation APIs
+   - MUST still implement rate limiting manually
+   - Document: `// RULE EXCEPTION: Public endpoint - no authentication required`
+
+2. **Webhook Receivers**: External service callbacks with custom auth
+   - Example: Payment gateway webhooks, third-party integrations
+   - MUST implement alternative authentication (signature validation)
+   - MUST implement rate limiting
+   - Document: `// RULE EXCEPTION: Webhook with signature validation`
+
+3. **Internal Service-to-Service**: Server-side only, never exposed to clients
+   - MUST verify call origin
+   - MUST document security model
+   - Get approval from security team
+
+**Exception Process:**
+1. Document exception reason with `// RULE EXCEPTION: [reason]`
+2. Implement alternative security measures
+3. Add to security review checklist
+4. Get approval from SYSTEM_ADMIN or security lead
+
+### When Page Permissions May Be Overridden
+
+Database overrides via admin UI are the approved mechanism for page permission exceptions. Code-level exceptions require:
+
+1. Business justification documented in commit message
+2. Review by security team
+3. Alternative access control mechanism in place
 
 ## Related Rules
 

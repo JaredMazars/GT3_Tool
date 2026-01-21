@@ -147,27 +147,26 @@ export const GET = secureRoute.query({
     // Get external service line codes based on filters
     let externalServLineCodes: string[] = [];
     
+    // OPTIMIZATION: Consolidate all service line mapping queries into a single query
+    // Build conditional where clause based on filters
+    const mappingWhere: any = {};
+    
     if (subServiceLineGroupFilters.length > 0) {
-      // Filter by specific sub-service line groups
-      const mappings = await prisma.serviceLineExternal.findMany({
-        where: { SubServlineGroupCode: { in: subServiceLineGroupFilters } },
-        select: { ServLineCode: true }
-      });
-      externalServLineCodes = mappings.map(m => m.ServLineCode).filter((code): code is string => !!code);
+      mappingWhere.SubServlineGroupCode = { in: subServiceLineGroupFilters };
     } else if (serviceLineFilters.length > 0) {
-      // Filter by service line master codes
-      const mappings = await prisma.serviceLineExternal.findMany({
-        where: { masterCode: { in: serviceLineFilters } },
-        select: { ServLineCode: true }
-      });
-      externalServLineCodes = mappings.map(m => m.ServLineCode).filter((code): code is string => !!code);
-    } else {
-      // Get all service line codes (global view)
-      const allMappings = await prisma.serviceLineExternal.findMany({
-        select: { ServLineCode: true }
-      });
-      externalServLineCodes = [...new Set(allMappings.map(m => m.ServLineCode).filter((code): code is string => !!code))];
+      mappingWhere.masterCode = { in: serviceLineFilters };
     }
+    // else: no filter = fetch all (empty where clause)
+
+    // Single query instead of 3 separate conditional queries
+    const mappings = await prisma.serviceLineExternal.findMany({
+      where: mappingWhere,
+      select: { ServLineCode: true }
+    });
+    
+    externalServLineCodes = [...new Set(
+      mappings.map(m => m.ServLineCode).filter((code): code is string => !!code)
+    )];
 
     if (externalServLineCodes.length === 0) {
       const emptyResponse = { 

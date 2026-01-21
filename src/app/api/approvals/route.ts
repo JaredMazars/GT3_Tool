@@ -231,34 +231,101 @@ export const GET = secureRoute.query({
         },
       });
 
-      // Filter to only tasks where user can approve (engagement-level acceptance)
+      // OPTIMIZATION: Batch authorization checks to avoid N+1 queries
+      // Pre-fetch all service line mappings and user permissions at once
       const engagementAcceptances: EngagementAcceptanceApproval[] = [];
-      // Note: This is the task-level acceptance (formerly called clientAcceptances)
-      for (const task of potentialAcceptanceTasks) {
-        if (!task.Client) continue; // Skip if no client
-        
-        const canApprove = await canApproveAcceptance(user.id, task.id as any);
-        if (canApprove && task.ClientAcceptanceResponse[0]) {
-          const response = task.ClientAcceptanceResponse[0];
-          engagementAcceptances.push({
-            taskId: task.id,
-            taskName: task.TaskDesc,
-            taskCode: task.TaskCode,
-            clientId: task.Client.id,
-            clientGSID: task.Client.GSClientID,
-            clientCode: task.Client.clientCode,
-            clientName: task.Client.clientNameFull,
-            servLineCode: task.ServLineCode,
-            subServlineGroupCode: null, // Not available on Task model
-            masterCode: null, // Not available on Task model
-            acceptanceResponseId: response.id,
-            completedAt: response.completedAt!,
-            completedBy: response.completedBy,
-            riskRating: response.riskRating,
-            overallRiskScore: response.overallRiskScore,
-            reviewedAt: response.reviewedAt,
-            reviewedBy: response.reviewedBy,
-          });
+      
+      if (potentialAcceptanceTasks.length > 0) {
+        // Check if user is system admin (one query for all tasks)
+        const userRecord = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { role: true },
+        });
+        const isSystemAdmin = userRecord?.role === 'SYSTEM_ADMIN';
+
+        // Get all unique ServLineCodes
+        const servLineCodes = [...new Set(potentialAcceptanceTasks.map(t => t.ServLineCode))];
+
+        // Batch fetch service line mappings (one query instead of N queries)
+        const serviceLineMappings = await prisma.serviceLineExternal.findMany({
+          where: {
+            ServLineCode: { in: servLineCodes },
+          },
+          select: {
+            ServLineCode: true,
+            SubServlineGroupCode: true,
+            masterCode: true,
+          },
+        });
+
+        // Create lookup map for O(1) access
+        const servLineToMapping = new Map(
+          serviceLineMappings.map(m => [m.ServLineCode, m])
+        );
+
+        // Get all unique SubServlineGroupCodes
+        const subGroupCodes = [...new Set(
+          serviceLineMappings
+            .map(m => m.SubServlineGroupCode)
+            .filter((code): code is string => code !== null)
+        )];
+
+        // Batch fetch user's service line roles (one query instead of N queries)
+        const userServiceLineRoles = subGroupCodes.length > 0 ? await prisma.serviceLineUser.findMany({
+          where: {
+            userId: user.id,
+            subServiceLineGroup: { in: subGroupCodes },
+          },
+          select: {
+            subServiceLineGroup: true,
+            role: true,
+          },
+        }) : [];
+
+        // Create lookup map for O(1) access
+        const subGroupToRole = new Map(
+          userServiceLineRoles.map(r => [r.subServiceLineGroup, r.role])
+        );
+
+        // Now efficiently check approval permission for each task using pre-fetched data
+        for (const task of potentialAcceptanceTasks) {
+          if (!task.Client) continue; // Skip if no client
+
+          // Check approval permission using pre-fetched data
+          let canApprove = isSystemAdmin; // System admins can approve all
+
+          if (!canApprove) {
+            const mapping = servLineToMapping.get(task.ServLineCode);
+            if (mapping?.SubServlineGroupCode) {
+              const userRole = subGroupToRole.get(mapping.SubServlineGroupCode);
+              canApprove = userRole === 'ADMINISTRATOR' || userRole === 'PARTNER';
+            }
+          }
+
+          if (canApprove && task.ClientAcceptanceResponse[0]) {
+            const response = task.ClientAcceptanceResponse[0];
+            const mapping = servLineToMapping.get(task.ServLineCode);
+            
+            engagementAcceptances.push({
+              taskId: task.id,
+              taskName: task.TaskDesc,
+              taskCode: task.TaskCode,
+              clientId: task.Client.id,
+              clientGSID: task.Client.GSClientID,
+              clientCode: task.Client.clientCode,
+              clientName: task.Client.clientNameFull,
+              servLineCode: task.ServLineCode,
+              subServlineGroupCode: mapping?.SubServlineGroupCode || null,
+              masterCode: mapping?.masterCode || null,
+              acceptanceResponseId: response.id,
+              completedAt: response.completedAt!,
+              completedBy: response.completedBy,
+              riskRating: response.riskRating,
+              overallRiskScore: response.overallRiskScore,
+              reviewedAt: response.reviewedAt,
+              reviewedBy: response.reviewedBy,
+            });
+          }
         }
       }
 

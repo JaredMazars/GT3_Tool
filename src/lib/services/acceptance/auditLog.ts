@@ -1,9 +1,17 @@
 /**
  * Audit logging for acceptance and continuance module
  * Tracks all sensitive operations for compliance and security
+ * 
+ * This module provides domain-specific convenience functions for acceptance
+ * workflows, but uses the centralized audit logging system internally.
  */
 
 import { logger } from '@/lib/utils/logger';
+import { 
+  logAuditEvent, 
+  AuditEventType as GeneralAuditEventType,
+  AuditSeverity 
+} from '@/lib/utils/auditLog';
 
 export type AcceptanceAuditAction =
   | 'INITIALIZED'
@@ -28,7 +36,7 @@ export interface AcceptanceAuditMetadata {
 
 /**
  * Log an acceptance/continuance audit event
- * Logs are structured for easy querying and compliance reporting
+ * Uses the centralized audit logging system with acceptance-specific context
  */
 export async function logAcceptanceEvent(
   taskId: number,
@@ -36,30 +44,19 @@ export async function logAcceptanceEvent(
   action: AcceptanceAuditAction,
   metadata?: AcceptanceAuditMetadata
 ): Promise<void> {
-  const auditEntry = {
-    module: 'ACCEPTANCE',
-    taskId,
+  // Use centralized audit logging system
+  await logAuditEvent({
+    eventType: 'ACCEPTANCE' as any, // Custom event type for acceptance module
     userId,
-    action,
-    timestamp: new Date().toISOString(),
-    ...metadata,
-  };
-
-  // Log to application logger (Winston/Pino)
-  logger.info('Acceptance audit event', auditEntry);
-
-  // Optional: Store in database for compliance
-  // This can be uncommented when an AuditLog table is added
-  // await prisma.auditLog.create({
-  //   data: {
-  //     module: 'ACCEPTANCE',
-  //     taskId,
-  //     userId,
-  //     action,
-  //     metadata: JSON.stringify(metadata),
-  //     timestamp: new Date(),
-  //   },
-  // });
+    targetType: 'task',
+    targetId: String(taskId),
+    severity: AuditSeverity.INFO,
+    details: {
+      module: 'ACCEPTANCE',
+      action,
+      ...metadata,
+    },
+  });
 }
 
 /**

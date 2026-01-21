@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { prisma } from '@/lib/db/prisma';
-import { handleApiError } from '@/lib/utils/errorHandler';
-import { successResponse } from '@/lib/utils/apiUtils';
+import { successResponse, parseNumericId } from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { toTaskId } from '@/types/branded';
-import { sanitizeText } from '@/lib/utils/sanitization';
 import { z } from 'zod';
 
 const UpdateResearchNoteSchema = z.object({
@@ -13,77 +11,93 @@ const UpdateResearchNoteSchema = z.object({
   content: z.string().min(1).optional(),
   tags: z.array(z.string()).optional(),
   category: z.string().optional(),
-});
+}).strict();
 
-export async function PUT(
-  request: NextRequest,
-  context: { params: Promise<{ id: string; noteId: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const params = await context.params;
+/**
+ * PUT /api/tasks/[id]/research-notes/[noteId]
+ * Update a research note
+ */
+export const PUT = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TASKS,
+  taskIdParam: 'id',
+  schema: UpdateResearchNoteSchema,
+  handler: async (request: NextRequest, { user, params, data }) => {
     const taskId = toTaskId(params.id);
-    const noteId = Number.parseInt(params.noteId);
+    const noteId = parseNumericId(params.noteId, 'Note');
 
-    // Check project access (requires EDITOR role or higher)
-    const hasAccess = await checkTaskAccess(user.id, taskId, 'EDITOR');
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    // IDOR protection: verify note belongs to task
+    const existingNote = await prisma.researchNote.findUnique({
+      where: { id: noteId },
+      select: { taskId: true },
+    });
+
+    if (!existingNote) {
+      throw new AppError(404, 'Research note not found', ErrorCodes.NOT_FOUND);
     }
 
-    const body = await request.json();
-    const validated = UpdateResearchNoteSchema.parse(body);
+    if (existingNote.taskId !== taskId) {
+      throw new AppError(403, 'Note does not belong to this task', ErrorCodes.FORBIDDEN);
+    }
 
-    interface UpdateData {
+    // Build update data
+    const updateData: {
       title?: string;
       content?: string;
-      tags?: string;
-      category?: string;
+      tags?: string | null;
+      category?: string | null;
+    } = {};
+    if (data.title !== undefined) {
+      updateData.title = data.title;
     }
-
-    const updateData: UpdateData = {};
-    if (validated.title !== undefined) {
-      updateData.title = sanitizeText(validated.title, { maxLength: 200 }) || validated.title;
+    if (data.content !== undefined) {
+      updateData.content = data.content;
     }
-    if (validated.content !== undefined) {
-      updateData.content = sanitizeText(validated.content, { allowHTML: false, allowNewlines: true }) || validated.content;
-    }
-    if (validated.tags !== undefined) updateData.tags = JSON.stringify(validated.tags);
-    if (validated.category !== undefined) updateData.category = validated.category;
+    if (data.tags !== undefined) updateData.tags = JSON.stringify(data.tags);
+    if (data.category !== undefined) updateData.category = data.category;
 
     const note = await prisma.researchNote.update({
       where: { id: noteId },
       data: updateData,
+      select: {
+        id: true,
+        taskId: true,
+        title: true,
+        content: true,
+        tags: true,
+        category: true,
+        createdBy: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
 
     return NextResponse.json(successResponse(note));
-  } catch (error) {
-    return handleApiError(error, 'PUT /api/tasks/[id]/research-notes/[noteId]');
-  }
-}
+  },
+});
 
-export async function DELETE(
-  request: NextRequest,
-  context: { params: Promise<{ id: string; noteId: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+/**
+ * DELETE /api/tasks/[id]/research-notes/[noteId]
+ * Delete a research note
+ */
+export const DELETE = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TASKS,
+  taskIdParam: 'id',
+  handler: async (request: NextRequest, { user, params }) => {
+    const taskId = toTaskId(params.id);
+    const noteId = parseNumericId(params.noteId, 'Note');
+
+    // IDOR protection: verify note belongs to task
+    const existingNote = await prisma.researchNote.findUnique({
+      where: { id: noteId },
+      select: { taskId: true },
+    });
+
+    if (!existingNote) {
+      throw new AppError(404, 'Research note not found', ErrorCodes.NOT_FOUND);
     }
 
-    const params = await context.params;
-    const taskId = toTaskId(params.id);
-    const noteId = Number.parseInt(params.noteId);
-
-    // Check project access (requires EDITOR role or higher)
-    const hasAccess = await checkTaskAccess(user.id, taskId, 'EDITOR');
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (existingNote.taskId !== taskId) {
+      throw new AppError(403, 'Note does not belong to this task', ErrorCodes.FORBIDDEN);
     }
 
     await prisma.researchNote.delete({
@@ -91,8 +105,6 @@ export async function DELETE(
     });
 
     return NextResponse.json(successResponse({ message: 'Research note deleted successfully' }));
-  } catch (error) {
-    return handleApiError(error, 'DELETE /api/tasks/[id]/research-notes/[noteId]');
-  }
-}
+  },
+});
 

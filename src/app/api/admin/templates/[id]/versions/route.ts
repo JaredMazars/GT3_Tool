@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { CreateVersionSchema } from '@/lib/validation/schemas';
-import { successResponse } from '@/lib/utils/apiUtils';
+import { successResponse, parseNumericId } from '@/lib/utils/apiUtils';
 import {
   getVersionHistory,
   createNewVersion,
@@ -20,21 +20,7 @@ import {
 export const GET = secureRoute.queryWithParams({
   feature: Feature.MANAGE_TEMPLATES,
   handler: async (request: NextRequest, { params }) => {
-    if (!params.id) {
-      return NextResponse.json(
-        { error: 'Template ID is required' },
-        { status: 400 }
-      );
-    }
-
-    const templateId = parseInt(params.id);
-
-    if (isNaN(templateId)) {
-      return NextResponse.json(
-        { error: 'Invalid template ID' },
-        { status: 400 }
-      );
-    }
+    const templateId = parseNumericId(params.id, 'Template');
 
     const history = await getVersionHistory(templateId);
 
@@ -50,21 +36,7 @@ export const POST = secureRoute.mutationWithParams({
   feature: Feature.MANAGE_TEMPLATES,
   schema: CreateVersionSchema,
   handler: async (request: NextRequest, { user, params, data }) => {
-    if (!params.id) {
-      return NextResponse.json(
-        { error: 'Template ID is required' },
-        { status: 400 }
-      );
-    }
-
-    const templateId = parseInt(params.id);
-
-    if (isNaN(templateId)) {
-      return NextResponse.json(
-        { error: 'Invalid template ID' },
-        { status: 400 }
-      );
-    }
+    const templateId = parseNumericId(params.id, 'Template');
 
     const version = await createNewVersion({
       templateId,

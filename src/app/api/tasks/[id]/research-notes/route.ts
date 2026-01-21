@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { prisma } from '@/lib/db/prisma';
-import { handleApiError } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { toTaskId } from '@/types/branded';
-import { sanitizeText } from '@/lib/utils/sanitization';
 import { z } from 'zod';
 
 const CreateResearchNoteSchema = z.object({
@@ -13,74 +10,77 @@ const CreateResearchNoteSchema = z.object({
   content: z.string().min(1),
   tags: z.array(z.string()).optional(),
   category: z.string().optional(),
-});
+}).strict();
 
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const params = await context.params;
+/**
+ * GET /api/tasks/[id]/research-notes
+ * List research notes for a task
+ */
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_TASKS,
+  taskIdParam: 'id',
+  handler: async (request: NextRequest, { user, params }) => {
     const taskId = toTaskId(params.id);
-
-    // Check project access
-    const hasAccess = await checkTaskAccess(user.id, taskId);
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-    
     const notes = await prisma.researchNote.findMany({
       where: { taskId },
-      orderBy: { updatedAt: 'desc' },
+      select: {
+        id: true,
+        taskId: true,
+        title: true,
+        content: true,
+        tags: true,
+        category: true,
+        createdBy: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: [
+        { updatedAt: 'desc' },
+        { id: 'desc' }, // Deterministic secondary sort
+      ],
+      take: 100,
     });
 
-    return NextResponse.json(successResponse(notes));
-  } catch (error) {
-    return handleApiError(error, 'GET /api/tasks/[id]/research-notes');
-  }
-}
+    return NextResponse.json(
+      successResponse(notes),
+      { headers: { 'Cache-Control': 'no-store' } }
+    );
+  },
+});
 
-export async function POST(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const params = await context.params;
+/**
+ * POST /api/tasks/[id]/research-notes
+ * Create research note for a task
+ */
+export const POST = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TASKS,
+  taskIdParam: 'id',
+  schema: CreateResearchNoteSchema,
+  handler: async (request: NextRequest, { user, params, data }) => {
     const taskId = toTaskId(params.id);
-
-    // Check project access (requires EDITOR role or higher)
-    const hasAccess = await checkTaskAccess(user.id, taskId, 'EDITOR');
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const body = await request.json();
-    const validated = CreateResearchNoteSchema.parse(body);
-
     const note = await prisma.researchNote.create({
       data: {
         taskId,
-        title: sanitizeText(validated.title, { maxLength: 200 }) || validated.title,
-        content: sanitizeText(validated.content, { allowHTML: false, allowNewlines: true }) || validated.content,
-        tags: validated.tags ? JSON.stringify(validated.tags) : null,
-        category: validated.category,
+        title: data.title,
+        content: data.content,
+        tags: data.tags ? JSON.stringify(data.tags) : null,
+        category: data.category,
         createdBy: user.id,
+      },
+      select: {
+        id: true,
+        taskId: true,
+        title: true,
+        content: true,
+        tags: true,
+        category: true,
+        createdBy: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
 
     return NextResponse.json(successResponse(note), { status: 201 });
-  } catch (error) {
-    return handleApiError(error, 'POST /api/tasks/[id]/research-notes');
-  }
-}
+  },
+});
 

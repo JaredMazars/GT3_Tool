@@ -11,6 +11,7 @@ import { documentIntelligence } from './documentIntelligence';
 import { models } from '@/lib/ai/config';
 import { prisma } from '@/lib/db/prisma';
 import { logger } from '@/lib/utils/logger';
+import { matchPartnerByName } from '@/lib/services/employees/partnerMatching';
 
 // Zod schema for extracted DPA metadata
 const DpaMetadataSchema = z.object({
@@ -93,7 +94,7 @@ export async function extractDpaMetadata(
     const validation = validateDpaData(metadata);
 
     // 5. Match partner code
-    const partnerCode = await matchPartnerCode(
+    const partnerCode = await matchPartnerByName(
       metadata.signingPartner,
       task.TaskPartner
     );
@@ -240,64 +241,3 @@ function validateDpaData(
   };
 }
 
-/**
- * Match partner name to employee code
- */
-async function matchPartnerCode(
-  partnerName: string | null,
-  taskPartnerCode: string
-): Promise<string | null> {
-  if (!partnerName) {
-    return null;
-  }
-
-  try {
-    // First, check if the task partner matches
-    const taskPartner = await prisma.employee.findFirst({
-      where: {
-        EmpCode: taskPartnerCode,
-      },
-      select: {
-        EmpCode: true,
-        EmpName: true,
-      },
-    });
-
-    if (taskPartner) {
-      // Simple name matching (case-insensitive, partial match)
-      const normalizedTaskName = taskPartner.EmpName.toLowerCase().trim();
-      const normalizedExtractedName = partnerName.toLowerCase().trim();
-
-      if (
-        normalizedTaskName.includes(normalizedExtractedName) ||
-        normalizedExtractedName.includes(normalizedTaskName)
-      ) {
-        return taskPartner.EmpCode;
-      }
-    }
-
-    // Search for partner by name in Employee table
-    const employees = await prisma.employee.findMany({
-      where: {
-        EmpName: {
-          contains: partnerName,
-        },
-      },
-      select: {
-        EmpCode: true,
-        EmpName: true,
-      },
-      take: 5,
-    });
-
-    if (employees.length === 1 && employees[0]) {
-      return employees[0].EmpCode;
-    }
-
-    // If multiple matches or no matches, return null
-    return null;
-  } catch (error) {
-    logger.error('Error matching partner code for DPA', { partnerName, error });
-    return null;
-  }
-}

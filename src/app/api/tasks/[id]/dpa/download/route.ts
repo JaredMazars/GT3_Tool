@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { prisma } from '@/lib/db/prisma';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { toTaskId } from '@/types/branded';
 import { downloadDpa } from '@/lib/services/documents/blobStorage';
 
@@ -10,24 +9,11 @@ import { downloadDpa } from '@/lib/services/documents/blobStorage';
  * GET /api/tasks/[id]/dpa/download
  * Download the uploaded Data Processing Agreement (DPA)
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { id } = await context.params;
-    const taskId = toTaskId(id);
-
-    // Check if user has access to the project
-    const hasAccess = await checkTaskAccess(user.id, taskId);
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_TASKS,
+  taskIdParam: 'id',
+  handler: async (request: NextRequest, { user, params }) => {
+    const taskId = toTaskId(params.id);
 
     // Get task and DPA path
     const task = await prisma.task.findUnique({
@@ -44,15 +30,21 @@ export async function GET(
     });
 
     if (!task) {
-      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+      throw new AppError(404, 'Task not found', ErrorCodes.NOT_FOUND);
     }
 
     const engagementLetter = task.TaskEngagementLetter;
     if (!engagementLetter?.dpaUploaded || !engagementLetter?.dpaFilePath) {
-      return NextResponse.json(
-        { error: 'No Data Processing Agreement has been uploaded for this task' },
-        { status: 404 }
+      throw new AppError(
+        404,
+        'No Data Processing Agreement has been uploaded for this task',
+        ErrorCodes.NOT_FOUND
       );
+    }
+
+    // Validate file path to prevent path traversal
+    if (engagementLetter.dpaFilePath.includes('..') || engagementLetter.dpaFilePath.includes('~')) {
+      throw new AppError(400, 'Invalid file path', ErrorCodes.VALIDATION_ERROR);
     }
 
     // Download from blob storage
@@ -67,21 +59,22 @@ export async function GET(
       contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
     }
 
-    // Get filename
-    const filename = engagementLetter.dpaFilePath.split('/').pop() || 'dpa';
+    // Sanitize filename - only take the last part and remove any path components
+    const rawFilename = engagementLetter.dpaFilePath.split('/').pop() || 'dpa';
+    const filename = rawFilename.replace(/[^a-zA-Z0-9._-]/g, '_'); // Sanitize filename
 
-    // Return file with proper headers
+    // Return file with proper security headers
     return new NextResponse(new Uint8Array(fileBuffer), {
       status: 200,
       headers: {
         'Content-Type': contentType,
         'Content-Disposition': `attachment; filename="${filename}"`,
         'Content-Length': fileBuffer.length.toString(),
+        'X-Content-Type-Options': 'nosniff',
+        'Cache-Control': 'no-store',
       },
     });
-  } catch (error) {
-    return handleApiError(error, 'GET /api/tasks/[id]/dpa/download');
-  }
-}
+  },
+});
 
 

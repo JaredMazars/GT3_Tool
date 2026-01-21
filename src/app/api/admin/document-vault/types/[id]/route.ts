@@ -4,54 +4,41 @@ import { secureRoute } from '@/lib/api/secureRoute';
 import { Feature } from '@/lib/permissions/features';
 import { UpdateDocumentTypeSchema } from '@/lib/validation/schemas';
 import { prisma } from '@/lib/db/prisma';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { SystemRole } from '@/types';
+import { successResponse, parseNumericId } from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { invalidateDocumentTypesCache } from '@/lib/services/document-vault/documentVaultCache';
 
 /**
  * PATCH /api/admin/document-vault/types/[id]
- * Update document type (SYSTEM_ADMIN only)
+ * Update document type (SYSTEM_ADMIN only via feature permission)
  */
 export const PATCH = secureRoute.mutationWithParams<typeof UpdateDocumentTypeSchema, { id: string }>({
   feature: Feature.MANAGE_VAULT_DOCUMENTS,
   schema: UpdateDocumentTypeSchema,
   handler: async (request, { user, params, data }) => {
-    const typeId = parseInt(params.id);
+    const typeId = parseNumericId(params.id, 'Document type');
 
-    if (isNaN(typeId)) {
-      return NextResponse.json(
-        { error: 'Invalid document type ID' },
-        { status: 400 }
-      );
-    }
-
-    // Only SYSTEM_ADMIN can update document types
-    const userRecord = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { role: true },
-    });
-
-    if (userRecord?.role !== SystemRole.SYSTEM_ADMIN) {
-      return NextResponse.json(
-        { error: 'Only system administrators can update document types' },
-        { status: 403 }
-      );
-    }
+    // Feature permission handles authorization
 
     // Check if document type exists
     const existing = await prisma.vaultDocumentType.findUnique({
       where: { id: typeId },
+      select: { id: true },
     });
 
     if (!existing) {
-      return NextResponse.json(
-        { error: 'Document type not found' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Document type not found', ErrorCodes.NOT_FOUND);
     }
 
-    // Build update data (code is immutable)
-    const updateData: any = {};
+    // Build update data with explicit typing (code is immutable)
+    const updateData: {
+      name?: string;
+      description?: string | null;
+      icon?: string | null;
+      color?: string | null;
+      active?: boolean;
+      sortOrder?: number;
+    } = {};
     if (data.name !== undefined) updateData.name = data.name;
     if (data.description !== undefined) updateData.description = data.description;
     if (data.icon !== undefined) updateData.icon = data.icon;
@@ -84,33 +71,15 @@ export const PATCH = secureRoute.mutationWithParams<typeof UpdateDocumentTypeSch
 
 /**
  * DELETE /api/admin/document-vault/types/[id]
- * Delete document type (SYSTEM_ADMIN only)
- * Only allows deletion if no documents use this type
+ * Delete document type (SYSTEM_ADMIN only via feature permission)
+ * Only allows deletion if no documents or categories use this type
  */
 export const DELETE = secureRoute.mutationWithParams<z.ZodVoid, { id: string }>({
   feature: Feature.MANAGE_VAULT_DOCUMENTS,
   handler: async (request, { user, params }) => {
-    const typeId = parseInt(params.id);
+    const typeId = parseNumericId(params.id, 'Document type');
 
-    if (isNaN(typeId)) {
-      return NextResponse.json(
-        { error: 'Invalid document type ID' },
-        { status: 400 }
-      );
-    }
-
-    // Only SYSTEM_ADMIN can delete document types
-    const userRecord = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { role: true },
-    });
-
-    if (userRecord?.role !== SystemRole.SYSTEM_ADMIN) {
-      return NextResponse.json(
-        { error: 'Only system administrators can delete document types' },
-        { status: 403 }
-      );
-    }
+    // Feature permission handles authorization
 
     // Get the document type
     const documentType = await prisma.vaultDocumentType.findUnique({
@@ -119,10 +88,7 @@ export const DELETE = secureRoute.mutationWithParams<z.ZodVoid, { id: string }>(
     });
 
     if (!documentType) {
-      return NextResponse.json(
-        { error: 'Document type not found' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Document type not found', ErrorCodes.NOT_FOUND);
     }
 
     // Check if any documents use this type
@@ -131,9 +97,10 @@ export const DELETE = secureRoute.mutationWithParams<z.ZodVoid, { id: string }>(
     });
 
     if (documentCount > 0) {
-      return NextResponse.json(
-        { error: `Cannot delete document type with ${documentCount} associated documents` },
-        { status: 400 }
+      throw new AppError(
+        400,
+        `Cannot delete document type with ${documentCount} associated documents`,
+        ErrorCodes.VALIDATION_ERROR
       );
     }
 
@@ -143,9 +110,10 @@ export const DELETE = secureRoute.mutationWithParams<z.ZodVoid, { id: string }>(
     });
 
     if (categoryCount > 0) {
-      return NextResponse.json(
-        { error: `Cannot delete document type with ${categoryCount} associated categories` },
-        { status: 400 }
+      throw new AppError(
+        400,
+        `Cannot delete document type with ${categoryCount} associated categories`,
+        ErrorCodes.VALIDATION_ERROR
       );
     }
 

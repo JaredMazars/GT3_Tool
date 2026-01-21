@@ -1,6 +1,10 @@
 ---
 description: Tool System Architecture & Patterns - Comprehensive guide for implementing and maintaining the modular tool system
 alwaysApply: false
+version: 1.0.0
+lastUpdated: 2026-01-21
+changelog:
+  - "1.0.0 (2026-01-21): Initial tool system architecture documentation"
 ---
 
 # Tool System Architecture & Patterns
@@ -56,6 +60,46 @@ model TaskTool {
   Task Task @relation(...)           // PascalCase, singular
   User User @relation(...)           // PascalCase, singular
 }
+```
+
+### Why PascalCase for Relations?
+
+**Prisma Requirement**: Prisma auto-generates relation names using PascalCase to match model names. While this differs from JavaScript/TypeScript conventions (which typically use camelCase for object properties), we follow Prisma's convention for consistency between schema and generated types.
+
+**Important Distinctions**:
+- **Prisma Relations**: MUST use PascalCase (e.g., `taskTool.Tool.ToolSubTab`)
+- **Regular TypeScript**: Should use camelCase (e.g., `interface MyData { userName: string }`)
+- **Prisma Field Names**: Use camelCase (e.g., `taskId: Int`, `createdAt: DateTime`)
+
+**Why This Matters**:
+```typescript
+// ✅ Correct: Prisma-generated types use PascalCase for relations
+const task = await prisma.task.findUnique({
+  include: {
+    TaskTool: {           // PascalCase (relation name)
+      include: {
+        Tool: {           // PascalCase (relation name)
+          include: {
+            ToolSubTab: true  // PascalCase (relation name)
+          }
+        }
+      }
+    }
+  }
+});
+
+// Access data using PascalCase relation names
+task.TaskTool.forEach(tt => {
+  console.log(tt.Tool.name);
+  console.log(tt.Tool.ToolSubTab);
+});
+
+// ❌ Wrong: Using camelCase for Prisma relations doesn't match generated types
+const task = await prisma.task.findUnique({
+  include: {
+    taskTool: { ... }  // TypeScript error: Property 'taskTool' does not exist
+  }
+});
 ```
 
 ### Junction Table Pattern
@@ -353,13 +397,13 @@ tool.ToolSubTab.forEach(subTab => {
 });
 ```
 
-### ❌ DON'T: Common Mistakes
+### ❌ DON'T: Common Mistakes & Anti-Patterns
 
 **Relation Naming**:
 ```typescript
-// ❌ Wrong: camelCase
+// ❌ Wrong: camelCase (doesn't match Prisma schema)
 const subTabs = taskTool.tool.subTabs;
-// ✅ Correct: PascalCase
+// ✅ Correct: PascalCase (matches Prisma model names)
 const subTabs = taskTool.Tool.ToolSubTab;
 ```
 
@@ -370,14 +414,122 @@ model ReviewNote {
   currentOwner String?
   // Missing: User relation!
 }
+
+// ✅ Correct: Proper User relation
+model ReviewNote {
+  currentOwner String?
+  User_ReviewNote_currentOwnerToUser User? @relation("ReviewNote_currentOwnerToUser", fields: [currentOwner], references: [id])
+}
+```
+
+**Inconsistent Junction Table Naming**:
+```prisma
+// ❌ Wrong: Non-standard naming
+model Tool_To_Task {  // Don't use underscores and "To"
+  id Int @id
+  toolId Int
+  taskId Int
+}
+
+// ❌ Wrong: Reversed order (confusing)
+model ToolTask {  // Could be confused with TaskTool
+  id Int @id
+  toolId Int
+  taskId Int
+}
+
+// ✅ Correct: Standard [Entity1][Entity2] pattern
+model TaskTool {
+  id Int @id @default(autoincrement())
+  taskId Int
+  toolId Int
+  // ... rest of fields
+}
+```
+
+**Missing Unique Constraints**:
+```prisma
+// ❌ Wrong: Can create duplicate tool assignments
+model TaskTool {
+  id Int @id
+  taskId Int
+  toolId Int
+  // Missing: unique constraint!
+}
+
+// ✅ Correct: Prevents duplicates
+model TaskTool {
+  id Int @id
+  taskId Int
+  toolId Int
+  @@unique([taskId, toolId])
+}
 ```
 
 **Cache Invalidation**:
 ```typescript
 // ❌ Wrong: Missing cache invalidation
 await prisma.taskTool.create({ data: { ... } });
+
 // ✅ Correct: Invalidate cache
+await prisma.taskTool.create({ data: { ... } });
 await invalidateOnTaskMutation(taskId);
+```
+
+**Incorrect Tool Registration**:
+```typescript
+// ❌ Wrong: Bypassing registration service
+await prisma.tool.create({
+  data: {
+    code: 'my-tool',
+    name: 'My Tool',
+    componentPath: '@/components/tools/MyTool',
+  }
+});
+
+// ✅ Correct: Use registration API
+const response = await fetch('/api/tools/register', {
+  method: 'POST',
+  body: JSON.stringify({ code: 'my-tool' }),
+});
+```
+
+**Missing Component Config**:
+```typescript
+// ❌ Wrong: Only exporting component
+export const MyTool: ToolComponent = ({ taskId }) => {
+  return <div>My Tool</div>;
+};
+// Missing: Tool config export!
+
+// ✅ Correct: Export both component and config
+export const MyTool: ToolComponent = ({ taskId }) => {
+  return <div>My Tool</div>;
+};
+
+export const myToolConfig: ToolModuleConfig = {
+  code: 'my-tool',
+  name: 'My Tool',
+  description: 'Description here',
+  version: '1.0.0',
+};
+```
+
+**Hardcoded Tool Access**:
+```typescript
+// ❌ Wrong: Directly accessing tool without checking assignments
+const tools = await prisma.tool.findMany();
+
+// ✅ Correct: Check service line assignments
+const tools = await prisma.tool.findMany({
+  where: {
+    ServiceLineTool: {
+      some: {
+        subServiceLineGroup: userServiceLine
+      }
+    }
+  }
+});
 ```
 
 ## Validation Checklists
@@ -407,6 +559,108 @@ await invalidateOnTaskMutation(taskId);
 - [ ] Component path in DB points to valid module
 - [ ] Tool registered in `ToolRegistry.ts`
 - [ ] Service line assignments created before task assignment
+
+## Tool Versioning Strategy
+
+### Semantic Versioning for Tools
+
+Tools MUST follow semantic versioning (MAJOR.MINOR.PATCH):
+
+- **MAJOR**: Breaking changes (incompatible component props, removed features)
+- **MINOR**: New features (new sub-tabs, enhanced functionality)
+- **PATCH**: Bug fixes, minor UI improvements
+
+### Version Tracking
+
+**Tool Config Version**:
+```typescript
+export const reviewNotebookToolConfig: ToolModuleConfig = {
+  code: 'review-notebook',
+  name: 'Review Notebook',
+  version: '2.1.0', // Update this with changes
+  // ...
+};
+```
+
+**Database Version** (optional future enhancement):
+```sql
+ALTER TABLE Tool ADD COLUMN version VARCHAR(20);
+```
+
+### Handling Breaking Changes
+
+**When Tool Props Change**:
+
+1. **Document Migration** in tool README:
+```markdown
+## Version 2.0.0 Migration
+
+Breaking changes:
+- `initialTab` prop renamed to `activeTabCode`
+- `onNoteSelect` callback signature changed
+```
+
+2. **Deprecation Period** (for major changes):
+```typescript
+interface ToolComponentProps {
+  taskId: string;
+  toolId?: number;
+  
+  // Deprecated: Use activeTabCode instead
+  /** @deprecated Use activeTabCode - will be removed in v3.0.0 */
+  initialTab?: string;
+  
+  // New prop
+  activeTabCode?: string;
+}
+```
+
+3. **Support Both Old and New** during transition:
+```typescript
+export const MyTool: ToolComponent = ({ taskId, initialTab, activeTabCode }) => {
+  // Support both old and new prop names
+  const activeTab = activeTabCode || initialTab || 'default';
+  
+  if (initialTab) {
+    console.warn('initialTab is deprecated, use activeTabCode instead');
+  }
+  // ...
+};
+```
+
+### Version Update Checklist
+
+When updating a tool:
+
+- [ ] Update `version` in tool config
+- [ ] Document changes in tool-specific README or CHANGELOG
+- [ ] Test with existing task assignments
+- [ ] Update ToolRegistry import if component name changed
+- [ ] Update API responses if tool metadata changed
+- [ ] Notify users if breaking changes affect their workflows
+
+### Multiple Tool Versions (Future)
+
+If supporting multiple versions simultaneously:
+
+```prisma
+model Tool {
+  id Int @id
+  code String
+  version String
+  active Boolean
+  deprecated Boolean @default(false)
+  
+  @@unique([code, version])
+}
+```
+
+**Migration Strategy**:
+1. Deploy new version with new code: `review-notebook-v2`
+2. Both versions available simultaneously
+3. Migrate tasks gradually
+4. Deprecate old version
+5. Remove old version after migration complete
 
 ## Related Rules
 

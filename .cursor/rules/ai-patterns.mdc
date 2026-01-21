@@ -1,6 +1,11 @@
 ---
 description: General AI patterns for Azure OpenAI integration
 alwaysApply: false
+version: 1.1.0
+lastUpdated: 2026-01-21
+changelog:
+  - "1.1.0 (2026-01-21): Expanded error handling with retry strategies and graceful degradation"
+  - "1.0.0: Initial AI patterns documentation"
 ---
 
 # AI Patterns
@@ -114,15 +119,137 @@ const stream = await streamText({
 
 ## Error Handling
 
-**Always wrap AI calls:**
+### Common Failure Scenarios
+
+**AI API Timeout:**
+```typescript
+import { generateText } from 'ai';
+
+try {
+  const result = await generateText({
+    model: models.mini,
+    prompt: 'Your prompt',
+    maxRetries: 2,
+    abortSignal: AbortSignal.timeout(30000), // 30 second timeout
+  });
+  return result.text;
+} catch (error) {
+  if (error.name === 'AbortError') {
+    logger.error('AI generation timeout', { prompt: prompt.slice(0, 100) });
+    throw new AppError(504, 'AI request timed out. Please try again.', ErrorCodes.SERVER_ERROR);
+  }
+  throw error;
+}
+```
+
+**Rate Limit Exceeded:**
 ```typescript
 try {
   const result = await generateText({ model, prompt });
   return result.text;
 } catch (error) {
+  if (error.status === 429) {
+    logger.warn('AI rate limit exceeded', { userId: user.id });
+    throw new AppError(429, 'Too many requests. Please wait a moment and try again.', ErrorCodes.RATE_LIMIT);
+  }
   logger.error('AI generation failed', { error });
-  throw new Error('Failed to generate response');
+  throw new AppError(500, 'Failed to generate response', ErrorCodes.SERVER_ERROR);
 }
+```
+
+**Invalid Model Configuration:**
+```typescript
+import { models } from '@/lib/ai/config';
+
+// Check model availability before use
+if (!models.mini) {
+  logger.error('AI model not configured');
+  throw new AppError(503, 'AI service temporarily unavailable', ErrorCodes.SERVICE_UNAVAILABLE);
+}
+```
+
+**RAG Engine Not Available:**
+```typescript
+import { ragEngine } from '@/lib/services/opinions/ragEngine';
+
+// Always check before using RAG
+if (!ragEngine.isConfigured()) {
+  logger.warn('RAG not configured, using fallback');
+  // Provide fallback behavior without RAG
+  return await generateWithoutContext(prompt);
+}
+
+try {
+  const results = await ragEngine.search(query, scopeId);
+  const context = ragEngine.formatContext(results);
+  return await generateWithContext(prompt, context);
+} catch (error) {
+  logger.error('RAG search failed', { error, query });
+  // Graceful degradation: proceed without RAG context
+  return await generateWithoutContext(prompt);
+}
+```
+
+**Document Intelligence Extraction Fails:**
+```typescript
+import { extractFromDocument } from '@/lib/services/documents/documentIntelligence';
+
+try {
+  const extracted = await extractFromDocument(fileUrl);
+  return extracted;
+} catch (error) {
+  logger.error('Document extraction failed', { error, fileUrl });
+  
+  // Provide partial results if available
+  if (error.partialData) {
+    logger.info('Returning partial extraction results');
+    return error.partialData;
+  }
+  
+  throw new AppError(422, 'Could not extract data from document. Please check file format.', ErrorCodes.VALIDATION_ERROR);
+}
+```
+
+### Retry Strategies
+
+**Exponential Backoff for Transient Failures:**
+```typescript
+async function generateWithRetry(prompt: string, maxRetries = 3) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await generateText({ model: models.mini, prompt });
+    } catch (error) {
+      const isLastAttempt = attempt === maxRetries - 1;
+      const isRetryable = error.status >= 500 || error.status === 429;
+      
+      if (!isRetryable || isLastAttempt) {
+        throw error;
+      }
+      
+      // Exponential backoff: 1s, 2s, 4s
+      const delayMs = Math.pow(2, attempt) * 1000;
+      logger.warn(`AI request failed, retrying in ${delayMs}ms`, { attempt });
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+  }
+}
+```
+
+### User Communication
+
+**Graceful Degradation Messages:**
+```typescript
+// When AI feature unavailable
+setWarning('AI assistance is temporarily unavailable. You can still complete this manually.');
+
+// When AI takes too long
+setInfo('AI is processing your request. This may take a moment...');
+
+// When partial results available
+setBanner({
+  variant: 'warning',
+  message: 'AI analysis completed with limited data. Please review carefully.',
+});
 ```
 
 ## Logging
@@ -162,6 +289,154 @@ AZURE_DOCUMENT_INTELLIGENCE_KEY=your_key
 3. Use examples: Few-shot prompting
 4. Structure output: Request specific formats
 5. Iterate: Refine based on quality
+
+## Rate Limiting
+
+### Default Rate Limits for AI Endpoints
+
+When using `secureRoute.ai()`, these limits are automatically applied:
+
+**Per-User Limits**:
+- **Default**: 10 requests per minute
+- **Burst**: 20 requests per 5 minutes
+- **Daily**: 200 requests per day
+
+**Per-IP Limits** (in addition to per-user):
+- **Default**: 30 requests per minute (protects against abuse)
+
+**Example**:
+```typescript
+import { secureRoute } from '@/lib/api/secureRoute';
+
+export const POST = secureRoute.ai({
+  schema: GenerateReportSchema,
+  handler: async (request, { user, data }) => {
+    // Rate limiting automatically enforced
+    const result = await generateReport(data);
+    return NextResponse.json(successResponse(result));
+  },
+});
+```
+
+### Handling Rate Limit Errors
+
+**Client-Side Handling**:
+```typescript
+try {
+  const response = await fetch('/api/ai/generate', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  
+  if (response.status === 429) {
+    const retryAfter = response.headers.get('Retry-After');
+    setError(`Rate limit exceeded. Please wait ${retryAfter} seconds before trying again.`);
+    return;
+  }
+  
+  const result = await response.json();
+} catch (error) {
+  logger.error('AI request failed', { error });
+}
+```
+
+**Server-Side Handling**:
+```typescript
+// secureRoute.ai() automatically returns 429 with Retry-After header
+// No manual handling needed in handler function
+```
+
+### Backoff Strategies
+
+**Exponential Backoff for Client**:
+```typescript
+async function generateWithBackoff(data: any, maxAttempts = 3) {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      const response = await fetch('/api/ai/generate', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      
+      if (response.ok) {
+        return await response.json();
+      }
+      
+      if (response.status === 429) {
+        const retryAfter = parseInt(response.headers.get('Retry-After') || '60');
+        
+        if (attempt < maxAttempts - 1) {
+          logger.info('Rate limited, retrying', { attempt, retryAfter });
+          await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+          continue;
+        }
+      }
+      
+      throw new Error(`Request failed: ${response.status}`);
+    } catch (error) {
+      if (attempt === maxAttempts - 1) throw error;
+    }
+  }
+}
+```
+
+### User Communication
+
+**Rate Limit Reached**:
+```tsx
+{rateLimitError && (
+  <Banner
+    variant="warning"
+    title="Rate Limit Reached"
+    message={`You've reached the AI generation limit. Please wait ${retryAfter} seconds before trying again.`}
+    dismissible
+    onDismiss={() => setRateLimitError(null)}
+  />
+)}
+```
+
+**Approaching Limit**:
+```tsx
+{requestCount > 150 && (
+  <Banner
+    variant="info"
+    message={`You've used ${requestCount}/200 AI requests today. Requests reset at midnight.`}
+  />
+)}
+```
+
+### Custom Rate Limits
+
+**For specific endpoints requiring different limits**:
+```typescript
+// Contact platform team to adjust rate limits
+// Document reason in API route comments:
+
+/**
+ * High-volume AI endpoint for batch processing
+ * Rate limit: 50 req/min (custom - approved by platform team)
+ */
+export const POST = secureRoute.ai({
+  // Custom limits configured at infrastructure level
+  schema: BatchProcessSchema,
+  handler: async (request, { user, data }) => {
+    // ...
+  },
+});
+```
+
+### Monitoring Rate Limits
+
+**Log rate limit hits**:
+```typescript
+// Automatically logged by secureRoute.ai()
+// Check logs for patterns:
+logger.warn('Rate limit exceeded', { 
+  userId: user.id, 
+  endpoint: '/api/ai/generate',
+  limit: 'per-user',
+});
+```
 
 ## Related Rules
 

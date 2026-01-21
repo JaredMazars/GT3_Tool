@@ -1,5 +1,10 @@
 ---
 alwaysApply: true
+version: 2.1.0
+lastUpdated: 2026-01-21
+changelog:
+  - "2.1.0 (2026-01-21): Fixed ConfirmModal import path, removed toast example confusion"
+  - "2.0.0: Initial design system standards"
 ---
 # Forvis Mazars Design System Standards
 
@@ -216,7 +221,7 @@ Browser native dialogs (`confirm()`, `alert()`, `prompt()`) violate Forvis Mazar
 
 **1. Confirmation Modals** (for destructive or important actions)
 ```tsx
-import { ConfirmModal } from '@/components/ui/modals';
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
 
 <ConfirmModal
   isOpen={showModal}
@@ -230,21 +235,7 @@ import { ConfirmModal } from '@/components/ui/modals';
 />
 ```
 
-**2. Toast Notifications** (for success/error feedback)
-```tsx
-import { toast } from '@/lib/utils/toast';
-
-// Success
-toast.success('Changes saved successfully');
-
-// Error with description
-toast.error('Failed to save', { 
-  description: 'Please check your connection and try again' 
-});
-
-```
-
-**3. Banner Components** (for user notifications and persistent alerts)
+**2. Banner Components** (for user notifications and alerts)
 
 **IMPORTANT:** Do NOT use `sonner`, `react-toastify`, or any external toast libraries. Use the built-in Banner component.
 
@@ -306,9 +297,8 @@ useEffect(() => {
 - Auto-hide success messages after 5 seconds
 - Keep error messages visible until user dismisses or resolves issue
 - Place banners at the top of the affected section or page
-```
 
-**4. Inline Validation** (for form errors)
+**3. Inline Validation** (for form errors)
 ```tsx
 import { Input } from '@/components/ui';
 
@@ -340,6 +330,31 @@ import { Input } from '@/components/ui';
 ❌ Mixing Gold + Blue without context | ❌ Dark icon gradient (`#2E5AAC → #1C3667`)  
 ❌ Inconsistent icon sizes | ❌ Browser popups (`confirm()`, `alert()`)  
 ❌ External toast libraries (`sonner`, `react-toastify`) - Use Banner component instead
+
+## Rule Exceptions
+
+### When Browser Dialogs Might Be Acceptable
+
+Browser dialogs (`confirm()`, `alert()`, `prompt()`) are strictly prohibited in production code. However, exceptions exist for:
+
+1. **Development/Debugging Only**: Quick debugging during development
+   - MUST be removed before PR review
+   - MUST NOT be committed to repository
+   - Example: `console.log()` with `confirm()` for step-through debugging
+
+2. **Emergency Hotfix**: Critical production issue requiring immediate user notification
+   - MUST create follow-up ticket to replace with proper modal
+   - MUST be replaced within 1 sprint
+   - Document: `// EMERGENCY HOTFIX: Replace with ConfirmModal - Ticket #123`
+   - Requires approval from technical lead
+
+**There are NO other exceptions.** Browser dialogs violate brand standards and accessibility requirements.
+
+### When External Toast Libraries Might Be Used
+
+External toast libraries (sonner, react-toastify) are prohibited. Use Banner component instead.
+
+**Exception**: None. The Banner component provides all required functionality with brand consistency.
 
 ## Related Rules
 

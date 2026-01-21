@@ -61,7 +61,26 @@ export async function createNewVersion(data: CreateVersionData): Promise<Templat
     // Get current template with sections
     const template = await tx.template.findUnique({
       where: { id: data.templateId },
-      include: { TemplateSection: { orderBy: { order: 'asc' } } },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        type: true,
+        serviceLine: true,
+        TemplateSection: {
+          select: {
+            sectionKey: true,
+            title: true,
+            content: true,
+            isRequired: true,
+            isAiAdaptable: true,
+            order: true,
+            applicableServiceLines: true,
+            applicableProjectTypes: true,
+          },
+          orderBy: { order: 'asc' },
+        },
+      },
     });
 
     if (!template) {
@@ -108,8 +127,32 @@ export async function createNewVersion(data: CreateVersionData): Promise<Templat
           })),
         },
       },
-      include: {
-        TemplateSectionVersion: { orderBy: { order: 'asc' } },
+      select: {
+        id: true,
+        templateId: true,
+        version: true,
+        name: true,
+        description: true,
+        type: true,
+        serviceLine: true,
+        isActive: true,
+        createdBy: true,
+        createdAt: true,
+        changeNotes: true,
+        TemplateSectionVersion: {
+          select: {
+            id: true,
+            sectionKey: true,
+            title: true,
+            content: true,
+            isRequired: true,
+            isAiAdaptable: true,
+            order: true,
+            applicableServiceLines: true,
+            applicableProjectTypes: true,
+          },
+          orderBy: { order: 'asc' },
+        },
       },
     });
 
@@ -164,8 +207,32 @@ export async function getVersionHistory(templateId: number): Promise<VersionHist
 export async function getVersion(versionId: number): Promise<TemplateVersionWithSections | null> {
   const version = await prisma.templateVersion.findUnique({
     where: { id: versionId },
-    include: {
-      TemplateSectionVersion: { orderBy: { order: 'asc' } },
+    select: {
+      id: true,
+      templateId: true,
+      version: true,
+      name: true,
+      description: true,
+      type: true,
+      serviceLine: true,
+      isActive: true,
+      createdBy: true,
+      createdAt: true,
+      changeNotes: true,
+      TemplateSectionVersion: {
+        select: {
+          id: true,
+          sectionKey: true,
+          title: true,
+          content: true,
+          isRequired: true,
+          isAiAdaptable: true,
+          order: true,
+          applicableServiceLines: true,
+          applicableProjectTypes: true,
+        },
+        orderBy: { order: 'asc' },
+      },
     },
   });
 
@@ -178,8 +245,32 @@ export async function getVersion(versionId: number): Promise<TemplateVersionWith
 export async function getActiveVersion(templateId: number): Promise<TemplateVersionWithSections | null> {
   const version = await prisma.templateVersion.findFirst({
     where: { templateId, isActive: true },
-    include: {
-      TemplateSectionVersion: { orderBy: { order: 'asc' } },
+    select: {
+      id: true,
+      templateId: true,
+      version: true,
+      name: true,
+      description: true,
+      type: true,
+      serviceLine: true,
+      isActive: true,
+      createdBy: true,
+      createdAt: true,
+      changeNotes: true,
+      TemplateSectionVersion: {
+        select: {
+          id: true,
+          sectionKey: true,
+          title: true,
+          content: true,
+          isRequired: true,
+          isAiAdaptable: true,
+          order: true,
+          applicableServiceLines: true,
+          applicableProjectTypes: true,
+        },
+        orderBy: { order: 'asc' },
+      },
     },
   });
 
@@ -235,7 +326,27 @@ export async function restoreVersion(versionId: number, restoredBy: string): Pro
     // Get version with sections
     const version = await tx.templateVersion.findUnique({
       where: { id: versionId },
-      include: { TemplateSectionVersion: { orderBy: { order: 'asc' } } },
+      select: {
+        templateId: true,
+        version: true,
+        name: true,
+        description: true,
+        type: true,
+        serviceLine: true,
+        TemplateSectionVersion: {
+          select: {
+            sectionKey: true,
+            title: true,
+            content: true,
+            isRequired: true,
+            isAiAdaptable: true,
+            order: true,
+            applicableServiceLines: true,
+            applicableProjectTypes: true,
+          },
+          orderBy: { order: 'asc' },
+        },
+      },
     });
 
     if (!version) {

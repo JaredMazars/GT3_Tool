@@ -3,7 +3,6 @@ import { prisma } from '@/lib/db/prisma';
 import { parseTaskId, successResponse } from '@/lib/utils/apiUtils';
 import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { toTaskId } from '@/types/branded';
-import { sanitizeText } from '@/lib/utils/sanitization';
 import { invalidateTaskListCache } from '@/lib/services/cache/listCache';
 import { TaskStage } from '@/types/task-stages';
 import { normalizeTaskStage } from '@/lib/utils/taskStages';
@@ -60,7 +59,7 @@ export const POST = secureRoute.mutationWithParams({
 
     // Normalize stage to uppercase for case-insensitive consistency
     const normalizedStage = normalizeTaskStage(data.stage);
-    const sanitizedNotes = data.notes ? sanitizeText(data.notes, { maxLength: 500, allowNewlines: true }) : null;
+    const sanitizedNotes = data.notes ?? null;
 
     const task = await prisma.task.findUnique({
       where: { id: taskId },

@@ -1,63 +1,93 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@/lib/services/auth/auth';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { prisma } from '@/lib/db/prisma';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { successResponse } from '@/lib/utils/apiUtils';
+import { toTaskId } from '@/types/branded';
+import { z } from 'zod';
 
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const session = await getSession();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+const CreateLegalPrecedentSchema = z.object({
+  caseName: z.string().min(1).max(500),
+  citation: z.string().min(1).max(200),
+  court: z.string().max(200).optional(),
+  year: z.number().int().min(1900).max(2100).optional(),
+  summary: z.string().min(1), // Required in Prisma schema
+  relevance: z.string().optional(),
+  link: z.string().url().optional(),
+}).strict();
 
-    const params = await context.params;
-    const taskId = Number.parseInt(params.id);
-    
+/**
+ * GET /api/tasks/[id]/legal-precedents
+ * List legal precedents for a task
+ */
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_TASKS,
+  taskIdParam: 'id',
+  handler: async (request: NextRequest, { user, params }) => {
+    const taskId = toTaskId(params.id);
     const precedents = await prisma.legalPrecedent.findMany({
       where: { taskId },
-      orderBy: { year: 'desc' },
+      select: {
+        id: true,
+        taskId: true,
+        caseName: true,
+        citation: true,
+        court: true,
+        year: true,
+        summary: true,
+        relevance: true,
+        link: true,
+        createdBy: true,
+        createdAt: true,
+      },
+      orderBy: [
+        { year: 'desc' },
+        { id: 'desc' }, // Deterministic secondary sort
+      ],
+      take: 100,
     });
 
-    return NextResponse.json({ success: true, data: precedents });
-  } catch (error) {
-    return handleApiError(error, 'GET /api/tasks/[id]/legal-precedents');
-  }
-}
+    return NextResponse.json(successResponse(precedents));
+  },
+});
 
-export async function POST(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const session = await getSession();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const params = await context.params;
-    const taskId = Number.parseInt(params.id);
-    const body = await request.json();
-
+/**
+ * POST /api/tasks/[id]/legal-precedents
+ * Create a legal precedent for a task
+ */
+export const POST = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TASKS,
+  taskIdParam: 'id',
+  schema: CreateLegalPrecedentSchema,
+  handler: async (request: NextRequest, { user, params, data }) => {
+    const taskId = toTaskId(params.id);
     const precedent = await prisma.legalPrecedent.create({
       data: {
         taskId,
-        caseName: body.caseName,
-        citation: body.citation,
-        court: body.court,
-        year: body.year,
-        summary: body.summary,
-        relevance: body.relevance,
-        link: body.link,
-        createdBy: session.user.email,
+        caseName: data.caseName,
+        citation: data.citation,
+        court: data.court,
+        year: data.year,
+        summary: data.summary, // Required field
+        relevance: data.relevance,
+        link: data.link,
+        createdBy: user.id,
+      },
+      select: {
+        id: true,
+        taskId: true,
+        caseName: true,
+        citation: true,
+        court: true,
+        year: true,
+        summary: true,
+        relevance: true,
+        link: true,
+        createdBy: true,
+        createdAt: true,
       },
     });
 
-    return NextResponse.json({ success: true, data: precedent });
-  } catch (error) {
-    return handleApiError(error, 'POST /api/tasks/[id]/legal-precedents');
-  }
-}
+    return NextResponse.json(successResponse(precedent), { status: 201 });
+  },
+});
 

@@ -4,7 +4,6 @@ import { parseTaskId, successResponse } from '@/lib/utils/apiUtils';
 import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { toTaskId } from '@/types/branded';
 import { Prisma } from '@prisma/client';
-import { sanitizeText } from '@/lib/utils/sanitization';
 import { invalidateClientCache } from '@/lib/services/cache/cacheInvalidation';
 import { invalidateTaskListCache } from '@/lib/services/cache/listCache';
 import { secureRoute } from '@/lib/api/secureRoute';
@@ -287,21 +286,15 @@ export const PUT = secureRoute.mutationWithParams({
     const updateData: Prisma.TaskUncheckedUpdateInput = {};
     
     if (data.name !== undefined) {
-      const sanitizedName = sanitizeText(data.name, { maxLength: 200 });
-      if (!sanitizedName) {
+      if (!data.name) {
         throw new AppError(400, 'Task name is required', ErrorCodes.VALIDATION_ERROR);
       }
-      updateData.TaskDesc = sanitizedName;
+      updateData.TaskDesc = data.name;
     }
     
     if (data.description !== undefined) {
-      const sanitizedDesc = sanitizeText(data.description, { 
-        maxLength: 1000,
-        allowHTML: false,
-        allowNewlines: true 
-      });
-      if (sanitizedDesc !== null) {
-        updateData.TaskDesc = sanitizedDesc;
+      if (data.description !== null) {
+        updateData.TaskDesc = data.description;
       }
     }
     

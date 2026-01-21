@@ -7,7 +7,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { VersionActionSchema } from '@/lib/validation/schemas';
-import { successResponse } from '@/lib/utils/apiUtils';
+import { successResponse, parseNumericId } from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import {
   getVersion,
   activateVersion,
@@ -21,29 +22,12 @@ import {
 export const GET = secureRoute.queryWithParams({
   feature: Feature.MANAGE_TEMPLATES,
   handler: async (request: NextRequest, { params }) => {
-    if (!params.versionId) {
-      return NextResponse.json(
-        { error: 'Version ID is required' },
-        { status: 400 }
-      );
-    }
-
-    const versionId = parseInt(params.versionId);
-
-    if (isNaN(versionId)) {
-      return NextResponse.json(
-        { error: 'Invalid version ID' },
-        { status: 400 }
-      );
-    }
+    const versionId = parseNumericId(params.versionId, 'Version');
 
     const version = await getVersion(versionId);
 
     if (!version) {
-      return NextResponse.json(
-        { error: 'Version not found' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Version not found', ErrorCodes.NOT_FOUND);
     }
 
     return NextResponse.json(successResponse(version));
@@ -58,21 +42,7 @@ export const PUT = secureRoute.mutationWithParams({
   feature: Feature.MANAGE_TEMPLATES,
   schema: VersionActionSchema,
   handler: async (request: NextRequest, { user, params, data }) => {
-    if (!params.versionId) {
-      return NextResponse.json(
-        { error: 'Version ID is required' },
-        { status: 400 }
-      );
-    }
-
-    const versionId = parseInt(params.versionId);
-
-    if (isNaN(versionId)) {
-      return NextResponse.json(
-        { error: 'Invalid version ID' },
-        { status: 400 }
-      );
-    }
+    const versionId = parseNumericId(params.versionId, 'Version');
 
     if (data.action === 'activate') {
       await activateVersion(versionId);

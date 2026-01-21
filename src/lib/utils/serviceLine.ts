@@ -192,11 +192,16 @@ export async function activateServiceLine(code: string): Promise<ServiceLineMast
 }
 
 /**
- * Format service line display name
+ * Get service line display name from database
+ * Looks up the service line by code and returns its display name
+ * 
  * @param code - Service line code
  * @returns Formatted display name or code if not found
+ * 
+ * NOTE: This is an async DB lookup. For synchronous type-based formatting,
+ * use formatServiceLineName() from @/lib/utils/serviceLineUtils instead.
  */
-export async function formatServiceLineName(code: string): Promise<string> {
+export async function getServiceLineDisplayName(code: string): Promise<string> {
   const serviceLine = await getServiceLineByCode(code);
   return serviceLine?.name || code;
 }

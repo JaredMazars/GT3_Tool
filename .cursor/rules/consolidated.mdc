@@ -1,10 +1,32 @@
 ---
 alwaysApply: true
+version: 2.0.0
+lastUpdated: 2026-01-21
+changelog:
+  - "2.0.0 (2026-01-21): Removed security duplication, streamlined with references to specialized files"
+  - "1.0.0: Initial consolidated conventions"
 ---
 
 # Project Conventions
 
 Next.js 14 (App Router) | TypeScript (strict) | Prisma | React Query | Azure OpenAI | Azure AD
+
+## Quick Reference Table
+
+| Task | Rule/Pattern | See Section |
+|------|--------------|-------------|
+| Create API route | Use `secureRoute.mutation/query` | Security (CRITICAL) |
+| Validate user input | Zod schemas + `parseXxxId()` | Security (CRITICAL) |
+| Protect page | `<PageAccessGuard pathname={...}>` | Security > Page-Level Access |
+| Check feature access | `<FeatureGate feature={...}>` | Security > Frontend Security |
+| Query database | Use explicit `select:`, add `take` limits | Performance > Database |
+| Store files | Purpose-specific blob containers | See blob-storage-rules.mdc |
+| Create approval flow | `approvalService.createApproval()` | See approval-system-rules.mdc |
+| Use AI generation | Import from `@/lib/ai/config` | See ai-patterns.mdc |
+| Show user messages | Banner component (NOT toast/alert) | See forvis-design-rules.mdc |
+| Handle errors | `try/catch` + `logger.error()` + `AppError` | Error Handling |
+| Invalidate cache | Call specific cache invalidation functions | Performance > Caching Strategy |
+| Add new tool | Register in ToolRegistry + database | See tool-system-rules.mdc |
 
 ## Specialized Rule Files (When To Consult)
 
@@ -177,86 +199,35 @@ Roles defined in `@/lib/utils/roleHierarchy.ts`. SYSTEM_ADMIN bypasses all check
 
 ### API Routes - Use secureRoute (REQUIRED)
 
-All API routes MUST use the `secureRoute` wrapper from `@/lib/api/secureRoute.ts`:
+All API routes MUST use the `secureRoute` wrapper. See `.cursor/rules/security-rules.mdc` for complete documentation.
 
+**Quick Reference:**
 ```typescript
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 
-// Mutations (POST/PUT/PATCH/DELETE)
-export const POST = secureRoute.mutation({
-  feature: Feature.MANAGE_TASKS,
-  schema: CreateTaskSchema,
-  handler: async (request, { user, data }) => {
-    const result = await prisma.task.create({ data, select: { id: true } });
-    return NextResponse.json(successResponse(result));
-  },
-});
-
-// Queries (GET)
-export const GET = secureRoute.query({
-  feature: Feature.ACCESS_TASKS,
-  handler: async (request, { user }) => {
-    return NextResponse.json(successResponse(data));
-  },
-});
-
-// Routes with params (e.g., [id])
-export const GET = secureRoute.queryWithParams({
-  taskIdParam: 'id',
-  handler: async (request, { user, params }) => { ... },
-});
-
-// AI endpoints (strict rate limiting)
-export const POST = secureRoute.ai({ schema, handler });
-
-// File uploads
-export const POST = secureRoute.fileUpload({ handler });
+// Mutations: secureRoute.mutation({ feature, schema, handler })
+// Queries: secureRoute.query({ feature, handler })
+// With params: secureRoute.queryWithParams({ taskIdParam: 'id', handler })
+// AI endpoints: secureRoute.ai({ schema, handler })
+// File uploads: secureRoute.fileUpload({ handler })
 ```
 
-**secureRoute handles automatically:**
-- Authentication, Rate limiting (per-user + IP), Input sanitization, Zod validation, Error handling, Performance tracking
+**secureRoute handles:** Authentication, rate limiting, input sanitization, Zod validation, error handling, performance tracking
 
-**Developer responsibilities:**
-- Choose correct wrapper (`mutation`, `query`, `ai`, `fileUpload`)
-- Specify `feature` for authorization
-- Use explicit `select:` in Prisma queries
-- Call cache invalidation after mutations
-- Use `logger` (NOT `console.*`)
+**Your responsibility:** Choose correct wrapper, specify feature, use explicit `select:`, call cache invalidation, use `logger`
 
 ### Page-Level Access
 
-**Comprehensive documentation:** See `.cursor/rules/security-rules.mdc` for complete page permissions system including architecture, database tables, pattern matching, cache strategy, admin UI guide, and developer guidelines.
+See `.cursor/rules/security-rules.mdc` for complete page permissions system (4-tier lookup, admin UI, implementation guide).
 
-**Quick Reference:**
-
-- **4-Tier Lookup**: Redis Cache → Database Override → Code Override → Convention Default
-- **Access Levels**: `NONE` (redirect) | `VIEW` (read-only) | `FULL` (all actions)
-- **Admin UI**: `/dashboard/admin/page-permissions` (SYSTEM_ADMIN only)
-- **Convention Defaults**:
-  - Admin pages: SYSTEM_ADMIN only
-  - Analytics/BD: PARTNER+ (MANAGER gets VIEW)
-  - Regular pages: All roles FULL, VIEWER gets VIEW
-
-**Usage**:
-
+**Quick Usage:**
 ```typescript
 // Every page layout must use PageAccessGuard
 <PageAccessGuard pathname={pathname}>{children}</PageAccessGuard>
 
 // Check access level in components
 const { isViewOnly, canEdit } = usePageAccess();
-{isViewOnly && <ViewOnlyBadge />}
-<EditActionWrapper><button>Edit</button></EditActionWrapper>
-
-// Programmatic checks (server-side)
-const { canAccess, accessLevel } = await checkPageAccess(userId, pathname);
 ```
-
-**Implementation Files**:
-- `@/lib/permissions/pageAccess.ts` - 4-tier lookup logic
-- `@/lib/permissions/pagePermissions.ts` - Code-based permission matrix
-- `@/components/guards/PageAccessGuard.tsx` - Server component guard
-- `@/lib/services/admin/pagePermissionService.ts` - CRUD operations
 
 ### Frontend Security
 
@@ -264,99 +235,68 @@ const { canAccess, accessLevel } = await checkPageAccess(userId, pathname);
 - `useFeature(Feature.X)` hook for checks
 - Server Components default, `'use client'` only when needed
 
-### User Interface & Interaction Patterns (CRITICAL)
+### User Interface & Interaction Patterns
 
-**Browser Dialogs Are PROHIBITED:**
-- ❌ NEVER use `confirm()` - unprofessional, no branding, poor UX
-- ❌ NEVER use `alert()` - breaks user flow, cannot be styled
-- ❌ NEVER use `prompt()` - inadequate validation, poor accessibility
+**CRITICAL:** Browser dialogs (`confirm()`, `alert()`, `prompt()`) are PROHIBITED.
 
-**Instead, use custom modal components:**
-- ✅ Confirmation modals for destructive actions (delete, archive, etc.)
-- ✅ Banner components for success/error messages (NOT toast libraries)
-- ✅ Inline validation for forms
-- ✅ Modal dialogs with proper context and branding
+See `.cursor/rules/forvis-design-rules.mdc` for:
+- Confirmation modal patterns
+- Banner component usage
+- Inline validation
+- Modal specifications
 
-**Implementation:**
-```typescript
-// ❌ WRONG: Browser dialog
-if (!confirm('Delete this item?')) return;
+### Input Validation, Authorization & Data Protection
 
-// ✅ CORRECT: Custom modal
-import { ConfirmModal } from '@/components/shared/ConfirmModal';
-const [showConfirm, setShowConfirm] = useState(false);
+See `.cursor/rules/security-rules.mdc` for complete security guidelines including:
+- Input validation and sanitization patterns
+- IDOR protection strategies
+- Authorization beyond roles
+- Data protection and audit logging
 
-<ConfirmModal
-  isOpen={showConfirm}
-  onClose={() => setShowConfirm(false)}
-  onConfirm={handleDelete}
-  title="Delete Client?"
-  message={`Are you sure you want to delete "${clientName}"? This action cannot be undone.`}
-  confirmText="Delete"
-  variant="danger"
-/>
+**Key Points:**
+- Validate ALL inputs (params, query, body) via Zod or `parseXxxId()`
+- Use `.strict()` on Zod schemas for mutations
+- IDOR protection: verify user access to specific resources
+- Blob Storage: use purpose-specific containers (see `.cursor/rules/blob-storage-rules.mdc`)
 
-// ❌ WRONG: Alert for errors
-alert('Failed to save');
+## Post-Edit Validation (REQUIRED)
 
-// ❌ WRONG: External toast libraries (sonner, react-toastify, etc.)
-import { toast } from 'sonner';
-toast.error('Failed to save');
+After changing or adding files, verify:
 
-// ✅ CORRECT: Banner component with state management
-import { Banner } from '@/components/ui';
-const [error, setError] = useState<string | null>(null);
-const [success, setSuccess] = useState<string | null>(null);
+### API Routes (src/app/api/**/route.ts)
+- ✅ Uses `secureRoute` wrapper (query/mutation/ai/fileUpload)
+- ✅ *WithParams variant for routes with [id] segments
+- ✅ Feature permission specified
+- ✅ Schema validation for mutations (POST/PUT/PATCH/DELETE)
+- ✅ Route params validated with `parseXxxId()` utilities
+- ✅ IDOR protection (user can only access their resources)
+- ✅ Explicit `select:` fields in Prisma queries
+- ✅ Cache invalidation after mutations
+- ✅ No `console.log` - use `logger` instead
+- ✅ No manual `sanitizeText()` calls (automatic in secureRoute)
+- ✅ List endpoints have `take` limits
 
-// On error
-setError('Failed to save changes. Please try again.');
+### Components (src/components/**/*)
+- ✅ No browser dialogs (`confirm()`, `alert()`, `prompt()`)
+- ✅ Use Banner component for messages (not toast libraries)
+- ✅ Use `@/components/ui` imports for UI elements
+- ✅ `<FeatureGate>` for conditional access
+- ✅ `'use client'` only when needed
 
-// On success
-setSuccess('Changes saved successfully');
-setTimeout(() => setSuccess(null), 5000); // Auto-hide after 5s
+### Database Queries (All Files)
+- ✅ Explicit `select:` - never select all fields
+- ✅ `take` limits on `findMany()` for large tables
+- ✅ No N+1 queries - use `include` or batch with `Promise.all()`
+- ✅ Transactions for multi-step mutations
 
-// In JSX
-{error && (
-  <Banner 
-    variant="error" 
-    message={error}
-    dismissible
-    onDismiss={() => setError(null)}
-  />
-)}
-{success && (
-  <Banner 
-    variant="success" 
-    message={success}
-    dismissible
-    onDismiss={() => setSuccess(null)}
-  />
-)}
-```
+### All Files
+- ✅ No `any` types - use `unknown` or proper interfaces
+- ✅ Branded IDs used correctly (TaskId, ClientId, etc.)
+- ✅ No `console.log/warn/error` - use `logger`
+- ✅ Static imports only (no `await import()` except AI/ML)
+- ✅ Correct import paths (no stale imports)
 
-**See:** `.cursor/rules/forvis-design-rules.mdc` for modal component specifications
-
-### Input Validation & Sanitization
-
-- Validate route params + query strings via Zod or `parseXxxId()` (not just body)
-- Zod schemas use `.strict()` for mutations (prevents mass assignment)
-- User-controlled sorting/filtering must use allowlists (no raw field passthrough)
-- List endpoints enforce limits (`take` with max value, validate cursor/skip)
-- Explicit field mapping in Prisma `data` - never spread user input directly
-
-### Authorization Beyond Roles
-
-- **IDOR protection**: Verify user access to specific resources, not just role checks
-- Filter out soft-deleted records where applicable
-- Business logic authorization (e.g., users can't approve their own submissions)
-
-### Data Protection
-
-- `Cache-Control: no-store` for sensitive/user-specific responses
-- Audit logging for sensitive operations (include userId, resourceId - no secrets/PII)
-- File uploads: validate size + MIME type allowlist; storage paths not user-controlled
-- `X-Content-Type-Options: nosniff` for file downloads
-- **Blob Storage**: MUST use purpose-specific containers (see `.cursor/rules/blob-storage-rules.mdc`)
+**Full Route Review:** See `/ROUTE_REVIEW_INDEX.md` for route review dashboard. Detailed review standards in `/docs/ROUTE_REVIEW_STANDARDS.md`. Domain-specific reviews in `/docs/route-reviews/*.md`.
 
 ## Performance (REQUIRED)
 
@@ -381,20 +321,52 @@ setTimeout(() => setSuccess(null), 5000); // Auto-hide after 5s
 - Race conditions: use optimistic locking or transactions for concurrent mutations
 - Response size: bound large JSON responses
 
-### Caching
+### Caching Strategy
 
-**TTLs:** Sessions 1h | User/Task 10min | Analytics/Static 30min
+**Hybrid Approach:** React Query (client-side) + Redis (server-side)
 
-**Prefixes:** `CACHE_PREFIXES.SESSION`, `USER`, `TASK`, `SERVICE_LINE`, `ANALYTICS`
+**React Query (Client-Side):**
+- Entity details (tasks, clients, groups, employees)
+- List data with pagination
+- Automatic invalidation on mutations
+- Cache keys: `['tasks', taskId]`, `['clients', clientId]`
+
+**Redis/Memory Cache (Server-Side):**
+- **Sessions** (1h) - User authentication sessions
+- **Permissions** (10min) - User feature/role permissions
+- **Rate Limiting** (varies) - Per-user and per-IP rate limits
+- **Analytics** (30min) - Workspace counts, graphs, aggregations
+- **Planner Data** (5-30min) - Staff planner queries (expensive joins)
+- **Service Lines** (10min) - Service line mappings and metadata
+- **Client Acceptance** (10min) - Server-side validation data
+- **Document Vault** (10min) - Vault metadata
+- **Employee Lookups** (10min) - Employee data for relationships
+
+**When to Use Which:**
+- **React Query:** Entity CRUD, lists, user-specific data
+- **Redis:** Shared state, expensive aggregations, rate limiting, sessions
 
 **Cache Invalidation (after mutations):**
 ```typescript
-import { invalidateOnTaskMutation, invalidateOnClientMutation, invalidateApprovalsCache } from '@/lib/services/cache/cacheInvalidation';
+import { invalidateApprovalsCache, invalidateWorkspaceCounts, invalidatePlannerCachesForServiceLine } from '@/lib/services/cache/cacheInvalidation';
 
-await invalidateOnTaskMutation(taskId, serviceLine, subServiceLineGroup);
-await invalidateOnClientMutation(clientId);
-await invalidateApprovalsCache(); // After approval mutations
+// After approval mutations
+await invalidateApprovalsCache();
+
+// After task/client mutations affecting counts
+await invalidateWorkspaceCounts(serviceLine, subServiceLineGroup);
+
+// After task team mutations (invalidates planner)
+await invalidatePlannerCachesForServiceLine(serviceLine, subServiceLineGroup);
+
+// React Query invalidation (client-side)
+queryClient.invalidateQueries({ queryKey: ['tasks', taskId] });
+queryClient.invalidateQueries({ queryKey: ['clients', clientId] });
 ```
+
+**List Caching:** Only first 3 pages cached (5min TTL), searches skipped.
+
+**Performance:** Uses SCAN (not KEYS) for pattern invalidation, silent failure on cache errors.
 
 ### Logging
 

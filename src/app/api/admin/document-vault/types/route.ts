@@ -4,70 +4,8 @@ import { Feature } from '@/lib/permissions/features';
 import { CreateDocumentTypeSchema } from '@/lib/validation/schemas';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { SystemRole } from '@/types';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { invalidateDocumentTypesCache } from '@/lib/services/document-vault/documentVaultCache';
-
-/**
- * POST /api/admin/document-vault/types
- * Create new document type (SYSTEM_ADMIN only)
- */
-export const POST = secureRoute.mutation({
-  feature: Feature.MANAGE_VAULT_DOCUMENTS,
-  schema: CreateDocumentTypeSchema,
-  handler: async (request, { user, data }) => {
-    // Only SYSTEM_ADMIN can create document types
-    const userRecord = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { role: true },
-    });
-
-    if (userRecord?.role !== SystemRole.SYSTEM_ADMIN) {
-      return NextResponse.json(
-        { error: 'Only system administrators can create document types' },
-        { status: 403 }
-      );
-    }
-
-    // Check if code already exists
-    const existing = await prisma.vaultDocumentType.findUnique({
-      where: { code: data.code },
-    });
-
-    if (existing) {
-      return NextResponse.json(
-        { error: `Document type with code "${data.code}" already exists` },
-        { status: 400 }
-      );
-    }
-
-    // Create document type
-    const documentType = await prisma.vaultDocumentType.create({
-      data: {
-        code: data.code,
-        name: data.name,
-        description: data.description,
-        icon: data.icon,
-        color: data.color,
-        sortOrder: data.sortOrder || 0,
-      },
-      select: {
-        id: true,
-        code: true,
-        name: true,
-        description: true,
-        icon: true,
-        color: true,
-        active: true,
-        sortOrder: true,
-      },
-    });
-
-    // Invalidate cache
-    await invalidateDocumentTypesCache();
-
-    return NextResponse.json(successResponse(documentType), { status: 201 });
-  },
-});
 
 /**
  * GET /api/admin/document-vault/types
@@ -76,18 +14,7 @@ export const POST = secureRoute.mutation({
 export const GET = secureRoute.query({
   feature: Feature.MANAGE_VAULT_DOCUMENTS,
   handler: async (request, { user }) => {
-    // Only SYSTEM_ADMIN can view all document types
-    const userRecord = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { role: true },
-    });
-
-    if (userRecord?.role !== SystemRole.SYSTEM_ADMIN) {
-      return NextResponse.json(
-        { error: 'Only system administrators can manage document types' },
-        { status: 403 }
-      );
-    }
+    // Feature permission handles authorization
 
     const types = await prisma.vaultDocumentType.findMany({
       select: {
@@ -106,7 +33,11 @@ export const GET = secureRoute.query({
           },
         },
       },
-      orderBy: { sortOrder: 'asc' },
+      orderBy: [
+        { sortOrder: 'asc' },
+        { id: 'asc' }, // Deterministic secondary sort
+      ],
+      take: 100,
     });
 
     const result = types.map(type => ({
@@ -116,5 +47,58 @@ export const GET = secureRoute.query({
     }));
 
     return NextResponse.json(successResponse(result));
+  },
+});
+
+/**
+ * POST /api/admin/document-vault/types
+ * Create new document type (SYSTEM_ADMIN only via feature permission)
+ */
+export const POST = secureRoute.mutation({
+  feature: Feature.MANAGE_VAULT_DOCUMENTS,
+  schema: CreateDocumentTypeSchema,
+  handler: async (request, { user, data }) => {
+    // Feature permission handles authorization
+
+    // Check if code already exists
+    const existing = await prisma.vaultDocumentType.findUnique({
+      where: { code: data.code },
+      select: { code: true },
+    });
+
+    if (existing) {
+      throw new AppError(
+        400,
+        `Document type with code "${data.code}" already exists`,
+        ErrorCodes.VALIDATION_ERROR
+      );
+    }
+
+    // Create document type
+    const documentType = await prisma.vaultDocumentType.create({
+      data: {
+        code: data.code,
+        name: data.name,
+        description: data.description,
+        icon: data.icon,
+        color: data.color,
+        sortOrder: data.sortOrder ?? 0,
+      },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        description: true,
+        icon: true,
+        color: true,
+        active: true,
+        sortOrder: true,
+      },
+    });
+
+    // Invalidate cache
+    await invalidateDocumentTypesCache();
+
+    return NextResponse.json(successResponse(documentType), { status: 201 });
   },
 });

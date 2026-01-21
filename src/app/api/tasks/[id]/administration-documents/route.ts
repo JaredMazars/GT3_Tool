@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
-import { sanitizeFilename, sanitizeText } from '@/lib/utils/sanitization';
+import { sanitizeFilename } from '@/lib/utils/sanitization';
 
 // Maximum documents to return per request
 const MAX_DOCUMENTS = 500;
@@ -77,7 +77,7 @@ export const POST = secureRoute.mutationWithParams({
         fileSize: data.fileSize,
         filePath: data.filePath,
         category: data.category || 'General',
-        description: data.description ? sanitizeText(data.description, { allowNewlines: true }) : undefined,
+        description: data.description,
         version: data.version || 1,
         uploadedBy: user.id,
       },
