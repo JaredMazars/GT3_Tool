@@ -350,6 +350,7 @@ export default function SubServiceLineWorkspacePage() {
   const { 
     data: clientsData, 
     isLoading: isLoadingClients,
+    isFetching: isFetchingClients,
   } = useClients({
     search: '', // No text search - use array filters
     page: currentPage,
@@ -515,7 +516,7 @@ export default function SubServiceLineWorkspacePage() {
   const { data: approvalsCount, isLoading: isLoadingApprovalsCount } = useApprovalsCount();
   
   const isLoading = activeTab === 'clients' ? isLoadingClients : activeTab === 'tasks' ? isLoadingTasks : activeTab === 'my-tasks' ? isLoadingMyTasks : activeTab === 'groups' ? isLoadingGroups : activeTab === 'planner' ? isLoadingPlannerUsers : false;
-  const isFetching = activeTab === 'clients' ? false : activeTab === 'tasks' ? isFetchingTasks : activeTab === 'my-tasks' ? isFetchingMyTasks : activeTab === 'groups' ? isFetchingGroups : false;
+  const isFetching = activeTab === 'clients' ? isFetchingClients : activeTab === 'tasks' ? isFetchingTasks : activeTab === 'my-tasks' ? isFetchingMyTasks : activeTab === 'groups' ? isFetchingGroups : false;
   
   // Use the current user's role from state (default to VIEWER)
   const currentUserServiceLineRole = currentUserSubGroupRole;
@@ -566,7 +567,8 @@ export default function SubServiceLineWorkspacePage() {
           actualHours: alloc.actualHours,
           isNonClientEvent: alloc.isNonClientEvent,
           nonClientEventType: alloc.nonClientEventType,
-          notes: alloc.notes
+          notes: alloc.notes,
+          isCurrentTask: (alloc as any).isCurrentTask // Preserve isCurrentTask flag for cross-service-line allocations
         });
       }
     });
@@ -719,16 +721,6 @@ export default function SubServiceLineWorkspacePage() {
 
   return (
     <div className="min-h-screen bg-forvis-gray-50 relative">
-      {/* Loading overlay for tab switches - don't show in Kanban mode (KanbanBoard handles its own loading) */}
-      {isFetching && !isLoading && taskViewMode !== 'kanban' && (
-        <div className="fixed inset-0 bg-white bg-opacity-90 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-6 shadow-corporate-lg">
-            <LoadingSpinner size="lg" className="mx-auto" />
-            <p className="mt-4 text-sm text-forvis-gray-700 font-medium">Loading...</p>
-          </div>
-        </div>
-      )}
-      
       <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
         <nav className="flex items-center space-x-2 text-sm text-forvis-gray-600 mb-6">
@@ -1172,6 +1164,12 @@ export default function SubServiceLineWorkspacePage() {
             <VaultDocumentsView serviceLine={serviceLine} />
           ) : activeTab === 'groups' ? (
             /* Groups List */
+            isFetchingGroups && filteredGroups.length === 0 ? (
+              <div className="flex justify-center items-center py-12">
+                <LoadingSpinner size="lg" />
+                <p className="ml-4 text-sm text-forvis-gray-600">Loading groups...</p>
+              </div>
+            ) : (
             <div className="bg-forvis-gray-50 rounded-lg border border-forvis-gray-200 shadow-sm p-4">
               {filteredGroups.length === 0 ? (
                 <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate text-center py-12">
@@ -1316,8 +1314,15 @@ export default function SubServiceLineWorkspacePage() {
                 </>
               )}
             </div>
+            )
           ) : activeTab === 'clients' ? (
             /* Clients List */
+            isFetchingClients && filteredClients.length === 0 ? (
+              <div className="flex justify-center items-center py-12">
+                <LoadingSpinner size="lg" />
+                <p className="ml-4 text-sm text-forvis-gray-600">Loading clients...</p>
+              </div>
+            ) : (
             <div className="bg-forvis-gray-50 rounded-lg border border-forvis-gray-200 shadow-sm p-4">
               {filteredClients.length === 0 ? (
                 <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate text-center py-12">
@@ -1519,6 +1524,7 @@ export default function SubServiceLineWorkspacePage() {
                 </>
               )}
             </div>
+            )
           ) : (activeTab === 'tasks' || activeTab === 'my-tasks') ? (
             /* Tasks List or Kanban View */
             <div className="space-y-4">
@@ -1534,7 +1540,15 @@ export default function SubServiceLineWorkspacePage() {
                 onDisplayModeChange={setDisplayMode}
               />
 
-              {taskViewMode === 'kanban' ? (
+              {/* Show loading spinner for list view only (Kanban handles its own loading) */}
+              {taskViewMode !== 'kanban' && (isFetchingTasks || isFetchingMyTasks) && (activeTab === 'tasks' ? filteredTasks.length === 0 : filteredMyTasks.length === 0) ? (
+                <div className="flex justify-center items-center py-12">
+                  <LoadingSpinner size="lg" />
+                  <p className="ml-4 text-sm text-forvis-gray-600">
+                    Loading {activeTab === 'my-tasks' ? 'your tasks' : 'tasks'}...
+                  </p>
+                </div>
+              ) : taskViewMode === 'kanban' ? (
                 /* Kanban View */
                 <KanbanBoard
                   serviceLine={serviceLine}

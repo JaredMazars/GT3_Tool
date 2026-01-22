@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { ClipboardCheck, Bell, Archive } from 'lucide-react';
+import { ClipboardCheck, Bell, Archive, ShieldCheck } from 'lucide-react';
 import { useApprovals } from '@/hooks/approvals/useApprovals';
 import { LoadingSpinner } from '@/components/ui';
 import { ChangeRequestApprovalItem } from './ChangeRequestApprovalItem';
 import { ClientAcceptanceApprovalItem } from './ClientAcceptanceApprovalItem';
 import { EngagementAcceptanceApprovalItem } from './EngagementAcceptanceApprovalItem';
 import { ReviewNoteApprovalItem } from './ReviewNoteApprovalItem';
+import { IndependenceConfirmationItem } from './IndependenceConfirmationItem';
 import { UnifiedApprovalCard } from './UnifiedApprovalCard';
 import { NotificationItem } from '@/components/features/notifications/NotificationItem';
 import { useNotifications } from '@/hooks/notifications/useNotifications';
@@ -23,7 +24,7 @@ import {
 import type { ReadStatusFilter } from '@/types/notification';
 
 type TabType = 'approvals' | 'notifications';
-type ApprovalTypeTab = 'all' | 'changeRequests' | 'clientAcceptance' | 'engagementAcceptance' | 'reviewNotes' | 'vaultDocuments';
+type ApprovalTypeTab = 'all' | 'changeRequests' | 'clientAcceptance' | 'engagementAcceptance' | 'reviewNotes' | 'vaultDocuments' | 'independenceConfirmations';
 
 export function MyApprovalsView() {
   const [activeSubTab, setActiveSubTab] = useState<TabType>('approvals');
@@ -39,6 +40,7 @@ export function MyApprovalsView() {
     subServiceLineGroup?: string;
     clientId?: string;
     noteId?: number;
+    initialTab?: string;
   } | null>(null);
   
   const { data: approvalsData, isLoading: isLoadingApprovals, refetch } = useApprovals(showArchived);
@@ -85,6 +87,7 @@ export function MyApprovalsView() {
     subServiceLineGroup?: string;
     clientId?: string;
     noteId?: number;
+    initialTab?: string;
   }) => {
     setSelectedTask(taskData);
   };
@@ -107,6 +110,7 @@ export function MyApprovalsView() {
       (approval) => approval.workflowType !== 'CLIENT_ACCEPTANCE'
     ) || [];
   }, [approvalsData?.centralizedApprovals]);
+
 
   return (
     <div className="space-y-4">
@@ -365,6 +369,37 @@ export function MyApprovalsView() {
                       </button>
 
                       <button
+                        onClick={() => setActiveApprovalType('independenceConfirmations')}
+                        disabled={(approvalsData.independenceConfirmations?.length || 0) === 0}
+                        className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-t-lg transition-all duration-200 border-b-2 ${
+                          activeApprovalType === 'independenceConfirmations'
+                            ? 'border-forvis-blue-500 text-white shadow-sm'
+                            : (approvalsData.independenceConfirmations?.length || 0) === 0
+                            ? 'border-transparent text-forvis-gray-400 cursor-not-allowed'
+                            : 'border-transparent text-forvis-gray-700 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
+                        }`}
+                        style={
+                          activeApprovalType === 'independenceConfirmations'
+                            ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }
+                            : {}
+                        }
+                      >
+                        <ShieldCheck className="h-4 w-4" />
+                        <span>Independence</span>
+                        {(approvalsData.independenceConfirmations?.length || 0) > 0 && (
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              activeApprovalType === 'independenceConfirmations'
+                                ? 'bg-white/30 text-white'
+                                : 'bg-forvis-blue-100 text-forvis-blue-700'
+                            }`}
+                          >
+                            {approvalsData.independenceConfirmations.length}
+                          </span>
+                        )}
+                      </button>
+
+                      <button
                         onClick={() => setActiveApprovalType('vaultDocuments')}
                         disabled={(approvalsData.centralizedApprovals?.length || 0) === 0}
                         className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-t-lg transition-all duration-200 border-b-2 ${
@@ -494,6 +529,27 @@ export function MyApprovalsView() {
                         </div>
                       )}
 
+                    {/* Independence Confirmations */}
+                    {(activeApprovalType === 'all' || activeApprovalType === 'independenceConfirmations') &&
+                      (approvalsData.independenceConfirmations?.length || 0) > 0 && (
+                        <div>
+                          {activeApprovalType === 'all' && (
+                            <h3 className="text-sm font-semibold text-forvis-gray-900 uppercase tracking-wider mb-3">
+                              Independence Confirmations ({approvalsData.independenceConfirmations.length})
+                            </h3>
+                          )}
+                          <div className="space-y-3">
+                            {approvalsData.independenceConfirmations.map((confirmation) => (
+                              <IndependenceConfirmationItem
+                                key={confirmation.id}
+                                confirmation={confirmation}
+                                onOpenTaskModal={handleOpenTaskModal}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                     {/* Centralized Approvals (Vault Documents, etc.) */}
                     {(activeApprovalType === 'all' || activeApprovalType === 'vaultDocuments') &&
                       otherCentralizedApprovals.length > 0 && (
@@ -528,6 +584,7 @@ export function MyApprovalsView() {
                       ((activeApprovalType === 'changeRequests' && approvalsData.changeRequests.length === 0) ||
                         (activeApprovalType === 'clientAcceptance' && clientAcceptanceApprovals.length === 0) ||
                         (activeApprovalType === 'engagementAcceptance' && (!approvalsData.engagementAcceptances || approvalsData.engagementAcceptances.length === 0)) ||
+                        (activeApprovalType === 'independenceConfirmations' && (approvalsData.independenceConfirmations?.length || 0) === 0) ||
                         (activeApprovalType === 'reviewNotes' && approvalsData.reviewNotes.length === 0) ||
                         (activeApprovalType === 'vaultDocuments' && otherCentralizedApprovals.length === 0)) && (
                         <div className="text-center py-12">
@@ -810,6 +867,7 @@ export function MyApprovalsView() {
           subServiceLineGroup={selectedTask.subServiceLineGroup}
           clientId={selectedTask.clientId}
           initialNoteId={selectedTask.noteId}
+          initialTab={selectedTask.initialTab}
         />
       )}
     </div>

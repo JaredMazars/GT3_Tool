@@ -322,16 +322,36 @@ export const GET = secureRoute.queryWithParams({
       const employeeCodesToAdd: Array<{ code: string; role: 'PARTNER' | 'MANAGER' }> = [];
       
       // Check if partner is in the team
+      // We need to check if Task.TaskPartner (employee code) has a corresponding TaskTeam record
       if (task.TaskPartner) {
-        const partnerInTeam = taskTeams.some(tt => {
-          const emailPrefix = tt.User.email.split('@')[0];
-          const employee = employeeMap.get(tt.User.email.toLowerCase()) || 
-                           (emailPrefix ? employeeMap.get(emailPrefix.toLowerCase()) : undefined);
-          return employee?.WinLogon && (
-            employee.WinLogon.toLowerCase() === tt.User.email.toLowerCase() ||
-            employee.WinLogon.split('@')[0]?.toLowerCase() === emailPrefix?.toLowerCase()
-          );
+        // Get the partner's employee record
+        const partnerEmployee = await prisma.employee.findFirst({
+          where: {
+            EmpCode: task.TaskPartner,
+            Active: 'Yes',
+          },
+          select: {
+            EmpCode: true,
+            WinLogon: true,
+          },
         });
+        
+        // Find if this partner has a TaskTeam record by matching User email to employee WinLogon
+        let partnerInTeam = false;
+        if (partnerEmployee?.WinLogon) {
+          const partnerWinLogonLower = partnerEmployee.WinLogon.toLowerCase();
+          const partnerEmailPrefix = partnerEmployee.WinLogon.split('@')[0]?.toLowerCase();
+          
+          partnerInTeam = taskTeams.some(tt => {
+            const userEmailLower = tt.User.email.toLowerCase();
+            const userEmailPrefix = tt.User.email.split('@')[0]?.toLowerCase();
+            
+            // Check if the User email matches the partner's WinLogon
+            return userEmailLower === partnerWinLogonLower ||
+                   userEmailLower === `${partnerWinLogonLower}@mazarsinafrica.onmicrosoft.com` ||
+                   userEmailPrefix === partnerEmailPrefix;
+          });
+        }
         
         if (!partnerInTeam) {
           employeeCodesToAdd.push({ code: task.TaskPartner, role: 'PARTNER' });
@@ -340,15 +360,34 @@ export const GET = secureRoute.queryWithParams({
       
       // Check if manager is in the team (and not same as partner)
       if (task.TaskManager && task.TaskManager !== task.TaskPartner) {
-        const managerInTeam = taskTeams.some(tt => {
-          const emailPrefix = tt.User.email.split('@')[0];
-          const employee = employeeMap.get(tt.User.email.toLowerCase()) || 
-                           (emailPrefix ? employeeMap.get(emailPrefix.toLowerCase()) : undefined);
-          return employee?.WinLogon && (
-            employee.WinLogon.toLowerCase() === tt.User.email.toLowerCase() ||
-            employee.WinLogon.split('@')[0]?.toLowerCase() === emailPrefix?.toLowerCase()
-          );
+        // Get the manager's employee record
+        const managerEmployee = await prisma.employee.findFirst({
+          where: {
+            EmpCode: task.TaskManager,
+            Active: 'Yes',
+          },
+          select: {
+            EmpCode: true,
+            WinLogon: true,
+          },
         });
+        
+        // Find if this manager has a TaskTeam record by matching User email to employee WinLogon
+        let managerInTeam = false;
+        if (managerEmployee?.WinLogon) {
+          const managerWinLogonLower = managerEmployee.WinLogon.toLowerCase();
+          const managerEmailPrefix = managerEmployee.WinLogon.split('@')[0]?.toLowerCase();
+          
+          managerInTeam = taskTeams.some(tt => {
+            const userEmailLower = tt.User.email.toLowerCase();
+            const userEmailPrefix = tt.User.email.split('@')[0]?.toLowerCase();
+            
+            // Check if the User email matches the manager's WinLogon
+            return userEmailLower === managerWinLogonLower ||
+                   userEmailLower === `${managerWinLogonLower}@mazarsinafrica.onmicrosoft.com` ||
+                   userEmailPrefix === managerEmailPrefix;
+          });
+        }
         
         if (!managerInTeam) {
           employeeCodesToAdd.push({ code: task.TaskManager, role: 'MANAGER' });
@@ -762,12 +801,34 @@ export const POST = secureRoute.mutationWithParams({
           Client: {
             select: {
               id: true,
+              clientNameFull: true,
+              clientCode: true,
             },
           },
         },
       });
 
       if (taskForNotification) {
+        // Create independence confirmation record for client tasks
+        if (taskForNotification.GSClientID) {
+          try {
+            await prisma.taskIndependenceConfirmation.create({
+              data: {
+                taskTeamId: taskTeam.id,
+                confirmed: false,
+              },
+            });
+            logger.info('Independence confirmation record created', {
+              taskId,
+              taskTeamId: taskTeam.id,
+              userId: taskTeam.userId,
+            });
+          } catch (independenceError) {
+            logger.error('Failed to create independence confirmation:', independenceError);
+            // Don't fail the request
+          }
+        }
+
         // Get service line mapping for the notification URL
         const serviceLineMapping = await prisma.serviceLineExternal.findFirst({
           where: { ServLineCode: taskForNotification.ServLineCode },
@@ -777,6 +838,10 @@ export const POST = secureRoute.mutationWithParams({
           },
         });
 
+        // Pass client name if it's a client task (for independence message)
+        const clientName = taskForNotification.Client?.clientNameFull || 
+                          taskForNotification.Client?.clientCode;
+
         const notification = createUserAddedNotification(
           taskForNotification.TaskDesc,
           taskId,
@@ -784,7 +849,8 @@ export const POST = secureRoute.mutationWithParams({
           taskTeam.role,
           serviceLineMapping?.masterCode ?? undefined,
           serviceLineMapping?.SubServlineGroupCode ?? undefined,
-          taskForNotification.Client?.id
+          taskForNotification.Client?.id,
+          clientName
         );
 
         await notificationService.createNotification(

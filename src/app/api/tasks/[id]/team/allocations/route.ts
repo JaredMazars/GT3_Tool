@@ -201,8 +201,37 @@ export const GET = secureRoute.queryWithParams({
       const employeeCodesToAdd: Array<{ code: string; role: 'PARTNER' | 'MANAGER' }> = [];
       
       // Check if partner is in team
+      // We need to check if the SPECIFIC partner (by employee code) is in the team
       if (task.TaskPartner) {
-        const partnerInTeam = task.TaskTeam.some(m => m.role === 'PARTNER');
+        // First, get the partner's employee record to find their User account
+        const partnerEmployee = await prisma.employee.findFirst({
+          where: {
+            EmpCode: task.TaskPartner,
+            Active: 'Yes',
+          },
+          select: {
+            EmpCode: true,
+            WinLogon: true,
+          },
+        });
+        
+        // Check if this specific partner has a TaskTeam record by matching User email
+        let partnerInTeam = false;
+        if (partnerEmployee?.WinLogon) {
+          const partnerWinLogonLower = partnerEmployee.WinLogon.toLowerCase();
+          const partnerEmailPrefix = partnerEmployee.WinLogon.split('@')[0]?.toLowerCase();
+          
+          partnerInTeam = task.TaskTeam.some(m => {
+            const userEmailLower = m.User.email?.toLowerCase();
+            const userEmailPrefix = userEmailLower?.split('@')[0]?.toLowerCase();
+            
+            // Check if the User email matches the partner's WinLogon
+            return userEmailLower === partnerWinLogonLower ||
+                   userEmailLower === `${partnerWinLogonLower}@mazarsinafrica.onmicrosoft.com` ||
+                   userEmailPrefix === partnerEmailPrefix;
+          });
+        }
+        
         if (!partnerInTeam) {
           employeeCodesToAdd.push({ code: task.TaskPartner, role: 'PARTNER' });
         }
@@ -210,7 +239,35 @@ export const GET = secureRoute.queryWithParams({
       
       // Check if manager is in team (and not same as partner)
       if (task.TaskManager && task.TaskManager !== task.TaskPartner) {
-        const managerInTeam = task.TaskTeam.some(m => m.role === 'MANAGER');
+        // Get the manager's employee record to find their User account
+        const managerEmployee = await prisma.employee.findFirst({
+          where: {
+            EmpCode: task.TaskManager,
+            Active: 'Yes',
+          },
+          select: {
+            EmpCode: true,
+            WinLogon: true,
+          },
+        });
+        
+        // Check if this specific manager has a TaskTeam record by matching User email
+        let managerInTeam = false;
+        if (managerEmployee?.WinLogon) {
+          const managerWinLogonLower = managerEmployee.WinLogon.toLowerCase();
+          const managerEmailPrefix = managerEmployee.WinLogon.split('@')[0]?.toLowerCase();
+          
+          managerInTeam = task.TaskTeam.some(m => {
+            const userEmailLower = m.User.email?.toLowerCase();
+            const userEmailPrefix = userEmailLower?.split('@')[0]?.toLowerCase();
+            
+            // Check if the User email matches the manager's WinLogon
+            return userEmailLower === managerWinLogonLower ||
+                   userEmailLower === `${managerWinLogonLower}@mazarsinafrica.onmicrosoft.com` ||
+                   userEmailPrefix === managerEmailPrefix;
+          });
+        }
+        
         if (!managerInTeam) {
           employeeCodesToAdd.push({ code: task.TaskManager, role: 'MANAGER' });
         }

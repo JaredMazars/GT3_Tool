@@ -158,6 +158,27 @@ export interface ReviewNoteApproval {
 }
 
 /**
+ * Independence Confirmation Approval
+ * Pending independence confirmations for client tasks
+ */
+export interface IndependenceConfirmationApproval {
+  id: number;
+  taskTeamId: number;
+  taskId: number;
+  taskName: string;
+  taskCode: string | null;
+  clientId: number;
+  clientGSID: string;
+  clientCode: string;
+  clientName: string | null;
+  role: string;
+  servLineCode: string;
+  subServlineGroupCode: string | null;
+  masterCode: string | null;
+  addedAt: Date;
+}
+
+/**
  * Aggregated Approvals Response
  * All pending approvals for the current user
  */
@@ -166,6 +187,7 @@ export interface ApprovalsResponse {
   clientAcceptances: ClientAcceptanceApproval[];
   engagementAcceptances: EngagementAcceptanceApproval[];
   reviewNotes: ReviewNoteApproval[];
+  independenceConfirmations: IndependenceConfirmationApproval[];
   centralizedApprovals: ApprovalWithSteps[];
   totalCount: number;
 }

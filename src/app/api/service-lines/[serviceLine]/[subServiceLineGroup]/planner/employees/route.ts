@@ -66,6 +66,7 @@ interface AllocationRow {
   isNonClientEvent: boolean;
   nonClientEventType: string | null;
   notes: string | null;
+  isCurrentTask?: boolean; // Whether this allocation belongs to the current service line
   employeeStatus?: {
     isActive: boolean;
     hasUserAccount: boolean;
@@ -392,6 +393,62 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
       prisma.taskTeam.count({ where: taskTeamWhereFinal })
     ]);
 
+    // 9a. Fetch cross-service-line allocations for the same users (from OTHER service lines)
+    // These will be shown in grey and non-editable to provide full visibility of employee workload
+    const currentServiceLineUserIds = [...new Set(taskTeamAllocations.map(a => a.userId))];
+    const crossServiceLineAllocations = currentServiceLineUserIds.length > 0 
+      ? await prisma.taskTeam.findMany({
+          where: {
+            userId: { in: currentServiceLineUserIds },
+            startDate: { not: null },
+            endDate: { not: null },
+            Task: {
+              ServLineCode: { notIn: externalServLineCodes } // From OTHER service lines
+            }
+          },
+          select: {
+            id: true,
+            taskId: true,
+            userId: true,
+            role: true,
+            startDate: true,
+            endDate: true,
+            allocatedHours: true,
+            allocatedPercentage: true,
+            actualHours: true,
+            User: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                image: true
+              }
+            },
+            Task: {
+              select: {
+                id: true,
+                TaskDesc: true,
+                TaskCode: true,
+                GSClientID: true,
+                ServLineCode: true, // Include to identify which service line
+                Client: {
+                  select: {
+                    id: true,
+                    clientCode: true,
+                    clientNameFull: true
+                  }
+                }
+              }
+            }
+          },
+          orderBy: [
+            { User: { name: 'asc' } },
+            { startDate: 'asc' }
+          ],
+          take: 500 // Limit to prevent unbounded queries
+        })
+      : [];
+
     // 10. Get user IDs and fetch Employee data for job grade and office filters
     let userIdsForEmployeeMap = [...new Set(taskTeamAllocations.map(member => member.userId))];
     
@@ -500,12 +557,65 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
         isNonClientEvent: !isClientTask,
         nonClientEventType: null, // TODO: Handle NonClientEvent lookups if needed
         notes: null,
+        isCurrentTask: true, // Current service line allocations are editable
         employeeStatus: empStatus
       };
     }));
     
+    // 12a. Transform cross-service-line allocations and add with isCurrentTask: false
+    const crossServiceLineRows = await Promise.all(crossServiceLineAllocations.map(async (allocation) => {
+      const employee = employeeMap.get(allocation.userId.toLowerCase()) || 
+                      employeeMap.get(allocation.userId.split('@')[0]?.toLowerCase() || '');
+
+      const isClientTask = !!allocation.Task.Client?.clientCode;
+      
+      const serviceLineRole = userServiceLineRoleMap.get(allocation.userId) || 'USER';
+      
+      // Try to get employee status
+      let empStatus = employee?.EmpCode ? employeeStatusMap.get(employee.EmpCode) : undefined;
+      
+      // Fallback: If no status found, try extracting employee code from userId
+      if (!empStatus) {
+        const extractedEmpCode = extractEmpCodeFromUserId(allocation.userId);
+        if (extractedEmpCode) {
+          empStatus = (await getEmployeeStatus(extractedEmpCode)) ?? undefined;
+        }
+      }
+
+      return {
+        allocationId: allocation.id,
+        userId: allocation.userId,
+        employeeId: employee?.id || null,
+        userName: allocation.User?.name || employee?.EmpNameFull || allocation.userId,
+        userEmail: allocation.User?.email || allocation.userId,
+        jobGradeCode: employee?.EmpCatCode || null,
+        serviceLineRole: serviceLineRole,
+        officeLocation: employee?.OfficeCode?.trim() || null,
+        clientId: allocation.Task.Client?.id || null,
+        clientName: isClientTask ? (allocation.Task.Client?.clientNameFull || allocation.Task.Client?.clientCode || 'Unknown') : 'Internal',
+        clientCode: isClientTask ? (allocation.Task.Client?.clientCode || 'N/A') : 'INTERNAL',
+        taskId: allocation.Task.id,
+        taskName: allocation.Task.TaskDesc,
+        taskCode: allocation.Task.TaskCode || null,
+        startDate: startOfDay(allocation.startDate!),
+        endDate: startOfDay(allocation.endDate!),
+        role: allocation.role,
+        allocatedHours: allocation.allocatedHours ? parseFloat(allocation.allocatedHours.toString()) : null,
+        allocatedPercentage: allocation.allocatedPercentage,
+        actualHours: allocation.actualHours ? parseFloat(allocation.actualHours.toString()) : null,
+        isNonClientEvent: !isClientTask,
+        nonClientEventType: null,
+        notes: null,
+        isCurrentTask: false, // Cross-service-line allocations are read-only
+        employeeStatus: empStatus
+      };
+    }));
+    
+    // 12b. Merge current service line and cross-service-line allocations
+    const mergedAllocationRows = [...allocationRows, ...crossServiceLineRows];
+    
     // 13. For timeline view with includeUnallocated, add employees with no allocations
-    let finalAllocationRows = allocationRows;
+    let finalAllocationRows = mergedAllocationRows;
     if (includeUnallocated && allServiceLineEmployees.length > 0) {
       // Find employees with no allocations - check by employeeId which is more reliable
       const employeeIdsWithAllocations = new Set(
@@ -558,11 +668,12 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
           isNonClientEvent: false,
           nonClientEventType: null,
           notes: null,
+          isCurrentTask: true, // Placeholder for unallocated employees in current service line
           employeeStatus: empStatus
         };
       }));
       
-      finalAllocationRows = [...allocationRows, ...unallocatedRows];
+      finalAllocationRows = [...mergedAllocationRows, ...unallocatedRows];
     }
     
     // 14. Apply pagination to the final results

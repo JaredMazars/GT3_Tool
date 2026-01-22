@@ -354,6 +354,23 @@ export interface TaskTeam {
   hasAccount?: boolean;
   // Employee status for status indicators
   employeeStatus?: EmployeeStatus;
+  // Independence confirmation
+  independenceConfirmation?: TaskIndependenceConfirmation | null;
+}
+
+// Task Independence Confirmation
+export interface TaskIndependenceConfirmation {
+  id: number;
+  taskTeamId: number;
+  confirmed: boolean;
+  confirmedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Task Team with Independence (extended type for independence tab)
+export interface TaskTeamWithIndependence extends TaskTeam {
+  independenceConfirmation: TaskIndependenceConfirmation | null;
 }
 
 // Allocation Period (for grouping multiple allocations by user)

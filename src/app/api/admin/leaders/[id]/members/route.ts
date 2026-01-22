@@ -126,18 +126,18 @@ export const POST = secureRoute.mutationWithParams<typeof AddLeaderGroupMembersS
           description: true,
           createdAt: true,
           updatedAt: true,
-          createdBy: {
+          User: {
             select: {
               id: true,
               name: true,
               email: true,
             },
           },
-          members: {
+          LeaderGroupMember: {
             select: {
               id: true,
               addedAt: true,
-              employee: {
+              Employee: {
                 select: {
                   id: true,
                   EmpCode: true,
@@ -150,7 +150,7 @@ export const POST = secureRoute.mutationWithParams<typeof AddLeaderGroupMembersS
                   Active: true,
                 },
               },
-              addedBy: {
+              User: {
                 select: {
                   id: true,
                   name: true,
@@ -159,7 +159,7 @@ export const POST = secureRoute.mutationWithParams<typeof AddLeaderGroupMembersS
               },
             },
             orderBy: {
-              employee: {
+              Employee: {
                 EmpName: 'asc',
               },
             },
@@ -239,7 +239,7 @@ export const DELETE = secureRoute.mutationWithParams<z.ZodSchema, { id: string }
         },
         select: {
           id: true,
-          employee: {
+          Employee: {
             select: {
               EmpName: true,
             },
@@ -274,7 +274,7 @@ export const DELETE = secureRoute.mutationWithParams<z.ZodSchema, { id: string }
           description: true,
           createdAt: true,
           updatedAt: true,
-          createdBy: {
+          User: {
             select: {
               id: true,
               name: true,
@@ -285,7 +285,7 @@ export const DELETE = secureRoute.mutationWithParams<z.ZodSchema, { id: string }
             select: {
               id: true,
               addedAt: true,
-              employee: {
+              Employee: {
                 select: {
                   id: true,
                   EmpCode: true,
@@ -298,7 +298,7 @@ export const DELETE = secureRoute.mutationWithParams<z.ZodSchema, { id: string }
                   Active: true,
                 },
               },
-              addedBy: {
+              User: {
                 select: {
                   id: true,
                   name: true,
@@ -307,7 +307,7 @@ export const DELETE = secureRoute.mutationWithParams<z.ZodSchema, { id: string }
               },
             },
             orderBy: {
-              employee: {
+              Employee: {
                 EmpName: 'asc',
               },
             },

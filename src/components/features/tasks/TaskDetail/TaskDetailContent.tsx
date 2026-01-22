@@ -20,7 +20,8 @@ import {
   UserRoundCheck,
   Lock,
   AlertTriangle,
-  Plus
+  Plus,
+  ShieldCheck
 } from 'lucide-react';
 import BalanceSheetPage from '@/app/dashboard/tasks/[id]/balance-sheet/page';
 import IncomeStatementPage from '@/app/dashboard/tasks/[id]/income-statement/page';
@@ -38,6 +39,7 @@ import { TaxYearInput } from '@/components/shared/TaxYearInput';
 import { UserSearchModal } from '@/components/features/tasks/UserManagement/UserSearchModal';
 import { AcceptanceTab } from '@/components/features/tasks/AcceptanceTab';
 import { EngagementLetterTab } from '@/components/features/tasks/EngagementLetterTab';
+import { IndependenceTab } from '@/components/features/tasks/IndependenceTab';
 import { GanttTimeline } from '@/components/features/tasks/TeamPlanner';
 import { WorkSpaceTab } from '@/components/features/tasks/WorkSpaceTab';
 import { TaskWorkspaceTab } from '@/components/features/tasks/TaskWorkspaceTab';
@@ -320,6 +322,7 @@ export interface TaskDetailContentProps {
   onUpdate?: () => void;
   onArchive?: () => void;
   initialNoteId?: number;
+  initialTab?: string;
 }
 
 export function TaskDetailContent({
@@ -331,11 +334,17 @@ export function TaskDetailContent({
   onUpdate,
   onArchive,
   initialNoteId,
+  initialTab,
 }: TaskDetailContentProps) {
   const searchParams = useSearchParams();
   const { data: task, isLoading, refetch: fetchTask } = useTask(taskId);
 
   const getDefaultTab = () => {
+    // If initialTab is provided, use it
+    if (initialTab) {
+      return initialTab;
+    }
+    
     // If initialNoteId is provided, open to workspace tab
     if (initialNoteId) {
       return 'workspace';
@@ -392,18 +401,21 @@ export function TaskDetailContent({
     employeeStatus: (member as any).employeeStatus,
   }));
 
-  // Ensure workspace tab is selected when initialNoteId is provided - run FIRST
+  // Ensure specific tab is selected when initialTab or initialNoteId is provided - run FIRST
   useEffect(() => {
-    if (initialNoteId) {
+    if (initialTab) {
+      setActiveTab(initialTab);
+      setHasManuallySelectedTab(false);
+    } else if (initialNoteId) {
       setActiveTab('workspace');
-      setHasManuallySelectedTab(false); // Allow this to be overridden later if needed, but workspace is set first
+      setHasManuallySelectedTab(false);
     }
-  }, [initialNoteId]);
+  }, [initialTab, initialNoteId]);
   
   useEffect(() => {
     const tab = searchParams.get('tab');
-    // If we have initialNoteId, ignore URL params for tab selection
-    if (initialNoteId) {
+    // If we have initialTab or initialNoteId, ignore URL params for tab selection
+    if (initialTab || initialNoteId) {
       return;
     }
     
@@ -414,7 +426,7 @@ export function TaskDetailContent({
       // Only set default tab if user hasn't manually selected one
       setActiveTab(getDefaultTab());
     }
-  }, [searchParams, task, hasManuallySelectedTab, initialNoteId]);
+  }, [searchParams, task, hasManuallySelectedTab, initialTab, initialNoteId]);
 
   useEffect(() => {
     const fetchCurrentUserRole = async () => {
@@ -581,6 +593,10 @@ export function TaskDetailContent({
             </div>
           </div>
         );
+      
+      case 'independence':
+        return <IndependenceTab taskId={taskId} currentUserId={currentUserId} autoOpenConfirmation={initialTab === 'independence'} />;
+      
       case 'settings':
         return task ? <SettingsTab task={task} onUpdate={handleUpdate} onArchive={onArchive} /> : null;
       default:
@@ -804,6 +820,13 @@ export function TaskDetailContent({
                       Team
                     </Tab>
                     <Tab
+                      onClick={() => handleTabChange('independence')}
+                      selected={activeTab === 'independence'}
+                      icon={ShieldCheck}
+                    >
+                      Independence
+                    </Tab>
+                    <Tab
                       onClick={() => handleTabChange('finance')}
                       selected={activeTab === 'finance'}
                       icon={DollarSign}
@@ -835,6 +858,13 @@ export function TaskDetailContent({
                       icon={Users}
                     >
                       Team
+                    </Tab>
+                    <Tab
+                      onClick={() => handleTabChange('independence')}
+                      selected={activeTab === 'independence'}
+                      icon={ShieldCheck}
+                    >
+                      Independence
                     </Tab>
                     <Tab
                       onClick={() => handleTabChange('finance')}

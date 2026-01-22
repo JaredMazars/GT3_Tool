@@ -20,6 +20,7 @@ Next.js 14 (App Router) | TypeScript (strict) | Prisma | React Query | Azure Ope
 | Protect page | `<PageAccessGuard pathname={...}>` | Security > Page-Level Access |
 | Check feature access | `<FeatureGate feature={...}>` | Security > Frontend Security |
 | Query database | Use explicit `select:`, add `take` limits | Performance > Database |
+| Work with employees/staff | Use Employee table (Active status), not User | Database > Data Model Relationships |
 | Store files | Purpose-specific blob containers | See blob-storage-rules.mdc |
 | Create approval flow | `approvalService.createApproval()` | See approval-system-rules.mdc |
 | Use AI generation | Import from `@/lib/ai/config` | See ai-patterns.mdc |
@@ -120,6 +121,7 @@ const clients = await prisma.client.findMany({ where: { clientCode: { contains: 
 **Data Model Relationships (CRITICAL):**
 - **Clients are unique to Groups**: Each client belongs to exactly one group (`groupCode`). When creating/updating APIs that work with clients, always validate that the client belongs to the specified group.
 - **Tasks are unique to Clients**: Each task belongs to exactly one client (`GSClientID`). When creating/updating APIs that work with tasks, always validate that the task belongs to the specified client.
+- **Employees vs Users (CRITICAL)**: Employee table is the source of truth for all staff functionality. User table is for Azure AD authentication only. Employee functionality is governed by `Active = 'Yes'`, regardless of whether employee has a User account. Employee.WinLogon (optional) links to User for system access confirmation.
 
 ```typescript
 // Example: Validate task belongs to client in API
@@ -139,6 +141,16 @@ const client = await prisma.client.findUnique({
 if (client?.groupCode !== groupCode) {
   throw new AppError(404, 'Client not found', ErrorCodes.NOT_FOUND);
 }
+
+// Example: Query active employees (includes those without User accounts)
+const staff = await prisma.employee.findMany({
+  where: { Active: 'Yes', ServLineCode: serviceLineCode }
+});
+
+// INCORRECT: Filtering out employees without accounts
+const staff = await prisma.employee.findMany({
+  where: { Active: 'Yes', WinLogon: { not: null } } // ❌ Excludes active employees
+});
 ```
 
 **Fiscal Period Filtering (REQUIRED):**

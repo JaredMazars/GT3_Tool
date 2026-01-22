@@ -36,7 +36,8 @@ export type WorkflowType =
   | 'ENGAGEMENT_LETTER'
   | 'DPA'
   | 'REVIEW_NOTE'
-  | 'VAULT_DOCUMENT';
+  | 'VAULT_DOCUMENT'
+  | 'INDEPENDENCE_CONFIRMATION';
 
 /**
  * Approval with related data

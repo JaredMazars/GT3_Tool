@@ -24,7 +24,7 @@ import { useExternalLinks, useRefreshExternalLinks } from '@/hooks/admin/useExte
 interface NavItem {
   label: string;
   href?: string;
-  items?: { label: string; href: string; description?: string }[];
+  items?: { label: string; href: string; description?: string; section?: string }[];
 }
 
 export default function DashboardNav() {
@@ -43,6 +43,7 @@ export default function DashboardNav() {
   const { hasFeature: hasExternalLinksAccess } = useFeature(Feature.MANAGE_EXTERNAL_LINKS);
   const { hasFeature: hasToolsAccess } = useFeature(Feature.MANAGE_TOOLS);
   const { hasFeature: hasVaultManagementAccess } = useFeature(Feature.MANAGE_VAULT_DOCUMENTS);
+  const { hasFeature: hasDatabaseAccess } = useFeature(Feature.MANAGE_DATABASE);
 
   // Fetch external links with React Query caching
   const { data: externalLinks = [] } = useExternalLinks();
@@ -83,28 +84,24 @@ export default function DashboardNav() {
       ]
     : [];
 
-  // Admin nav items - only show if user has admin access
-  // Sorted alphabetically by label
+  // Admin nav items - grouped by function with section headers
   const adminMenuItems = [];
-  if (hasAdminAccess) {
-    adminMenuItems.push({
-      label: 'Bug Reports',
-      href: '/dashboard/admin/bug-reports',
-      description: 'View and manage user-reported bugs',
-    });
-  }
-  if (hasExternalLinksAccess) {
-    adminMenuItems.push({
-      label: 'External Links',
-      href: '/dashboard/admin/external-links',
-      description: 'Manage external software links',
-    });
-  }
+  
+  // Access Control section
   if (hasUsersAccess) {
     adminMenuItems.push({
-      label: 'Leaders',
-      href: '/dashboard/admin/leaders',
-      description: 'Manage firm-wide leader groups',
+      label: 'User Management',
+      href: '/dashboard/admin/users',
+      description: 'Manage users and permissions',
+      section: 'Access Control',
+    });
+  }
+  if (hasServiceLineAccess) {
+    adminMenuItems.push({
+      label: 'Service Line Permissions',
+      href: '/dashboard/admin/service-lines',
+      description: 'Manage service line permissions',
+      section: 'Access Control',
     });
   }
   if (hasAdminAccess) {
@@ -112,20 +109,25 @@ export default function DashboardNav() {
       label: 'Page Permissions',
       href: '/dashboard/admin/page-permissions',
       description: 'Manage page-level access control',
+      section: 'Access Control',
     });
   }
-  if (hasToolsAccess) {
+  if (hasUsersAccess) {
     adminMenuItems.push({
-      label: 'Review Note Categories',
-      href: '/dashboard/admin/review-categories',
-      description: 'Manage review note categories',
+      label: 'Leader Groups',
+      href: '/dashboard/admin/leaders',
+      description: 'Manage firm-wide leader groups',
+      section: 'Access Control',
     });
   }
-  if (hasServiceLineAccess) {
+  
+  // Service Lines section
+  if (hasServiceLineMappingAccess) {
     adminMenuItems.push({
-      label: 'Service Line Access',
-      href: '/dashboard/admin/service-lines',
-      description: 'Manage service line permissions',
+      label: 'Service Line Master',
+      href: '/dashboard/admin/service-line-master',
+      description: 'Manage master service line definitions',
+      section: 'Service Lines',
     });
   }
   if (hasServiceLineMappingAccess) {
@@ -133,20 +135,17 @@ export default function DashboardNav() {
       label: 'Service Line Mapping',
       href: '/dashboard/admin/service-line-mapping',
       description: 'Map external to master service lines',
+      section: 'Service Lines',
     });
   }
-  if (hasServiceLineMappingAccess) {
-    adminMenuItems.push({
-      label: 'Service Line Master',
-      href: '/dashboard/admin/service-line-master',
-      description: 'Manage master service line definitions',
-    });
-  }
+  
+  // Content & Tools section
   if (hasTemplatesAccess) {
     adminMenuItems.push({
       label: 'Template Management',
       href: '/dashboard/admin/templates',
       description: 'Manage engagement letter templates',
+      section: 'Content & Tools',
     });
   }
   if (hasToolsAccess) {
@@ -154,13 +153,15 @@ export default function DashboardNav() {
       label: 'Tool Management',
       href: '/dashboard/admin/tools',
       description: 'Manage tools and service line assignments',
+      section: 'Content & Tools',
     });
   }
-  if (hasUsersAccess) {
+  if (hasToolsAccess) {
     adminMenuItems.push({
-      label: 'User Management',
-      href: '/dashboard/admin/users',
-      description: 'Manage users and permissions',
+      label: 'Review Note Categories',
+      href: '/dashboard/admin/review-categories',
+      description: 'Manage review note categories',
+      section: 'Content & Tools',
     });
   }
   if (hasVaultManagementAccess) {
@@ -168,6 +169,33 @@ export default function DashboardNav() {
       label: 'Vault Management',
       href: '/dashboard/admin/document-vault',
       description: 'Manage document approval workflows',
+      section: 'Content & Tools',
+    });
+  }
+  
+  // Integration & Support section
+  if (hasExternalLinksAccess) {
+    adminMenuItems.push({
+      label: 'External Links',
+      href: '/dashboard/admin/external-links',
+      description: 'Manage external software links',
+      section: 'Integration & Support',
+    });
+  }
+  if (hasDatabaseAccess) {
+    adminMenuItems.push({
+      label: 'Database Management',
+      href: '/dashboard/admin/database',
+      description: 'Monitor and maintain database performance',
+      section: 'Integration & Support',
+    });
+  }
+  if (hasAdminAccess) {
+    adminMenuItems.push({
+      label: 'Bug Reports',
+      href: '/dashboard/admin/bug-reports',
+      description: 'View and manage user-reported bugs',
+      section: 'Integration & Support',
     });
   }
 
@@ -404,51 +432,86 @@ export default function DashboardNav() {
                   </button>
 
                   {openMenu === item.label && item.items && (
-                    <div className="absolute right-0 mt-0 w-72 bg-white rounded-lg shadow-corporate-lg border border-forvis-gray-200 py-2 z-50">
-                      {item.items.map((subItem) => {
-                        // Check if this is an external link
-                        const isExternal = subItem.href.startsWith('http://') || subItem.href.startsWith('https://');
-                        
-                        if (isExternal) {
-                          return (
-                            <a
-                              key={subItem.href}
-                              href={subItem.href}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={() => setOpenMenu(null)}
-                              className="block px-4 py-3 hover:bg-forvis-blue-50 transition-colors group"
-                            >
-                              <div className="font-medium text-forvis-gray-900 group-hover:text-forvis-blue-700">
-                                {subItem.label}
-                              </div>
-                              {subItem.description && (
-                                <div className="text-xs text-forvis-gray-700 mt-0.5">
-                                  {subItem.description}
-                                </div>
-                              )}
-                            </a>
-                          );
-                        }
+                    <div className="absolute right-0 mt-0 w-80 max-h-96 overflow-y-auto bg-white rounded-lg shadow-corporate-lg border border-forvis-gray-200 py-2 z-50">
+                      {(() => {
+                        // Group items by section
+                        const sections = item.items.reduce((acc, subItem) => {
+                          const section = subItem.section || 'Other';
+                          if (!acc[section]) {
+                            acc[section] = [];
+                          }
+                          acc[section].push(subItem);
+                          return acc;
+                        }, {} as Record<string, typeof item.items>);
 
-                        return (
-                          <Link
-                            key={subItem.href}
-                            href={subItem.href}
-                            onClick={() => setOpenMenu(null)}
-                            className="block px-4 py-3 hover:bg-forvis-blue-50 transition-colors group"
-                          >
-                            <div className="font-medium text-forvis-gray-900 group-hover:text-forvis-blue-700">
-                              {subItem.label}
-                            </div>
-                            {subItem.description && (
-                              <div className="text-xs text-forvis-gray-700 mt-0.5">
-                                {subItem.description}
+                        // Define section order
+                        const sectionOrder = ['Access Control', 'Service Lines', 'Content & Tools', 'Integration & Support', 'Other'];
+                        
+                        return sectionOrder.map((sectionName) => {
+                          const sectionItems = sections[sectionName];
+                          if (!sectionItems || sectionItems.length === 0) return null;
+
+                          return (
+                            <div key={sectionName} className="mb-2 last:mb-0">
+                              {/* Section Header */}
+                              <div
+                                className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-white"
+                                style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
+                              >
+                                {sectionName}
                               </div>
-                            )}
-                          </Link>
-                        );
-                      })}
+
+                              {/* Section Items */}
+                              <div className="py-1">
+                                {sectionItems.map((subItem) => {
+                                  // Check if this is an external link
+                                  const isExternal = subItem.href.startsWith('http://') || subItem.href.startsWith('https://');
+                                  
+                                  if (isExternal) {
+                                    return (
+                                      <a
+                                        key={subItem.href}
+                                        href={subItem.href}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={() => setOpenMenu(null)}
+                                        className="block px-4 py-3 hover:bg-forvis-blue-50 transition-colors group"
+                                      >
+                                        <div className="font-medium text-forvis-gray-900 group-hover:text-forvis-blue-700">
+                                          {subItem.label}
+                                        </div>
+                                        {subItem.description && (
+                                          <div className="text-xs text-forvis-gray-700 mt-0.5">
+                                            {subItem.description}
+                                          </div>
+                                        )}
+                                      </a>
+                                    );
+                                  }
+
+                                  return (
+                                    <Link
+                                      key={subItem.href}
+                                      href={subItem.href}
+                                      onClick={() => setOpenMenu(null)}
+                                      className="block px-4 py-3 hover:bg-forvis-blue-50 transition-colors group"
+                                    >
+                                      <div className="font-medium text-forvis-gray-900 group-hover:text-forvis-blue-700">
+                                        {subItem.label}
+                                      </div>
+                                      {subItem.description && (
+                                        <div className="text-xs text-forvis-gray-700 mt-0.5">
+                                          {subItem.description}
+                                        </div>
+                                      )}
+                                    </Link>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
                     </div>
                   )}
                 </div>

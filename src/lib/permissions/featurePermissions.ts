@@ -72,6 +72,7 @@ export const SERVICE_LINE_ROLE_FEATURES: Record<ServiceLineRole, Feature[]> = {
     Feature.MANAGE_TEMPLATES,
     Feature.MANAGE_EXTERNAL_LINKS,
     Feature.MANAGE_TOOLS,
+    Feature.MANAGE_DATABASE,
 
     // Document Vault
     Feature.ACCESS_DOCUMENT_VAULT,

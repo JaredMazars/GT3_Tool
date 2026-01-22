@@ -11,6 +11,7 @@ import type {
   ClientAcceptanceApproval,
   EngagementAcceptanceApproval,
   ReviewNoteApproval,
+  IndependenceConfirmationApproval,
 } from '@/types/approvals';
 
 /**
@@ -476,7 +477,85 @@ export const GET = secureRoute.query({
           };
         });
 
-      // 4. Get centralized approvals (VAULT_DOCUMENT, etc.)
+      // 4. Get independence confirmations (only pending ones)
+      const rawIndependenceConfirmations = !showArchived
+        ? await prisma.taskIndependenceConfirmation.findMany({
+            where: {
+              confirmed: false,
+              TaskTeam: {
+                userId: user.id,
+              },
+            },
+            select: {
+              id: true,
+              taskTeamId: true,
+              confirmed: true,
+              confirmedAt: true,
+              createdAt: true,
+              TaskTeam: {
+                select: {
+                  id: true,
+                  role: true,
+                  createdAt: true,
+                  Task: {
+                    select: {
+                      id: true,
+                      TaskDesc: true,
+                      TaskCode: true,
+                      ServLineCode: true,
+                      GSClientID: true,
+                      Client: {
+                        select: {
+                          id: true,
+                          GSClientID: true,
+                          clientCode: true,
+                          clientNameFull: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 100,
+          })
+        : [];
+
+      // Map independence confirmations to approval format with service line mappings
+      const independenceConfirmations: IndependenceConfirmationApproval[] = [];
+      
+      for (const ic of rawIndependenceConfirmations) {
+        if (!ic.TaskTeam?.Task?.Client) continue; // Only include tasks with clients
+        
+        // Get service line mapping for navigation
+        const serviceLineMapping = await prisma.serviceLineExternal.findFirst({
+          where: { ServLineCode: ic.TaskTeam.Task.ServLineCode },
+          select: { 
+            SubServlineGroupCode: true,
+            masterCode: true,
+          },
+        });
+        
+        independenceConfirmations.push({
+          id: ic.id,
+          taskTeamId: ic.taskTeamId,
+          taskId: ic.TaskTeam.Task.id,
+          taskName: ic.TaskTeam.Task.TaskDesc,
+          taskCode: ic.TaskTeam.Task.TaskCode,
+          clientId: ic.TaskTeam.Task.Client.id,
+          clientGSID: ic.TaskTeam.Task.Client.GSClientID,
+          clientCode: ic.TaskTeam.Task.Client.clientCode,
+          clientName: ic.TaskTeam.Task.Client.clientNameFull,
+          role: ic.TaskTeam.role,
+          servLineCode: ic.TaskTeam.Task.ServLineCode,
+          subServlineGroupCode: serviceLineMapping?.SubServlineGroupCode || null,
+          masterCode: serviceLineMapping?.masterCode || null,
+          addedAt: ic.TaskTeam.createdAt,
+        });
+      }
+
+      // 5. Get centralized approvals (VAULT_DOCUMENT, etc.)
       // These use the unified approval system
       const centralizedData = await approvalService.getUserApprovals(user.id);
       
@@ -492,6 +571,7 @@ export const GET = secureRoute.query({
         clientAcceptances.length +
         engagementAcceptances.length +
         reviewNoteApprovals.length +
+        independenceConfirmations.length +
         centralizedApprovals.length;
 
       const response: ApprovalsResponse = {
@@ -499,6 +579,7 @@ export const GET = secureRoute.query({
         clientAcceptances,
         engagementAcceptances,
         reviewNotes: reviewNoteApprovals,
+        independenceConfirmations,
         centralizedApprovals,
         totalCount,
       };
@@ -511,6 +592,7 @@ export const GET = secureRoute.query({
         clientAcceptances: clientAcceptances.length,
         engagementAcceptances: engagementAcceptances.length,
         reviewNotes: reviewNoteApprovals.length,
+        independenceConfirmations: independenceConfirmations.length,
         centralizedApprovals: centralizedApprovals.length,
       });
 

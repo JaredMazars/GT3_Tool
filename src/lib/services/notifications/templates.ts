@@ -20,6 +20,7 @@ interface NotificationTemplate {
  * @param serviceLine - Service line code (e.g., 'TAX', 'AUDIT')
  * @param subServiceLineGroup - Sub-service line group code
  * @param clientId - Internal client ID
+ * @param clientName - Client name (if client task, for independence message)
  */
 export function createUserAddedNotification(
   taskName: string,
@@ -28,11 +29,19 @@ export function createUserAddedNotification(
   role: string,
   serviceLine?: string,
   subServiceLineGroup?: string,
-  clientId?: number
+  clientId?: number,
+  clientName?: string
 ): NotificationTemplate {
+  let message = `${addedByName} added you to the task as ${formatRole(role)}.`;
+  
+  // Add independence message for client tasks
+  if (clientName) {
+    message += ` Please confirm your independence from ${clientName} before starting work. Go to My Approvals to complete.`;
+  }
+  
   return {
     title: `Added to ${taskName}`,
-    message: `${addedByName} added you to the task as ${formatRole(role)}.`,
+    message,
     actionUrl: buildTaskUrl({ taskId, serviceLine, subServiceLineGroup, clientId }),
   };
 }
