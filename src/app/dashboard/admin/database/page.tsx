@@ -21,6 +21,8 @@ import {
   Download,
   ChevronDown,
   ChevronRight,
+  Info,
+  ExternalLink,
 } from 'lucide-react';
 import { LoadingSpinner, Button, Card, Badge } from '@/components/ui';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
@@ -579,6 +581,99 @@ export default function DatabaseManagementPage() {
       message: 'Copied to clipboard',
       variant: 'success',
     });
+  };
+
+  const copyQueryToEditor = (queryText: string) => {
+    // Copy to clipboard (existing functionality)
+    navigator.clipboard.writeText(queryText);
+    
+    // Set query in SQL editor
+    setSqlQuery(queryText);
+    
+    // Switch to SQL editor tab
+    setActiveTab('sql-editor');
+    
+    // Show success message
+    setAlertModal({
+      isOpen: true,
+      title: 'Query Copied',
+      message: 'Query copied to SQL editor. You can now execute or modify it.',
+      variant: 'success',
+    });
+  };
+
+  const identifyApiEndpoint = (queryText: string): string => {
+    const upperQuery = queryText.toUpperCase();
+    
+    // Task-related queries
+    if (upperQuery.includes('FROM TASK') || upperQuery.includes('JOIN TASK')) {
+      if (upperQuery.includes('TASKTEAM') || upperQuery.includes('TASK_TEAM')) {
+        return '/api/tasks/[id]/team';
+      }
+      if (upperQuery.includes('TASKTOOL') || upperQuery.includes('TASK_TOOL')) {
+        return '/api/tasks/[id]/tools';
+      }
+      if (upperQuery.includes('CLIENTACCEPTANCE')) {
+        return '/api/tasks/[id]/acceptance';
+      }
+      if (upperQuery.includes('GROUP BY') && upperQuery.includes('GSTASKID')) {
+        return '/api/my-reports/tasks-by-group';
+      }
+      return '/api/tasks';
+    }
+
+    // Client-related queries
+    if (upperQuery.includes('FROM CLIENT') || upperQuery.includes('JOIN CLIENT')) {
+      if (upperQuery.includes('CLIENTACCEPTANCE')) {
+        return '/api/clients/[id]/acceptance';
+      }
+      if (upperQuery.includes('GROUP')) {
+        return '/api/clients/filters';
+      }
+      return '/api/clients';
+    }
+
+    // WIP-related queries
+    if (upperQuery.includes('FROM WIP') || upperQuery.includes('WIPTRANSACTIONS')) {
+      if (upperQuery.includes('GROUP BY') && upperQuery.includes('GSTASKID')) {
+        return '/api/my-reports/tasks-by-group';
+      }
+      if (upperQuery.includes('PROFITABILITY')) {
+        return '/api/my-reports/profitability';
+      }
+      return '/api/wip';
+    }
+
+    // Approval-related queries
+    if (upperQuery.includes('FROM APPROVAL') || upperQuery.includes('JOIN APPROVAL')) {
+      return '/api/approvals';
+    }
+
+    // Employee-related queries
+    if (upperQuery.includes('FROM EMPLOYEE') || upperQuery.includes('JOIN EMPLOYEE')) {
+      if (upperQuery.includes('SERVICELINE')) {
+        return '/api/service-lines/staff';
+      }
+      return '/api/employees';
+    }
+
+    // Report queries
+    if (upperQuery.includes('OVERVIEW') || upperQuery.includes('FISCAL')) {
+      return '/api/my-reports/overview';
+    }
+
+    // Service line queries
+    if (upperQuery.includes('SERVICELINEMASTERUSED') || upperQuery.includes('SERVICELINEEXTERNAL')) {
+      return '/api/service-lines';
+    }
+
+    // Workspace analytics
+    if (upperQuery.includes('COUNT(') && upperQuery.includes('DISTINCT')) {
+      return '/api/workspace-counts';
+    }
+
+    // Default fallback
+    return 'Unknown API';
   };
 
   const toggleTier = (tier: string) => {
@@ -1412,10 +1507,19 @@ export default function DatabaseManagementPage() {
               <Card>
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-semibold text-forvis-gray-900 flex items-center">
-                      <Clock className="h-5 w-5 mr-2 text-forvis-blue-600" />
-                      Slow Query Analyzer
-                    </h2>
+                    <div>
+                      <h2 className="text-xl font-semibold text-forvis-gray-900 flex items-center">
+                        <Clock className="h-5 w-5 mr-2 text-forvis-blue-600" />
+                        Slow Query Analyzer
+                      </h2>
+                      <div className="flex items-center mt-1 text-xs text-forvis-gray-600">
+                        <Info className="h-3 w-3 mr-1" />
+                        <span>API: </span>
+                        <code className="ml-1 px-1.5 py-0.5 bg-forvis-gray-100 rounded text-forvis-blue-700 font-mono">
+                          GET /api/admin/database/queries/slow
+                        </code>
+                      </div>
+                    </div>
                     <Button
                       onClick={fetchSlowQueries}
                       disabled={loadingSlowQueries}
@@ -1465,6 +1569,13 @@ export default function DatabaseManagementPage() {
                                     {query.executionCount} executions
                                   </span>
                                 </div>
+                                <div className="flex items-center mb-2 text-xs text-forvis-gray-600">
+                                  <Info className="h-3 w-3 mr-1" />
+                                  <span>Likely API: </span>
+                                  <code className="ml-1 px-1.5 py-0.5 bg-forvis-gray-100 rounded text-forvis-blue-700 font-mono">
+                                    {identifyApiEndpoint(query.queryText)}
+                                  </code>
+                                </div>
                                 <div className="relative">
                                   <pre
                                     className={`text-xs font-mono bg-forvis-gray-50 p-3 rounded overflow-x-auto ${
@@ -1485,14 +1596,24 @@ export default function DatabaseManagementPage() {
                                   )}
                                 </div>
                               </div>
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                onClick={() => copyToClipboard(query.queryText)}
-                                className="ml-4"
-                              >
-                                <Copy className="h-4 w-4" />
-                              </Button>
+                              <div className="ml-4 flex space-x-2">
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  onClick={() => copyToClipboard(query.queryText)}
+                                  title="Copy to clipboard"
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="primary"
+                                  onClick={() => copyQueryToEditor(query.queryText)}
+                                  title="Open in SQL Editor"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </div>
                             <div className="grid grid-cols-4 gap-4 mt-3 pt-3 border-t border-forvis-gray-200">
                               <div>
@@ -1828,7 +1949,7 @@ export default function DatabaseManagementPage() {
                   </h2>
                 </div>
                 <p className="text-sm text-orange-600 font-medium">
-                  ⚠️ Read-only mode: Only SELECT queries are allowed
+                  ⚠️ Read-only mode: Only SELECT and WITH (CTE) queries are allowed
                 </p>
               </div>
 

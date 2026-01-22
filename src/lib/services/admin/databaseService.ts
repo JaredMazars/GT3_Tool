@@ -672,16 +672,39 @@ export interface QueryResult {
 }
 
 /**
- * Execute read-only SQL query (SELECT only)
+ * Execute read-only SQL query (SELECT or WITH/CTE only)
  */
 export async function executeQuery(query: string): Promise<QueryResult> {
   const startTime = Date.now();
 
   try {
-    // Validate query is SELECT only
-    const trimmedQuery = query.trim().toUpperCase();
-    if (!trimmedQuery.startsWith('SELECT')) {
-      throw new Error('Only SELECT queries are allowed');
+    // Decode HTML entities (queries copied from Performance tab may be HTML-encoded)
+    // Handle both named entities (&lt;) and numeric entities (&#39;, &#x27;)
+    const decodedQuery = query
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&#x27;/gi, "'")  // Hex single quote
+      .replace(/&#x22;/gi, '"')  // Hex double quote
+      .replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(parseInt(dec, 10)))  // All decimal entities
+      .replace(/&#x([0-9a-f]+);/gi, (match, hex) => String.fromCharCode(parseInt(hex, 16)));  // All hex entities
+
+    // Validate query is SELECT or WITH (CTE) only
+    // Remove SQL comments before validation
+    const cleanedQuery = decodedQuery
+      .trim()
+      .replace(/--.*$/gm, '')  // Remove single-line comments
+      .replace(/\/\*[\s\S]*?\*\//g, '')  // Remove multi-line comments
+      .trim()
+      .toUpperCase();
+
+    const trimmedQuery = decodedQuery.trim().toUpperCase();
+    
+    // Allow SELECT or WITH (Common Table Expressions)
+    if (!cleanedQuery.startsWith('SELECT') && !cleanedQuery.startsWith('WITH')) {
+      throw new Error('Only SELECT and WITH (CTE) queries are allowed');
     }
 
     // Block dangerous keywords
@@ -692,11 +715,54 @@ export async function executeQuery(query: string): Promise<QueryResult> {
       }
     }
 
-    // Execute query with limit
-    const limitedQuery = query.trim().endsWith(';') ? query.trim().slice(0, -1) : query.trim();
-    const results = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(
-      `SELECT TOP 1000 * FROM (${limitedQuery}) AS subquery`
-    );
+    // Check for problematic SQL Server syntax
+    const originalQuery = decodedQuery.trim();
+    if (originalQuery.includes('&') && !originalQuery.toUpperCase().includes('FOR XML')) {
+      throw new Error(
+        'SQL Server does not support & operator. Use + for string concatenation or AND for logical operations.'
+      );
+    }
+
+    // Remove trailing semicolon if present
+    let limitedQuery = originalQuery;
+    if (limitedQuery.endsWith(';')) {
+      limitedQuery = limitedQuery.slice(0, -1);
+    }
+
+    // Apply TOP limit intelligently
+    let finalQuery: string;
+    
+    // Check if query already has TOP clause
+    const hasTopClause = /SELECT\s+TOP\s+\d+/i.test(limitedQuery);
+    
+    // Check if query is a CTE (starts with WITH)
+    const isCTE = cleanedQuery.startsWith('WITH');
+    
+    if (isCTE || hasTopClause) {
+      // CTEs and queries with TOP already: use as-is
+      // CTEs cannot be wrapped in subqueries in SQL Server
+      finalQuery = limitedQuery;
+    } else {
+      // Try to inject TOP after SELECT
+      // Handle SELECT DISTINCT and other SELECT variants
+      const selectMatch = limitedQuery.match(/^(SELECT\s+(?:DISTINCT\s+)?)/i);
+      
+      if (selectMatch) {
+        const selectPart = selectMatch[0];
+        const restOfQuery = limitedQuery.substring(selectPart.length);
+        finalQuery = `${selectPart}TOP 1000 ${restOfQuery}`;
+      } else {
+        // Fallback to wrapping (should rarely happen for non-CTE queries)
+        finalQuery = `SELECT TOP 1000 * FROM (${limitedQuery}) AS subquery`;
+      }
+    }
+
+    logger.info('Executing query', { 
+      queryPreview: finalQuery.substring(0, 200),
+      hasTopClause 
+    });
+
+    const results = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(finalQuery);
 
     const executionTimeMs = Date.now() - startTime;
 
@@ -716,7 +782,11 @@ export async function executeQuery(query: string): Promise<QueryResult> {
     };
   } catch (error) {
     const executionTimeMs = Date.now() - startTime;
-    logger.error('Failed to execute query', { error, executionTimeMs });
+    logger.error('Failed to execute query', { 
+      error,
+      executionTimeMs,
+      queryPreview: query.substring(0, 200) 
+    });
     throw error;
   }
 }

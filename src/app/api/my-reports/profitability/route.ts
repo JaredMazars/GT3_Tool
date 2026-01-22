@@ -1,10 +1,18 @@
 /**
- * My Reports - Profitability Report API
+ * My Reports - Profitability Report API (OPTIMIZED)
  * 
- * Returns flat list of all tasks across all service lines with Net WIP data
+ * Returns flat list of all tasks across all service lines with comprehensive
+ * WIP and profitability metrics. Uses SQL aggregation with covering index.
+ * 
  * Filtered based on employee category:
  * - CARL/Local/DIR: Tasks where user is Task Partner
  * - Others: Tasks where user is Task Manager
+ * 
+ * PERFORMANCE OPTIMIZATION (2026-01-22):
+ * - Uses SQL aggregation at database level (not JavaScript)
+ * - Leverages covering index (idx_WIPTransactions_Aggregation_COVERING)
+ * - Index-only scans for WIP calculations (no table lookups)
+ * - Highly efficient for 200+ task reports
  * 
  * Access restricted to employees who are partners or managers
  */
