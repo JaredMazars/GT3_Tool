@@ -3,6 +3,8 @@
  * Checks if current user has specific feature(s)
  */
 
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import { checkFeature, checkAnyFeature, checkAllFeatures } from '@/lib/permissions/checkFeature';
 import { Feature } from '@/lib/permissions/features';

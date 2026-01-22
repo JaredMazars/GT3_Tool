@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getUserServiceLineRole } from '@/lib/services/service-lines/getUserServiceLineRole';

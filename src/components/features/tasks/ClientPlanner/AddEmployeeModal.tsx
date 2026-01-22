@@ -279,8 +279,8 @@ export function AddEmployeeModal({
       const addResult = await addResponse.json();
       const teamMemberId = addResult.data?.id || addResult.id;
 
-      if (!teamMemberId) {
-        throw new Error('Failed to get team member ID');
+      if (!teamMemberId || typeof teamMemberId !== 'number' || teamMemberId <= 0) {
+        throw new Error(`Failed to get valid team member ID from response (received: ${teamMemberId})`);
       }
 
       // Step 2: Set allocation dates and hours

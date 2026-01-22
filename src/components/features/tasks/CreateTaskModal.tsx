@@ -91,13 +91,6 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
     // Timeline
     TaskDateOpen: new Date().toISOString().split('T')[0],
     TaskDateTerminate: '',
-    
-    // TaskBudget fields
-    EstChgHours: '',      // Estimated hours
-    EstFeeTime: '',       // Estimated time fees
-    EstFeeDisb: '',       // Estimated disbursements
-    BudStartDate: '',     // Budget start date
-    BudDueDate: '',       // Budget due date
   });
 
   // Fetch external service lines when service line is available
@@ -493,8 +486,6 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
       case 2:
         return !!formData.TaskPartner && !!formData.TaskManager && !!formData.OfficeCode;
       case 3:
-        return true; // Budget step - all fields optional
-      case 4:
         return true; // Review step
       default:
         return false;
@@ -502,7 +493,7 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
   };
 
   const handleSubmit = async () => {
-    if (step !== 4) return;
+    if (step !== 3) return;
 
     try {
       // Prepare submission data
@@ -511,13 +502,6 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
         // Backend will populate these from ServLineCode
         SLGroup: null,
         ServLineDesc: null,
-        // Convert TaskBudget fields to numbers
-        EstChgHours: formData.EstChgHours ? parseFloat(formData.EstChgHours as string) : undefined,
-        EstFeeTime: formData.EstFeeTime ? parseFloat(formData.EstFeeTime as string) : undefined,
-        EstFeeDisb: formData.EstFeeDisb ? parseFloat(formData.EstFeeDisb as string) : undefined,
-        // Convert budget dates
-        BudStartDate: formData.BudStartDate ? new Date(formData.BudStartDate) : undefined,
-        BudDueDate: formData.BudDueDate ? new Date(formData.BudDueDate) : undefined,
         // Task dates - auto-populate TaskDateOpen with current date
         TaskDateOpen: new Date(),
         TaskDateTerminate: undefined,
@@ -566,11 +550,6 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
       ServLineDesc: '',
       TaskDateOpen: new Date().toISOString().split('T')[0],
       TaskDateTerminate: '',
-      EstChgHours: '',
-      EstFeeTime: '',
-      EstFeeDisb: '',
-      BudStartDate: '',
-      BudDueDate: '',
     });
     setStep(1);
     setIsTransitioning(false);
@@ -588,10 +567,6 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
   };
 
   if (!isOpen) return null;
-
-  const totalEstimatedFees = 
-    (parseFloat(formData.EstFeeTime as string) || 0) +
-    (parseFloat(formData.EstFeeDisb as string) || 0);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -616,13 +591,11 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
             <div className={`flex-1 h-2 rounded-full ${step >= 1 ? 'bg-white' : 'bg-white/30'}`} />
             <div className={`flex-1 h-2 rounded-full ${step >= 2 ? 'bg-white' : 'bg-white/30'}`} />
             <div className={`flex-1 h-2 rounded-full ${step >= 3 ? 'bg-white' : 'bg-white/30'}`} />
-            <div className={`flex-1 h-2 rounded-full ${step >= 4 ? 'bg-white' : 'bg-white/30'}`} />
           </div>
           
           <div className="flex justify-between text-xs text-white/90 mt-1">
             <span>Basic Info</span>
             <span>Team</span>
-            <span>Budget</span>
             <span>Review</span>
           </div>
         </div>
@@ -819,99 +792,8 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
             </div>
           )}
 
-          {/* Step 3: Budget Information */}
+          {/* Step 3: Review */}
           {step === 3 && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">Budget Information</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Estimated Hours
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.EstChgHours}
-                      onChange={(e) => handleFieldChange('EstChgHours', e.target.value)}
-                      min="0"
-                      step="0.5"
-                      className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
-                      placeholder="0.00"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Estimated Time Fees
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.EstFeeTime}
-                      onChange={(e) => handleFieldChange('EstFeeTime', e.target.value)}
-                      min="0"
-                      step="0.01"
-                      className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
-                      placeholder="0.00"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Estimated Disbursements
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.EstFeeDisb}
-                      onChange={(e) => handleFieldChange('EstFeeDisb', e.target.value)}
-                      min="0"
-                      step="0.01"
-                      className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
-                      placeholder="0.00"
-                    />
-                  </div>
-
-                  <div className="col-span-2 grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Estimated Start Date
-                      </label>
-                      <input
-                        type="date"
-                        value={formData.BudStartDate}
-                        onChange={(e) => handleFieldChange('BudStartDate', e.target.value)}
-                        className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Estimated End Date
-                      </label>
-                      <input
-                        type="date"
-                        value={formData.BudDueDate}
-                        onChange={(e) => handleFieldChange('BudDueDate', e.target.value)}
-                        min={formData.BudStartDate}
-                        className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4 p-3 bg-forvis-blue-50 border border-forvis-blue-200 rounded-lg">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-semibold text-forvis-gray-700">Total Estimated Budget:</span>
-                    <span className="text-lg font-bold text-forvis-blue-600">
-                      R {totalEstimatedFees.toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 4: Review */}
-          {step === 4 && (
             <div className="space-y-4">
               <div 
                 className="p-4 rounded-lg border border-forvis-blue-200"
@@ -956,18 +838,6 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
                       <span className="font-medium text-gray-900">{formData.TaskDateTerminate}</span>
                     </div>
                   )}
-                  {formData.EstChgHours && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Estimated Hours:</span>
-                      <span className="font-medium text-gray-900">{formData.EstChgHours}</span>
-                    </div>
-                  )}
-                  {totalEstimatedFees > 0 && (
-                    <div className="flex justify-between pt-2 border-t border-forvis-blue-200">
-                      <span className="text-gray-700 font-semibold">Total Estimated Fees:</span>
-                      <span className="font-bold text-forvis-blue-600">R {totalEstimatedFees.toFixed(2)}</span>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
@@ -1001,7 +871,7 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
                 Cancel
               </button>
 
-              {step < 4 ? (
+              {step < 3 ? (
                 <button
                   type="button"
                   onClick={handleNextStep}

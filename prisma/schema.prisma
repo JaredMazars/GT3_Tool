@@ -1459,6 +1459,8 @@ model Task {
   Client                   Client?                    @relation(fields: [GSClientID], references: [GSClientID], onDelete: NoAction, onUpdate: NoAction)
   TaskAcceptance           TaskAcceptance?
   TaskBudget               TaskBudget[]
+  TaskBudgetDisbursement   TaskBudgetDisbursement[]
+  TaskBudgetFee            TaskBudgetFee[]
   TaskDocument             TaskDocument[]
   TaskEngagementLetter     TaskEngagementLetter?
   TaskStage                TaskStage[]
@@ -1526,6 +1528,38 @@ model TaskBudget {
   @@index([GSClientID])
   @@index([GSTaskID])
   @@index([TaskBudgetID])
+}
+
+model TaskBudgetDisbursement {
+  id           Int      @id @default(autoincrement())
+  taskId       Int
+  description  String   @db.NVarChar(255)
+  amount       Decimal  @db.Decimal(18, 2)
+  expectedDate DateTime
+  createdBy    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  Task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  User         User     @relation(fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([taskId])
+  @@index([createdBy])
+}
+
+model TaskBudgetFee {
+  id           Int      @id @default(autoincrement())
+  taskId       Int
+  description  String   @db.NVarChar(255)
+  amount       Decimal  @db.Decimal(18, 2)
+  expectedDate DateTime
+  createdBy    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  Task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  User         User     @relation(fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([taskId])
+  @@index([createdBy])
 }
 
 model TaskDocument {
@@ -1857,6 +1891,8 @@ model User {
   ServiceLineUser                                                                                        ServiceLineUser[]
   Session                                                                                                Session[]
   Task                                                                                                   Task[]
+  TaskBudgetDisbursement                                                                                 TaskBudgetDisbursement[]
+  TaskBudgetFee                                                                                          TaskBudgetFee[]
   TaskTeam                                                                                               TaskTeam[]
   TaskTool                                                                                               TaskTool[]
   VaultDocument                                                                                          VaultDocument[]
@@ -2206,4 +2242,113 @@ model WorkspaceFolder {
   WorkspaceFolder       WorkspaceFolder?  @relation("WorkspaceFolderToWorkspaceFolder", fields: [parentFolderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   other_WorkspaceFolder WorkspaceFolder[] @relation("WorkspaceFolderToWorkspaceFolder")
   Task                  Task?             @relation(fields: [taskId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+// Financial Tables - Chart of Accounts and GL Transactions
+
+model GLAccount {
+  id             Int     @id @default(autoincrement())
+  GSAccountID    String  @unique @db.UniqueIdentifier
+  Account        String  @db.NVarChar(30)
+  AccDesc        String  @db.NVarChar(255)
+  DescriptionSub String? @db.NVarChar(255)
+  Category       String  @db.NVarChar(30)
+  CatDesc        String? @db.NVarChar(128)
+  BS             Boolean
+  AccStatus      String? @db.NVarChar(50)
+  AccLevel       String? @db.NVarChar(1)
+  OfficeCode     String  @db.NVarChar(10)
+  OfficeDesc     String  @db.NVarChar(100)
+
+  @@index([Account])
+  @@index([OfficeCode])
+  @@index([Category])
+  @@index([AccStatus])
+  @@map("Accounts")
+}
+
+model GLTransaction {
+  id             Int       @id @default(autoincrement())
+  GSEntryID      String    @unique @db.UniqueIdentifier
+  GSAccountID    String    @db.UniqueIdentifier
+  Account        String    @db.NVarChar(30)
+  AccDesc        String    @db.NVarChar(255)
+  DescriptionSub String?   @db.NVarChar(255)
+  SourceBatch    String?   @db.NVarChar(50)
+  EntryDate      DateTime?
+  DatePosted     DateTime?
+  Reference      String?   @db.NVarChar(20)
+  Amount         Float?    @db.Money
+  Debit          Float?    @db.Money
+  Credit         Float?    @db.Money
+  Category       String    @db.NVarChar(30)
+  CatDesc        String?   @db.NVarChar(128)
+  BS             Boolean
+  OfficeCode     String    @db.NVarChar(10)
+  OfficeDesc     String    @db.NVarChar(100)
+  Narration      String?   @db.NVarChar(255)
+  EntryGroup     String?   @db.UniqueIdentifier
+  EntryTypeCode  String    @db.NVarChar(3)
+  EntryGroupCode String    @db.NVarChar(10)
+  EntryGroupDesc String?   @db.NVarChar(50)
+  AccStatus      String?   @db.NVarChar(50)
+
+  @@index([GSAccountID])
+  @@index([Account])
+  @@index([EntryDate])
+  @@index([DatePosted])
+  @@index([OfficeCode])
+  @@index([EntryGroup])
+  @@index([SourceBatch])
+  @@map("GL")
+}
+
+model CreditorTransaction {
+  id              Int      @id @default(autoincrement())
+  GSTranID        String   @unique @db.UniqueIdentifier
+  GSTaskID        String?  @db.UniqueIdentifier
+  GSDisbID        String?  @db.UniqueIdentifier
+  GSMatchID       String?  @db.UniqueIdentifier
+  TranType        String   @db.VarChar(3)
+  BatchNumber     String?  @db.NVarChar(20)
+  InvNumber       String   @db.NVarChar(20)
+  TranDate        DateTime
+  MatchDate       DateTime
+  CreditorCode    String   @db.NVarChar(10)
+  CreditorControl String?  @db.NVarChar(30)
+  OfficeCode      String?  @db.NVarChar(10)
+  ClntDisb        Int
+  Account         String?  @db.NVarChar(30)
+  AccDesc         String?  @db.NVarChar(255)
+  InvAmount       Float?   @db.Money
+  InvVatAmount    Float?   @db.Money
+  InvTotal        Float?   @db.Money
+  InvNarr         String?  @db.Text
+  MatchNr         String   @db.NVarChar(20)
+
+  @@index([CreditorCode])
+  @@index([TranDate])
+  @@index([MatchDate])
+  @@index([InvNumber])
+  @@index([GSTaskID])
+  @@index([BatchNumber])
+  @@index([OfficeCode])
+  @@map("Creditors")
+}
+
+model GLBudget {
+  id             Int    @id @default(autoincrement())
+  GSBudgetID     String @unique @db.UniqueIdentifier
+  GSBudgetTypeID String @db.UniqueIdentifier
+  GSAccountID    String @db.UniqueIdentifier
+  BudgetCode     String @db.NVarChar(10)
+  PeriodYear     Int
+  PeriodNumber   Int
+  BudgetAmount   Float?
+
+  @@index([GSAccountID])
+  @@index([BudgetCode])
+  @@index([PeriodYear, PeriodNumber])
+  @@index([GSBudgetTypeID])
+  @@map("GLBudgets")
 }

@@ -1667,4 +1667,30 @@ export type UpdateLeaderGroupInput = z.infer<typeof UpdateLeaderGroupSchema>;
 export type AddLeaderGroupMembersInput = z.infer<typeof AddLeaderGroupMembersSchema>;
 export type RemoveLeaderGroupMemberInput = z.infer<typeof RemoveLeaderGroupMemberSchema>;
 
+// =============================================================================
+// Task Budget Schemas
+// =============================================================================
+
+/**
+ * Schema for creating a budget disbursement
+ */
+export const budgetDisbursementSchema = z.object({
+  description: z.string().min(1, 'Description is required').max(255),
+  amount: z.number().positive('Amount must be positive'),
+  expectedDate: z.coerce.date()
+}).strict();
+
+/**
+ * Schema for creating a budget fee
+ */
+export const budgetFeeSchema = z.object({
+  description: z.string().min(1, 'Description is required').max(255),
+  amount: z.number().positive('Amount must be positive'),
+  expectedDate: z.coerce.date()
+}).strict();
+
+// Inferred types
+export type BudgetDisbursementInput = z.infer<typeof budgetDisbursementSchema>;
+export type BudgetFeeInput = z.infer<typeof budgetFeeSchema>;
+
 

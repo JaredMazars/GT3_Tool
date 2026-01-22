@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { getUserSystemRole } from '@/lib/services/auth/authorization';

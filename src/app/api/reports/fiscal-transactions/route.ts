@@ -5,6 +5,8 @@
  * This endpoint returns transactions filtered by fiscal year, quarter, or month.
  */
 
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';

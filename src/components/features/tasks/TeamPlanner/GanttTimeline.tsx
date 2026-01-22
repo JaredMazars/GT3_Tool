@@ -73,11 +73,11 @@ export function GanttTimeline({
 
   // Determine if user can edit based on ServiceLineRole
   // For planner view (taskId === 0), allow ADMINISTRATOR, PARTNER, MANAGER, SUPERVISOR, and USER to create allocations
-  // For task view (taskId > 0), only ADMINISTRATOR and PARTNER can edit
+  // For task view (taskId > 0), allow ADMIN (system admin), ADMINISTRATOR, and PARTNER
   const roleUpper = (currentUserRole || '').toUpperCase();
   const canEdit = taskId === 0 
     ? (roleUpper === 'ADMINISTRATOR' || roleUpper === 'PARTNER' || roleUpper === 'MANAGER' || roleUpper === 'SUPERVISOR' || roleUpper === 'USER')
-    : (roleUpper === 'ADMINISTRATOR' || roleUpper === 'PARTNER');
+    : (roleUpper === 'ADMIN' || roleUpper === 'ADMINISTRATOR' || roleUpper === 'PARTNER');
 
   // Handler to go to today - memoized to prevent recreating on every render
   const handleGoToToday = useCallback(() => {
@@ -237,11 +237,23 @@ export function GanttTimeline({
     if (allocation.isCurrentTask === false) {
       return;
     }
+    
+    // Placeholder team members shouldn't have allocations to edit
+    // (they should be converted to real team members via handleCreateAllocation first)
+    if (!allocation.id || allocation.id <= 0) {
+      setErrorModal({
+        isOpen: true,
+        message: 'This allocation belongs to a placeholder team member. Please refresh the page and try again.',
+        title: 'Invalid State'
+      });
+      return;
+    }
+    
     setSelectedAllocation(allocation);
     setIsModalOpen(true);
   }, []);
 
-  const handleCreateAllocation = useCallback((userId: string, startDate?: Date, endDate?: Date) => {
+  const handleCreateAllocation = useCallback(async (userId: string, startDate?: Date, endDate?: Date) => {
 
     // Find the team member
     const member = teamMembers.find(m => m.userId === userId);
@@ -252,6 +264,59 @@ export function GanttTimeline({
         title: 'Not Found'
       });
       return;
+    }
+
+    // If this is a placeholder team member (id <= 0 or pending userId), create TaskTeam record first
+    if (!member.id || member.id <= 0 || userId.startsWith('pending-')) {
+      setIsSaving(true);
+      try {
+        // Create TaskTeam record for this employee
+        // Access nested User properties correctly
+        const userName = (member as any).User?.name || member.userName;
+        const userEmail = (member as any).User?.email || member.userEmail;
+        
+        const requestBody = {
+          userId: userId.startsWith('pending-') ? undefined : userId,
+          employeeCode: userId.startsWith('pending-') ? userId.replace('pending-', '') : undefined,
+          displayName: userName,
+          email: userEmail,
+          role: member.role
+        };
+        
+        const response = await fetch(`/api/tasks/${taskId}/users`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Failed to add team member');
+        }
+
+        const result = await response.json();
+        const newTeamMemberId = result.data?.id || result.id;
+
+        if (!newTeamMemberId || typeof newTeamMemberId !== 'number' || newTeamMemberId <= 0) {
+          throw new Error('Failed to get valid team member ID');
+        }
+
+        // Refresh team data to get the new member with proper ID
+        await onAllocationUpdate();
+        
+        // Update member reference with new ID
+        member.id = newTeamMemberId;
+      } catch (error) {
+        setErrorModal({
+          isOpen: true,
+          message: error instanceof Error ? error.message : 'Failed to add team member',
+          title: 'Error'
+        });
+        setIsSaving(false);
+        return;
+      } finally {
+        setIsSaving(false);
+      }
     }
 
     // For planner view (taskId === 0), show admin planning modal to select client/task
@@ -615,8 +680,8 @@ export function GanttTimeline({
         throw new Error(errorData.error || 'Failed to add user to task');
       }
 
-      if (!teamMemberId) {
-        throw new Error('Could not determine team member ID');
+      if (!teamMemberId || typeof teamMemberId !== 'number' || teamMemberId <= 0) {
+        throw new Error(`Could not determine valid team member ID (received: ${teamMemberId})`);
       }
 
       // Now create the allocation for this user on this task

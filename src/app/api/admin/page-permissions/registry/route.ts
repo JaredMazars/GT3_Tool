@@ -3,6 +3,8 @@
  * GET: Get all pages in the registry (auto-discovered)
  */
 
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { successResponse } from '@/lib/utils/apiUtils';

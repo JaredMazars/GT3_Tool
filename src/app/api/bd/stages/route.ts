@@ -3,6 +3,8 @@
  * GET /api/bd/stages - List all active stages
  */
 
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { successResponse } from '@/lib/utils/apiUtils';

@@ -3,10 +3,11 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import dynamic from 'next/dynamic';
-import { Briefcase, DollarSign, Calendar, BarChart3, TrendingUp, TrendingDown, Clock } from 'lucide-react';
+import { Briefcase, DollarSign, Calendar, BarChart3, TrendingUp, TrendingDown, Clock, Calculator } from 'lucide-react';
 import { useTaskWip, ProfitabilityMetrics } from '@/hooks/tasks/useTaskWip';
 import { taskTransactionsKeys } from '@/hooks/tasks/useTaskTransactions';
 import { TransactionDetailsModal } from './TransactionDetailsModal';
+import { TaskBudgetTab } from './TaskBudgetTab';
 import { MetricType } from '@/types';
 import { LoadingSpinner } from '@/components/ui';
 
@@ -92,7 +93,7 @@ function ProfitabilityCard({
 }
 
 export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
-  const [activeTab, setActiveTab] = useState<'profitability' | 'graphs'>('profitability');
+  const [activeTab, setActiveTab] = useState<'profitability' | 'graphs' | 'budget'>('profitability');
   const { data: wipData, isLoading, error } = useTaskWip(taskId);
   const queryClient = useQueryClient();
   
@@ -202,6 +203,20 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
             <div className="flex items-center space-x-2">
               <Briefcase className="h-5 w-5" />
               <span>Profitability</span>
+            </div>
+          </button>
+          
+          <button
+            onClick={() => setActiveTab('budget')}
+            className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+              activeTab === 'budget'
+                ? 'border-forvis-blue-600 text-forvis-blue-600'
+                : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <Calculator className="h-5 w-5" />
+              <span>Budget</span>
             </div>
           </button>
           
@@ -502,6 +517,11 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
           />
         )}
         </div>
+      )}
+
+      {/* Budget Tab */}
+      {activeTab === 'budget' && (
+        <TaskBudgetTab taskId={taskId} />
       )}
 
       {/* Graphs Tab */}

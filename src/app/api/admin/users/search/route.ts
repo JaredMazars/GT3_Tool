@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { secureRoute } from '@/lib/api/secureRoute';
 import { Feature } from '@/lib/permissions/features';

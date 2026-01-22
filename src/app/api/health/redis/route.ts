@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import { getRedisStatus, pingRedis } from '@/lib/cache/redisClient';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';

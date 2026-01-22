@@ -3,6 +3,8 @@
  * GET /api/bd/analytics/forecast - Get revenue forecast
  */
 
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';

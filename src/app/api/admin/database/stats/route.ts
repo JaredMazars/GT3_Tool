@@ -3,6 +3,8 @@
  * GET /api/admin/database/stats - Get database statistics and table sizes
  */
 
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { successResponse } from '@/lib/utils/apiUtils';
