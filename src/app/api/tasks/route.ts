@@ -453,6 +453,7 @@ export const POST = secureRoute.mutation({
           TaskDateOpen: data.TaskDateOpen,
           TaskDateTerminate: data.TaskDateTerminate || null,
           createdBy: user.id,
+          updatedAt: new Date(),
         },
         select: {
           id: true,
@@ -543,6 +544,7 @@ export const POST = secureRoute.mutation({
             BudDueDate: data.BudDueDate || null,
             LastUser: user.email || user.id,
             LastUpdated: new Date(),
+            updatedAt: new Date(),
           },
         });
       }

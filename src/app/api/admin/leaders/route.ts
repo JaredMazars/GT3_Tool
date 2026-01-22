@@ -26,18 +26,18 @@ export const GET = secureRoute.query({
           type: true,
           createdAt: true,
           updatedAt: true,
-          createdBy: {
+          User: {
             select: {
               id: true,
               name: true,
               email: true,
             },
           },
-          members: {
+          LeaderGroupMember: {
             select: {
               id: true,
               addedAt: true,
-              employee: {
+              Employee: {
                 select: {
                   id: true,
                   EmpCode: true,
@@ -50,7 +50,7 @@ export const GET = secureRoute.query({
                   Active: true,
                 },
               },
-              addedBy: {
+              User: {
                 select: {
                   id: true,
                   name: true,
@@ -59,7 +59,7 @@ export const GET = secureRoute.query({
               },
             },
             orderBy: {
-              employee: {
+              Employee: {
                 EmpName: 'asc',
               },
             },
@@ -118,6 +118,7 @@ export const POST = secureRoute.mutation({
           description: data.description,
           type: data.type,
           createdById: user.id,
+          updatedAt: new Date(),
         },
         select: {
           id: true,
@@ -126,14 +127,14 @@ export const POST = secureRoute.mutation({
           type: true,
           createdAt: true,
           updatedAt: true,
-          createdBy: {
+          User: {
             select: {
               id: true,
               name: true,
               email: true,
             },
           },
-          members: true,
+          LeaderGroupMember: true,
         },
       });
 

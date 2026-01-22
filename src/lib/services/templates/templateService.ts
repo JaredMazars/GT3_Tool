@@ -176,6 +176,7 @@ export async function createTemplate(data: CreateTemplateData) {
         serviceLine: data.serviceLine,
         active: data.active ?? true,
         createdBy: data.createdBy,
+        updatedAt: new Date(),
       },
       select: {
         id: true,
@@ -307,6 +308,7 @@ export async function createTemplateSection(data: CreateTemplateSectionData) {
         applicableProjectTypes: data.applicableProjectTypes
           ? JSON.stringify(data.applicableProjectTypes)
           : null,
+        updatedAt: new Date(),
       },
       select: {
         id: true,
@@ -563,6 +565,7 @@ export async function copyTemplate(id: number, createdBy: string) {
         serviceLine: originalTemplate.serviceLine,
         active: false, // Set to inactive by default
         createdBy,
+        updatedAt: new Date(),
         TemplateSection: {
           create: originalTemplate.TemplateSection.map((section) => ({
             sectionKey: section.sectionKey,
@@ -573,6 +576,7 @@ export async function copyTemplate(id: number, createdBy: string) {
             order: section.order,
             applicableServiceLines: section.applicableServiceLines,
             applicableProjectTypes: section.applicableProjectTypes,
+            updatedAt: new Date(),
           })),
         },
       },

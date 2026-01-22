@@ -71,6 +71,7 @@ export const POST = secureRoute.mutationWithParams({
         relevance: data.relevance,
         link: data.link,
         createdBy: user.id,
+        updatedAt: new Date(),
       },
       select: {
         id: true,

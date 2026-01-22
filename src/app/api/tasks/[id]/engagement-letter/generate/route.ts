@@ -105,6 +105,7 @@ export async function POST(
         templateVersionId: generated.versionId, // Lock to version used
         generatedBy: user.id,
         generatedAt: new Date(),
+        updatedAt: new Date(),
       },
       update: {
         generated: true,
@@ -113,6 +114,7 @@ export async function POST(
         templateVersionId: generated.versionId,
         generatedBy: user.id,
         generatedAt: new Date(),
+        updatedAt: new Date(),
       },
     });
 

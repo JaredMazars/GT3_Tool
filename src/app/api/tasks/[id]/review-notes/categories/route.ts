@@ -72,7 +72,10 @@ export const POST = secureRoute.mutation({
 
     // Create category
     const category = await prisma.reviewCategory.create({
-      data,
+      data: {
+        ...data,
+        updatedAt: new Date(),
+      },
       select: {
         id: true,
         name: true,

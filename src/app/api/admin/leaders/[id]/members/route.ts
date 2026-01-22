@@ -281,7 +281,7 @@ export const DELETE = secureRoute.mutationWithParams<z.ZodSchema, { id: string }
               email: true,
             },
           },
-          members: {
+          LeaderGroupMember: {
             select: {
               id: true,
               addedAt: true,
@@ -320,7 +320,7 @@ export const DELETE = secureRoute.mutationWithParams<z.ZodSchema, { id: string }
         groupId,
         groupName: existingGroup.name,
         removedEmployeeId: employeeId,
-        removedEmployeeName: member.employee.EmpName,
+        removedEmployeeName: member.Employee.EmpName,
       });
 
       return NextResponse.json(successResponse(updatedGroup));

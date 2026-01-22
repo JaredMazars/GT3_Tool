@@ -3,7 +3,7 @@
  * Registry of all approval workflows with their configuration
  */
 
-import { UserCog, CheckCircle, FileText, Shield, MessageSquare, RefreshCw, FolderOpen, Building } from 'lucide-react';
+import { UserCog, CheckCircle, FileText, Shield, MessageSquare, RefreshCw, FolderOpen, Building, UserCheck } from 'lucide-react';
 import { prisma } from '@/lib/db/prisma';
 import type { WorkflowRegistryEntry, WorkflowType } from '@/types/approval';
 
@@ -286,6 +286,57 @@ export const WORKFLOW_REGISTRY: Record<WorkflowType, WorkflowRegistryEntry> = {
       const category = data?.VaultDocumentCategory?.name || 'Uncategorized';
       const scope = data?.scope === 'GLOBAL' ? 'Global' : `${data?.serviceLine || 'Service Line'}`;
       return `Category: ${category} | Scope: ${scope}`;
+    },
+  },
+
+  INDEPENDENCE_CONFIRMATION: {
+    name: 'Independence Confirmation',
+    icon: UserCheck,
+    defaultRoute: 'partner-approval',
+    fetchData: async (workflowId: number) => {
+      return await prisma.taskIndependenceConfirmation.findUnique({
+        where: { id: workflowId },
+        include: {
+          TaskTeam: {
+            select: {
+              id: true,
+              taskId: true,
+              userId: true,
+              role: true,
+              Task: {
+                select: {
+                  id: true,
+                  TaskDesc: true,
+                  TaskCode: true,
+                  Client: {
+                    select: {
+                      GSClientID: true,
+                      clientCode: true,
+                      clientNameFull: true,
+                    },
+                  },
+                },
+              },
+              User: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+      });
+    },
+    getDisplayTitle: (data: any) => {
+      const userName = data?.TaskTeam?.User?.name || 'Unknown User';
+      const taskName = data?.TaskTeam?.Task?.TaskDesc || data?.TaskTeam?.Task?.TaskCode || 'Unknown Task';
+      return `Independence Confirmation: ${userName} - ${taskName}`;
+    },
+    getDisplayDescription: (data: any) => {
+      const clientName = data?.TaskTeam?.Task?.Client?.clientNameFull || data?.TaskTeam?.Task?.Client?.clientCode || 'Unknown';
+      return `Client: ${clientName}`;
     },
   },
 };

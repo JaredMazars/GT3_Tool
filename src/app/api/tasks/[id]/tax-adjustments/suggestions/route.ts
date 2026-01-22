@@ -99,6 +99,7 @@ export const POST = secureRoute.aiWithParams({
               confidenceScore: suggestion.confidenceScore,
               calculationDetails: JSON.stringify(suggestion.calculationDetails),
               notes: suggestion.reasoning,
+              updatedAt: new Date(),
             })),
           });
         }

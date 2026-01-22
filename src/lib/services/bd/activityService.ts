@@ -243,6 +243,7 @@ export async function createActivity(data: {
       location: data.location,
       assignedTo: data.assignedTo,
       createdBy: data.createdBy,
+      updatedAt: new Date(),
     },
     include: {
       BDOpportunity: {

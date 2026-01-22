@@ -147,6 +147,7 @@ export const POST = secureRoute.mutationWithParams({
         parentFolderId: data.parentFolderId || null,
         createdBy: user.id,
         active: true,
+        updatedAt: new Date(),
       },
       select: {
         id: true,

@@ -65,6 +65,7 @@ export const POST = secureRoute.mutation({
           componentPath,
           active: true,
           sortOrder: 0,
+          updatedAt: new Date(),
         },
         select: { id: true },
       });
@@ -80,6 +81,7 @@ export const POST = secureRoute.mutation({
             icon: subTab.icon,
             sortOrder: index,
             active: true,
+            updatedAt: new Date(),
           })),
         });
       }

@@ -222,6 +222,7 @@ export default function DatabaseManagementPage() {
       }, 5000); // Refresh every 5 seconds
       return () => clearInterval(interval);
     }
+    return undefined;
   }, [activeTab]);
 
   const loadInitialData = async () => {
@@ -641,15 +642,15 @@ export default function DatabaseManagementPage() {
       const frag = index.fragmentationPercent;
 
       if (frag >= 70) {
-        tiers[0].indexes.push(index);
+        tiers[0]!.indexes.push(index);
       } else if (frag >= 50) {
-        tiers[1].indexes.push(index);
+        tiers[1]!.indexes.push(index);
       } else if (frag >= 30) {
-        tiers[2].indexes.push(index);
+        tiers[2]!.indexes.push(index);
       } else if (frag >= 10) {
-        tiers[3].indexes.push(index);
+        tiers[3]!.indexes.push(index);
       } else {
-        tiers[4].indexes.push(index);
+        tiers[4]!.indexes.push(index);
       }
     }
 

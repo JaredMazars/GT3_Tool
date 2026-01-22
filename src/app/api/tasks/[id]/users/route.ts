@@ -620,6 +620,7 @@ export const POST = secureRoute.mutationWithParams({
                 name: employee.EmpNameFull || employee.EmpName,
                 email: employee.WinLogon,
                 role: 'USER',
+                updatedAt: new Date(),
               },
             });
             targetUserId = newUser.id;
@@ -653,6 +654,7 @@ export const POST = secureRoute.mutationWithParams({
               name: validatedData.displayName || validatedData.employeeCode,
               email: validatedData.email || `${validatedData.employeeCode}@pending.local`,
               role: 'USER',
+              updatedAt: new Date(),
             },
           });
           targetUserId = newUser.id;

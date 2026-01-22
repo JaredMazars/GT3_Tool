@@ -207,6 +207,7 @@ export const POST = secureRoute.mutationWithParams({
             order: maxOrder ? maxOrder.order + 1 : 1,
             aiGenerated: true,
             reviewed: false,
+            updatedAt: new Date(),
           },
           select: {
             id: true,
@@ -375,6 +376,7 @@ export const POST = secureRoute.mutationWithParams({
             content: data.content,
             order: data.order ?? (maxOrder ? maxOrder.order + 1 : 1),
             aiGenerated: false,
+            updatedAt: new Date(),
           },
           select: {
             id: true,

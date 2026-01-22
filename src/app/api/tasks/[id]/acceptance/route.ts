@@ -132,6 +132,7 @@ export const POST = secureRoute.mutationWithParams({
           questionnaireType: questionnaireResponse.questionnaireType,
           overallRiskScore: questionnaireResponse.overallRiskScore,
           riskRating: questionnaireResponse.riskRating,
+          updatedAt: new Date(),
         },
         update: {
           acceptanceApproved: true,
@@ -140,6 +141,7 @@ export const POST = secureRoute.mutationWithParams({
           questionnaireType: questionnaireResponse.questionnaireType,
           overallRiskScore: questionnaireResponse.overallRiskScore,
           riskRating: questionnaireResponse.riskRating,
+          updatedAt: new Date(),
         },
         select: { id: true },
       });

@@ -13,6 +13,7 @@ import {
   FileBarChart,
   Calendar,
   FolderOpen,
+  Activity,
 } from 'lucide-react';
 import { formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';
 
@@ -28,13 +29,16 @@ export function ServiceLineSelector() {
   const isShared = isSharedService(serviceLine.toUpperCase());
   
   // Services with only vault functionality
-  const vaultOnlyServices = ['qrm', 'it', 'finance', 'hr'];
+  const vaultOnlyServices = ['it', 'finance', 'hr'];
   const isVaultOnly = vaultOnlyServices.includes(serviceLine);
 
   // Determine grid columns based on cards shown
   const getGridCols = () => {
     if (isVaultOnly) {
       return 'md:grid-cols-1 max-w-2xl mx-auto'; // Just Vault for simple services
+    }
+    if (serviceLine === 'qrm') {
+      return 'md:grid-cols-2'; // Monitoring + Vault for QRM
     }
     if (serviceLine === 'business_dev') {
       return 'md:grid-cols-3'; // BD Pipeline + Company News + Vault
@@ -77,6 +81,8 @@ export function ServiceLineSelector() {
                 ? 'Track opportunities and view company news'
                 : serviceLine === 'country_management'
                 ? 'Access resource planning and executive reporting'
+                : serviceLine === 'qrm'
+                ? 'Access monitoring dashboards and document vault'
                 : 'Choose the type of tasks you want to view'}
             </p>
           </div>
@@ -122,6 +128,51 @@ export function ServiceLineSelector() {
 
                     <ArrowRight className="h-6 w-6 text-forvis-blue-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200 flex-shrink-0" />
                   </div>
+                </div>
+              </Link>
+            )}
+
+            {/* QRM Monitoring Card - Only show for QRM service line */}
+            {serviceLine === 'qrm' && (
+              <Link
+                href={`/dashboard/qrm/monitoring`}
+                className="group block rounded-lg border border-forvis-gray-200 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden"
+                style={{
+                  background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
+                }}
+              >
+                {/* Hover gradient overlay */}
+                <div 
+                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(91, 147, 215, 0.06) 0%, rgba(46, 90, 172, 0.08) 100%)',
+                  }}
+                />
+
+                <div className="p-4 relative z-[1]">
+                  <div className="flex items-center gap-3 mb-3">
+                    {/* Icon */}
+                    <div 
+                      className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm"
+                      style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+                    >
+                      <Activity className="h-6 w-6 text-white" />
+                    </div>
+
+                    {/* Title and Arrow */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-bold text-forvis-gray-900 truncate group-hover:text-forvis-blue-600 transition-colors duration-200">
+                        Quality & Risk Monitoring
+                      </h3>
+                    </div>
+
+                    <ArrowRight className="h-4 w-4 text-forvis-blue-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200 flex-shrink-0" />
+                  </div>
+
+                  {/* Description */}
+                  <p className="text-xs text-forvis-gray-600 line-clamp-2 leading-relaxed">
+                    View compliance statistics and quality metrics
+                  </p>
                 </div>
               </Link>
             )}

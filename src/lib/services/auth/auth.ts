@@ -198,6 +198,7 @@ export async function handleCallback(code: string, redirectUri: string) {
             email,
             name,
             role: assignedRole,
+            updatedAt: new Date(),
           },
         });
       },

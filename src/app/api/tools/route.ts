@@ -93,6 +93,7 @@ export const POST = secureRoute.mutation({
         componentPath,
         active: active ?? true,
         sortOrder: sortOrder ?? 0,
+        updatedAt: new Date(),
       },
       select: {
         id: true,

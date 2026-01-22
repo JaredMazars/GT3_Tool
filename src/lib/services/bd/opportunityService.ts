@@ -263,6 +263,7 @@ export async function createOpportunity(data: {
       status: 'OPEN',
       assignedTo: data.assignedTo,
       createdBy: data.createdBy,
+      updatedAt: new Date(),
     },
     include: {
       Client: {

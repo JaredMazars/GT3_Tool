@@ -86,6 +86,7 @@ export const POST = secureRoute.mutationWithParams({
         referenceNumber: data.referenceNumber,
         notes: data.notes,
         createdBy: user.id,
+        updatedAt: new Date(),
       },
       select: {
         id: true,

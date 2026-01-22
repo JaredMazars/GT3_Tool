@@ -72,6 +72,7 @@ export const POST = secureRoute.mutationWithParams({
         responseType: data.responseType ?? 'General',
         deadline: data.deadline ? new Date(data.deadline) : null,
         createdBy: user.id,
+        updatedAt: new Date(),
       },
       select: {
         id: true,

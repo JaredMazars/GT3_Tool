@@ -50,6 +50,7 @@ export class ApprovalService {
             description: config.description,
             requestedById: config.requestedById,
             requiresAllSteps: routeConfig.requiresAllSteps,
+            updatedAt: new Date(),
           },
         });
 

@@ -86,6 +86,7 @@ export const PUT = secureRoute.mutationWithParams({
             toolId,
             subServiceLineGroup: group,
             active: true,
+            updatedAt: new Date(),
           })),
         });
       }

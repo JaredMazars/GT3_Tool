@@ -108,6 +108,7 @@ export const PUT = secureRoute.mutationWithParams({
           taskId,
           notificationType,
           emailEnabled: data.emailEnabled,
+          updatedAt: new Date(),
         },
         select: {
           id: true,

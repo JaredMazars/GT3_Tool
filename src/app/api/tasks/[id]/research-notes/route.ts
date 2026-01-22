@@ -66,6 +66,7 @@ export const POST = secureRoute.mutationWithParams({
         tags: data.tags ? JSON.stringify(data.tags) : null,
         category: data.category,
         createdBy: user.id,
+        updatedAt: new Date(),
       },
       select: {
         id: true,

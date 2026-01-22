@@ -105,6 +105,7 @@ export const POST = secureRoute.fileUploadWithParams({
         filePath,
         uploadedBy: user.id,
         extractionStatus: 'PENDING',
+        updatedAt: new Date(),
       },
       select: documentSelect,
     });

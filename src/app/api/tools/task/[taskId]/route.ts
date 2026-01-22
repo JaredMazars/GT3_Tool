@@ -114,6 +114,7 @@ export const POST = secureRoute.mutationWithParams({
         toolId,
         addedBy: user.id,
         sortOrder: sortOrder ?? 0,
+        updatedAt: new Date(),
       },
       select: {
         id: true,

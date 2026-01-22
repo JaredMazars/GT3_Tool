@@ -108,6 +108,7 @@ export const POST = secureRoute.mutationWithParams({
         section: data.section ?? section,
         subsection: data.subsection ?? subsection,
         taskId,
+        updatedAt: new Date(),
       },
       select: {
         id: true,

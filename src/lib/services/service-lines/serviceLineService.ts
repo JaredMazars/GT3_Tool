@@ -625,6 +625,7 @@ export async function grantServiceLineAccess(
                 role: role as string,
                 assignmentType: 'MAIN_SERVICE_LINE',
                 parentAssignmentId: parentId,
+                updatedAt: new Date(),
               },
             });
           }
@@ -679,6 +680,7 @@ export async function grantServiceLineAccess(
                 role: role as string,
                 assignmentType: 'SPECIFIC_SUBGROUP',
                 parentAssignmentId: null,
+                updatedAt: new Date(),
               },
             });
           }

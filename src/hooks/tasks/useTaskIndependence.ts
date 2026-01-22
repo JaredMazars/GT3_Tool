@@ -52,22 +52,13 @@ export function useTaskIndependence(taskId: string, enabled = true) {
   return useQuery<IndependenceResponse>({
     queryKey: independenceKeys.all(taskId),
     queryFn: async () => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useTaskIndependence.ts:48',message:'Query function start',data:{taskId,url:`/api/tasks/${taskId}/independence`},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C,D,E'})}).catch(()=>{});
-      // #endregion
       const response = await fetch(`/api/tasks/${taskId}/independence`);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useTaskIndependence.ts:49',message:'Fetch response received',data:{ok:response.ok,status:response.status,statusText:response.statusText},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to fetch independence confirmations');
       }
       
       const result = await response.json();
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useTaskIndependence.ts:55',message:'Response JSON parsed',data:{hasData:!!result.data,hasTeamMembers:!!result.teamMembers,dataTeamMembersCount:result.data?.teamMembers?.length,directTeamMembersCount:result.teamMembers?.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       return result.data || result;
     },
     enabled: enabled && !!taskId,

@@ -72,6 +72,7 @@ export const POST = secureRoute.mutationWithParams({
         status: data.status || 'DRAFT',
         createdBy: user.id,
         version: 1,
+        updatedAt: new Date(),
       },
       select: {
         id: true,

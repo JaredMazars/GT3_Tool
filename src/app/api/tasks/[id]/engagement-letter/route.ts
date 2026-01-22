@@ -149,10 +149,12 @@ export async function POST(
           uploaded: false,
           elExtractionStatus: 'FAILED',
           elExtractionError: error instanceof Error ? error.message : 'Unknown extraction error',
+          updatedAt: new Date(),
         },
         update: {
           elExtractionStatus: 'FAILED',
           elExtractionError: error instanceof Error ? error.message : 'Unknown extraction error',
+          updatedAt: new Date(),
         },
       });
       
@@ -199,6 +201,7 @@ export async function POST(
         elHasTcPartnerSignature: extractionResult.hasTcPartnerSignature,
         elHasTcClientSignature: extractionResult.hasTcClientSignature,
         elExtractedText: extractionResult.extractedText,
+        updatedAt: new Date(),
       },
       update: {
         uploaded: true,
@@ -217,6 +220,7 @@ export async function POST(
         elHasTcPartnerSignature: extractionResult.hasTcPartnerSignature,
         elHasTcClientSignature: extractionResult.hasTcClientSignature,
         elExtractedText: extractionResult.extractedText,
+        updatedAt: new Date(),
       },
       select: {
         uploaded: true,

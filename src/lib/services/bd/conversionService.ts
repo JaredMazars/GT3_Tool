@@ -97,6 +97,7 @@ export async function convertOpportunityToClient(
         typeCode: 'STD',
         typeDesc: 'Standard Client',
         GSClientID: crypto.randomUUID(),
+        updatedAt: new Date(),
       },
     });
   }
@@ -135,6 +136,7 @@ export async function convertOpportunityToClient(
         Active: 'Yes',
         TaskDateOpen: new Date(),
         createdBy: userId,
+        updatedAt: new Date(),
       },
     });
   }

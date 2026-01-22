@@ -141,10 +141,12 @@ export async function POST(
           dpaUploaded: false,
           dpaExtractionStatus: 'FAILED',
           dpaExtractionError: error instanceof Error ? error.message : 'Unknown extraction error',
+          updatedAt: new Date(),
         },
         update: {
           dpaExtractionStatus: 'FAILED',
           dpaExtractionError: error instanceof Error ? error.message : 'Unknown extraction error',
+          updatedAt: new Date(),
         },
       });
       
@@ -187,6 +189,7 @@ export async function POST(
         dpaHasPartnerSignature: extractionResult.hasPartnerSignature,
         dpaHasClientSignature: extractionResult.hasClientSignature,
         dpaExtractedText: extractionResult.extractedText,
+        updatedAt: new Date(),
       },
       update: {
         dpaUploaded: true,
@@ -201,6 +204,7 @@ export async function POST(
         dpaHasPartnerSignature: extractionResult.hasPartnerSignature,
         dpaHasClientSignature: extractionResult.hasClientSignature,
         dpaExtractedText: extractionResult.extractedText,
+        updatedAt: new Date(),
       },
       select: {
         dpaUploaded: true,

@@ -175,6 +175,7 @@ export const POST = secureRoute.mutationWithParams({
             userId: user.id,
             comment: `Forwarded to ${targetUser.name || targetUser.email}`,
             isInternal: true,
+            updatedAt: new Date(),
           },
         });
       }

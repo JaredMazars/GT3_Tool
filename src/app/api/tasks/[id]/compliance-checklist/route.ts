@@ -78,6 +78,7 @@ export const POST = secureRoute.mutationWithParams({
         status: data.status,
         assignedTo: data.assignedTo,
         createdBy: user.id,
+        updatedAt: new Date(),
       },
       select: checklistItemSelect,
     });

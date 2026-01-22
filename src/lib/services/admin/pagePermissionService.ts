@@ -41,6 +41,7 @@ export async function syncPageRegistry(): Promise<{
         discovered: true,
         active: true,
         lastSeen: now,
+        updatedAt: now,
       },
       select: {
         createdAt: true,
@@ -215,6 +216,7 @@ export async function createPagePermission(data: {
       description: data.description,
       active: true,
       createdBy: data.createdBy,
+      updatedAt: new Date(),
     },
     select: {
       id: true,
@@ -268,6 +270,7 @@ export async function bulkUpsertPagePermissions(
           description,
           active: true,
           createdBy,
+          updatedAt: new Date(),
         },
         select: {
           id: true,

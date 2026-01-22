@@ -65,18 +65,18 @@ export const PUT = secureRoute.mutationWithParams<typeof UpdateLeaderGroupSchema
           description: true,
           createdAt: true,
           updatedAt: true,
-          createdBy: {
+          User: {
             select: {
               id: true,
               name: true,
               email: true,
             },
           },
-          members: {
+          LeaderGroupMember: {
             select: {
               id: true,
               addedAt: true,
-              employee: {
+              Employee: {
                 select: {
                   id: true,
                   EmpCode: true,
@@ -89,7 +89,7 @@ export const PUT = secureRoute.mutationWithParams<typeof UpdateLeaderGroupSchema
                   Active: true,
                 },
               },
-              addedBy: {
+              User: {
                 select: {
                   id: true,
                   name: true,
@@ -98,7 +98,7 @@ export const PUT = secureRoute.mutationWithParams<typeof UpdateLeaderGroupSchema
               },
             },
             orderBy: {
-              employee: {
+              Employee: {
                 EmpName: 'asc',
               },
             },
@@ -149,7 +149,7 @@ export const DELETE = secureRoute.mutationWithParams<z.ZodSchema, { id: string }
           id: true,
           name: true,
           _count: {
-            select: { members: true },
+            select: { LeaderGroupMember: true },
           },
         },
       });
@@ -167,7 +167,7 @@ export const DELETE = secureRoute.mutationWithParams<z.ZodSchema, { id: string }
         userId: user.id,
         groupId: id,
         groupName: existingGroup.name,
-        memberCount: existingGroup._count.members,
+        memberCount: existingGroup._count.LeaderGroupMember,
       });
 
       return NextResponse.json(
@@ -176,7 +176,7 @@ export const DELETE = secureRoute.mutationWithParams<z.ZodSchema, { id: string }
           deletedGroup: {
             id: existingGroup.id,
             name: existingGroup.name,
-            memberCount: existingGroup._count.members,
+            memberCount: existingGroup._count.LeaderGroupMember,
           },
         })
       );

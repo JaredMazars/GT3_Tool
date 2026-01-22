@@ -61,6 +61,7 @@ export const POST = secureRoute.mutation({
         taskId: data.taskId || null,
         notificationType: data.notificationType,
         emailEnabled: data.emailEnabled,
+        updatedAt: new Date(),
       },
       select: preferenceSelect,
     });
@@ -118,6 +119,7 @@ export const PUT = secureRoute.mutation({
           taskId: parsedTaskId,
           notificationType,
           emailEnabled: data.emailEnabled,
+          updatedAt: new Date(),
         },
         select: preferenceSelect,
       });

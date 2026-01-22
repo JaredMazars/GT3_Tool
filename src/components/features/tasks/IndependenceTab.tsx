@@ -218,7 +218,7 @@ export function IndependenceTab({ taskId, currentUserId, autoOpenConfirmation = 
                     const hasAccount = member.hasAccount !== false && !!member.userId;
                     const isCurrentUser = hasAccount && member.userId === currentUserId;
                     const isConfirmed = member.independenceConfirmation?.confirmed || false;
-                    const user = member.User || member.user;
+                    const user = member.User;
                     const employee = member.Employee;
 
                     return (
@@ -329,7 +329,7 @@ export function IndependenceTab({ taskId, currentUserId, autoOpenConfirmation = 
             }}
             onConfirm={handleConfirm}
             clientName={clientName}
-            userName={selectedMember.User?.name || selectedMember.user?.name || 'Unknown User'}
+            userName={selectedMember.User?.name || 'Unknown User'}
             isLoading={confirmMutation.isPending}
           />
         )}

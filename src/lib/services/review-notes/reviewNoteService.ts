@@ -236,6 +236,7 @@ export async function createReviewNote(
           ...reviewNoteData,
           raisedBy,
           dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
+          updatedAt: new Date(),
         },
         select: reviewNoteSelect,
       });

@@ -275,6 +275,7 @@ export const POST = secureRoute.fileUploadWithParams({
           uploadedBy: user.id,
           lastModifiedBy: user.id,
           lastModifiedAt: new Date(),
+          updatedAt: new Date(),
         },
         select: {
           id: true,

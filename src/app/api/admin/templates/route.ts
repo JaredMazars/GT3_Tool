@@ -80,6 +80,7 @@ export const POST = secureRoute.mutation({
             serviceLine: data.serviceLine,
             active: data.active ?? true,
             createdBy: user.id,
+            updatedAt: new Date(),
           },
           select: {
             id: true,
@@ -110,6 +111,7 @@ export const POST = secureRoute.mutation({
             applicableProjectTypes: section.applicableProjectTypes
               ? JSON.stringify(section.applicableProjectTypes)
               : null,
+            updatedAt: new Date(),
           })),
         });
 

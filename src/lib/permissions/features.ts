@@ -59,6 +59,10 @@ export enum Feature {
   ACCESS_DOCUMENT_VAULT = 'access_document_vault',
   MANAGE_VAULT_DOCUMENTS = 'manage_vault_documents',
 
+  // QRM (Quality & Risk Management)
+  ACCESS_QRM = 'access_qrm',
+  VIEW_QRM_MONITORING = 'view_qrm_monitoring',
+
   // Advanced
   USE_AI_TOOLS = 'use_ai_tools',
   EXPORT_REPORTS = 'export_reports',
@@ -125,6 +129,10 @@ export const FEATURE_CATEGORIES = {
     Feature.ACCESS_DOCUMENT_VAULT,
     Feature.MANAGE_VAULT_DOCUMENTS,
   ],
+  QRM: [
+    Feature.ACCESS_QRM,
+    Feature.VIEW_QRM_MONITORING,
+  ],
   ADVANCED: [
     Feature.USE_AI_TOOLS,
     Feature.EXPORT_REPORTS,
@@ -179,6 +187,9 @@ export const FEATURE_DESCRIPTIONS: Record<Feature, string> = {
 
   [Feature.ACCESS_DOCUMENT_VAULT]: 'Access the document vault',
   [Feature.MANAGE_VAULT_DOCUMENTS]: 'Upload, archive, and manage vault documents',
+
+  [Feature.ACCESS_QRM]: 'Access QRM (Quality & Risk Management) features',
+  [Feature.VIEW_QRM_MONITORING]: 'View QRM monitoring dashboards and statistics',
 
   [Feature.USE_AI_TOOLS]: 'Use AI-powered tools and features',
   [Feature.EXPORT_REPORTS]: 'Export reports and data',

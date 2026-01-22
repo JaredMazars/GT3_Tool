@@ -102,7 +102,7 @@ export function IndependenceConfirmationItem({ confirmation, onOpenTaskModal }: 
                 taskId: confirmation.taskId.toString(),
                 serviceLine: confirmation.masterCode?.toLowerCase(),
                 subServiceLineGroup: confirmation.subServlineGroupCode || undefined,
-                clientId: confirmation.clientId,
+                clientId: confirmation.clientId.toString(),
                 initialTab: 'independence',
               });
             }}

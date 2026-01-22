@@ -90,6 +90,7 @@ export const POST = secureRoute.mutationWithParams({
         userId: user.id,
         comment: data.comment,
         isInternal: data.isInternal || false,
+        updatedAt: new Date(),
       },
       select: {
         id: true,
