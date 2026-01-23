@@ -442,6 +442,27 @@ export async function getSlowQueries(): Promise<SlowQuery[]> {
 }
 
 /**
+ * Clear SQL Server query execution statistics
+ * Executes DBCC FREEPROCCACHE to reset the plan cache and query stats
+ * WARNING: This will cause temporary performance impact as execution plans are rebuilt
+ */
+export async function clearQueryStatistics(): Promise<{ success: boolean }> {
+  try {
+    logger.warn('Clearing query execution statistics (DBCC FREEPROCCACHE)');
+    
+    // Execute DBCC FREEPROCCACHE to clear plan cache and query stats
+    await prisma.$executeRaw`DBCC FREEPROCCACHE`;
+    
+    logger.info('Successfully cleared query execution statistics');
+    
+    return { success: true };
+  } catch (error) {
+    logger.error('Failed to clear query execution statistics', error);
+    throw error;
+  }
+}
+
+/**
  * Missing index recommendation
  */
 export interface MissingIndex {

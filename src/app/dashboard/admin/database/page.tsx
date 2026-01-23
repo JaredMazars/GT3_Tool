@@ -160,6 +160,7 @@ export default function DatabaseManagementPage() {
   const [executingQuery, setExecutingQuery] = useState(false);
   const [reindexing, setReindexing] = useState(false);
   const [clearingCache, setClearingCache] = useState(false);
+  const [clearingQueryStats, setClearingQueryStats] = useState(false);
 
   // Data states
   const [connectionResult, setConnectionResult] = useState<ConnectionTestResult | null>(null);
@@ -554,6 +555,51 @@ export default function DatabaseManagementPage() {
     }
   };
 
+  const handleClearQueryStats = () => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Clear Query Statistics',
+      message:
+        'This will clear SQL Server\'s query execution statistics (plan cache). All slow query data will be reset and monitoring will start fresh. This may temporarily impact database performance as execution plans are rebuilt.',
+      variant: 'warning',
+      onConfirm: executeClearQueryStats,
+    });
+  };
+
+  const executeClearQueryStats = async () => {
+    setConfirmModal({ ...confirmModal, isOpen: false });
+    setClearingQueryStats(true);
+
+    try {
+      const response = await fetch('/api/admin/database/queries/slow', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Query stats clear failed');
+
+      setAlertModal({
+        isOpen: true,
+        title: 'Query Statistics Cleared',
+        message: 'Successfully cleared SQL Server query execution statistics. Slow query monitoring has been reset.',
+        variant: 'success',
+      });
+
+      // Refresh slow queries to show empty state
+      await fetchSlowQueries();
+    } catch (error) {
+      setAlertModal({
+        isOpen: true,
+        title: 'Clear Failed',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'error',
+      });
+    } finally {
+      setClearingQueryStats(false);
+    }
+  };
+
   const toggleTableSelection = (tableName: string) => {
     setSelectedTables((prev) =>
       prev.includes(tableName) ? prev.filter((t) => t !== tableName) : [...prev, tableName]
@@ -605,75 +651,99 @@ export default function DatabaseManagementPage() {
   const identifyApiEndpoint = (queryText: string): string => {
     const upperQuery = queryText.toUpperCase();
     
-    // Task-related queries
-    if (upperQuery.includes('FROM TASK') || upperQuery.includes('JOIN TASK')) {
-      if (upperQuery.includes('TASKTEAM') || upperQuery.includes('TASK_TEAM')) {
-        return '/api/tasks/[id]/team';
-      }
-      if (upperQuery.includes('TASKTOOL') || upperQuery.includes('TASK_TOOL')) {
-        return '/api/tasks/[id]/tools';
-      }
-      if (upperQuery.includes('CLIENTACCEPTANCE')) {
-        return '/api/tasks/[id]/acceptance';
-      }
-      if (upperQuery.includes('GROUP BY') && upperQuery.includes('GSTASKID')) {
+    // Helper: Check if query contains table reference (more flexible)
+    const hasTable = (tableName: string) => {
+      return upperQuery.includes(tableName.toUpperCase());
+    };
+    
+    // Task-related queries (enhanced)
+    if (hasTable('TASK')) {
+      if (hasTable('TASKTEAM')) return '/api/tasks/[id]/team';
+      if (hasTable('TASKTOOL')) return '/api/tasks/[id]/tools';
+      if (hasTable('CLIENTACCEPTANCE')) return '/api/tasks/[id]/acceptance';
+      if (upperQuery.includes('GROUP BY') && hasTable('GSTASKID')) 
         return '/api/my-reports/tasks-by-group';
-      }
       return '/api/tasks';
     }
-
-    // Client-related queries
-    if (upperQuery.includes('FROM CLIENT') || upperQuery.includes('JOIN CLIENT')) {
-      if (upperQuery.includes('CLIENTACCEPTANCE')) {
-        return '/api/clients/[id]/acceptance';
-      }
-      if (upperQuery.includes('GROUP')) {
+    
+    // Client-related queries (enhanced)
+    if (hasTable('CLIENT')) {
+      if (hasTable('CLIENTACCEPTANCE')) return '/api/clients/[id]/acceptance';
+      if (hasTable('GROUP') || upperQuery.includes('GROUPCODE')) 
         return '/api/clients/filters';
-      }
+      if (upperQuery.includes('ANALYTICS')) return '/api/clients/[id]/analytics';
       return '/api/clients';
     }
-
-    // WIP-related queries
-    if (upperQuery.includes('FROM WIP') || upperQuery.includes('WIPTRANSACTIONS')) {
-      if (upperQuery.includes('GROUP BY') && upperQuery.includes('GSTASKID')) {
-        return '/api/my-reports/tasks-by-group';
-      }
-      if (upperQuery.includes('PROFITABILITY')) {
-        return '/api/my-reports/profitability';
-      }
+    
+    // WIP-related queries (enhanced)
+    if (hasTable('WIP') || hasTable('WIPTRANSACTIONS')) {
+      if (upperQuery.includes('PROFITABILITY')) return '/api/my-reports/profitability';
+      if (upperQuery.includes('GROUP BY')) return '/api/wip/aggregated';
+      if (hasTable('GSTASKID')) return '/api/tasks/[id]/wip';
       return '/api/wip';
     }
-
-    // Approval-related queries
-    if (upperQuery.includes('FROM APPROVAL') || upperQuery.includes('JOIN APPROVAL')) {
-      return '/api/approvals';
+    
+    // Debtor queries (new)
+    if (hasTable('DEBTOR') || hasTable('DRSTRANSACTIONS')) {
+      if (hasTable('GSTASKID')) return '/api/tasks/[id]/debtors';
+      if (hasTable('GSCLIENTID')) return '/api/clients/[id]/debtors';
+      return '/api/debtors';
     }
-
-    // Employee-related queries
-    if (upperQuery.includes('FROM EMPLOYEE') || upperQuery.includes('JOIN EMPLOYEE')) {
-      if (upperQuery.includes('SERVICELINE')) {
-        return '/api/service-lines/staff';
-      }
+    
+    // Approval-related queries
+    if (hasTable('APPROVAL')) return '/api/approvals';
+    
+    // Employee-related queries (enhanced)
+    if (hasTable('EMPLOYEE')) {
+      if (hasTable('SERVICELINE')) return '/api/service-lines/staff';
+      if (hasTable('USER')) return '/api/employees/users';
       return '/api/employees';
     }
-
+    
+    // Document vault queries (new)
+    if (hasTable('DOCUMENTVAULT') || hasTable('VAULTDOCUMENT')) {
+      return '/api/document-vault';
+    }
+    
+    // Review notes queries (new)
+    if (hasTable('REVIEWNOTE')) {
+      return '/api/review-notes';
+    }
+    
+    // Tool queries (new)
+    if (hasTable('TOOL') && !hasTable('TASKTOOL')) {
+      return '/api/tools';
+    }
+    
     // Report queries
     if (upperQuery.includes('OVERVIEW') || upperQuery.includes('FISCAL')) {
       return '/api/my-reports/overview';
     }
-
+    
     // Service line queries
-    if (upperQuery.includes('SERVICELINEMASTERUSED') || upperQuery.includes('SERVICELINEEXTERNAL')) {
+    if (hasTable('SERVICELINEMASTERUSED') || hasTable('SERVICELINEEXTERNAL')) {
       return '/api/service-lines';
     }
-
+    
     // Workspace analytics
     if (upperQuery.includes('COUNT(') && upperQuery.includes('DISTINCT')) {
       return '/api/workspace-counts';
     }
-
-    // Default fallback
-    return 'Unknown API';
+    
+    // Analytics patterns (before unknown)
+    if (upperQuery.includes('GROUP BY') || upperQuery.includes('SUM(') || 
+        upperQuery.includes('AVG(') || upperQuery.includes('COUNT(')) {
+      return 'Analytics Query';
+    }
+    
+    // Improved fallback - try to identify main table
+    const tables = ['TASK', 'CLIENT', 'WIP', 'EMPLOYEE', 'APPROVAL', 'DEBTOR'];
+    for (const table of tables) {
+      if (hasTable(table)) return `${table.charAt(0) + table.slice(1).toLowerCase()} Query`;
+    }
+    
+    // Better fallback than "Unknown API"
+    return 'Database Query';
   };
 
   const toggleTier = (tier: string) => {
@@ -1520,24 +1590,44 @@ export default function DatabaseManagementPage() {
                         </code>
                       </div>
                     </div>
-                    <Button
-                      onClick={fetchSlowQueries}
-                      disabled={loadingSlowQueries}
-                      variant="secondary"
-                      size="sm"
-                    >
-                      {loadingSlowQueries ? (
-                        <>
-                          <LoadingSpinner size="sm" className="mr-2" />
-                          Loading...
-                        </>
-                      ) : (
-                        <>
-                          <RefreshCw className="h-4 w-4 mr-2" />
-                          Refresh
-                        </>
-                      )}
-                    </Button>
+                    <div className="flex space-x-2">
+                      <Button
+                        onClick={fetchSlowQueries}
+                        disabled={loadingSlowQueries || clearingQueryStats}
+                        variant="secondary"
+                        size="sm"
+                      >
+                        {loadingSlowQueries ? (
+                          <>
+                            <LoadingSpinner size="sm" className="mr-2" />
+                            Loading...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Refresh
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        onClick={handleClearQueryStats}
+                        disabled={loadingSlowQueries || clearingQueryStats}
+                        variant="danger"
+                        size="sm"
+                      >
+                        {clearingQueryStats ? (
+                          <>
+                            <LoadingSpinner size="sm" className="mr-2" />
+                            Clearing...
+                          </>
+                        ) : (
+                          <>
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Clear Statistics
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
 
                   {loadingSlowQueries ? (
@@ -1560,7 +1650,7 @@ export default function DatabaseManagementPage() {
                         <Card key={idx} className="border border-forvis-gray-200">
                           <div className="p-4">
                             <div className="flex items-start justify-between mb-2">
-                              <div className="flex-1">
+                              <div className="flex-1 min-w-0">
                                 <div className="flex items-center space-x-2 mb-2">
                                   <Badge color={getDurationColor(query.avgDurationMs)}>
                                     {query.avgDurationMs.toFixed(2)}ms avg
