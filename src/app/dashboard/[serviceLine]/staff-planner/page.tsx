@@ -122,7 +122,7 @@ export default function StaffPlannerPage() {
       employeeId: number | null;
       User: { id: string; name: string; email: string; jobTitle: string | null; officeLocation: string | null; jobGradeCode: string | null };
       role: string;
-      allocations: Array<{ id: number; taskId: number; taskName: string; taskCode: string | null; clientId: number | null; clientName: string; clientCode: string; startDate: Date; endDate: Date; role: string; allocatedHours: number | null; allocatedPercentage: number | null; actualHours: number | null; isNonClientEvent: boolean; nonClientEventType: string | null; notes: string | null }>;
+      allocations: Array<{ id: number; taskId: number; taskName: string; taskCode: string | null; clientId: number | null; clientName: string; clientCode: string; startDate: Date; endDate: Date; role: string; allocatedHours: number | null; allocatedPercentage: number | null; actualHours: number | null; isNonClientEvent: boolean; nonClientEventType: string | null; notes: string | null; isCurrentTask?: boolean }>;
       employeeStatus?: { isActive: boolean; hasUserAccount: boolean };
     }
     const employeeMap = new Map<string, EmployeeMapEntry>();
