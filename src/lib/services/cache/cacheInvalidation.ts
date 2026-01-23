@@ -21,14 +21,19 @@ export async function invalidateTaskCache(taskId: number): Promise<void> {
 }
 
 /**
- * @deprecated Client detail caches are now handled by React Query client-side.
- * This function is kept for backwards compatibility but no longer invalidates Redis.
- * Client mutations automatically invalidate React Query caches via query keys.
+ * Invalidate client detail cache
+ * Also invalidates client search/list caches as the client data may appear in search results
  */
 export async function invalidateClientCache(clientId: number | string): Promise<void> {
-  // No-op: Client details are cached client-side by React Query
-  // React Query automatically invalidates on mutations via query keys
-  logger.debug('Client cache invalidation skipped (React Query handles this)', { clientId });
+  try {
+    // Invalidate all client search caches (use pattern to match all search variations)
+    // This ensures updated client data appears in all search results immediately
+    await cache.invalidatePattern(`${CACHE_PREFIXES.CLIENT}search:*`);
+    logger.debug('Client caches invalidated', { clientId });
+  } catch (error) {
+    // Silent fail - cache invalidation errors are not critical
+    logger.error('Failed to invalidate client caches', { clientId, error });
+  }
 }
 
 /**
@@ -242,6 +247,8 @@ export async function invalidateOnTaskMutation(
   try {
     await Promise.all([
       // Task details cached by React Query - no Redis invalidation needed
+      // Invalidate client search caches (task counts are shown in search results)
+      cache.invalidatePattern(`${CACHE_PREFIXES.CLIENT}search:*`),
       invalidateWorkspaceCounts(serviceLine, subServiceLineGroup),
       invalidateApprovalsCache(), // Task changes can affect approvals (acceptance, engagement letters, review notes)
     ]);
@@ -254,19 +261,18 @@ export async function invalidateOnTaskMutation(
 /**
  * Comprehensive invalidation after client creation/update
  * Use this when a client is created, updated, or deleted
- * 
- * Note: Client detail caches are handled by React Query client-side.
- * This only invalidates shared/computed Redis caches.
  */
 export async function invalidateOnClientMutation(
   clientId: number | string
 ): Promise<void> {
   try {
     await Promise.all([
-      // Client details cached by React Query - no Redis invalidation needed
+      // Invalidate client search caches (important for server-side cached search results)
+      invalidateClientCache(clientId),
       // Client changes can affect workspace counts (groups)
       invalidateWorkspaceCounts(),
-      invalidateApprovalsCache(), // Client changes can affect change requests
+      // Client changes can affect change requests
+      invalidateApprovalsCache(),
     ]);
     logger.debug('Client mutation caches invalidated', { clientId });
   } catch (error) {
