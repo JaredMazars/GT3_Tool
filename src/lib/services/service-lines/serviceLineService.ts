@@ -28,6 +28,24 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
       return cached;
     }
 
+    // Fetch service line names and descriptions from ServiceLineMaster
+    const serviceLineMasters = await prisma.serviceLineMaster.findMany({
+      where: { active: true },
+      select: {
+        code: true,
+        name: true,
+        description: true,
+      },
+    });
+
+    // Create maps for O(1) name and description lookups
+    const nameMap = new Map<string, string>();
+    const descriptionMap = new Map<string, string | null>();
+    for (const master of serviceLineMasters) {
+      nameMap.set(master.code, master.name);
+      descriptionMap.set(master.code, master.description);
+    }
+
     // Check if user is a SYSTEM_ADMIN - they get access to all service lines
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -123,6 +141,8 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
           role: 'ADMINISTRATOR',
           taskCount,
           activeTaskCount,
+          name: nameMap.get(sl),
+          description: descriptionMap.get(sl) || undefined,
           subGroups,
         };
       });
@@ -310,6 +330,8 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
         role,
         taskCount,
         activeTaskCount,
+        name: nameMap.get(masterCode),
+        description: descriptionMap.get(masterCode) || undefined,
         subGroups: accessibleSubGroups,
       });
     }

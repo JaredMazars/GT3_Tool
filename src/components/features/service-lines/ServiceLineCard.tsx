@@ -10,12 +10,7 @@ import {
 import { ServiceLine } from '@/types';
 import { ServiceLineWithStats } from '@/types/dto';
 import { DashboardCard } from '@/components/ui';
-import { 
-  getServiceLineColor, 
-  getServiceLineBgColor,
-  getServiceLineBorderColor,
-  formatServiceLineName 
-} from '@/lib/utils/serviceLineUtils';
+import { formatServiceLineName } from '@/lib/utils/serviceLineUtils';
 
 const iconMap: Partial<Record<ServiceLine, typeof FileText>> = {
   [ServiceLine.TAX]: FileText,
@@ -29,34 +24,16 @@ interface ServiceLineCardProps {
 }
 
 export function ServiceLineCard({ serviceLineData }: ServiceLineCardProps) {
-  const { serviceLine } = serviceLineData;
+  const { serviceLine, name, description } = serviceLineData;
   const [isNavigating, setIsNavigating] = useState(false);
   
   const Icon = iconMap[serviceLine as ServiceLine] || FileText;
-  const name = formatServiceLineName(serviceLine);
-  const color = getServiceLineColor(serviceLine);
-  const bgColor = getServiceLineBgColor(serviceLine);
-  const borderColor = getServiceLineBorderColor(serviceLine);
+  const displayName = name || formatServiceLineName(serviceLine);
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     setIsNavigating(true);
     window.location.href = `/dashboard/${serviceLine.toLowerCase()}`;
-  };
-
-  const getDescription = (line: ServiceLine | string) => {
-    switch (line) {
-      case ServiceLine.TAX:
-        return 'Comprehensive tax services including compliance, planning, opinions, and administration';
-      case ServiceLine.AUDIT:
-        return 'Professional audit and assurance services ensuring financial statement accuracy';
-      case ServiceLine.ACCOUNTING:
-        return 'Full-service accounting from bookkeeping to financial statements and reporting';
-      case ServiceLine.ADVISORY:
-        return 'Strategic consulting to help businesses navigate challenges and opportunities';
-      default:
-        return '';
-    }
   };
 
   const iconElement = (
@@ -70,8 +47,8 @@ export function ServiceLineCard({ serviceLineData }: ServiceLineCardProps) {
 
   return (
     <DashboardCard
-      title={name}
-      description={getDescription(serviceLine)}
+      title={displayName}
+      description={description || ''}
       icon={iconElement}
       href={`/dashboard/${serviceLine.toLowerCase()}`}
       onClick={handleClick}

@@ -29,32 +29,13 @@ interface SharedServiceCardProps {
 }
 
 export function SharedServiceCard({ serviceLineData }: SharedServiceCardProps) {
-  const { serviceLine } = serviceLineData;
+  const { serviceLine, name, description } = serviceLineData;
   
   const Icon = iconMap[serviceLine as ServiceLine] || ShieldCheck;
-  const name = formatServiceLineName(serviceLine);
+  const displayName = name || formatServiceLineName(serviceLine);
 
   // All shared services route to their main page
   const href = `/dashboard/${serviceLine.toLowerCase()}`;
-
-  const getDescription = (line: ServiceLine | string) => {
-    switch (line) {
-      case ServiceLine.QRM:
-        return 'Quality assurance, risk assessment, and compliance oversight';
-      case ServiceLine.BUSINESS_DEV:
-        return 'Marketing campaigns, proposal development, and market research';
-      case ServiceLine.IT:
-        return 'IT implementations, technical support, and infrastructure';
-      case ServiceLine.FINANCE:
-        return 'Financial reporting, budgeting, and analysis for internal operations';
-      case ServiceLine.HR:
-        return 'Recruitment, training programs, and policy development';
-      case ServiceLine.COUNTRY_MANAGEMENT:
-        return 'Executive reporting and business analysis';
-      default:
-        return '';
-    }
-  };
 
   return (
     <div className="rounded-lg border border-forvis-gray-200 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden"
@@ -89,7 +70,7 @@ export function SharedServiceCard({ serviceLineData }: SharedServiceCardProps) {
               {/* Title and Arrow */}
               <div className="flex-1 min-w-0">
                 <h3 className="text-sm font-bold text-forvis-gray-900 truncate group-hover:text-forvis-blue-600 transition-colors duration-200">
-                  {name}
+                  {displayName}
                 </h3>
               </div>
 
@@ -98,7 +79,7 @@ export function SharedServiceCard({ serviceLineData }: SharedServiceCardProps) {
 
             {/* Description */}
             <p className="text-xs text-forvis-gray-600 line-clamp-2 leading-relaxed">
-              {getDescription(serviceLine)}
+              {description || ''}
             </p>
           </div>
         </Link>
