@@ -1,8 +1,9 @@
 ---
 alwaysApply: true
-version: 2.0.0
-lastUpdated: 2026-01-21
+version: 2.1.0
+lastUpdated: 2026-01-23
 changelog:
+  - "2.1.0 (2026-01-23): Added migration-rules.mdc for Prisma + SQL Server best practices"
   - "2.0.0 (2026-01-21): Removed security duplication, streamlined with references to specialized files"
   - "1.0.0: Initial consolidated conventions"
 ---
@@ -28,6 +29,7 @@ Next.js 14 (App Router) | TypeScript (strict) | Prisma | React Query | Azure Ope
 | Handle errors | `try/catch` + `logger.error()` + `AppError` | Error Handling |
 | Invalidate cache | Call specific cache invalidation functions | Performance > Caching Strategy |
 | Add new tool | Register in ToolRegistry + database | See tool-system-rules.mdc |
+| Schema migration | Use `db push` for dev, `migrate dev` for production | See migration-rules.mdc |
 
 ## Specialized Rule Files (When To Consult)
 
@@ -80,6 +82,16 @@ Next.js 14 (App Router) | TypeScript (strict) | Prisma | React Query | Azure Ope
 - Junction tables: `[Entity1][Entity2]` naming pattern
 - User relations: Use descriptive names `User_[Model]_[field]ToUser`
 - Tools integrate with approval system for items requiring approval
+
+### `.cursor/rules/migration-rules.mdc` (REQUIRED)
+**When:** Making schema changes, running migrations, or troubleshooting database issues
+**Key Rules:**
+- Use `prisma db push` for development iteration (fast, no shadow DB)
+- Use `prisma migrate dev` for production-bound changes (creates migration files)
+- Large table migrations (>500K rows) MUST be applied manually to avoid timeouts
+- Always run `prisma migrate status` before deployments
+- NEVER use `mode: 'insensitive'` in Prisma queries (not supported by SQL Server)
+- Document manual migrations with README in migration folder
 
 ## TypeScript
 

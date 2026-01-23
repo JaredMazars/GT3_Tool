@@ -11,6 +11,8 @@ import { enrichEmployeesWithStatus } from '@/lib/services/employees/employeeStat
 import { enrichObjectsWithEmployeeStatus } from '@/lib/services/employees/employeeStatusService';
 import { calculateWIPByTask, calculateWIPBalances } from '@/lib/services/clients/clientBalanceCalculation';
 import { secureRoute } from '@/lib/api/secureRoute';
+import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
+import { logger } from '@/lib/utils/logger';
 
 // Zod schema for GET query params validation
 const ClientDetailQuerySchema = z.object({
@@ -137,10 +139,74 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
     }
 
     const taskGSTaskIDs = tasks.map(t => t.GSTaskID);
-    const wipTransactions = taskGSTaskIDs.length > 0 ? await prisma.wIPTransactions.findMany({
-      where: { OR: [{ GSClientID: client.GSClientID }, { GSTaskID: { in: taskGSTaskIDs } }] },
-      select: { GSTaskID: true, Amount: true, TType: true },
-    }) : [];
+    
+    // Optimized WIP query with caching and performance logging
+    // Uses UNION ALL instead of OR for better index utilization with covering indexes
+    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}client-wip-by-task:${client.GSClientID}:${taskPage}:${taskLimit}`;
+    let wipTransactions: Array<{ GSTaskID: string; Amount: number | null; TType: string }> = [];
+    
+    // Try cache first
+    const cachedWip = await cache.get<typeof wipTransactions>(cacheKey);
+    if (cachedWip) {
+      wipTransactions = cachedWip;
+      logger.info('Client WIP query served from cache', {
+        GSClientID: client.GSClientID,
+        taskCount: taskGSTaskIDs.length,
+        cached: true,
+      });
+    } else if (taskGSTaskIDs.length > 0) {
+      // Performance tracking
+      const wipQueryStart = Date.now();
+      
+      // OPTIMIZED QUERY: UNION ALL approach (uses covering indexes efficiently)
+      // This replaces the old OR query which caused table scans
+      // Path 1: Get transactions directly linked to client (uses idx_wip_gsclientid_covering)
+      // Path 2: Get transactions linked only via task (uses idx_wip_gstaskid_covering)
+      //         Excludes duplicates by filtering out rows already captured in Path 1
+      const [clientTransactions, taskOnlyTransactions] = await Promise.all([
+        // Path 1: Direct client link (uses idx_wip_gsclientid_covering)
+        prisma.wIPTransactions.findMany({
+          where: { GSClientID: client.GSClientID },
+          select: { GSTaskID: true, Amount: true, TType: true },
+        }),
+        
+        // Path 2: Task-only link with NULL/different GSClientID (uses idx_wip_gstaskid_covering)
+        // CRITICAL: This captures billing fees that may only be linked via GSTaskID
+        prisma.wIPTransactions.findMany({
+          where: { 
+            GSTaskID: { in: taskGSTaskIDs },
+            // Exclude rows already captured by GSClientID query (prevent duplicates)
+            OR: [
+              { GSClientID: null },
+              { GSClientID: { not: client.GSClientID } }
+            ]
+          },
+          select: { GSTaskID: true, Amount: true, TType: true },
+        }),
+      ]);
+      
+      // Combine results (equivalent to UNION ALL in SQL)
+      wipTransactions = [...clientTransactions, ...taskOnlyTransactions];
+      
+      const wipQueryDuration = Date.now() - wipQueryStart;
+      
+      // Performance logging
+      logger.info('Client WIP query completed', {
+        GSClientID: client.GSClientID,
+        clientCode: client.clientCode,
+        taskCount: taskGSTaskIDs.length,
+        transactionCount: wipTransactions.length,
+        clientTxnCount: clientTransactions.length,
+        taskOnlyTxnCount: taskOnlyTransactions.length,
+        durationMs: wipQueryDuration,
+        queryType: 'union-all-optimized',
+        cached: false,
+      });
+      
+      // Cache for 5 minutes (300 seconds)
+      // WIP data changes infrequently (nightly sync), so short-term caching is safe
+      await cache.set(cacheKey, wipTransactions, 300);
+    }
 
     const wipByTask = calculateWIPByTask(wipTransactions);
 
