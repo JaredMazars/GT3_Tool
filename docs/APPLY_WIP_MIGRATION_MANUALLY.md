@@ -20,7 +20,7 @@ The `WIPTransactions` table is large enough that creating covering indexes takes
    - Database: `gt3-db`
    - Authentication: SQL Login
    - Username: `sqladmin`
-   - Password: `GT3!SecureP@ss2024#Dev`
+   - Password: `{GT3!SecureP@ss2024#Dev}`
 
 2. **Open the migration SQL file:**
    ```
@@ -73,7 +73,7 @@ sqlcmd -S gt3-sql-server.database.windows.net \
 Once the SQL has completed successfully, tell Prisma the migration was applied:
 
 ```bash
-DATABASE_URL='sqlserver://gt3-sql-server.database.windows.net:1433;database=gt3-db;user=sqladmin;password=GT3!SecureP@ss2024#Dev;encrypt=true;trustServerCertificate=false' \
+DATABASE_URL='sqlserver://gt3-sql-server.database.windows.net:1433;database=gt3-db;user=sqladmin;password={GT3!SecureP@ss2024#Dev};encrypt=true;trustServerCertificate=true;connectTimeout=30' \
 npx prisma migrate resolve --applied "20260123063454_replace_simple_with_covering_wip_indexes"
 ```
 

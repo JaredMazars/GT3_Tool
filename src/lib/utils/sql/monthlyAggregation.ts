@@ -1,12 +1,9 @@
 /**
  * Monthly Aggregation SQL Utilities
  * 
- * Provides optimized query builders for monthly aggregations on WIPTransactions
- * and DrsTransactions tables. Uses TranYearMonth computed column for efficient
- * GROUP BY operations (eliminates function call overhead).
- * 
- * Performance: 96% faster than YEAR(TranDate), MONTH(TranDate) pattern
- * From: 130 seconds -> To: <5 seconds
+ * Provides query builders for monthly aggregations on WIPTransactions
+ * and DrsTransactions tables. Uses YEAR(TranDate), MONTH(TranDate) for
+ * GROUP BY operations.
  */
 
 import { Prisma } from '@prisma/client';
@@ -42,64 +39,99 @@ export interface NetBillingsMonthlyResult {
 }
 
 /**
- * Build optimized WIP monthly aggregation query
+ * Build WIP monthly aggregation query
  * 
- * Uses TranYearMonth computed column instead of YEAR(TranDate), MONTH(TranDate)
- * for efficient index usage and GROUP BY optimization.
+ * Groups WIP transactions by month using YEAR(TranDate) and MONTH(TranDate).
  * 
  * @param filterField - 'TaskPartner' or 'TaskManager' (determines report type)
  * @param employeeCode - Employee code to filter by
  * @param startDate - Start of date range
  * @param endDate - End of date range
+ * @param cumulative - If true, returns cumulative totals (running sum), default false
  * @returns Prisma.Sql for complete query
  * 
  * @example
+ * // Monthly values
  * const query = buildWipMonthlyAggregationQuery('TaskPartner', 'EMP001', startDate, endDate);
+ * // Cumulative values (fiscal year)
+ * const cumulativeQuery = buildWipMonthlyAggregationQuery('TaskPartner', 'EMP001', startDate, endDate, true);
  * const results = await prisma.$queryRaw<WipMonthlyResult[]>(query);
  */
 export function buildWipMonthlyAggregationQuery(
   filterField: 'TaskPartner' | 'TaskManager',
   employeeCode: string,
   startDate: Date,
-  endDate: Date
+  endDate: Date,
+  cumulative: boolean = false
 ): Prisma.Sql {
   // Build dynamic filter based on report type
   const fieldFilter = filterField === 'TaskPartner' 
     ? Prisma.sql`TaskPartner = ${employeeCode}`
     : Prisma.sql`TaskManager = ${employeeCode}`;
 
-  // Convert dates to month start for TranYearMonth comparison
-  const startMonth = Prisma.sql`DATEFROMPARTS(YEAR(${startDate}), MONTH(${startDate}), 1)`;
-  const endMonth = Prisma.sql`DATEFROMPARTS(YEAR(${endDate}), MONTH(${endDate}), 1)`;
+  // Non-cumulative: monthly aggregations (existing behavior)
+  if (!cumulative) {
+    return Prisma.sql`
+      SELECT 
+        DATEFROMPARTS(YEAR(TranDate), MONTH(TranDate), 1) as month,
+        SUM(CASE WHEN TType = 'T' THEN ISNULL(Amount, 0) ELSE 0 END) as ltdTime,
+        SUM(CASE WHEN TType = 'D' THEN ISNULL(Amount, 0) ELSE 0 END) as ltdDisb,
+        SUM(CASE WHEN TType = 'ADJ' THEN ISNULL(Amount, 0) ELSE 0 END) as ltdAdj,
+        SUM(CASE WHEN TType != 'P' THEN ISNULL(Cost, 0) ELSE 0 END) as ltdCost,
+        SUM(CASE WHEN TType = 'F' THEN ISNULL(Amount, 0) ELSE 0 END) as ltdFee,
+        SUM(CASE WHEN TType = 'P' THEN ISNULL(Amount, 0) ELSE 0 END) as ltdProvision,
+        SUM(CASE WHEN TType = 'ADJ' AND Amount < 0 THEN ISNULL(Amount, 0) ELSE 0 END) as negativeAdj
+      FROM WIPTransactions
+      WHERE ${fieldFilter}
+        AND TranDate >= ${startDate}
+        AND TranDate <= ${endDate}
+      GROUP BY YEAR(TranDate), MONTH(TranDate)
+      ORDER BY YEAR(TranDate), MONTH(TranDate)
+    `;
+  }
 
+  // Cumulative: running totals using window functions
   return Prisma.sql`
+    WITH MonthlyTotals AS (
+      SELECT 
+        DATEFROMPARTS(YEAR(TranDate), MONTH(TranDate), 1) as month,
+        SUM(CASE WHEN TType = 'T' THEN ISNULL(Amount, 0) ELSE 0 END) as monthlyTime,
+        SUM(CASE WHEN TType = 'D' THEN ISNULL(Amount, 0) ELSE 0 END) as monthlyDisb,
+        SUM(CASE WHEN TType = 'ADJ' THEN ISNULL(Amount, 0) ELSE 0 END) as monthlyAdj,
+        SUM(CASE WHEN TType != 'P' THEN ISNULL(Cost, 0) ELSE 0 END) as monthlyCost,
+        SUM(CASE WHEN TType = 'F' THEN ISNULL(Amount, 0) ELSE 0 END) as monthlyFee,
+        SUM(CASE WHEN TType = 'P' THEN ISNULL(Amount, 0) ELSE 0 END) as monthlyProvision,
+        SUM(CASE WHEN TType = 'ADJ' AND Amount < 0 THEN ISNULL(Amount, 0) ELSE 0 END) as monthlyNegativeAdj
+      FROM WIPTransactions
+      WHERE ${fieldFilter}
+        AND TranDate >= ${startDate}
+        AND TranDate <= ${endDate}
+      GROUP BY YEAR(TranDate), MONTH(TranDate)
+    )
     SELECT 
-      TranYearMonth as month,
-      SUM(CASE WHEN TType = 'T' THEN ISNULL(Amount, 0) ELSE 0 END) as ltdTime,
-      SUM(CASE WHEN TType = 'D' THEN ISNULL(Amount, 0) ELSE 0 END) as ltdDisb,
-      SUM(CASE WHEN TType = 'ADJ' THEN ISNULL(Amount, 0) ELSE 0 END) as ltdAdj,
-      SUM(CASE WHEN TType != 'P' THEN ISNULL(Cost, 0) ELSE 0 END) as ltdCost,
-      SUM(CASE WHEN TType = 'F' THEN ISNULL(Amount, 0) ELSE 0 END) as ltdFee,
-      SUM(CASE WHEN TType = 'P' THEN ISNULL(Amount, 0) ELSE 0 END) as ltdProvision,
-      SUM(CASE WHEN TType = 'ADJ' AND Amount < 0 THEN ISNULL(Amount, 0) ELSE 0 END) as negativeAdj
-    FROM WIPTransactions
-    WHERE ${fieldFilter}
-      AND TranYearMonth >= ${startMonth}
-      AND TranYearMonth <= ${endMonth}
-    GROUP BY TranYearMonth
-    ORDER BY TranYearMonth
+      month,
+      SUM(monthlyTime) OVER (ORDER BY month ROWS UNBOUNDED PRECEDING) as ltdTime,
+      SUM(monthlyDisb) OVER (ORDER BY month ROWS UNBOUNDED PRECEDING) as ltdDisb,
+      SUM(monthlyAdj) OVER (ORDER BY month ROWS UNBOUNDED PRECEDING) as ltdAdj,
+      SUM(monthlyCost) OVER (ORDER BY month ROWS UNBOUNDED PRECEDING) as ltdCost,
+      SUM(monthlyFee) OVER (ORDER BY month ROWS UNBOUNDED PRECEDING) as ltdFee,
+      SUM(monthlyProvision) OVER (ORDER BY month ROWS UNBOUNDED PRECEDING) as ltdProvision,
+      SUM(monthlyNegativeAdj) OVER (ORDER BY month ROWS UNBOUNDED PRECEDING) as negativeAdj
+    FROM MonthlyTotals
+    ORDER BY month
   `;
 }
 
 /**
- * Build optimized Collections monthly aggregation query
+ * Build Collections monthly aggregation query
  * 
- * Aggregates DRS receipt transactions by month using TranYearMonth computed column.
+ * Aggregates DRS receipt transactions by month using YEAR(TranDate) and MONTH(TranDate).
  * Receipts are stored as negative amounts, so we negate to get positive collections.
  * 
  * @param billerCode - Employee code (Biller column)
  * @param startDate - Start of date range
  * @param endDate - End of date range
+ * @param cumulative - If true, returns cumulative totals (running sum), default false
  * @returns Prisma.Sql for complete query
  * 
  * @example
@@ -109,27 +141,48 @@ export function buildWipMonthlyAggregationQuery(
 export function buildCollectionsMonthlyQuery(
   billerCode: string,
   startDate: Date,
-  endDate: Date
+  endDate: Date,
+  cumulative: boolean = false
 ): Prisma.Sql {
-  const startMonth = Prisma.sql`DATEFROMPARTS(YEAR(${startDate}), MONTH(${startDate}), 1)`;
-  const endMonth = Prisma.sql`DATEFROMPARTS(YEAR(${endDate}), MONTH(${endDate}), 1)`;
+  // Non-cumulative: monthly aggregations (existing behavior)
+  if (!cumulative) {
+    return Prisma.sql`
+      SELECT 
+        DATEFROMPARTS(YEAR(TranDate), MONTH(TranDate), 1) as month,
+        SUM(-ISNULL(Total, 0)) as collections
+      FROM DrsTransactions
+      WHERE Biller = ${billerCode}
+        AND EntryType = 'Receipt'
+        AND TranDate >= ${startDate}
+        AND TranDate <= ${endDate}
+      GROUP BY YEAR(TranDate), MONTH(TranDate)
+      ORDER BY YEAR(TranDate), MONTH(TranDate)
+    `;
+  }
 
+  // Cumulative: running totals using window functions
   return Prisma.sql`
+    WITH MonthlyCollections AS (
+      SELECT 
+        DATEFROMPARTS(YEAR(TranDate), MONTH(TranDate), 1) as month,
+        SUM(-ISNULL(Total, 0)) as monthlyCollections
+      FROM DrsTransactions
+      WHERE Biller = ${billerCode}
+        AND EntryType = 'Receipt'
+        AND TranDate >= ${startDate}
+        AND TranDate <= ${endDate}
+      GROUP BY YEAR(TranDate), MONTH(TranDate)
+    )
     SELECT 
-      TranYearMonth as month,
-      SUM(-ISNULL(Total, 0)) as collections
-    FROM DrsTransactions
-    WHERE Biller = ${billerCode}
-      AND EntryType = 'Receipt'
-      AND TranYearMonth >= ${startMonth}
-      AND TranYearMonth <= ${endMonth}
-    GROUP BY TranYearMonth
-    ORDER BY TranYearMonth
+      month,
+      SUM(monthlyCollections) OVER (ORDER BY month ROWS UNBOUNDED PRECEDING) as collections
+    FROM MonthlyCollections
+    ORDER BY month
   `;
 }
 
 /**
- * Build optimized Net Billings monthly aggregation query
+ * Build Net Billings monthly aggregation query
  * 
  * Aggregates all DRS transactions EXCEPT receipts (invoices, credit notes, adjustments).
  * Used for Debtors Lockup calculation (trailing 12-month net billings).
@@ -137,6 +190,7 @@ export function buildCollectionsMonthlyQuery(
  * @param billerCode - Employee code (Biller column)
  * @param startDate - Start of date range
  * @param endDate - End of date range
+ * @param cumulative - If true, returns cumulative totals (running sum), default false
  * @returns Prisma.Sql for complete query
  * 
  * @example
@@ -146,21 +200,42 @@ export function buildCollectionsMonthlyQuery(
 export function buildNetBillingsMonthlyQuery(
   billerCode: string,
   startDate: Date,
-  endDate: Date
+  endDate: Date,
+  cumulative: boolean = false
 ): Prisma.Sql {
-  const startMonth = Prisma.sql`DATEFROMPARTS(YEAR(${startDate}), MONTH(${startDate}), 1)`;
-  const endMonth = Prisma.sql`DATEFROMPARTS(YEAR(${endDate}), MONTH(${endDate}), 1)`;
+  // Non-cumulative: monthly aggregations (existing behavior)
+  if (!cumulative) {
+    return Prisma.sql`
+      SELECT 
+        DATEFROMPARTS(YEAR(TranDate), MONTH(TranDate), 1) as month,
+        SUM(ISNULL(Total, 0)) as netBillings
+      FROM DrsTransactions
+      WHERE Biller = ${billerCode}
+        AND TranDate >= ${startDate}
+        AND TranDate <= ${endDate}
+        AND (EntryType IS NULL OR EntryType != 'Receipt')
+      GROUP BY YEAR(TranDate), MONTH(TranDate)
+      ORDER BY YEAR(TranDate), MONTH(TranDate)
+    `;
+  }
 
+  // Cumulative: running totals using window functions
   return Prisma.sql`
+    WITH MonthlyBillings AS (
+      SELECT 
+        DATEFROMPARTS(YEAR(TranDate), MONTH(TranDate), 1) as month,
+        SUM(ISNULL(Total, 0)) as monthlyBillings
+      FROM DrsTransactions
+      WHERE Biller = ${billerCode}
+        AND TranDate >= ${startDate}
+        AND TranDate <= ${endDate}
+        AND (EntryType IS NULL OR EntryType != 'Receipt')
+      GROUP BY YEAR(TranDate), MONTH(TranDate)
+    )
     SELECT 
-      TranYearMonth as month,
-      SUM(ISNULL(Total, 0)) as netBillings
-    FROM DrsTransactions
-    WHERE Biller = ${billerCode}
-      AND TranYearMonth >= ${startMonth}
-      AND TranYearMonth <= ${endMonth}
-      AND (EntryType IS NULL OR EntryType != 'Receipt')
-    GROUP BY TranYearMonth
-    ORDER BY TranYearMonth
+      month,
+      SUM(monthlyBillings) OVER (ORDER BY month ROWS UNBOUNDED PRECEDING) as netBillings
+    FROM MonthlyBillings
+    ORDER BY month
   `;
 }

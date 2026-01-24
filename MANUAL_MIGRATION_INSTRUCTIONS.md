@@ -60,10 +60,10 @@ After running the SQL above, mark the migrations as applied in Prisma:
 cd /Users/walter.blake/Documents/Development/mapper
 
 # Mark first migration as applied
-DATABASE_URL="sqlserver://gt3-sql-server.database.windows.net:1433;database=gt3-db;user=sqladmin;password=GT3!SecureP@ss2024#Dev;encrypt=true;trustServerCertificate=false" npx prisma migrate resolve --applied 20260123_add_tranyearmonth_computed_columns
+DATABASE_URL="sqlserver://gt3-sql-server.database.windows.net:1433;database=gt3-db;user=sqladmin;password={GT3!SecureP@ss2024#Dev};encrypt=true;trustServerCertificate=true;connectTimeout=30" npx prisma migrate resolve --applied 20260123_add_tranyearmonth_computed_columns
 
 # Mark second migration as applied
-DATABASE_URL="sqlserver://gt3-sql-server.database.windows.net:1433;database=gt3-db;user=sqladmin;password=GT3!SecureP@ss2024#Dev;encrypt=true;trustServerCertificate=false" npx prisma migrate resolve --applied 20260123_add_yearmonth_covering_indexes
+DATABASE_URL="sqlserver://gt3-sql-server.database.windows.net:1433;database=gt3-db;user=sqladmin;password={GT3!SecureP@ss2024#Dev};encrypt=true;trustServerCertificate=true;connectTimeout=30" npx prisma migrate resolve --applied 20260123_add_yearmonth_covering_indexes
 ```
 
 ## How to Run the SQL
@@ -87,10 +87,10 @@ DATABASE_URL="sqlserver://gt3-sql-server.database.windows.net:1433;database=gt3-
 ### Option 3: Command Line (sqlcmd)
 ```bash
 # Step 1
-sqlcmd -S gt3-sql-server.database.windows.net -d gt3-db -U sqladmin -P 'GT3!SecureP@ss2024#Dev' -Q "$(cat run_migration_1.sql)"
+sqlcmd -S gt3-sql-server.database.windows.net -d gt3-db -U sqladmin -P '{GT3!SecureP@ss2024#Dev}' -Q "$(cat run_migration_1.sql)"
 
 # Step 2
-sqlcmd -S gt3-sql-server.database.windows.net -d gt3-db -U sqladmin -P 'GT3!SecureP@ss2024#Dev' -Q "$(cat run_migration_2.sql)"
+sqlcmd -S gt3-sql-server.database.windows.net -d gt3-db -U sqladmin -P '{GT3!SecureP@ss2024#Dev}' -Q "$(cat run_migration_2.sql)"
 ```
 
 ## Verification
@@ -99,7 +99,7 @@ After running the migrations, verify they worked:
 
 ```bash
 cd /Users/walter.blake/Documents/Development/mapper
-DATABASE_URL="sqlserver://gt3-sql-server.database.windows.net:1433;database=gt3-db;user=sqladmin;password=GT3!SecureP@ss2024#Dev;encrypt=true;trustServerCertificate=false" npx prisma migrate status
+DATABASE_URL="sqlserver://gt3-sql-server.database.windows.net:1433;database=gt3-db;user=sqladmin;password={GT3!SecureP@ss2024#Dev};encrypt=true;trustServerCertificate=true;connectTimeout=30" npx prisma migrate status
 ```
 
 Should show both migrations as applied with no pending migrations.

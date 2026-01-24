@@ -435,9 +435,28 @@ export async function invalidatePlannerCachesForServiceLine(
   }
 }
 
-
-
-
+/**
+ * Invalidate My Reports caches for a specific user or all users
+ * Use this when WIP or DRS transactions are modified (nightly sync)
+ * 
+ * @param userId - Optional user ID to invalidate specific user's caches
+ */
+export async function invalidateMyReportsCache(userId?: string): Promise<void> {
+  try {
+    if (userId) {
+      // Invalidate all cache variations for specific user (fiscal years + custom ranges)
+      await cache.invalidatePattern(`${CACHE_PREFIXES.USER}my-reports:overview:*:${userId}`);
+      logger.debug('My Reports cache invalidated for user', { userId });
+    } else {
+      // Invalidate all My Reports caches (admin operation after data sync)
+      await cache.invalidatePattern(`${CACHE_PREFIXES.USER}my-reports:overview:*`);
+      logger.info('My Reports cache invalidated for all users');
+    }
+  } catch (error) {
+    logger.error('Failed to invalidate My Reports cache', { userId, error });
+    // Silent fail - cache invalidation errors are not critical
+  }
+}
 
 
 

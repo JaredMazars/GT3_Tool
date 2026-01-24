@@ -3,16 +3,20 @@
 /**
  * My Reports Overview Component
  * 
- * Displays 9 financial performance graphs over a rolling 24-month period:
- * - Net Revenue
- * - Gross Profit
- * - Collections
- * - WIP Lockup Days (with 45-day target)
- * - Debtors Lockup Days (with 45-day target)
- * - Writeoff % (with 25% target)
+ * Displays 9 financial performance graphs with CUMULATIVE values:
+ * - Net Revenue (cumulative within period)
+ * - Gross Profit (cumulative within period)
+ * - Collections (cumulative within period)
+ * - WIP Lockup Days (with 45-day target, trailing 12-month calculation)
+ * - Debtors Lockup Days (with 45-day target, trailing 12-month calculation)
+ * - Writeoff % (with 25% target, cumulative)
  * - Total Lockup Days (WIP + Debtors, with 90-day target)
- * - WIP Balance
- * - Debtors Balance
+ * - WIP Balance (running total from inception)
+ * - Debtors Balance (running total from inception)
+ * 
+ * Supports:
+ * - Fiscal Year view (current + 2 past years)
+ * - Custom Date Range view (up to 24 months)
  */
 
 import { useMemo, useState } from 'react';
@@ -28,7 +32,7 @@ import {
   CreditCard,
 } from 'lucide-react';
 import { useMyReportsOverview } from '@/hooks/reports/useMyReportsOverview';
-import { LoadingSpinner } from '@/components/ui';
+import { Input, Button, Banner, LoadingSpinner } from '@/components/ui';
 import type { MonthlyMetrics } from '@/types/api';
 import {
   LineChart,
@@ -41,7 +45,8 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts';
-import { format, parse } from 'date-fns';
+import { format, parse, parseISO, differenceInMonths } from 'date-fns';
+import { getCurrentFiscalPeriod } from '@/lib/utils/fiscalPeriod';
 
 interface CustomTooltipProps {
   active?: boolean;
@@ -405,7 +410,56 @@ function ChartCard({
 }
 
 export function MyReportsOverview() {
-  const { data, isLoading, error } = useMyReportsOverview();
+  // State for fiscal year and mode selection
+  const currentFY = getCurrentFiscalPeriod().fiscalYear;
+  const [activeTab, setActiveTab] = useState<'fiscal' | 'custom'>('fiscal');
+  const [fiscalYear, setFiscalYear] = useState(currentFY);
+  const [customDates, setCustomDates] = useState({ start: '', end: '' });
+  const [dateError, setDateError] = useState<string | null>(null);
+
+  // Fetch data based on current mode
+  const { data, isLoading, error } = useMyReportsOverview({
+    fiscalYear: activeTab === 'fiscal' ? fiscalYear : undefined,
+    startDate: activeTab === 'custom' && customDates.start ? customDates.start : undefined,
+    endDate: activeTab === 'custom' && customDates.end ? customDates.end : undefined,
+    mode: activeTab,
+  });
+
+  // Handle custom date range validation and application
+  const handleDateRangeApply = () => {
+    setDateError(null);
+    
+    if (!customDates.start || !customDates.end) {
+      setDateError('Both start and end dates are required');
+      return;
+    }
+    
+    try {
+      const start = parseISO(customDates.start);
+      const end = parseISO(customDates.end);
+      
+      if (end < start) {
+        setDateError('End date must be after start date');
+        return;
+      }
+      
+      const months = differenceInMonths(end, start);
+      if (months > 24) {
+        setDateError('Date range cannot exceed 24 months');
+        return;
+      }
+      
+      // Trigger refetch by updating state (already done via customDates)
+    } catch (err) {
+      setDateError('Invalid date format');
+    }
+  };
+
+  // Fiscal year options for dropdown
+  const fiscalYearOptions = [currentFY, currentFY - 1, currentFY - 2].map(fy => ({
+    value: fy.toString(),
+    label: `FY${fy} (Sep ${fy - 1} - Aug ${fy})`,
+  }));
 
   // Format currency
   const formatCurrency = (amount: number) => {
@@ -531,8 +585,84 @@ export function MyReportsOverview() {
           Financial Performance Overview
         </h2>
         <p className="text-sm text-forvis-gray-700">
-          Monthly metrics over the last 24 months • Viewing as {data.filterMode === 'PARTNER' ? 'Partner' : 'Manager'}
+          {activeTab === 'fiscal' ? `FY${fiscalYear} (Cumulative)` : 'Custom Date Range (Cumulative)'} • Viewing as {data.filterMode === 'PARTNER' ? 'Partner' : 'Manager'}
         </p>
+      </div>
+
+      {/* Tabs */}
+      <div className="border-b border-forvis-gray-200">
+        <nav className="flex gap-4" role="tablist">
+          <button
+            role="tab"
+            aria-selected={activeTab === 'fiscal'}
+            onClick={() => setActiveTab('fiscal')}
+            className={`pb-2 px-1 text-sm font-medium transition-colors ${
+              activeTab === 'fiscal'
+                ? 'border-b-2 border-forvis-blue-600 text-forvis-blue-600'
+                : 'text-forvis-gray-600 hover:text-forvis-gray-900'
+            }`}
+          >
+            Fiscal Year View
+          </button>
+          <button
+            role="tab"
+            aria-selected={activeTab === 'custom'}
+            onClick={() => setActiveTab('custom')}
+            className={`pb-2 px-1 text-sm font-medium transition-colors ${
+              activeTab === 'custom'
+                ? 'border-b-2 border-forvis-blue-600 text-forvis-blue-600'
+                : 'text-forvis-gray-600 hover:text-forvis-gray-900'
+            }`}
+          >
+            Custom Date Range
+          </button>
+        </nav>
+      </div>
+
+      {/* Selectors */}
+      <div className="bg-white rounded-lg border border-forvis-gray-200 p-4">
+        {activeTab === 'fiscal' ? (
+          <div className="max-w-xs">
+            <Input
+              variant="select"
+              label="Fiscal Year"
+              value={fiscalYear.toString()}
+              onChange={(e) => setFiscalYear(parseInt(e.target.value, 10))}
+              options={fiscalYearOptions}
+            />
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {dateError && (
+              <Banner
+                variant="error"
+                message={dateError}
+                dismissible
+                onDismiss={() => setDateError(null)}
+              />
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+              <Input
+                type="date"
+                label="Start Date"
+                value={customDates.start}
+                onChange={(e) => setCustomDates(prev => ({ ...prev, start: e.target.value }))}
+              />
+              <Input
+                type="date"
+                label="End Date"
+                value={customDates.end}
+                onChange={(e) => setCustomDates(prev => ({ ...prev, end: e.target.value }))}
+              />
+              <Button onClick={handleDateRangeApply} variant="primary">
+                Apply Date Range
+              </Button>
+            </div>
+            <p className="text-xs text-forvis-gray-600">
+              Select a date range up to 24 months. Values will be cumulative within the selected period.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Charts Grid */}

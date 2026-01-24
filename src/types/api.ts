@@ -210,10 +210,29 @@ export interface MonthlyMetrics {
   grossTime?: number;
 }
 
+/**
+ * My Reports Overview request parameters
+ */
+export interface MyReportsOverviewParams {
+  fiscalYear?: number;        // If provided, show fiscal year view
+  startDate?: string;         // For custom date range (ISO format)
+  endDate?: string;           // For custom date range (ISO format)
+  mode?: 'fiscal' | 'custom'; // View mode
+}
+
+/**
+ * My Reports Overview response data
+ */
 export interface MyReportsOverviewData {
-  monthlyMetrics: MonthlyMetrics[];
+  monthlyMetrics: MonthlyMetrics[]; // Cumulative within period
   filterMode: 'PARTNER' | 'MANAGER';
   employeeCode: string;
+  fiscalYear?: number;        // If fiscal year mode
+  dateRange?: {               // If custom mode
+    start: string;
+    end: string;
+  };
+  isCumulative: boolean;      // Always true now
 }
 
 
