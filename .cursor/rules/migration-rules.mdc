@@ -1,7 +1,7 @@
 ---
 alwaysApply: false
 version: 1.0.0
-lastUpdated: 2026-01-23
+lastUpdated: 2026-01-24
 description: Prisma migration best practices for SQL Server - handles timeouts, schema drift, and deployment workflows
 ---
 
@@ -295,11 +295,15 @@ GROUP BY t.name, p.rows;
 
 **Option B: sqlcmd (Command Line)**
 ```bash
+# Note: If password contains special characters, wrap in single quotes
 sqlcmd -S server.database.windows.net \
        -d database-name \
        -U username \
-       -P password \
+       -P 'SecureP@ss!2024' \
+       -t 600 \
        -i prisma/migrations/[timestamp]_your_change/migration.sql
+
+# -t 600 sets 10 minute query timeout for large operations
 ```
 
 **Step 5: Mark as Applied**
@@ -564,11 +568,11 @@ datasource db {
 
 **Environment Variables:**
 ```bash
-# Main database
-DATABASE_URL="sqlserver://server.database.windows.net:1433;database=gt3-db;user=admin;password=xxx;encrypt=true"
+# Main database - note special characters in password escaped with curly braces
+DATABASE_URL="sqlserver://server.database.windows.net:1433;database=gt3-db;user=admin;password={SecureP@ss!2024};encrypt=true;trustServerCertificate=true;connectTimeout=30;socketTimeout=60;schema=dbo;connectionLimit=20;poolTimeout=20"
 
-# Shadow database (must be on same server)
-SHADOW_DATABASE_URL="sqlserver://server.database.windows.net:1433;database=gt3-db-shadow;user=admin;password=xxx;encrypt=true"
+# Shadow database (must be on same server) - uses same parameters but different database name
+SHADOW_DATABASE_URL="sqlserver://server.database.windows.net:1433;database=gt3-db-shadow;user=admin;password={SecureP@ss!2024};encrypt=true;trustServerCertificate=true;connectTimeout=30;socketTimeout=60;schema=dbo;connectionLimit=5;poolTimeout=10"
 ```
 
 **Requirements:**
@@ -579,23 +583,110 @@ SHADOW_DATABASE_URL="sqlserver://server.database.windows.net:1433;database=gt3-d
 
 ---
 
+## 6.5 Connection String Best Practices for Azure SQL
+
+### Special Character Escaping
+
+According to [Prisma SQL Server documentation](https://www.prisma.io/docs/orm/overview/databases/sql-server#connection-details), passwords containing special characters MUST be escaped with curly braces.
+
+**Special characters that require escaping:**
+- `:` (colon)
+- `;` (semicolon)  
+- `=` (equals)
+- `/` (forward slash)
+- `[` `]` (square brackets)
+- `{` `}` (curly braces)
+- `!` `@` `#` `$` `%` `^` `&` `*` (symbols)
+
+**Example:**
+```bash
+# WRONG - password with special characters not escaped
+password=SecureP@ss!2024
+
+# CORRECT - password wrapped in curly braces
+password={SecureP@ss!2024}
+```
+
+---
+
+### Timeout Configuration for Azure SQL
+
+Azure SQL Database can experience cold starts (10-30 seconds) and long-running queries. Configure appropriate timeouts:
+
+| Parameter | Recommended Value | Purpose |
+|-----------|------------------|---------|
+| `connectTimeout` | 30 seconds | Allows time for Azure SQL to wake from cold start |
+| `socketTimeout` | 60 seconds | Query execution timeout for migration operations |
+| `poolTimeout` | 20 seconds | Wait time for connection from pool |
+| `connectionLimit` | 20 (main), 5 (shadow) | Connection pool size |
+
+---
+
+### Certificate Trust for Azure SQL
+
+Azure SQL uses self-signed certificates. Set `trustServerCertificate=true`:
+
+```bash
+# Standard for Azure SQL Database
+trustServerCertificate=true
+```
+
+Do NOT use `trustServerCertificate=false` with Azure SQL - it can cause SSL validation errors.
+
+---
+
+### Complete Connection String Template
+
+```bash
+DATABASE_URL="sqlserver://HOST:1433;database=DB_NAME;user=USERNAME;password={PASSWORD};encrypt=true;trustServerCertificate=true;connectTimeout=30;socketTimeout=60;schema=dbo;connectionLimit=20;poolTimeout=20"
+```
+
+**Replace:**
+- `HOST` - Azure SQL server (e.g., `gt3-sql-server.database.windows.net`)
+- `DB_NAME` - Database name (e.g., `gt3-db`)
+- `USERNAME` - SQL admin username (e.g., `sqladmin`)
+- `PASSWORD` - Password with special characters (wrap entire password in curly braces)
+
+---
+
+### Shadow Database Configuration
+
+Shadow database should use same parameters but:
+- Different database name (e.g., `gt3-db-shadow`)
+- Lower connection limit (5 vs 20) since only used during migrations
+- Same timeout settings for reliability
+
+```bash
+SHADOW_DATABASE_URL="sqlserver://HOST:1433;database=DB_NAME-shadow;user=USERNAME;password={PASSWORD};encrypt=true;trustServerCertificate=true;connectTimeout=30;socketTimeout=60;schema=dbo;connectionLimit=5;poolTimeout=10"
+```
+
+---
+
 ## 7. Common Issues & Solutions
 
 ### Issue: "P1012 - Environment variable not found: DATABASE_URL"
 
-**Cause:** DATABASE_URL not set
+**Cause:** DATABASE_URL not set or incorrectly formatted
 
-**Solution:**
+**Solutions:**
 ```bash
 # Set in terminal
 export DATABASE_URL="sqlserver://..."
 
-# Or use dotenv file
-# Create .env in project root
-DATABASE_URL="sqlserver://..."
+# Or use dotenv file (.env in project root)
+DATABASE_URL="sqlserver://HOST:1433;database=DB;user=USER;password={PASS};encrypt=true;trustServerCertificate=true;connectTimeout=30"
 
 # Or pass inline
 DATABASE_URL="sqlserver://..." npx prisma migrate status
+```
+
+**IMPORTANT:** If your password contains special characters (`:;=!@#$%^&*`), wrap it in curly braces:
+```bash
+# Correct
+password={MyP@ss!123}
+
+# Incorrect - will fail to parse
+password=MyP@ss!123
 ```
 
 ---
@@ -623,6 +714,29 @@ DROP DATABASE IF EXISTS [gt3-db-shadow];
 -- Or grant permissions
 GRANT CREATE ANY DATABASE TO [username];
 ```
+
+---
+
+### Issue: Connection timeout or SSL certificate errors
+
+**Cause:** Azure SQL connection not properly configured
+
+**Symptoms:**
+- "Connection timeout" during migration
+- "SSL certificate validation failed"
+- "Unable to connect to database"
+
+**Solution:** Verify connection string has proper Azure SQL settings:
+
+```bash
+DATABASE_URL="sqlserver://HOST:1433;database=DB;user=USER;password={PASS};encrypt=true;trustServerCertificate=true;connectTimeout=30;socketTimeout=60;schema=dbo"
+```
+
+**Key parameters:**
+- `trustServerCertificate=true` - Required for Azure SQL (uses self-signed certificates)
+- `connectTimeout=30` - Allows time for cold start (default 5s is too short)
+- `socketTimeout=60` - Query execution timeout for migrations
+- `password={...}` - Curly braces if password has special characters
 
 ---
 

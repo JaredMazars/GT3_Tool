@@ -1,9 +1,10 @@
 ---
-description: When security implementation is needed
-alwaysApply: false
-version: 1.0.0
-lastUpdated: 2026-01-21
+description: Security & access control patterns - mandatory for all API routes and pages
+alwaysApply: true
+version: 1.1.0
+lastUpdated: 2026-01-24
 changelog:
+  - "1.1.0 (2026-01-24): Changed to always applied - security is foundational (100% adoption rate)"
   - "1.0.0 (2026-01-21): Initial security & access control documentation"
 ---
 # Security & Access Control

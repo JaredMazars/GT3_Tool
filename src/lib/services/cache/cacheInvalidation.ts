@@ -436,7 +436,7 @@ export async function invalidatePlannerCachesForServiceLine(
 }
 
 /**
- * Invalidate My Reports caches for a specific user or all users
+ * Invalidate My Reports Overview caches for a specific user or all users
  * Use this when WIP or DRS transactions are modified (nightly sync)
  * 
  * @param userId - Optional user ID to invalidate specific user's caches
@@ -446,14 +446,37 @@ export async function invalidateMyReportsCache(userId?: string): Promise<void> {
     if (userId) {
       // Invalidate all cache variations for specific user (fiscal years + custom ranges)
       await cache.invalidatePattern(`${CACHE_PREFIXES.USER}my-reports:overview:*:${userId}`);
-      logger.debug('My Reports cache invalidated for user', { userId });
+      logger.debug('My Reports Overview cache invalidated for user', { userId });
     } else {
-      // Invalidate all My Reports caches (admin operation after data sync)
+      // Invalidate all My Reports Overview caches (admin operation after data sync)
       await cache.invalidatePattern(`${CACHE_PREFIXES.USER}my-reports:overview:*`);
-      logger.info('My Reports cache invalidated for all users');
+      logger.info('My Reports Overview cache invalidated for all users');
     }
   } catch (error) {
-    logger.error('Failed to invalidate My Reports cache', { userId, error });
+    logger.error('Failed to invalidate My Reports Overview cache', { userId, error });
+    // Silent fail - cache invalidation errors are not critical
+  }
+}
+
+/**
+ * Invalidate Profitability Report caches for a specific user or all users
+ * Use this when WIP transactions are modified (nightly sync)
+ * 
+ * @param userId - Optional user ID to invalidate specific user's caches
+ */
+export async function invalidateProfitabilityCache(userId?: string): Promise<void> {
+  try {
+    if (userId) {
+      // Invalidate all cache variations for specific user (fiscal years + custom ranges)
+      await cache.invalidatePattern(`${CACHE_PREFIXES.USER}my-reports:profitability:*:${userId}`);
+      logger.debug('Profitability cache invalidated for user', { userId });
+    } else {
+      // Invalidate all Profitability caches (admin operation after data sync)
+      await cache.invalidatePattern(`${CACHE_PREFIXES.USER}my-reports:profitability:*`);
+      logger.info('Profitability cache invalidated for all users');
+    }
+  } catch (error) {
+    logger.error('Failed to invalidate Profitability cache', { userId, error });
     // Silent fail - cache invalidation errors are not critical
   }
 }

@@ -3,12 +3,13 @@
 /**
  * Profitability Report Content
  * 
- * Multi-view report with Group/Client/Task modes and enhanced multi-select filtering
+ * Multi-view report with Group/Client/Task modes and enhanced multi-select filtering.
+ * Supports fiscal year and custom date range filtering with cumulative WIP metrics.
  */
 
 import { useState, useMemo } from 'react';
 import { Layers, Building2, ListTodo, LayoutList, FolderTree, Tag } from 'lucide-react';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { Input, Button, LoadingSpinner } from '@/components/ui';
 import { Banner } from '@/components/ui/Banner';
 import { useProfitabilityReport } from '@/hooks/reports/useProfitabilityReport';
 import { ReportFilters, type ReportFiltersState } from './ReportFilters';
@@ -18,17 +19,67 @@ import { TaskDetailsTable } from './TaskDetailsTable';
 import { MasterServiceLineTotalsTable } from './MasterServiceLineTotalsTable';
 import { SubServiceLineGroupTotalsTable } from './SubServiceLineGroupTotalsTable';
 import { ServiceLineTotalsTable } from './ServiceLineTotalsTable';
+import { parseISO, differenceInMonths } from 'date-fns';
+import { getCurrentFiscalPeriod } from '@/lib/utils/fiscalPeriod';
 
 type ViewMode = 'group' | 'client' | 'task' | 'master-service-line' | 'sub-service-line-group' | 'service-line';
 
 export function ProfitabilityReport() {
-  const { data, isLoading, error } = useProfitabilityReport();
+  // State for fiscal year and mode selection
+  const currentFY = getCurrentFiscalPeriod().fiscalYear;
+  const [activeTab, setActiveTab] = useState<'fiscal' | 'custom'>('fiscal');
+  const [fiscalYear, setFiscalYear] = useState(currentFY);
+  const [customDates, setCustomDates] = useState({ start: '', end: '' });
+  const [dateError, setDateError] = useState<string | null>(null);
+
+  // Fetch data based on current mode
+  const { data, isLoading, error } = useProfitabilityReport({
+    fiscalYear: activeTab === 'fiscal' ? fiscalYear : undefined,
+    startDate: activeTab === 'custom' && customDates.start ? customDates.start : undefined,
+    endDate: activeTab === 'custom' && customDates.end ? customDates.end : undefined,
+    mode: activeTab,
+  });
+
   const [viewMode, setViewMode] = useState<ViewMode>('master-service-line');
   const [filters, setFilters] = useState<ReportFiltersState>({
     clients: [],
     serviceLines: [],
     groups: [],
   });
+
+  // Handle custom date range validation and application
+  const handleDateRangeApply = () => {
+    setDateError(null);
+    
+    if (!customDates.start || !customDates.end) {
+      setDateError('Both start and end dates are required');
+      return;
+    }
+    
+    try {
+      const start = parseISO(customDates.start);
+      const end = parseISO(customDates.end);
+      
+      if (end < start) {
+        setDateError('End date must be after start date');
+        return;
+      }
+      
+      const months = differenceInMonths(end, start);
+      if (months > 24) {
+        setDateError('Date range cannot exceed 24 months');
+        return;
+      }
+    } catch (err) {
+      setDateError('Invalid date format');
+    }
+  };
+
+  // Fiscal year options for dropdown
+  const fiscalYearOptions = [currentFY, currentFY - 1, currentFY - 2].map(fy => ({
+    value: fy.toString(),
+    label: `FY${fy} (Sep ${fy - 1} - Aug ${fy})`,
+  }));
 
   // Apply multi-select filters to tasks
   const filteredTasks = useMemo(() => {
@@ -56,6 +107,82 @@ export function ProfitabilityReport() {
 
   return (
     <div>
+      {/* Tabs */}
+      <div className="border-b border-forvis-gray-200 mb-4">
+        <nav className="flex gap-4" role="tablist">
+          <button
+            role="tab"
+            aria-selected={activeTab === 'fiscal'}
+            onClick={() => setActiveTab('fiscal')}
+            className={`pb-2 px-1 text-sm font-medium transition-colors ${
+              activeTab === 'fiscal'
+                ? 'border-b-2 border-forvis-blue-600 text-forvis-blue-600'
+                : 'text-forvis-gray-600 hover:text-forvis-gray-900'
+            }`}
+          >
+            Fiscal Year View
+          </button>
+          <button
+            role="tab"
+            aria-selected={activeTab === 'custom'}
+            onClick={() => setActiveTab('custom')}
+            className={`pb-2 px-1 text-sm font-medium transition-colors ${
+              activeTab === 'custom'
+                ? 'border-b-2 border-forvis-blue-600 text-forvis-blue-600'
+                : 'text-forvis-gray-600 hover:text-forvis-gray-900'
+            }`}
+          >
+            Custom Date Range
+          </button>
+        </nav>
+      </div>
+
+      {/* Inline Selectors */}
+      <div className="bg-white rounded-lg border border-forvis-gray-200 p-4 mb-4">
+        {activeTab === 'fiscal' ? (
+          <div className="max-w-xs">
+            <Input
+              variant="select"
+              label="Fiscal Year"
+              value={fiscalYear.toString()}
+              onChange={(e) => setFiscalYear(parseInt(e.target.value, 10))}
+              options={fiscalYearOptions}
+            />
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {dateError && (
+              <Banner
+                variant="error"
+                message={dateError}
+                dismissible
+                onDismiss={() => setDateError(null)}
+              />
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+              <Input
+                type="date"
+                label="Start Date"
+                value={customDates.start}
+                onChange={(e) => setCustomDates(prev => ({ ...prev, start: e.target.value }))}
+              />
+              <Input
+                type="date"
+                label="End Date"
+                value={customDates.end}
+                onChange={(e) => setCustomDates(prev => ({ ...prev, end: e.target.value }))}
+              />
+              <Button onClick={handleDateRangeApply} variant="primary">
+                Apply Date Range
+              </Button>
+            </div>
+            <p className="text-xs text-forvis-gray-600">
+              Select a date range up to 24 months. Values will be cumulative within the selected period.
+            </p>
+          </div>
+        )}
+      </div>
+
       {/* Info Banner */}
       {data && (
         <div className="mb-4">
@@ -66,6 +193,8 @@ export function ProfitabilityReport() {
             <div className="flex items-start gap-2">
               <div className="flex-1">
                 <p className="text-xs text-forvis-gray-700">
+                  <span className="font-semibold">Period:</span>{' '}
+                  {activeTab === 'fiscal' ? `FY${fiscalYear} (Cumulative)` : 'Custom Date Range (Cumulative)'} •{' '}
                   <span className="font-semibold">Viewing as:</span>{' '}
                   {data.filterMode === 'PARTNER' ? 'Task Partner' : 'Task Manager'} •{' '}
                   <span className="ml-1">
@@ -73,8 +202,8 @@ export function ProfitabilityReport() {
                     {data.filterMode === 'PARTNER' ? 'Partner' : 'Manager'}
                   </span>
                   {' • '}
-                  <span className="font-semibold">{data.tasks.length}</span> total task
-                  {data.tasks.length !== 1 ? 's' : ''} across all service lines
+                  <span className="font-semibold">{filteredTasks.length}</span> task
+                  {filteredTasks.length !== 1 ? 's' : ''}
                 </p>
               </div>
             </div>

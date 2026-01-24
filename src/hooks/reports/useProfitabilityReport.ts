@@ -1,22 +1,45 @@
 /**
  * React Query hook for Profitability report
+ * 
+ * Supports fiscal year and custom date range filtering
  */
 
 import { useQuery } from '@tanstack/react-query';
 import type { ProfitabilityReportData } from '@/types/api';
 
+export interface UseProfitabilityReportParams {
+  fiscalYear?: number;        // If provided, show fiscal year view
+  startDate?: string;         // For custom date range (ISO format)
+  endDate?: string;           // For custom date range (ISO format)
+  mode?: 'fiscal' | 'custom'; // View mode (defaults to 'fiscal')
+  enabled?: boolean;
+}
+
 /**
- * Fetch profitability data (tasks with Net WIP) for the current user
+ * Fetch profitability data (tasks with period-filtered WIP) for the current user
  * 
  * Returns tasks filtered by employee category:
  * - CARL/Local/DIR: Tasks as Partner
  * - Others: Tasks as Manager
  */
-export function useProfitabilityReport() {
+export function useProfitabilityReport(params: UseProfitabilityReportParams = {}) {
+  const { fiscalYear, startDate, endDate, mode = 'fiscal', enabled = true } = params;
+
   return useQuery<ProfitabilityReportData>({
-    queryKey: ['my-reports', 'profitability'],
+    queryKey: ['my-reports', 'profitability', mode, fiscalYear, startDate, endDate],
     queryFn: async () => {
-      const response = await fetch('/api/my-reports/profitability');
+      // Build query parameters
+      const queryParams = new URLSearchParams();
+      queryParams.set('mode', mode);
+      
+      if (mode === 'fiscal' && fiscalYear) {
+        queryParams.set('fiscalYear', fiscalYear.toString());
+      } else if (mode === 'custom' && startDate && endDate) {
+        queryParams.set('startDate', startDate);
+        queryParams.set('endDate', endDate);
+      }
+      
+      const response = await fetch(`/api/my-reports/profitability?${queryParams}`);
       
       if (!response.ok) {
         const error = await response.json().catch(() => ({ error: 'Failed to fetch report' }));
@@ -26,8 +49,9 @@ export function useProfitabilityReport() {
       const data = await response.json();
       return data.data as ProfitabilityReportData;
     },
+    enabled,
     staleTime: 10 * 60 * 1000, // 10 minutes
-    gcTime: 15 * 60 * 1000, // 15 minutes (formerly cacheTime)
+    gcTime: 30 * 60 * 1000, // 30 minutes (longer for fiscal years)
   });
 }
 
