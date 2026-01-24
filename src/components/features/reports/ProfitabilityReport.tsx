@@ -11,6 +11,7 @@ import { useState, useMemo } from 'react';
 import { Layers, Building2, ListTodo, LayoutList, FolderTree, Tag } from 'lucide-react';
 import { Input, Button, LoadingSpinner } from '@/components/ui';
 import { Banner } from '@/components/ui/Banner';
+import { FiscalYearSelector } from '@/components/features/reports/FiscalYearSelector';
 import { useProfitabilityReport } from '@/hooks/reports/useProfitabilityReport';
 import { ReportFilters, type ReportFiltersState } from './ReportFilters';
 import { GroupTotalsTable } from './GroupTotalsTable';
@@ -29,14 +30,17 @@ export function ProfitabilityReport() {
   const currentFY = getCurrentFiscalPeriod().fiscalYear;
   const [activeTab, setActiveTab] = useState<'fiscal' | 'custom'>('fiscal');
   const [fiscalYear, setFiscalYear] = useState(currentFY);
-  const [customDates, setCustomDates] = useState({ start: '', end: '' });
+  
+  // Separate state for date inputs vs applied query params
+  const [customInputs, setCustomInputs] = useState({ start: '', end: '' });
+  const [appliedDates, setAppliedDates] = useState({ start: '', end: '' });
   const [dateError, setDateError] = useState<string | null>(null);
 
-  // Fetch data based on current mode
+  // Fetch data based on current mode - use appliedDates for query
   const { data, isLoading, error } = useProfitabilityReport({
     fiscalYear: activeTab === 'fiscal' ? fiscalYear : undefined,
-    startDate: activeTab === 'custom' && customDates.start ? customDates.start : undefined,
-    endDate: activeTab === 'custom' && customDates.end ? customDates.end : undefined,
+    startDate: activeTab === 'custom' && appliedDates.start ? appliedDates.start : undefined,
+    endDate: activeTab === 'custom' && appliedDates.end ? appliedDates.end : undefined,
     mode: activeTab,
   });
 
@@ -51,14 +55,14 @@ export function ProfitabilityReport() {
   const handleDateRangeApply = () => {
     setDateError(null);
     
-    if (!customDates.start || !customDates.end) {
+    if (!customInputs.start || !customInputs.end) {
       setDateError('Both start and end dates are required');
       return;
     }
     
     try {
-      const start = parseISO(customDates.start);
-      const end = parseISO(customDates.end);
+      const start = parseISO(customInputs.start);
+      const end = parseISO(customInputs.end);
       
       if (end < start) {
         setDateError('End date must be after start date');
@@ -70,16 +74,14 @@ export function ProfitabilityReport() {
         setDateError('Date range cannot exceed 24 months');
         return;
       }
+      
+      // Apply dates to trigger refetch
+      setAppliedDates({ start: customInputs.start, end: customInputs.end });
     } catch (err) {
       setDateError('Invalid date format');
     }
   };
 
-  // Fiscal year options for dropdown
-  const fiscalYearOptions = [currentFY, currentFY - 1, currentFY - 2].map(fy => ({
-    value: fy.toString(),
-    label: `FY${fy} (Sep ${fy - 1} - Aug ${fy})`,
-  }));
 
   // Apply multi-select filters to tasks
   const filteredTasks = useMemo(() => {
@@ -141,12 +143,11 @@ export function ProfitabilityReport() {
       <div className="bg-white rounded-lg border border-forvis-gray-200 p-4 mb-4">
         {activeTab === 'fiscal' ? (
           <div className="max-w-xs">
-            <Input
-              variant="select"
-              label="Fiscal Year"
-              value={fiscalYear.toString()}
-              onChange={(e) => setFiscalYear(parseInt(e.target.value, 10))}
-              options={fiscalYearOptions}
+            <FiscalYearSelector
+              value={fiscalYear}
+              onChange={(val) => setFiscalYear(val as number)}
+              allowAllYears={false}
+              currentFY={currentFY}
             />
           </div>
         ) : (
@@ -163,14 +164,14 @@ export function ProfitabilityReport() {
               <Input
                 type="date"
                 label="Start Date"
-                value={customDates.start}
-                onChange={(e) => setCustomDates(prev => ({ ...prev, start: e.target.value }))}
+                value={customInputs.start}
+                onChange={(e) => setCustomInputs(prev => ({ ...prev, start: e.target.value }))}
               />
               <Input
                 type="date"
                 label="End Date"
-                value={customDates.end}
-                onChange={(e) => setCustomDates(prev => ({ ...prev, end: e.target.value }))}
+                value={customInputs.end}
+                onChange={(e) => setCustomInputs(prev => ({ ...prev, end: e.target.value }))}
               />
               <Button onClick={handleDateRangeApply} variant="primary">
                 Apply Date Range

@@ -48,6 +48,7 @@ export interface NetBillingsMonthlyResult {
  * @param startDate - Start of date range
  * @param endDate - End of date range
  * @param cumulative - If true, returns cumulative totals (running sum), default false
+ * @param serviceLines - Optional array of masterCode values to filter by service line
  * @returns Prisma.Sql for complete query
  * 
  * @example
@@ -55,6 +56,8 @@ export interface NetBillingsMonthlyResult {
  * const query = buildWipMonthlyAggregationQuery('TaskPartner', 'EMP001', startDate, endDate);
  * // Cumulative values (fiscal year)
  * const cumulativeQuery = buildWipMonthlyAggregationQuery('TaskPartner', 'EMP001', startDate, endDate, true);
+ * // With service line filter
+ * const filteredQuery = buildWipMonthlyAggregationQuery('TaskPartner', 'EMP001', startDate, endDate, true, ['TAX', 'AUDIT']);
  * const results = await prisma.$queryRaw<WipMonthlyResult[]>(query);
  */
 export function buildWipMonthlyAggregationQuery(
@@ -62,12 +65,24 @@ export function buildWipMonthlyAggregationQuery(
   employeeCode: string,
   startDate: Date,
   endDate: Date,
-  cumulative: boolean = false
+  cumulative: boolean = false,
+  serviceLines?: string[]
 ): Prisma.Sql {
   // Build dynamic filter based on report type
   const fieldFilter = filterField === 'TaskPartner' 
     ? Prisma.sql`TaskPartner = ${employeeCode}`
     : Prisma.sql`TaskManager = ${employeeCode}`;
+
+  // Build service line filter if provided
+  const serviceLineFilter = serviceLines && serviceLines.length > 0
+    ? Prisma.sql`
+      AND TaskCode IN (
+        SELECT TaskCode FROM Task t
+        INNER JOIN ServiceLineExternal sle ON t.ServLineCode = sle.ServLineCode
+        WHERE sle.masterCode IN (${Prisma.join(serviceLines)})
+      )
+    `
+    : Prisma.empty;
 
   // Non-cumulative: monthly aggregations (existing behavior)
   if (!cumulative) {
@@ -85,6 +100,7 @@ export function buildWipMonthlyAggregationQuery(
       WHERE ${fieldFilter}
         AND TranDate >= ${startDate}
         AND TranDate <= ${endDate}
+        ${serviceLineFilter}
       GROUP BY YEAR(TranDate), MONTH(TranDate)
       ORDER BY YEAR(TranDate), MONTH(TranDate)
     `;
@@ -106,6 +122,7 @@ export function buildWipMonthlyAggregationQuery(
       WHERE ${fieldFilter}
         AND TranDate >= ${startDate}
         AND TranDate <= ${endDate}
+        ${serviceLineFilter}
       GROUP BY YEAR(TranDate), MONTH(TranDate)
     )
     SELECT 
@@ -132,6 +149,7 @@ export function buildWipMonthlyAggregationQuery(
  * @param startDate - Start of date range
  * @param endDate - End of date range
  * @param cumulative - If true, returns cumulative totals (running sum), default false
+ * @param serviceLines - Optional array of masterCode values to filter by service line
  * @returns Prisma.Sql for complete query
  * 
  * @example
@@ -142,8 +160,20 @@ export function buildCollectionsMonthlyQuery(
   billerCode: string,
   startDate: Date,
   endDate: Date,
-  cumulative: boolean = false
+  cumulative: boolean = false,
+  serviceLines?: string[]
 ): Prisma.Sql {
+  // Build service line filter if provided
+  // Note: DrsTransactions has ServLineCode directly, not TaskCode
+  const serviceLineFilter = serviceLines && serviceLines.length > 0
+    ? Prisma.sql`
+      AND ServLineCode IN (
+        SELECT ServLineCode FROM ServiceLineExternal sle
+        WHERE sle.masterCode IN (${Prisma.join(serviceLines)})
+      )
+    `
+    : Prisma.empty;
+
   // Non-cumulative: monthly aggregations (existing behavior)
   if (!cumulative) {
     return Prisma.sql`
@@ -155,6 +185,7 @@ export function buildCollectionsMonthlyQuery(
         AND EntryType = 'Receipt'
         AND TranDate >= ${startDate}
         AND TranDate <= ${endDate}
+        ${serviceLineFilter}
       GROUP BY YEAR(TranDate), MONTH(TranDate)
       ORDER BY YEAR(TranDate), MONTH(TranDate)
     `;
@@ -171,6 +202,7 @@ export function buildCollectionsMonthlyQuery(
         AND EntryType = 'Receipt'
         AND TranDate >= ${startDate}
         AND TranDate <= ${endDate}
+        ${serviceLineFilter}
       GROUP BY YEAR(TranDate), MONTH(TranDate)
     )
     SELECT 
@@ -191,6 +223,7 @@ export function buildCollectionsMonthlyQuery(
  * @param startDate - Start of date range
  * @param endDate - End of date range
  * @param cumulative - If true, returns cumulative totals (running sum), default false
+ * @param serviceLines - Optional array of masterCode values to filter by service line
  * @returns Prisma.Sql for complete query
  * 
  * @example
@@ -201,8 +234,20 @@ export function buildNetBillingsMonthlyQuery(
   billerCode: string,
   startDate: Date,
   endDate: Date,
-  cumulative: boolean = false
+  cumulative: boolean = false,
+  serviceLines?: string[]
 ): Prisma.Sql {
+  // Build service line filter if provided
+  // Note: DrsTransactions has ServLineCode directly, not TaskCode
+  const serviceLineFilter = serviceLines && serviceLines.length > 0
+    ? Prisma.sql`
+      AND ServLineCode IN (
+        SELECT ServLineCode FROM ServiceLineExternal sle
+        WHERE sle.masterCode IN (${Prisma.join(serviceLines)})
+      )
+    `
+    : Prisma.empty;
+
   // Non-cumulative: monthly aggregations (existing behavior)
   if (!cumulative) {
     return Prisma.sql`
@@ -214,6 +259,7 @@ export function buildNetBillingsMonthlyQuery(
         AND TranDate >= ${startDate}
         AND TranDate <= ${endDate}
         AND (EntryType IS NULL OR EntryType != 'Receipt')
+        ${serviceLineFilter}
       GROUP BY YEAR(TranDate), MONTH(TranDate)
       ORDER BY YEAR(TranDate), MONTH(TranDate)
     `;
@@ -230,6 +276,7 @@ export function buildNetBillingsMonthlyQuery(
         AND TranDate >= ${startDate}
         AND TranDate <= ${endDate}
         AND (EntryType IS NULL OR EntryType != 'Receipt')
+        ${serviceLineFilter}
       GROUP BY YEAR(TranDate), MONTH(TranDate)
     )
     SELECT 

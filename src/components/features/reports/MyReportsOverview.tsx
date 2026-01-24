@@ -19,7 +19,7 @@
  * - Custom Date Range view (up to 24 months)
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { 
   TrendingUp, 
   DollarSign, 
@@ -33,6 +33,8 @@ import {
 } from 'lucide-react';
 import { useMyReportsOverview } from '@/hooks/reports/useMyReportsOverview';
 import { Input, Button, Banner, LoadingSpinner } from '@/components/ui';
+import { FiscalYearSelector } from '@/components/features/reports/FiscalYearSelector';
+import { ServiceLineFilterSelector } from '@/components/features/reports/ServiceLineFilterSelector';
 import type { MonthlyMetrics } from '@/types/api';
 import {
   LineChart,
@@ -45,7 +47,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts';
-import { format, parse, parseISO, differenceInMonths } from 'date-fns';
+import { parseISO, differenceInMonths } from 'date-fns';
 import { getCurrentFiscalPeriod } from '@/lib/utils/fiscalPeriod';
 
 interface CustomTooltipProps {
@@ -54,7 +56,12 @@ interface CustomTooltipProps {
     value: number;
     name: string;
     dataKey: string;
-    payload?: MonthlyMetrics & { value?: number };
+    payload?: {
+      fiscalMonth: string;
+      fiscalMonthIndex: number;
+      yearData?: { [year: string]: MonthlyMetrics };
+      [key: string]: any;
+    };
   }>;
   label?: string;
   valueFormatter: (value: number) => string;
@@ -64,7 +71,7 @@ interface CustomTooltipProps {
 
 function CustomTooltip({ active, payload, label, valueFormatter, showCalculation, onValueChange }: CustomTooltipProps) {
   // Update gauge value when tooltip is active
-  const currentValue = active && payload?.[0]?.payload?.value;
+  const currentValue = active && payload?.[0]?.value;
   
   // Use useEffect-like behavior with ref to avoid infinite loops
   if (onValueChange) {
@@ -88,18 +95,26 @@ function CustomTooltip({ active, payload, label, valueFormatter, showCalculation
   };
 
   const data = payload[0]?.payload;
+  const dataKey = payload[0]?.dataKey; // e.g., "FY2024" or "CustomRange"
+  const isCustomRange = dataKey === 'CustomRange';
+  const fiscalYear = !isCustomRange && dataKey ? dataKey.replace('FY', '') : null;
+  
+  // For custom range, extract year from the month string if available
+  const customRangeYear = isCustomRange && data?.month ? data.month.split('-')[0] : null;
+  const yearForCalculations = isCustomRange ? customRangeYear : fiscalYear;
 
   return (
     <div className="bg-white p-3 border border-forvis-gray-200 rounded-lg shadow-lg max-w-xs">
       <p className="text-sm font-medium text-forvis-gray-900 mb-2">
         {label}
+        {fiscalYear && ` (FY${fiscalYear})`}
       </p>
       {payload.map((entry, index) => (
         <div key={index}>
           <div className="flex items-center gap-2 mb-2">
             <div
               className="w-3 h-3 rounded-full"
-              style={{ backgroundColor: '#2E5AAC' }}
+              style={{ backgroundColor: entry.stroke || entry.color || '#2E5AAC' }}
             />
             <span className="text-sm text-forvis-gray-700">
               {entry.name}: <span className="font-semibold">{valueFormatter(entry.value)}</span>
@@ -107,32 +122,53 @@ function CustomTooltip({ active, payload, label, valueFormatter, showCalculation
           </div>
           
           {/* Show calculation breakdown */}
-          {showCalculation === 'wip' && data && data.wipBalance !== undefined && data.trailing12Revenue !== undefined && (
-            <div className="text-xs text-forvis-gray-600 mt-2 pl-5 border-l-2 border-forvis-blue-200">
-              <div className="font-medium mb-1">Calculation:</div>
-              <div>WIP Balance: {formatCurrency(data.wipBalance)}</div>
-              <div>Trailing 12M Revenue: {formatCurrency(data.trailing12Revenue)}</div>
-              <div className="mt-1 font-medium">({formatCurrency(data.wipBalance)} × 365) ÷ {formatCurrency(data.trailing12Revenue)}</div>
-            </div>
+          {showCalculation === 'wip' && data?.yearData && yearForCalculations && (
+            (() => {
+              const yearMetrics = data.yearData[yearForCalculations];
+              return yearMetrics && yearMetrics.wipBalance !== undefined ? (
+                <div className="text-xs text-forvis-gray-600 mt-2 pl-5 border-l-2 border-forvis-blue-200">
+                  <div className="font-medium mb-1">Calculation:</div>
+                  <div>WIP Balance: {formatCurrency(yearMetrics.wipBalance)}</div>
+                  <div>Trailing 12M Revenue: {formatCurrency(yearMetrics.trailing12Revenue)}</div>
+                  <div className="mt-1 font-medium">
+                    ({formatCurrency(yearMetrics.wipBalance)} × 365) ÷ {formatCurrency(yearMetrics.trailing12Revenue)}
+                  </div>
+                </div>
+              ) : null;
+            })()
           )}
           
-          {showCalculation === 'debtors' && data && data.debtorsBalance !== undefined && data.trailing12Billings !== undefined && (
-            <div className="text-xs text-forvis-gray-600 mt-2 pl-5 border-l-2 border-forvis-blue-200">
-              <div className="font-medium mb-1">Calculation:</div>
-              <div>Debtors Balance: {formatCurrency(data.debtorsBalance)}</div>
-              <div>Trailing 12M Billings: {formatCurrency(data.trailing12Billings)}</div>
-              <div className="mt-1 font-medium">({formatCurrency(data.debtorsBalance)} × 365) ÷ {formatCurrency(data.trailing12Billings)}</div>
-            </div>
+          {showCalculation === 'debtors' && data?.yearData && yearForCalculations && (
+            (() => {
+              const yearMetrics = data.yearData[yearForCalculations];
+              return yearMetrics && yearMetrics.debtorsBalance !== undefined ? (
+                <div className="text-xs text-forvis-gray-600 mt-2 pl-5 border-l-2 border-forvis-blue-200">
+                  <div className="font-medium mb-1">Calculation:</div>
+                  <div>Debtors Balance: {formatCurrency(yearMetrics.debtorsBalance)}</div>
+                  <div>Trailing 12M Billings: {formatCurrency(yearMetrics.trailing12Billings)}</div>
+                  <div className="mt-1 font-medium">
+                    ({formatCurrency(yearMetrics.debtorsBalance)} × 365) ÷ {formatCurrency(yearMetrics.trailing12Billings)}
+                  </div>
+                </div>
+              ) : null;
+            })()
           )}
           
-          {showCalculation === 'writeoff' && data && data.negativeAdj !== undefined && data.provisions !== undefined && data.grossTime !== undefined && (
-            <div className="text-xs text-forvis-gray-600 mt-2 pl-5 border-l-2 border-forvis-blue-200">
-              <div className="font-medium mb-1">Calculation:</div>
-              <div>Negative Adjustments: {formatCurrency(data.negativeAdj)}</div>
-              <div>Provisions: {formatCurrency(data.provisions)}</div>
-              <div>Gross Time: {formatCurrency(data.grossTime)}</div>
-              <div className="mt-1 font-medium">({formatCurrency(data.negativeAdj + data.provisions)} ÷ {formatCurrency(data.grossTime)}) × 100</div>
-            </div>
+          {showCalculation === 'writeoff' && data?.yearData && yearForCalculations && (
+            (() => {
+              const yearMetrics = data.yearData[yearForCalculations];
+              return yearMetrics && yearMetrics.negativeAdj !== undefined ? (
+                <div className="text-xs text-forvis-gray-600 mt-2 pl-5 border-l-2 border-forvis-blue-200">
+                  <div className="font-medium mb-1">Calculation:</div>
+                  <div>Negative Adjustments: {formatCurrency(yearMetrics.negativeAdj)}</div>
+                  <div>Provisions: {formatCurrency(yearMetrics.provisions)}</div>
+                  <div>Gross Time: {formatCurrency(yearMetrics.grossTime)}</div>
+                  <div className="mt-1 font-medium">
+                    ({formatCurrency(yearMetrics.negativeAdj + yearMetrics.provisions)} ÷ {formatCurrency(yearMetrics.grossTime)}) × 100
+                  </div>
+                </div>
+              ) : null;
+            })()
           )}
         </div>
       ))}
@@ -270,7 +306,8 @@ interface ChartCardProps {
   title: string;
   description: string;
   icon: React.ReactNode;
-  data: Array<MonthlyMetrics & { value: number }>;
+  data?: Array<MonthlyMetrics & { value: number }>;
+  yearlyData?: { [year: string]: MonthlyMetrics[] };
   valueFormatter: (value: number) => string;
   yAxisFormatter: (value: number) => string;
   dataKey: string;
@@ -286,6 +323,7 @@ interface ChartCardProps {
     targetValue: number;
     label?: string;
   };
+  metricKey: 'netRevenue' | 'grossProfit' | 'collections' | 'wipLockupDays' | 'debtorsLockupDays' | 'writeoffPercentage' | 'totalLockup' | 'wipBalance' | 'debtorsBalance';
 }
 
 function ChartCard({
@@ -293,6 +331,7 @@ function ChartCard({
   description,
   icon,
   data,
+  yearlyData,
   valueFormatter,
   yAxisFormatter,
   dataKey,
@@ -300,22 +339,131 @@ function ChartCard({
   showCalculation,
   targetLine,
   gauge,
+  metricKey,
 }: ChartCardProps) {
   // Track hovered value for gauge - null means show latest
   const [hoveredValue, setHoveredValue] = useState<number | null>(null);
-  
-  const formatXAxis = (monthStr: string) => {
-    try {
-      const date = parse(monthStr, 'yyyy-MM', new Date());
-      return format(date, 'MMM yy');
-    } catch {
-      return monthStr;
-    }
+
+  // Color scheme for year lines - distinctive colors for easy comparison
+  const getYearColor = (year: string, index: number) => {
+    const colors = [
+      '#2E5AAC', // FY Current: Primary blue (Forvis brand)
+      '#10B981', // FY-1: Emerald green (distinctive, professional)
+      '#F59E0B'  // FY-2: Amber/gold (warm, highly distinctive)
+    ];
+    return colors[index] || color;
   };
 
+  // Helper function to format month labels based on mode
+  const formatMonthForDisplay = (monthStr: string): string => {
+    // Parse YYYY-MM format
+    const [year, month] = monthStr.split('-');
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${monthNames[parseInt(month) - 1]} ${year}`;
+  };
+
+  // Unified data transformation - single array with all years per month
+  const fiscalMonths = ['Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
+  
+  // Determine if we're in custom date range mode by checking if data has actual month strings
+  const isCustomDateRange = data && data.length > 0 && data[0]?.month?.includes('-');
+  const isFiscalYearMode = yearlyData || (data && !isCustomDateRange);
+  
+  const transformDataToFiscalMonths = () => {
+    // Multi-year mode: merge all years into single array by month
+    if (yearlyData) {
+      const years = Object.keys(yearlyData).sort().reverse(); // [2024, 2023, 2022]
+      
+      return fiscalMonths.map((fiscalMonth, monthIndex) => {
+        const monthPoint: any = { fiscalMonth, fiscalMonthIndex: monthIndex };
+        
+        // Add each year's value as a separate property
+        years.forEach(year => {
+          const monthData = yearlyData[year][monthIndex];
+          if (monthData) {
+            let value: number;
+            if (metricKey === 'totalLockup') {
+              value = (monthData.wipLockupDays ?? 0) + (monthData.debtorsLockupDays ?? 0);
+            } else {
+              value = (monthData as any)[metricKey] ?? 0;
+            }
+            monthPoint[`FY${year}`] = value;
+            
+            // Store original data for tooltip (keyed by year)
+            if (!monthPoint.yearData) monthPoint.yearData = {};
+            monthPoint.yearData[year] = monthData;
+          }
+        });
+        
+        return monthPoint;
+      });
+    }
+    
+    // Custom date range mode: use actual calendar months with years
+    if (data && data.length > 0 && isCustomDateRange) {
+      // For custom date range, use a single "CustomRange" key for the line
+      // since we want one continuous line across potentially multiple years
+      return data.map((monthData) => {
+        const displayMonth = formatMonthForDisplay(monthData.month);
+        const year = monthData.month.split('-')[0] || '';
+        
+        return {
+          displayMonth,
+          month: monthData.month,
+          CustomRange: monthData.value, // Single line for custom date range
+          yearData: { [year]: monthData }
+        };
+      });
+    }
+    
+    // Fiscal year mode (single year): use fiscal month abbreviations
+    if (data && data.length > 0) {
+      const firstMonth = data[0]?.month || '';
+      const year = firstMonth.split('-')[0] || '';
+      
+      return fiscalMonths.map((fiscalMonth, monthIndex) => {
+        const monthData = data[monthIndex];
+        if (!monthData) return { fiscalMonth, fiscalMonthIndex: monthIndex };
+        
+        return {
+          fiscalMonth,
+          fiscalMonthIndex: monthIndex,
+          [`FY${year}`]: monthData.value,
+          yearData: { [year]: monthData }
+        };
+      });
+    }
+    
+    return [];
+  };
+
+  const chartData = transformDataToFiscalMonths();
+  
+  // Extract available data series (years or custom range)
+  const availableYears = chartData.length > 0 
+    ? Object.keys(chartData[0]).filter(key => key.startsWith('FY')).map(key => key.replace('FY', ''))
+    : [];
+  
+  const hasCustomRange = chartData.length > 0 && 'CustomRange' in chartData[0];
+
   // Get latest value for gauge (used when not hovering)
-  const lastDataPoint = data[data.length - 1];
-  const latestValue = lastDataPoint?.value ?? 0;
+  const latestValue = (() => {
+    if (chartData.length > 0) {
+      const lastMonth = chartData[chartData.length - 1];
+      
+      // For custom range, use CustomRange dataKey
+      if (hasCustomRange) {
+        return lastMonth.CustomRange ?? 0;
+      }
+      
+      // For fiscal year, use most recent year's value
+      if (availableYears.length > 0) {
+        const mostRecentYear = availableYears[0]; // Years are sorted descending
+        return lastMonth[`FY${mostRecentYear}`] ?? 0;
+      }
+    }
+    return 0;
+  })();
   
   // Use hovered value if available, otherwise latest
   const gaugeValue = hoveredValue !== null ? hoveredValue : latestValue;
@@ -348,18 +496,18 @@ function ChartCard({
 
       <ResponsiveContainer width="100%" height={300}>
         <LineChart
-          data={data}
+          data={chartData}
           margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
           onMouseLeave={() => setHoveredValue(null)}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
           <XAxis
-            dataKey="month"
-            tickFormatter={formatXAxis}
+            dataKey={isCustomDateRange ? "displayMonth" : "fiscalMonth"}
             stroke="#6B7280"
             style={{ fontSize: '12px' }}
-            interval="preserveStartEnd"
-            minTickGap={50}
+            interval={0}
+            angle={isCustomDateRange ? -45 : 0}
+            textAnchor={isCustomDateRange ? "end" : "middle"}
           />
           <YAxis
             tickFormatter={yAxisFormatter}
@@ -377,17 +525,34 @@ function ChartCard({
             }
           />
           <Legend wrapperStyle={{ paddingTop: '20px' }} iconType="line" />
-          <Line
-            type="monotone"
-            dataKey={dataKey}
-            name={title}
-            stroke={color}
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 6 }}
-            isAnimationActive={false}
-            connectNulls={true}
-          />
+          {availableYears.map((year, index) => (
+            <Line
+              key={year}
+              type="monotone"
+              dataKey={`FY${year}`}
+              name={`FY${year}`}
+              stroke={getYearColor(year, index)}
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 6 }}
+              isAnimationActive={false}
+              connectNulls={true}
+            />
+          ))}
+          {hasCustomRange && (
+            <Line
+              key="CustomRange"
+              type="monotone"
+              dataKey="CustomRange"
+              name="Custom Range"
+              stroke={color}
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 6 }}
+              isAnimationActive={false}
+              connectNulls={true}
+            />
+          )}
           {targetLine && (
             <ReferenceLine
               y={targetLine.value}
@@ -413,30 +578,41 @@ export function MyReportsOverview() {
   // State for fiscal year and mode selection
   const currentFY = getCurrentFiscalPeriod().fiscalYear;
   const [activeTab, setActiveTab] = useState<'fiscal' | 'custom'>('fiscal');
-  const [fiscalYear, setFiscalYear] = useState(currentFY);
-  const [customDates, setCustomDates] = useState({ start: '', end: '' });
+  const [fiscalYear, setFiscalYear] = useState<number | 'all'>(currentFY);
+  
+  // Service line filter state
+  const [selectedServiceLines, setSelectedServiceLines] = useState<string[]>([]);
+  
+  // Separate state for date inputs vs applied query params
+  const [customInputs, setCustomInputs] = useState({ start: '', end: '' });
+  const [appliedDates, setAppliedDates] = useState({ start: '', end: '' });
   const [dateError, setDateError] = useState<string | null>(null);
 
-  // Fetch data based on current mode
+  // Fetch data based on current mode - use appliedDates for query
   const { data, isLoading, error } = useMyReportsOverview({
     fiscalYear: activeTab === 'fiscal' ? fiscalYear : undefined,
-    startDate: activeTab === 'custom' && customDates.start ? customDates.start : undefined,
-    endDate: activeTab === 'custom' && customDates.end ? customDates.end : undefined,
+    startDate: activeTab === 'custom' && appliedDates.start ? appliedDates.start : undefined,
+    endDate: activeTab === 'custom' && appliedDates.end ? appliedDates.end : undefined,
     mode: activeTab,
+    serviceLines: selectedServiceLines.length > 0 ? selectedServiceLines : undefined,
+    enabled: activeTab === 'fiscal' || (activeTab === 'custom' && !!appliedDates.start && !!appliedDates.end),
   });
+
+  // Determine if we're in multi-year mode
+  const isMultiYear = fiscalYear === 'all' && data?.yearlyData;
 
   // Handle custom date range validation and application
   const handleDateRangeApply = () => {
     setDateError(null);
     
-    if (!customDates.start || !customDates.end) {
+    if (!customInputs.start || !customInputs.end) {
       setDateError('Both start and end dates are required');
       return;
     }
     
     try {
-      const start = parseISO(customDates.start);
-      const end = parseISO(customDates.end);
+      const start = parseISO(customInputs.start);
+      const end = parseISO(customInputs.end);
       
       if (end < start) {
         setDateError('End date must be after start date');
@@ -449,17 +625,13 @@ export function MyReportsOverview() {
         return;
       }
       
-      // Trigger refetch by updating state (already done via customDates)
+      // Apply dates to trigger refetch
+      setAppliedDates({ start: customInputs.start, end: customInputs.end });
     } catch (err) {
       setDateError('Invalid date format');
     }
   };
 
-  // Fiscal year options for dropdown
-  const fiscalYearOptions = [currentFY, currentFY - 1, currentFY - 2].map(fy => ({
-    value: fy.toString(),
-    label: `FY${fy} (Sep ${fy - 1} - Aug ${fy})`,
-  }));
 
   // Format currency
   const formatCurrency = (amount: number) => {
@@ -498,6 +670,22 @@ export function MyReportsOverview() {
 
   // Prepare chart data
   const chartData = useMemo(() => {
+    // Multi-year comparison mode
+    if (data?.yearlyData) {
+      return {
+        netRevenue: data.yearlyData,
+        grossProfit: data.yearlyData,
+        collections: data.yearlyData,
+        wipLockup: data.yearlyData,
+        debtorsLockup: data.yearlyData,
+        writeoff: data.yearlyData,
+        totalLockup: data.yearlyData,
+        wipBalance: data.yearlyData,
+        debtorsBalance: data.yearlyData,
+      };
+    }
+
+    // Single year mode
     if (!data?.monthlyMetrics) return null;
 
     return {
@@ -567,7 +755,9 @@ export function MyReportsOverview() {
     );
   }
 
-  if (!data || !chartData) {
+  // Only show "no data" if we actually expected data (not waiting for custom dates)
+  const isWaitingForCustomDates = activeTab === 'custom' && (!appliedDates.start || !appliedDates.end);
+  if ((!data || !chartData) && !isWaitingForCustomDates) {
     return (
       <div className="rounded-lg bg-forvis-gray-50 border border-forvis-gray-200 p-6">
         <div className="text-center py-8">
@@ -585,7 +775,20 @@ export function MyReportsOverview() {
           Financial Performance Overview
         </h2>
         <p className="text-sm text-forvis-gray-700">
-          {activeTab === 'fiscal' ? `FY${fiscalYear} (Cumulative)` : 'Custom Date Range (Cumulative)'} • Viewing as {data.filterMode === 'PARTNER' ? 'Partner' : 'Manager'}
+          {activeTab === 'fiscal' 
+            ? fiscalYear === 'all' 
+              ? `All Years Comparison (FY${currentFY}, FY${currentFY - 1}, FY${currentFY - 2})` 
+              : `FY${fiscalYear} (Cumulative)`
+            : 'Custom Date Range (Cumulative)'
+          }
+          {data?.filterMode && (
+            <> • Viewing as {data.filterMode === 'PARTNER' ? 'Partner' : 'Manager'}</>
+          )}
+          {selectedServiceLines.length > 0 ? (
+            <> • Filtered: {selectedServiceLines.join(', ')}</>
+          ) : (
+            <> • All Service Lines</>
+          )}
         </p>
       </div>
 
@@ -621,62 +824,70 @@ export function MyReportsOverview() {
 
       {/* Selectors */}
       <div className="bg-white rounded-lg border border-forvis-gray-200 p-4">
-        {activeTab === 'fiscal' ? (
-          <div className="max-w-xs">
-            <Input
-              variant="select"
-              label="Fiscal Year"
-              value={fiscalYear.toString()}
-              onChange={(e) => setFiscalYear(parseInt(e.target.value, 10))}
-              options={fiscalYearOptions}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {activeTab === 'fiscal' ? (
+            <FiscalYearSelector
+              value={fiscalYear}
+              onChange={(val) => setFiscalYear(val)}
+              allowAllYears={true}
+              currentFY={currentFY}
             />
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {dateError && (
-              <Banner
-                variant="error"
-                message={dateError}
-                dismissible
-                onDismiss={() => setDateError(null)}
-              />
-            )}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-              <Input
-                type="date"
-                label="Start Date"
-                value={customDates.start}
-                onChange={(e) => setCustomDates(prev => ({ ...prev, start: e.target.value }))}
-              />
-              <Input
-                type="date"
-                label="End Date"
-                value={customDates.end}
-                onChange={(e) => setCustomDates(prev => ({ ...prev, end: e.target.value }))}
-              />
-              <Button onClick={handleDateRangeApply} variant="primary">
-                Apply Date Range
-              </Button>
+          ) : (
+            <div className="space-y-4">
+              {dateError && (
+                <Banner
+                  variant="error"
+                  message={dateError}
+                  dismissible
+                  onDismiss={() => setDateError(null)}
+                />
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                <Input
+                  type="date"
+                  label="Start Date"
+                  value={customInputs.start}
+                  onChange={(e) => setCustomInputs(prev => ({ ...prev, start: e.target.value }))}
+                />
+                <Input
+                  type="date"
+                  label="End Date"
+                  value={customInputs.end}
+                  onChange={(e) => setCustomInputs(prev => ({ ...prev, end: e.target.value }))}
+                />
+                <Button onClick={handleDateRangeApply} variant="primary">
+                  Apply Date Range
+                </Button>
+              </div>
+              <p className="text-xs text-forvis-gray-600">
+                Select a date range up to 24 months. Values will be cumulative within the selected period.
+              </p>
             </div>
-            <p className="text-xs text-forvis-gray-600">
-              Select a date range up to 24 months. Values will be cumulative within the selected period.
-            </p>
-          </div>
-        )}
+          )}
+          
+          {/* Service Line Filter */}
+          <ServiceLineFilterSelector
+            value={selectedServiceLines}
+            onChange={setSelectedServiceLines}
+          />
+        </div>
       </div>
 
-      {/* Charts Grid */}
+      {/* Charts Grid - only show when we have data */}
+      {chartData && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Net Revenue */}
         <ChartCard
           title="Net Revenue"
-          description="Gross production plus adjustments"
+          description="Time + Adjustments"
           icon={<DollarSign className="h-5 w-5 text-white" />}
-          data={chartData.netRevenue}
+          data={isMultiYear ? undefined : chartData.netRevenue}
+          yearlyData={isMultiYear ? chartData.netRevenue : undefined}
           valueFormatter={formatCurrency}
           yAxisFormatter={formatCurrencyShort}
           dataKey="value"
           color="#2E5AAC"
+          metricKey="netRevenue"
         />
 
         {/* Gross Profit */}
@@ -684,11 +895,13 @@ export function MyReportsOverview() {
           title="Gross Profit"
           description="Net revenue minus costs"
           icon={<TrendingUp className="h-5 w-5 text-white" />}
-          data={chartData.grossProfit}
+          data={isMultiYear ? undefined : chartData.grossProfit}
+          yearlyData={isMultiYear ? chartData.grossProfit : undefined}
           valueFormatter={formatCurrency}
           yAxisFormatter={formatCurrencyShort}
           dataKey="value"
           color="#2E5AAC"
+          metricKey="grossProfit"
         />
 
         {/* Collections */}
@@ -696,11 +909,13 @@ export function MyReportsOverview() {
           title="Collections"
           description="Total receipts received"
           icon={<Wallet className="h-5 w-5 text-white" />}
-          data={chartData.collections}
+          data={isMultiYear ? undefined : chartData.collections}
+          yearlyData={isMultiYear ? chartData.collections : undefined}
           valueFormatter={formatCurrency}
           yAxisFormatter={formatCurrencyShort}
           dataKey="value"
           color="#2E5AAC"
+          metricKey="collections"
         />
 
         {/* WIP Lockup Days */}
@@ -708,7 +923,8 @@ export function MyReportsOverview() {
           title="WIP Lockup Days"
           description="(WIP balance * 365) / trailing 12-month revenue"
           icon={<Clock className="h-5 w-5 text-white" />}
-          data={chartData.wipLockup}
+          data={isMultiYear ? undefined : chartData.wipLockup}
+          yearlyData={isMultiYear ? chartData.wipLockup : undefined}
           valueFormatter={formatDays}
           yAxisFormatter={formatDaysShort}
           dataKey="value"
@@ -716,6 +932,7 @@ export function MyReportsOverview() {
           showCalculation="wip"
           targetLine={{ value: 45, label: 'Target: 45 days' }}
           gauge={{ maxValue: 90, targetValue: 45, label: 'days' }}
+          metricKey="wipLockupDays"
         />
 
         {/* Debtors Lockup Days */}
@@ -723,7 +940,8 @@ export function MyReportsOverview() {
           title="Debtors Lockup Days"
           description="(Debtors balance * 365) / trailing 12-month billings"
           icon={<Calendar className="h-5 w-5 text-white" />}
-          data={chartData.debtorsLockup}
+          data={isMultiYear ? undefined : chartData.debtorsLockup}
+          yearlyData={isMultiYear ? chartData.debtorsLockup : undefined}
           valueFormatter={formatDays}
           yAxisFormatter={formatDaysShort}
           dataKey="value"
@@ -731,6 +949,7 @@ export function MyReportsOverview() {
           showCalculation="debtors"
           targetLine={{ value: 45, label: 'Target: 45 days' }}
           gauge={{ maxValue: 90, targetValue: 45, label: 'days' }}
+          metricKey="debtorsLockupDays"
         />
 
         {/* Writeoff % */}
@@ -738,7 +957,8 @@ export function MyReportsOverview() {
           title="Writeoff %"
           description="(Negative adjustments + provisions) / gross time"
           icon={<AlertTriangle className="h-5 w-5 text-white" />}
-          data={chartData.writeoff}
+          data={isMultiYear ? undefined : chartData.writeoff}
+          yearlyData={isMultiYear ? chartData.writeoff : undefined}
           valueFormatter={formatPercentage}
           yAxisFormatter={formatPercentage}
           dataKey="value"
@@ -746,6 +966,7 @@ export function MyReportsOverview() {
           showCalculation="writeoff"
           targetLine={{ value: 25, label: 'Target: 25%' }}
           gauge={{ maxValue: 50, targetValue: 25, label: '%' }}
+          metricKey="writeoffPercentage"
         />
 
         {/* Total Lockup Days */}
@@ -753,13 +974,15 @@ export function MyReportsOverview() {
           title="Total Lockup Days"
           description="WIP lockup + Debtors lockup combined"
           icon={<Timer className="h-5 w-5 text-white" />}
-          data={chartData.totalLockup}
+          data={isMultiYear ? undefined : chartData.totalLockup}
+          yearlyData={isMultiYear ? chartData.totalLockup : undefined}
           valueFormatter={formatDays}
           yAxisFormatter={formatDaysShort}
           dataKey="value"
           color="#2E5AAC"
           targetLine={{ value: 90, label: 'Target: 90 days' }}
           gauge={{ maxValue: 180, targetValue: 90, label: 'days' }}
+          metricKey="totalLockup"
         />
 
         {/* WIP Balance */}
@@ -767,11 +990,13 @@ export function MyReportsOverview() {
           title="WIP Balance"
           description="Outstanding work in progress value"
           icon={<Banknote className="h-5 w-5 text-white" />}
-          data={chartData.wipBalance}
+          data={isMultiYear ? undefined : chartData.wipBalance}
+          yearlyData={isMultiYear ? chartData.wipBalance : undefined}
           valueFormatter={formatCurrency}
           yAxisFormatter={formatCurrencyShort}
           dataKey="value"
           color="#2E5AAC"
+          metricKey="wipBalance"
         />
 
         {/* Debtors Balance */}
@@ -779,13 +1004,16 @@ export function MyReportsOverview() {
           title="Debtors Balance"
           description="Outstanding receivables value"
           icon={<CreditCard className="h-5 w-5 text-white" />}
-          data={chartData.debtorsBalance}
+          data={isMultiYear ? undefined : chartData.debtorsBalance}
+          yearlyData={isMultiYear ? chartData.debtorsBalance : undefined}
           valueFormatter={formatCurrency}
           yAxisFormatter={formatCurrencyShort}
           dataKey="value"
           color="#2E5AAC"
+          metricKey="debtorsBalance"
         />
       </div>
+      )}
     </div>
   );
 }

@@ -238,16 +238,18 @@ export interface MyReportsOverviewParams {
   startDate?: string;         // For custom date range (ISO format)
   endDate?: string;           // For custom date range (ISO format)
   mode?: 'fiscal' | 'custom'; // View mode
+  serviceLines?: string[];    // Optional array of masterCode values to filter by service line
 }
 
 /**
  * My Reports Overview response data
  */
 export interface MyReportsOverviewData {
-  monthlyMetrics: MonthlyMetrics[]; // Cumulative within period
+  monthlyMetrics?: MonthlyMetrics[]; // Cumulative within period (single year)
+  yearlyData?: { [year: string]: MonthlyMetrics[] }; // Multi-year comparison data
   filterMode: 'PARTNER' | 'MANAGER';
   employeeCode: string;
-  fiscalYear?: number;        // If fiscal year mode
+  fiscalYear?: number | 'all'; // If fiscal year mode, 'all' for multi-year comparison
   dateRange?: {               // If custom mode
     start: string;
     end: string;

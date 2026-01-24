@@ -1,9 +1,10 @@
 ---
 alwaysApply: true
-version: 1.1.0
+version: 1.2.0
 lastUpdated: 2026-01-24
 description: Database query patterns, conventions, and fiscal period utilities for SQL Server - foundational to all data access
 changelog:
+  - "1.2.0 (2026-01-24): Added Prisma schema conventions - @updatedAt required for all models"
   - "1.1.0 (2026-01-24): Changed to always applied - dual-ID convention and SQL Server rules affect every query"
   - "1.0.0 (2026-01-24): Initial database patterns documentation"
 ---
@@ -29,6 +30,60 @@ const team = await prisma.taskTeam.findMany({ where: { taskId: task.id } });
 
 // Codes: search only
 const clients = await prisma.client.findMany({ where: { clientCode: { contains: term } } });
+```
+
+## Prisma Schema Conventions (REQUIRED)
+
+### Timestamp Fields
+
+**All models MUST use `@updatedAt` for automatic timestamp management:**
+
+```prisma
+model Example {
+  id        Int      @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now())  // ✅ Auto-managed on create
+  updatedAt DateTime @updatedAt       // ✅ Auto-managed on create/update
+}
+```
+
+**Rules:**
+- ✅ `createdAt DateTime @default(now())` - Auto-set on creation
+- ✅ `updatedAt DateTime @updatedAt` - Auto-updated on every write
+- ❌ **NEVER** use plain `updatedAt DateTime` - requires manual management and causes build errors
+- ❌ **NEVER** manually set `updatedAt: new Date()` in new code (legacy code can remain)
+
+**Why:**
+- Prevents TypeScript build errors from missing `updatedAt` fields
+- Ensures consistent timestamp management across all operations
+- Reduces boilerplate code
+- Standard Prisma best practice
+
+**Migration Creation:**
+```bash
+# When adding new models or updating existing ones:
+# 1. Add @updatedAt attribute in schema
+# 2. Run: npx prisma db push (dev) or npx prisma migrate dev (production)
+# 3. Prisma Client regenerates automatically
+```
+
+**Example - Creating New Model:**
+```prisma
+// ✅ CORRECT
+model NewFeature {
+  id        Int      @id @default(autoincrement())
+  data      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt  // Always include this
+}
+
+// ❌ WRONG - Will cause build errors
+model NewFeature {
+  id        Int      @id @default(autoincrement())
+  data      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime  // Missing @updatedAt
+}
 ```
 
 ## SQL Server Case Sensitivity

@@ -117,6 +117,7 @@ See `.cursor/rules/database-patterns.mdc` for complete database conventions incl
 - SQL Server case sensitivity rules
 - Data model relationships and validation patterns
 - Fiscal period filtering utilities
+- Prisma schema conventions (timestamps, indexes, etc.)
 
 **Quick Reference:**
 - External tables: use `GS*` IDs for relationships
@@ -124,6 +125,7 @@ See `.cursor/rules/database-patterns.mdc` for complete database conventions incl
 - Codes: display/search ONLY, never for relationships
 - NEVER use `mode: 'insensitive'` (SQL Server not supported)
 - Use fiscal period helpers from `@/lib/services/reports/fiscalPeriodQueries`
+- **Prisma Schema:** ALWAYS use `updatedAt DateTime @updatedAt` (not plain `DateTime`)
 
 ## Service Lines
 

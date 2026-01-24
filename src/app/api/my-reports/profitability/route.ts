@@ -333,8 +333,8 @@ export const GET = secureRoute.query({
 
       wipAggregates.forEach((agg) => {
         // Calculate derived metrics using analytics formulas
-        const grossProduction = agg.ltdTime + agg.ltdDisb;
-        const netRevenue = grossProduction + agg.ltdAdj;
+        const grossProduction = agg.ltdTime; // Gross Production = Time only
+        const netRevenue = agg.ltdTime + agg.ltdAdj; // Net Revenue = Time + Adjustments
         const adjustmentPercentage = grossProduction !== 0 ? (agg.ltdAdj / grossProduction) * 100 : 0;
         const grossProfit = netRevenue - agg.ltdCost;
         const grossProfitPercentage = netRevenue !== 0 ? (grossProfit / netRevenue) * 100 : 0;

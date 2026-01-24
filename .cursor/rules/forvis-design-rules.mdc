@@ -78,7 +78,193 @@ style={{ background: 'linear-gradient(135deg, #F0EAE0 0%, #E0D5C3 100%)', border
 
 ---
 
-## 3. Typography & Hierarchy
+## 3. Semantic & Data Visualization Colors
+
+### Semantic Status Colors
+
+Professional, muted color palettes for success, error, and warning states that harmonize with Forvis brand identity.
+
+#### Success (Green) - Professional Growth
+- **Usage:** Approvals, successful operations, positive metrics, profit indicators
+- **Base Color:** `#4CAF50` (forvis-success-500)
+- **Text on Light:** `text-forvis-success-600` (#43A047) - ✅ WCAG AA compliant
+- **Backgrounds:** `bg-forvis-success-50` (#E8F5E9) for light backgrounds
+- **Borders:** `border-forvis-success-200` (#A5D6A7) for soft borders
+- **Emphasis:** `text-forvis-success-800` (#2E7D32) for high-contrast text
+
+**Gradient (Approval States):**
+```jsx
+style={{ background: 'linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%)' }}
+```
+
+#### Error (Red) - Professional Alert
+- **Usage:** Rejections, failed operations, negative metrics, loss indicators
+- **Base Color:** `#DC2626` (forvis-error-500)
+- **Text on Light:** `text-forvis-error-600` (#C62828) - ✅ WCAG AA compliant
+- **Backgrounds:** `bg-forvis-error-50` (#FFEBEE) for light backgrounds
+- **Borders:** `border-forvis-error-200` (#EF9A9A) for soft borders
+- **Emphasis:** `text-forvis-error-900` (#8B0000) for critical alerts
+
+**Gradient (Rejection States):**
+```jsx
+style={{ background: 'linear-gradient(135deg, #FFEBEE 0%, #FFCDD2 100%)' }}
+```
+
+#### Warning (Amber) - Professional Caution
+- **Usage:** Pending approvals, caution states, incomplete actions, attention needed
+- **Base Color:** `#F59E0B` (forvis-warning-500)
+- **Text on Light:** `text-forvis-warning-600` (#F57C00) - ✅ WCAG AA compliant
+- **Backgrounds:** `bg-forvis-warning-50` (#FFF8E1) for light backgrounds
+- **Borders:** `border-forvis-warning-200` (#FFE082) for soft borders
+- **Emphasis:** `text-forvis-warning-800` (#D84315) for urgent warnings
+
+**Gradient (Pending States):**
+```jsx
+style={{ background: 'linear-gradient(135deg, #FFF8E1 0%, #FFECB3 100%)' }}
+```
+
+### Data Visualization Colors (Charts & Graphs)
+
+8 harmonious colors for Recharts multi-line charts, maintaining professional Forvis aesthetic:
+
+| Purpose | Tailwind Class | Hex Value | Usage |
+|---------|---------------|-----------|-------|
+| Primary Series | `text-forvis-dataViz-primary` | #2E5AAC | Main data series (revenue, primary metric) |
+| Secondary Series | `text-forvis-dataViz-secondary` | #5B93D7 | Secondary data series (forecast, comparison) |
+| Positive Metrics | `text-forvis-dataViz-success` | #43A047 | Profit, growth, success metrics |
+| Caution Metrics | `text-forvis-dataViz-warning` | #F59E0B | Warning thresholds, attention needed |
+| Negative Metrics | `text-forvis-dataViz-error` | #DC2626 | Losses, costs, negative trends |
+| Additional 1 | `text-forvis-dataViz-purple` | #7E57C2 | Multi-series charts |
+| Additional 2 | `text-forvis-dataViz-teal` | #26A69A | Multi-series charts |
+| Additional 3 | `text-forvis-dataViz-orange` | #FF7043 | Multi-series charts |
+
+**Recharts Implementation:**
+```tsx
+import { LineChart, Line } from 'recharts';
+
+<LineChart data={data}>
+  <Line dataKey="revenue" stroke="#2E5AAC" strokeWidth={2} />
+  <Line dataKey="costs" stroke="#DC2626" strokeWidth={2} />
+  <Line dataKey="profit" stroke="#43A047" strokeWidth={2} />
+</LineChart>
+```
+
+### Financial Data Color Patterns
+
+**Positive/Negative Values:**
+```tsx
+// Dynamic coloring based on value
+const value = -5000;
+const isPositive = value >= 0;
+
+<div className={`${isPositive ? 'bg-forvis-success-50' : 'bg-forvis-error-50'} rounded-lg p-3`}>
+  <span className={`font-semibold tabular-nums ${isPositive ? 'text-forvis-success-600' : 'text-forvis-error-600'}`}>
+    {formatCurrency(value)}
+  </span>
+</div>
+```
+
+**Budget Variance Indicators:**
+```tsx
+// Under budget = success, over budget = error, at budget = blue
+const variance = actual - budget;
+const isUnderBudget = variance <= 0;
+const isOverBudget = variance > 0;
+
+<span className={isUnderBudget ? 'text-forvis-success-600' : 'text-forvis-error-600'}>
+  {formatCurrency(Math.abs(variance))}
+</span>
+```
+
+### Accessibility Compliance
+
+All semantic colors meet **WCAG AA accessibility standards**:
+
+| Shade | Background | Min Contrast | Usage |
+|-------|-----------|--------------|-------|
+| 50-100 | Light backgrounds | N/A | Containers, cards |
+| 200-300 | Borders | 3:1 | Visible distinction |
+| 500-700 | Large text (18px+) | 3:1 | Headings, buttons |
+| 600-900 | Body text (16px) | 4.5:1 | Text content |
+
+### Migration from Default Tailwind Colors
+
+Replace existing default Tailwind semantic colors with Forvis brand colors:
+
+| Old (Tailwind Default) | New (Forvis Brand) | Context |
+|------------------------|-------------------|---------|
+| `text-red-600` | `text-forvis-error-600` | Error messages |
+| `bg-red-50` | `bg-forvis-error-50` | Error backgrounds |
+| `border-red-200` | `border-forvis-error-200` | Error borders |
+| `text-green-600` | `text-forvis-success-600` | Success messages |
+| `bg-green-50` | `bg-forvis-success-50` | Success backgrounds |
+| `border-green-200` | `border-forvis-success-200` | Success borders |
+| `text-yellow-600` / `text-amber-600` | `text-forvis-warning-600` | Warning messages |
+| `bg-yellow-50` / `bg-amber-50` | `bg-forvis-warning-50` | Warning backgrounds |
+| `border-yellow-200` / `border-amber-200` | `border-forvis-warning-200` | Warning borders |
+
+### Common Patterns
+
+**Status Badges:**
+```tsx
+// Success badge
+<span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-forvis-success-100 text-forvis-success-800 border border-forvis-success-200">
+  <CheckCircle className="h-3 w-3 mr-1" />
+  Approved
+</span>
+
+// Error badge
+<span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-forvis-error-100 text-forvis-error-800 border border-forvis-error-200">
+  <XCircle className="h-3 w-3 mr-1" />
+  Rejected
+</span>
+
+// Warning badge
+<span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-forvis-warning-100 text-forvis-warning-800 border border-forvis-warning-200">
+  <AlertTriangle className="h-3 w-3 mr-1" />
+  Pending
+</span>
+```
+
+**Alert Containers:**
+```tsx
+// Success alert
+<div className="bg-forvis-success-50 border-2 border-forvis-success-200 rounded-lg p-4">
+  <div className="flex items-start gap-3">
+    <CheckCircle className="h-5 w-5 text-forvis-success-600 flex-shrink-0" />
+    <div>
+      <h3 className="text-sm font-semibold text-forvis-success-900">Success</h3>
+      <p className="text-sm text-forvis-success-800 mt-1">Operation completed successfully</p>
+    </div>
+  </div>
+</div>
+
+// Error alert
+<div className="bg-forvis-error-50 border-2 border-forvis-error-200 rounded-lg p-4">
+  <div className="flex items-start gap-3">
+    <XCircle className="h-5 w-5 text-forvis-error-600 flex-shrink-0" />
+    <div>
+      <h3 className="text-sm font-semibold text-forvis-error-900">Error</h3>
+      <p className="text-sm text-forvis-error-800 mt-1">Operation failed</p>
+    </div>
+  </div>
+</div>
+
+// Warning alert
+<div className="bg-forvis-warning-50 border-2 border-forvis-warning-200 rounded-lg p-4">
+  <div className="flex items-start gap-3">
+    <AlertTriangle className="h-5 w-5 text-forvis-warning-600 flex-shrink-0" />
+    <div>
+      <h3 className="text-sm font-semibold text-forvis-warning-900">Warning</h3>
+      <p className="text-sm text-forvis-warning-800 mt-1">Action required</p>
+    </div>
+  </div>
+</div>
+```
+
+---
+
+## 4. Typography & Hierarchy
 
 Font Family: **Inter**
 
@@ -94,7 +280,7 @@ Font Family: **Inter**
 
 ---
 
-## 4. Implementation Patterns
+## 5. Implementation Patterns
 
 ### Layout & Spacing
 - **Page Container:** `max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8` (full-width, never constrain)
@@ -196,7 +382,7 @@ Font Family: **Inter**
 
 ---
 
-## 5. Professional Polish & Accessibility
+## 6. Professional Polish & Accessibility
 
 - **Transitions:** `transition-all duration-200 ease-in-out`
 - **Focus:** `focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2`
