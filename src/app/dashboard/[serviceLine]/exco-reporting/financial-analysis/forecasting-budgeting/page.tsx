@@ -88,7 +88,7 @@ export default function ForecastingBudgetingPage() {
               onClick={() => router.push(`/dashboard/${serviceLine.toLowerCase()}/exco-reporting/financial-analysis`)}
             >
               Back to Financial Analysis
-            </Link>
+            </Button>
           </div>
         </div>
       </div>
