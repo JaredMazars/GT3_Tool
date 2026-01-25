@@ -97,8 +97,7 @@ export default function RiskCompliancePage() {
               <Link
                 key={report.id}
                 href={`/dashboard/${serviceLine.toLowerCase()}/exco-reporting/risk-compliance/${report.id}`}
-                className="group block rounded-lg border border-forvis-gray-200 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden"
-                className="bg-gradient-dashboard-card"
+                className="group block rounded-lg border border-forvis-gray-200 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden bg-gradient-dashboard-card"
               >
                 {/* Hover gradient overlay */}
                 <div 
