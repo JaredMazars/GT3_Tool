@@ -10,13 +10,15 @@ This document provides maintenance procedures, monitoring queries, and troublesh
 
 ## Index Structure
 
-### Total Index Count: 7-9 (down from 14+)
+### Total Index Count: 5-7 (down from 14+, further optimized from 9)
 
 The WIPTransactions table uses a streamlined index strategy:
 
-1. **2 Super Covering Indexes** - Handle 100% of queries with 9 INCLUDE columns each
-2. **5 Composite Indexes** - For date range and partner/manager queries
+1. **2 Super Covering Indexes** - Handle ALL client/task queries with 9 INCLUDE columns each
+2. **3 Composite Indexes** - For partner/manager/date queries (GSClientID/GSTaskID composites removed as redundant)
 3. **0-3 Conditional Indexes** - EmpCode, OfficeCode, ServLineGroup (kept if used)
+
+**Last Optimized:** 2026-01-25 (Migration: `20260125215455_remove_duplicate_wip_indexes`)
 
 ### idx_wip_gsclientid_super_covering
 
@@ -48,11 +50,11 @@ INCLUDE ([GSClientID], [Amount], [TType], [Cost], [Hour], [TaskServLine], [EmpCo
 
 | Index Name | Key Columns | Purpose |
 |---|---|---|
-| `WIPTransactions_GSClientID_TranDate_TType_idx` | GSClientID, TranDate, TType | Analytics date ranges |
-| `WIPTransactions_GSTaskID_TranDate_TType_idx` | GSTaskID, TranDate, TType | Analytics date ranges |
 | `WIPTransactions_TaskPartner_TranDate_idx` | TaskPartner, TranDate | My Reports partner view |
 | `WIPTransactions_TaskManager_TranDate_idx` | TaskManager, TranDate | My Reports manager view |
 | `WIPTransactions_TranDate_idx` | TranDate | Fiscal period queries |
+
+**Note:** The GSClientID and GSTaskID composite indexes were removed in migration `20260125215455_remove_duplicate_wip_indexes` as they were redundant with the super covering indexes.
 
 ---
 

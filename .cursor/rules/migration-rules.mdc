@@ -1,9 +1,10 @@
 ---
 alwaysApply: false
-version: 1.1.0
-lastUpdated: 2026-01-24
+version: 1.2.0
+lastUpdated: 2026-01-25
 description: Prisma migration best practices for SQL Server - handles timeouts, schema drift, and deployment workflows
 changelog:
+  - "1.2.0 (2026-01-25): Added mandatory schema synchronization with prisma db pull after migrations, automated drift detection section, pre-commit hooks, and NPM scripts"
   - "1.1.0 (2026-01-24): Added schema conventions section - @updatedAt requirement for all models"
   - "1.0.0 (2026-01-24): Initial migration rules documentation"
 ---
@@ -21,6 +22,22 @@ changelog:
 3. **Large tables need manual handling** - Timeout issues are unavoidable
 4. **Schema drift must be prevented** - Inconsistent workflows cause drift
 5. **Always verify state** - Check migration status before and after operations
+6. **Sync schema after migrations** - Run `prisma db pull` to capture auto-created indexes
+
+---
+
+## CRITICAL: Schema Synchronization
+
+**ALWAYS run `npx prisma db pull` after migrations** to capture auto-created indexes and constraints. Prisma creates indexes for foreign keys but doesn't always add them to schema.prisma, causing "silent drift."
+
+**Quick Check:**
+```bash
+npx prisma db pull --print | grep "@@index" | wc -l  # Count indexes in DB
+grep "@@index" prisma/schema.prisma | wc -l         # Count in schema
+# Numbers should match!
+```
+
+**If counts differ:** Run `npx prisma db pull` to sync, review changes, and commit.
 
 ---
 
@@ -65,6 +82,7 @@ model YourModel {
 | **Production (large tables)** | Manual SQL + `migrate resolve` | Migrations > 30 seconds, large indexes |
 | **Check status** | `prisma migrate status` | Before deployment, after manual migrations |
 | **Fix drift** | `prisma db pull` | Compare actual DB with schema.prisma |
+| **Sync schema after migration** | `prisma db pull` | After any migration to capture auto-created indexes |
 
 ---
 
@@ -180,6 +198,34 @@ prisma migrate deploy
 # Large table migrations
 # (see Section 3: Large Table Migrations)
 ```
+
+---
+
+### Schema Synchronization (REQUIRED After Migrations)
+
+**Problem**: Prisma auto-creates indexes for foreign keys/constraints but doesn't always add `@@index` directives to schema.prisma. This causes "silent drift" where your database has indexes that aren't documented in your schema file.
+
+**Solution**: Always run `prisma db pull` after migrations to capture database state.
+
+**Commands:**
+```bash
+# After any migration (dev or deploy)
+npx prisma migrate dev --name your_change
+npx prisma db pull  # Captures auto-created indexes
+git diff prisma/schema.prisma  # Review what changed
+
+# If changes detected, commit them
+git add prisma/schema.prisma
+git commit -m "Sync schema with auto-created indexes"
+```
+
+**What gets synced:**
+- Auto-created foreign key indexes
+- Constraint-based indexes
+- Any manual database changes
+- Index names and configurations
+
+**Make this a habit:** Add `prisma db pull` to your post-migration checklist. The few seconds it takes can save hours of debugging schema drift issues.
 
 ---
 
@@ -381,10 +427,18 @@ npx prisma migrate resolve --applied "20260123063454_replace_simple_with_coverin
 # 1. Check migration status
 DATABASE_URL='production-url' npx prisma migrate status
 
-# 2. If pending migrations exist and are small:
+# 2. Verify schema is in sync (before deploying)
+DATABASE_URL='production-url' npx prisma db pull --print | head -50
+# Review output for unexpected differences
+
+# 3. If pending migrations exist and are small:
 DATABASE_URL='production-url' npx prisma migrate deploy
 
-# 3. Verify success
+# 4. Sync schema with any auto-created indexes
+DATABASE_URL='production-url' npx prisma db pull
+git diff prisma/schema.prisma  # Review changes
+
+# 5. Verify success
 DATABASE_URL='production-url' npx prisma migrate status
 ```
 
@@ -535,6 +589,117 @@ npx prisma migrate status
 4. **Use version control** for migration files
 5. **Document manual migrations** in README files
 6. **Test migrations locally** before production
+7. **Run `prisma db pull` after every migration** to capture auto-created indexes
+
+---
+
+## 5.5 Automated Drift Detection (Recommended)
+
+### Pre-Commit Hook
+
+Prevent commits when schema is out of sync with database:
+
+**Setup (.husky/pre-commit):**
+```bash
+#!/bin/sh
+
+# Check if DATABASE_URL is available
+if [ -z "$DATABASE_URL" ]; then
+  echo "⚠️  DATABASE_URL not set, skipping schema sync check"
+  exit 0
+fi
+
+# Check for schema drift
+echo "Checking Prisma schema sync..."
+npx prisma db pull --print > /tmp/prisma-schema-check 2>&1
+
+if ! diff -q prisma/schema.prisma /tmp/prisma-schema-check > /dev/null; then
+  echo ""
+  echo "❌ Schema drift detected!"
+  echo "Your schema.prisma doesn't match the database."
+  echo ""
+  echo "Run: npx prisma db pull"
+  echo "Then review and commit changes."
+  exit 1
+fi
+
+echo "✅ Schema is in sync"
+```
+
+---
+
+### NPM Scripts
+
+Add to package.json for easy schema sync management:
+
+```json
+{
+  "scripts": {
+    "db:check-sync": "prisma db pull --print | diff prisma/schema.prisma - || echo 'Schema drift detected'",
+    "db:sync": "prisma db pull && git diff prisma/schema.prisma",
+    "db:migrate": "prisma migrate dev && prisma db pull"
+  }
+}
+```
+
+**Usage:**
+```bash
+# Check if schema is in sync (no file changes)
+npm run db:check-sync
+
+# Sync schema and show changes
+npm run db:sync
+
+# Migrate and auto-sync (recommended workflow)
+npm run db:migrate
+```
+
+---
+
+### Weekly Audit Task
+
+Add to your weekly maintenance routine:
+
+```bash
+# Run weekly or before major deployments
+npm run db:check-sync
+
+# If drift detected:
+npm run db:sync
+# Review changes in git diff
+# Commit if changes are valid
+git add prisma/schema.prisma
+git commit -m "Sync schema with database indexes"
+```
+
+---
+
+### CI/CD Integration
+
+Add schema drift check to your CI pipeline:
+
+```yaml
+# .github/workflows/schema-check.yml
+name: Schema Drift Check
+on: [pull_request]
+
+jobs:
+  check-schema:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - run: npm ci
+      - name: Check schema sync
+        run: |
+          npx prisma db pull --print > /tmp/db-schema
+          if ! diff -q prisma/schema.prisma /tmp/db-schema; then
+            echo "::error::Schema drift detected! Run 'npx prisma db pull' locally."
+            exit 1
+          fi
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+```
 
 ---
 
@@ -857,6 +1022,8 @@ npx prisma migrate deploy
 
 ### After Deployment
 - [ ] Verify application works
+- [ ] Run `prisma db pull` to sync schema with database state
+- [ ] Commit schema.prisma if changes detected
 - [ ] Check for schema drift
 - [ ] Monitor query performance
 - [ ] Update documentation
@@ -976,12 +1143,19 @@ Create `README.md` in migration folder:
 # Development
 npx prisma db push                      # Fast iteration
 npx prisma migrate dev --name change    # Create migration
+npx prisma db pull                      # Sync schema with database (REQUIRED after migrations)
 npx prisma generate                     # Regenerate client
 
 # Production
 npx prisma migrate deploy               # Apply migrations
+npx prisma db pull                      # Sync schema after deployment
 npx prisma migrate status               # Check status
 npx prisma migrate resolve --applied "name"  # After manual migration
+
+# Schema Sync (use regularly)
+npx prisma db pull                      # Sync schema with database
+npx prisma db pull --print              # Preview without modifying files
+npx prisma db pull --print | grep "@@index"  # Check indexes in database
 
 # Troubleshooting
 npx prisma db pull                      # Check for drift
@@ -1008,6 +1182,7 @@ npx prisma studio                       # Browse database
 3. **Create migrations for production** - Version control and deployment
 4. **Large tables need manual handling** - Timeouts are unavoidable
 5. **Always check status** - Before and after deployments
-6. **Document everything** - Future you will appreciate it
-7. **Test locally first** - Catch issues before production
-8. **Keep schema.prisma as source of truth** - Don't modify DB directly
+6. **Run `prisma db pull` after every migration** - Captures auto-created indexes and prevents silent drift
+7. **Document everything** - Future you will appreciate it
+8. **Test locally first** - Catch issues before production
+9. **Keep schema.prisma as source of truth** - Sync with database regularly
