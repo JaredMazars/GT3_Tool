@@ -59,9 +59,8 @@ model AcceptanceQuestion {
   ClientAcceptanceAnswer ClientAcceptanceAnswer[]
 
   @@unique([questionnaireType, questionKey])
-  @@index([questionnaireType])
-  @@index([questionnaireType, order])
-  @@index([questionnaireType, sectionKey])
+  // Covering index (INCLUDE columns added via SQL migration)
+  @@index([questionnaireType, order], map: "idx_accquestion_type_order_covering")
 }
 
 model Account {
@@ -226,10 +225,10 @@ model ApprovalStep {
   User_ApprovalStep_assignedToUserIdToUser  User?     @relation("ApprovalStep_assignedToUserIdToUser", fields: [assignedToUserId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_ApprovalStep_AssignedTo")
   User_ApprovalStep_delegatedToUserIdToUser User?     @relation("ApprovalStep_delegatedToUserIdToUser", fields: [delegatedToUserId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_ApprovalStep_DelegatedTo")
 
-  @@index([approvalId])
-  @@index([approvalId, stepOrder])
+  // Covering index (INCLUDE columns added via SQL migration)
+  @@index([approvalId, stepOrder, status], map: "idx_approvalstep_approval_order_status_covering")
+  // User lookup index (kept)
   @@index([assignedToUserId])
-  @@index([status])
 }
 
 model BDActivity {
@@ -251,14 +250,12 @@ model BDActivity {
   BDContact     BDContact?    @relation(fields: [contactId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   BDOpportunity BDOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
 
-  @@index([activityType])
-  @@index([assignedTo])
-  @@index([assignedTo, status, dueDate])
-  @@index([contactId])
-  @@index([dueDate])
-  @@index([opportunityId, createdAt(sort: Desc)])
+  // Covering indexes (INCLUDE columns added via SQL migration)
+  @@index([assignedTo, status, dueDate], map: "idx_bdactivity_assigned_status_due_covering")
+  @@index([opportunityId, createdAt(sort: Desc)], map: "idx_bdactivity_opp_created_covering")
+  // FK indexes (kept)
   @@index([opportunityId])
-  @@index([status])
+  @@index([contactId])
 }
 
 model BDContact {
@@ -333,17 +330,15 @@ model BDOpportunity {
   BDStage             BDStage      @relation(fields: [stageId], references: [id], onUpdate: NoAction)
   BDProposal          BDProposal[]
 
-  @@index([assignedTo])
-  @@index([assignedTo, status])
+  // Covering indexes (INCLUDE columns added via SQL migration)
+  @@index([assignedTo, status], map: "idx_bdopp_assigned_status_covering")
+  @@index([serviceLine, status], map: "idx_bdopp_serviceline_status_covering")
+  @@index([createdAt(sort: Desc)], map: "idx_bdopp_created_covering")
+  @@index([updatedAt(sort: Desc)], map: "idx_bdopp_updated_covering")
+  // FK indexes (kept)
   @@index([clientId])
-  @@index([convertedToClientId])
-  @@index([createdAt(sort: Desc)])
-  @@index([expectedCloseDate])
-  @@index([serviceLine])
-  @@index([serviceLine, status])
   @@index([stageId])
-  @@index([status])
-  @@index([updatedAt(sort: Desc)])
+  @@index([expectedCloseDate])
 }
 
 model BDProposal {
@@ -410,10 +405,10 @@ model BugReport {
   User_BugReport_resolvedByToUser User?     @relation("BugReport_resolvedByToUser", fields: [resolvedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
   User_BugReport_testedByToUser   User?     @relation("BugReport_testedByToUser", fields: [testedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  @@index([priority])
-  @@index([reportedAt(sort: Desc)])
+  // Covering index (INCLUDE columns added via SQL migration)
+  @@index([status, priority, reportedAt(sort: Desc)], map: "idx_bugreport_status_priority_covering")
+  // FK index (kept)
   @@index([reportedBy])
-  @@index([status])
 }
 
 model CategoryApprover {
@@ -428,8 +423,9 @@ model CategoryApprover {
   User_CategoryApprover_userIdToUser    User                  @relation("CategoryApprover_userIdToUser", fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_CategoryApprover_User")
 
   @@unique([categoryId, userId], map: "UQ_CategoryApprover_CategoryId_UserId")
-  @@index([categoryId], map: "IX_CategoryApprover_CategoryId")
-  @@index([categoryId, stepOrder], map: "IX_CategoryApprover_CategoryId_StepOrder")
+  // Covering index (INCLUDE columns added via SQL migration)
+  @@index([categoryId, stepOrder], map: "idx_categoryapprover_category_steporder_covering")
+  // FK index (kept)
   @@index([userId], map: "IX_CategoryApprover_UserId")
 }
 
@@ -531,8 +527,8 @@ model ClientAcceptanceAnswer {
   AcceptanceQuestion AcceptanceQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_ClientAcceptanceAnswer_Question")
 
   @@unique([clientAcceptanceId, questionId])
-  @@index([clientAcceptanceId])
-  @@index([questionId])
+  // Covering index (INCLUDE columns added via SQL migration)
+  @@index([clientAcceptanceId], map: "idx_clientaccanswer_acceptance_covering")
 }
 
 model ClientAcceptanceResponse {
@@ -1029,11 +1025,9 @@ model InAppNotification {
   Task                                    Task?     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   User_InAppNotification_userIdToUser     User      @relation("InAppNotification_userIdToUser", fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@index([createdAt(sort: Desc)])
-  @@index([fromUserId])
-  @@index([taskId])
-  @@index([userId])
-  @@index([userId, isRead])
+  // Covering indexes (INCLUDE columns added via SQL migration)
+  @@index([userId, isRead], map: "idx_notification_user_read_covering")
+  @@index([createdAt(sort: Desc)], map: "idx_notification_created_covering")
 }
 
 model LeaderGroup {
@@ -1348,17 +1342,14 @@ model ReviewNote {
   ReviewNoteAttachment                  ReviewNoteAttachment[]
   ReviewNoteComment                     ReviewNoteComment[]
 
-  @@index([assignedTo])
-  @@index([assignedTo, status])
-  @@index([categoryId])
-  @@index([createdAt(sort: Desc)])
-  @@index([currentOwner])
-  @@index([dueDate])
-  @@index([priority])
-  @@index([raisedBy])
-  @@index([status])
+  // Covering indexes (INCLUDE columns added via SQL migration)
+  @@index([assignedTo, status], map: "idx_reviewnote_assigned_status_covering")
+  @@index([taskId, status], map: "idx_reviewnote_task_status_covering")
+  @@index([createdAt(sort: Desc)], map: "idx_reviewnote_created_covering")
+  // FK and query indexes (kept)
   @@index([taskId])
-  @@index([taskId, status])
+  @@index([categoryId])
+  @@index([dueDate])
 }
 
 model ReviewNoteAssignee {
@@ -1735,10 +1726,10 @@ model TaskEngagementLetter {
   Task                    Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
   TemplateVersion         TemplateVersion? @relation(fields: [templateVersionId], references: [id])
 
-  @@index([dpaExtractionStatus], map: "idx_taskengagementletter_dpaextractionstatus")
-  @@index([dpaLetterDate], map: "idx_taskengagementletter_dpaletterdate")
-  @@index([elExtractionStatus], map: "idx_taskengagementletter_elextractionstatus")
-  @@index([elLetterDate], map: "idx_taskengagementletter_elletterdate")
+  // Covering indexes (INCLUDE columns added via SQL migration)
+  @@index([dpaExtractionStatus], map: "idx_taskengagement_dpa_covering")
+  @@index([elExtractionStatus], map: "idx_taskengagement_el_covering")
+  // FK indexes (kept)
   @@index([taskId])
   @@index([templateVersionId])
 }
