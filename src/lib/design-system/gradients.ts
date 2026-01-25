@@ -203,7 +203,8 @@ export function getSemanticGradient(
   const gradient = semanticGradient[usage];
   if (!gradient) {
     console.warn(`[getSemanticGradient] Unknown usage "${usage}" for type "${type}"`);
-    return semanticGradient.light || semanticGradient.button;
+    // Fallback to light variant if available, otherwise use primary gradient
+    return (semanticGradient as { light?: string; button?: string }).light || GRADIENTS.primary.diagonal;
   }
 
   return gradient;
