@@ -2277,20 +2277,21 @@ model WIPTransactions {
   Client              Client?   @relation(fields: [GSClientID], references: [GSClientID], onDelete: NoAction, onUpdate: NoAction)
   Task                Task      @relation(fields: [GSTaskID], references: [GSTaskID], onUpdate: NoAction)
 
-  @@index([GSClientID], map: "idx_wip_gsclientid")
-  @@index([GSTaskID], map: "idx_wip_gstaskid")
-  @@index([GSTaskID], map: "idx_wip_gstaskid_covering")
-  @@index([GSClientID], map: "idx_wiptransactions_gsclientid")
-  @@index([GSTaskID], map: "idx_wiptransactions_gstaskid")
-  @@index([EmpCode])
+  // Super covering indexes (created via SQL migration - INCLUDE columns not supported in Prisma)
+  // idx_wip_gsclientid_super_covering: (GSClientID) INCLUDE (GSTaskID, Amount, TType, Cost, Hour, TaskServLine, EmpCode, TranDate, updatedAt)
+  // idx_wip_gstaskid_super_covering: (GSTaskID) INCLUDE (GSClientID, Amount, TType, Cost, Hour, TaskServLine, EmpCode, TranDate, updatedAt)
+
+  // Composite indexes (different first key column - cannot be replaced by super covering)
   @@index([GSClientID, TranDate, TType])
   @@index([GSTaskID, TranDate, TType])
-  @@index([OfficeCode])
-  @@index([ServLineGroup])
   @@index([TaskManager, TranDate])
   @@index([TaskPartner, TranDate])
   @@index([TranDate])
-  @@index([TType])
+
+  // Conditional indexes (kept unless verified unused via check_wip_indexes.sql)
+  @@index([EmpCode])
+  @@index([OfficeCode])
+  @@index([ServLineGroup])
 }
 
 model WorkspaceFile {

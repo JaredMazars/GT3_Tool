@@ -1,36 +1,58 @@
 # WIPTransactions Index Maintenance Guide
 
-**Last Updated:** January 23, 2026  
+**Last Updated:** January 25, 2026  
 **Table:** `WIPTransactions`  
-**Covering Indexes:** `idx_wip_gsclientid_covering`, `idx_wip_gstaskid_covering`
+**Super Covering Indexes:** `idx_wip_gsclientid_super_covering`, `idx_wip_gstaskid_super_covering`
 
 ## Overview
 
-This document provides maintenance procedures, monitoring queries, and troubleshooting steps for the WIPTransactions covering indexes.
+This document provides maintenance procedures, monitoring queries, and troubleshooting steps for the WIPTransactions super covering indexes.
 
 ## Index Structure
 
-### idx_wip_gsclientid_covering
+### Total Index Count: 7-9 (down from 14+)
+
+The WIPTransactions table uses a streamlined index strategy:
+
+1. **2 Super Covering Indexes** - Handle 100% of queries with 9 INCLUDE columns each
+2. **5 Composite Indexes** - For date range and partner/manager queries
+3. **0-3 Conditional Indexes** - EmpCode, OfficeCode, ServLineGroup (kept if used)
+
+### idx_wip_gsclientid_super_covering
+
 ```sql
-CREATE NONCLUSTERED INDEX [idx_wip_gsclientid_covering] 
+CREATE NONCLUSTERED INDEX [idx_wip_gsclientid_super_covering] 
 ON [WIPTransactions]([GSClientID]) 
-INCLUDE ([Amount], [TType], [GSTaskID])
+INCLUDE ([GSTaskID], [Amount], [TType], [Cost], [Hour], [TaskServLine], [EmpCode], [TranDate], [updatedAt])
 WHERE [GSClientID] IS NOT NULL;
 ```
 
-**Purpose:** Optimizes queries filtering by `GSClientID` (client-level WIP queries)  
-**Coverage:** Eliminates key lookups for Amount, TType, GSTaskID columns  
+**Purpose:** Covers ALL client-level WIP queries  
+**Key Column:** GSClientID  
+**INCLUDE Columns (9):** GSTaskID, Amount, TType, Cost, Hour, TaskServLine, EmpCode, TranDate, updatedAt  
 **Filter:** Excludes NULL GSClientID values (smaller index, better performance)
 
-### idx_wip_gstaskid_covering
+### idx_wip_gstaskid_super_covering
+
 ```sql
-CREATE NONCLUSTERED INDEX [idx_wip_gstaskid_covering] 
+CREATE NONCLUSTERED INDEX [idx_wip_gstaskid_super_covering] 
 ON [WIPTransactions]([GSTaskID]) 
-INCLUDE ([Amount], [TType], [GSClientID]);
+INCLUDE ([GSClientID], [Amount], [TType], [Cost], [Hour], [TaskServLine], [EmpCode], [TranDate], [updatedAt]);
 ```
 
-**Purpose:** Optimizes queries filtering by `GSTaskID` (task-level WIP queries)  
-**Coverage:** Eliminates key lookups for Amount, TType, GSClientID columns
+**Purpose:** Covers ALL task-level WIP queries  
+**Key Column:** GSTaskID  
+**INCLUDE Columns (9):** GSClientID, Amount, TType, Cost, Hour, TaskServLine, EmpCode, TranDate, updatedAt
+
+### Composite Indexes (Kept)
+
+| Index Name | Key Columns | Purpose |
+|---|---|---|
+| `WIPTransactions_GSClientID_TranDate_TType_idx` | GSClientID, TranDate, TType | Analytics date ranges |
+| `WIPTransactions_GSTaskID_TranDate_TType_idx` | GSTaskID, TranDate, TType | Analytics date ranges |
+| `WIPTransactions_TaskPartner_TranDate_idx` | TaskPartner, TranDate | My Reports partner view |
+| `WIPTransactions_TaskManager_TranDate_idx` | TaskManager, TranDate | My Reports manager view |
+| `WIPTransactions_TranDate_idx` | TranDate | Fiscal period queries |
 
 ---
 
@@ -55,7 +77,7 @@ INCLUDE ([Amount], [TType], [GSClientID]);
 ### Quarterly Review
 - Analyze index effectiveness
 - Review query patterns for optimization opportunities
-- Consider new covering index candidates
+- Consider additional INCLUDE columns if needed
 
 ---
 
@@ -84,13 +106,14 @@ SELECT
 FROM sys.dm_db_index_usage_stats s
 JOIN sys.indexes i ON s.object_id = i.object_id AND s.index_id = i.index_id
 WHERE OBJECT_NAME(s.object_id) = 'WIPTransactions'
-    AND i.name IN ('idx_wip_gsclientid_covering', 'idx_wip_gstaskid_covering')
+    AND i.name LIKE '%super_covering%'
 ORDER BY s.user_seeks + s.user_scans + s.user_lookups DESC;
 ```
 
 **Expected Results:**
 - `user_seeks` should be high (hundreds to thousands daily)
 - `user_scans` should be low (index seeks are better than scans)
+- `user_lookups` should be ZERO (covering index eliminates lookups)
 - `UsagePattern` should be 'OPTIMAL' or 'NORMAL'
 
 **Action if UNUSED:**
@@ -126,7 +149,7 @@ SELECT
     END AS RecommendedCommand
 FROM sys.dm_db_index_physical_stats(DB_ID(), OBJECT_ID('WIPTransactions'), NULL, NULL, 'SAMPLED') ips
 JOIN sys.indexes i ON ips.object_id = i.object_id AND ips.index_id = i.index_id
-WHERE i.name IN ('idx_wip_gsclientid_covering', 'idx_wip_gstaskid_covering')
+WHERE i.name LIKE '%super_covering%'
 ORDER BY ips.avg_fragmentation_in_percent DESC;
 ```
 
@@ -153,14 +176,15 @@ FROM sys.indexes i
 JOIN sys.partitions p ON i.object_id = p.object_id AND i.index_id = p.index_id
 JOIN sys.allocation_units a ON p.partition_id = a.container_id
 WHERE i.object_id = OBJECT_ID('WIPTransactions')
-    AND i.name IN ('idx_wip_gsclientid_covering', 'idx_wip_gstaskid_covering')
+    AND i.name LIKE '%super_covering%'
 GROUP BY i.name, p.rows
 ORDER BY TotalSizeMB DESC;
 ```
 
-**Typical Sizes:**
-- Each covering index: ~500-800 MB (depending on data volume)
-- Combined: ~1-1.5 GB total
+**Typical Sizes (with 9 INCLUDE columns):**
+- `idx_wip_gsclientid_super_covering`: ~250-400 MB (filtered)
+- `idx_wip_gstaskid_super_covering`: ~300-500 MB
+- Combined: ~550-900 MB total
 
 ---
 
@@ -183,7 +207,7 @@ SELECT TOP 20
 FROM sys.dm_exec_query_stats qs
 CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) qt
 WHERE qt.text LIKE '%WIPTransactions%'
-    AND qt.text LIKE '%GSClientID%'
+    AND (qt.text LIKE '%GSClientID%' OR qt.text LIKE '%GSTaskID%')
     AND qt.text NOT LIKE '%sys.dm_exec%'
 ORDER BY qs.execution_count DESC;
 ```
@@ -192,6 +216,7 @@ ORDER BY qs.execution_count DESC;
 - **Client details page:** < 1 second
 - **Balance queries:** < 500ms
 - **WIP aggregation:** < 2 seconds
+- **Profitability reports:** < 3 seconds
 
 ---
 
@@ -199,21 +224,21 @@ ORDER BY qs.execution_count DESC;
 
 ### Rebuild Index (Fragmentation > 30%)
 
-**SQL Server Standard Edition (offline):**
+**SQL Server Enterprise Edition (online - no downtime):**
 ```sql
-ALTER INDEX [idx_wip_gsclientid_covering] ON [WIPTransactions] REBUILD;
-ALTER INDEX [idx_wip_gstaskid_covering] ON [WIPTransactions] REBUILD;
+ALTER INDEX [idx_wip_gsclientid_super_covering] ON [WIPTransactions] 
+REBUILD WITH (ONLINE = ON, MAXDOP = 4);
+
+ALTER INDEX [idx_wip_gstaskid_super_covering] ON [WIPTransactions] 
+REBUILD WITH (ONLINE = ON, MAXDOP = 4);
 
 UPDATE STATISTICS [WIPTransactions] WITH FULLSCAN;
 ```
 
-**SQL Server Enterprise Edition (online - no downtime):**
+**SQL Server Standard Edition (offline):**
 ```sql
-ALTER INDEX [idx_wip_gsclientid_covering] ON [WIPTransactions] 
-REBUILD WITH (ONLINE = ON, MAXDOP = 4);
-
-ALTER INDEX [idx_wip_gstaskid_covering] ON [WIPTransactions] 
-REBUILD WITH (ONLINE = ON, MAXDOP = 4);
+ALTER INDEX [idx_wip_gsclientid_super_covering] ON [WIPTransactions] REBUILD;
+ALTER INDEX [idx_wip_gstaskid_super_covering] ON [WIPTransactions] REBUILD;
 
 UPDATE STATISTICS [WIPTransactions] WITH FULLSCAN;
 ```
@@ -225,12 +250,11 @@ UPDATE STATISTICS [WIPTransactions] WITH FULLSCAN;
 ### Reorganize Index (Fragmentation 10-30%)
 
 ```sql
-ALTER INDEX [idx_wip_gsclientid_covering] ON [WIPTransactions] REORGANIZE;
-ALTER INDEX [idx_wip_gstaskid_covering] ON [WIPTransactions] REORGANIZE;
+ALTER INDEX [idx_wip_gsclientid_super_covering] ON [WIPTransactions] REORGANIZE;
+ALTER INDEX [idx_wip_gstaskid_super_covering] ON [WIPTransactions] REORGANIZE;
 
 -- Update statistics after reorganize
-UPDATE STATISTICS [WIPTransactions]([idx_wip_gsclientid_covering]) WITH FULLSCAN;
-UPDATE STATISTICS [WIPTransactions]([idx_wip_gstaskid_covering]) WITH FULLSCAN;
+UPDATE STATISTICS [WIPTransactions] WITH FULLSCAN;
 ```
 
 **Note:** REORGANIZE is always online (no downtime)
@@ -245,8 +269,8 @@ UPDATE STATISTICS [WIPTransactions]([idx_wip_gstaskid_covering]) WITH FULLSCAN;
 UPDATE STATISTICS [WIPTransactions] WITH FULLSCAN;
 
 -- Or update specific index statistics
-UPDATE STATISTICS [WIPTransactions]([idx_wip_gsclientid_covering]) WITH FULLSCAN;
-UPDATE STATISTICS [WIPTransactions]([idx_wip_gstaskid_covering]) WITH FULLSCAN;
+UPDATE STATISTICS [WIPTransactions]([idx_wip_gsclientid_super_covering]) WITH FULLSCAN;
+UPDATE STATISTICS [WIPTransactions]([idx_wip_gstaskid_super_covering]) WITH FULLSCAN;
 ```
 
 **Automated statistics update:**
@@ -259,7 +283,7 @@ SQL Server automatically updates statistics, but you can force immediate update 
 ### Issue: Index Not Being Used
 
 **Symptoms:**
-- Queries still slow despite covering index
+- Queries still slow despite super covering index
 - Query plan shows table scan or different index
 
 **Diagnosis:**
@@ -267,13 +291,13 @@ SQL Server automatically updates statistics, but you can force immediate update 
 -- Check if index exists
 SELECT * FROM sys.indexes 
 WHERE object_id = OBJECT_ID('WIPTransactions')
-    AND name IN ('idx_wip_gsclientid_covering', 'idx_wip_gstaskid_covering');
+    AND name LIKE '%super_covering%';
 
 -- Get execution plan for specific query
 SET STATISTICS IO ON;
 SET SHOWPLAN_TEXT ON;
 
-SELECT GSTaskID, Amount, TType 
+SELECT GSTaskID, Amount, TType, Cost, Hour
 FROM WIPTransactions 
 WHERE GSClientID = 'your-guid-here';
 
@@ -284,7 +308,7 @@ SET SHOWPLAN_TEXT OFF;
 1. Update statistics: `UPDATE STATISTICS [WIPTransactions] WITH FULLSCAN;`
 2. Check filter predicate (must use `GSClientID IS NOT NULL` for filtered index)
 3. Verify query uses exact column names (case-sensitive)
-4. Force index hint as test: `FROM WIPTransactions WITH (INDEX(idx_wip_gsclientid_covering))`
+4. Force index hint as test: `FROM WIPTransactions WITH (INDEX(idx_wip_gsclientid_super_covering))`
 
 ---
 
@@ -302,14 +326,14 @@ SET SHOWPLAN_TEXT OFF;
 **Solutions:**
 ```sql
 -- Rebuild with higher FILLFACTOR
-ALTER INDEX [idx_wip_gsclientid_covering] ON [WIPTransactions] 
+ALTER INDEX [idx_wip_gsclientid_super_covering] ON [WIPTransactions] 
 REBUILD WITH (FILLFACTOR = 90);
 
 -- Check current FILLFACTOR
 SELECT name, fill_factor 
 FROM sys.indexes 
 WHERE object_id = OBJECT_ID('WIPTransactions')
-    AND name IN ('idx_wip_gsclientid_covering', 'idx_wip_gstaskid_covering');
+    AND name LIKE '%super_covering%';
 ```
 
 ---
@@ -317,13 +341,12 @@ WHERE object_id = OBJECT_ID('WIPTransactions')
 ### Issue: Excessive Index Size
 
 **Symptoms:**
-- Index > 1 GB per covering index
+- Index > 1 GB per super covering index
 - Slow rebuild times
 - High storage costs
 
 **Diagnosis:**
 ```sql
--- Check included column usage
 SELECT 
     i.name,
     SUM(a.total_pages) * 8 / 1024 AS SizeMB,
@@ -332,12 +355,13 @@ FROM sys.indexes i
 JOIN sys.partitions p ON i.object_id = p.object_id AND i.index_id = p.index_id
 JOIN sys.allocation_units a ON p.partition_id = a.container_id
 WHERE i.object_id = OBJECT_ID('WIPTransactions')
-    AND i.name IN ('idx_wip_gsclientid_covering', 'idx_wip_gstaskid_covering')
+    AND i.name LIKE '%super_covering%'
 GROUP BY i.name, p.rows;
 ```
 
 **Solutions:**
-- This is expected behavior for covering indexes (trade space for speed)
+- This is expected behavior for super covering indexes (9 INCLUDE columns)
+- The extra size is offset by eliminating 7+ redundant indexes
 - Included columns eliminate key lookups (worth the space)
 - If truly excessive, consider archiving old WIPTransactions data
 
@@ -345,22 +369,24 @@ GROUP BY i.name, p.rows;
 
 ## Performance Benchmarks
 
-### Expected Query Performance (Post-Optimization)
+### Expected Query Performance (With Super Covering Indexes)
 
-| Query Type | Execution Time | Logical Reads | Index Used |
-|------------|----------------|---------------|------------|
-| Client details (OR query) | < 1s | < 1,000 | Both covering indexes |
-| Balance query (Amount/TType) | < 500ms | < 500 | idx_wip_gsclientid_covering |
-| Task WIP | < 300ms | < 200 | idx_wip_gstaskid_covering |
-| Group WIP (multiple clients) | < 2s | < 5,000 | idx_wip_gsclientid_covering |
+| Query Type | Execution Time | Logical Reads | Key Lookups | Index Used |
+|------------|----------------|---------------|-------------|------------|
+| Client details | < 1s | < 1,000 | **0** | idx_wip_gsclientid_super_covering |
+| Balance query (Amount/TType) | < 500ms | < 500 | **0** | idx_wip_gsclientid_super_covering |
+| Task WIP | < 300ms | < 200 | **0** | idx_wip_gstaskid_super_covering |
+| Task profitability | < 500ms | < 300 | **0** | idx_wip_gstaskid_super_covering |
+| Group WIP (multiple clients) | < 2s | < 5,000 | **0** | idx_wip_gsclientid_super_covering |
 
-### Baseline Metrics (Before Optimization)
+### Index Count Comparison
 
-| Query Type | Was | Now | Improvement |
-|------------|-----|-----|-------------|
-| Client details page | 5-10s | <1s | **80-90% faster** |
-| Balance queries | 2-3s | <500ms | **75-83% faster** |
-| Task WIP | 1-2s | <300ms | **70-85% faster** |
+| Metric | Before | After | Improvement |
+|--------|--------|-------|-------------|
+| Total indexes | 14+ | **7-9** | 50% reduction |
+| Covering indexes | 3 specialized | **2 comprehensive** | 33% fewer, 3x coverage |
+| INCLUDE columns | 3-4 each | **9 each** | 2-3x more coverage |
+| Storage | ~530 MB covering | **~570 MB super covering** | Net ~160 MB saved |
 
 ---
 
@@ -371,6 +397,7 @@ GROUP BY i.name, p.rows;
 - Query execution time > 5 seconds
 - Index not found/disabled
 - Statistics out of date (> 7 days since update)
+- user_lookups > 0 (should be 0 for covering indexes)
 
 ### Warning Alerts
 - Index fragmentation 30-50%
@@ -388,17 +415,21 @@ GROUP BY i.name, p.rows;
 
 ## Related Documentation
 
-- **Migration README:** `/prisma/migrations/20260123063454_replace_simple_with_covering_wip_indexes/README.md`
-- **Query Optimization Plan:** `/.cursor/plans/wip_query_optimization_b682bf6c.plan.md`
-- **Performance Analysis:** `/docs/WIP_QUERY_OPTIMIZATION_ANALYSIS.sql`
+- **Migration: Create Super Covering:** `prisma/migrations/20260125_add_super_covering_wip_indexes/`
+- **Migration: Cleanup Old Indexes:** `prisma/migrations/20260125_cleanup_wip_duplicate_indexes/`
+- **Verification Script:** `scripts/check_wip_indexes.sql`
+- **Test Script:** `scripts/test_super_covering_indexes.sql`
+- **Super Covering Analysis:** `docs/WIP_SUPER_COVERING_INDEX_ANALYSIS.md`
+- **Query Optimization Summary:** `docs/WIP_QUERY_OPTIMIZATION_SUMMARY.md`
 
 ---
 
 ## Contact & Support
 
 For questions or issues:
-1. Check query execution plans
-2. Review index usage statistics  
+1. Check query execution plans (should show Index Seek, 0 key lookups)
+2. Review index usage statistics
 3. Verify statistics are up to date
-4. Consult this maintenance guide
-5. Escalate to database team if unresolved
+4. Run verification script: `scripts/check_wip_indexes.sql`
+5. Consult this maintenance guide
+6. Escalate to database team if unresolved
