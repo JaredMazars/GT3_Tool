@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Edit2, Trash2, Calculator, Users, DollarSign, FileText, TrendingUp } from 'lucide-react';
+import { Plus, Edit2, Trash2, Calculator, Users, DollarSign, FileText, TrendingUp, Clock, TrendingDown } from 'lucide-react';
 import { 
   useTaskBudget, 
   useAddDisbursement, 
@@ -18,7 +18,6 @@ import { AddFeeModal } from './AddFeeModal';
 import { EditAllocationModal } from './EditAllocationModal';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { BudgetDisbursement, BudgetFee, BudgetMember } from '@/types/budget';
-import { GRADIENTS } from '@/lib/design-system/gradients';
 
 interface TaskBudgetTabProps {
   taskId: number;
@@ -221,56 +220,88 @@ export function TaskBudgetTab({ taskId }: TaskBudgetTabProps) {
         />
       )}
 
-      {/* Summary Card - Top Priority */}
-      <div 
-        className="rounded-lg p-6 shadow-corporate-lg border border-forvis-blue-200"
-        style={{ background: GRADIENTS.primary.diagonal }}
-      >
-        <h3 className="text-xl font-semibold text-white mb-6">Budget Summary</h3>
-        <div className="space-y-3">
-          {/* Time Budget */}
-          <div className="grid gap-4 text-white" style={{ gridTemplateColumns: '1fr 140px 160px' }}>
-            <span>Time Budget:</span>
-            <span className="text-right text-sm opacity-80 tabular-nums">{formatHours(budgetData.summary.totalStaffHours)} hours</span>
-            <span className="text-right font-semibold tabular-nums">{formatCurrency(budgetData.summary.totalStaffAmount)}</span>
+      {/* Budget Summary - Section Header */}
+      <div className="bg-gradient-dashboard-card rounded-lg p-4 border border-forvis-blue-200 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="bg-gradient-icon-standard rounded-full p-2">
+            <Calculator className="h-5 w-5 text-white" />
           </div>
-          
-          {/* Disbursements */}
-          <div className="grid gap-4 text-white" style={{ gridTemplateColumns: '1fr 140px 160px' }}>
-            <span>Disbursements:</span>
-            <span></span>
-            <span className="text-right font-semibold tabular-nums">{formatCurrency(budgetData.summary.totalDisbursements)}</span>
+          <h2 className="text-xl font-bold text-forvis-gray-900">Budget Summary</h2>
+        </div>
+      </div>
+
+      {/* Summary Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Time Budget Card */}
+        <div className="bg-gradient-dashboard-card rounded-lg p-4 shadow-corporate border border-forvis-blue-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Time Budget</p>
+              <p className="text-2xl font-bold mt-2 text-forvis-blue-600">{formatCurrency(budgetData.summary.totalStaffAmount)}</p>
+              <p className="text-xs text-forvis-gray-500 mt-1">{formatHours(budgetData.summary.totalStaffHours)} hours</p>
+            </div>
+            <div className="bg-gradient-icon-standard rounded-full p-2.5">
+              <Clock className="w-5 h-5 text-white" />
+            </div>
           </div>
-          
-          {/* Adjustment (inverted for equation) */}
-          <div className="grid gap-4" style={{ gridTemplateColumns: '1fr 140px 160px' }}>
-            <span className="text-white">Adjustment:</span>
-            <span className={`text-right text-sm opacity-90 tabular-nums ${
-              budgetData.summary.adjustment >= 0 ? 'text-forvis-success-600' : 'text-forvis-error-600'
+        </div>
+
+        {/* Disbursements Card */}
+        <div className="bg-gradient-dashboard-card rounded-lg p-4 shadow-corporate border border-forvis-blue-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Disbursements</p>
+              <p className="text-2xl font-bold mt-2 text-forvis-blue-600">{formatCurrency(budgetData.summary.totalDisbursements)}</p>
+              <p className="text-xs text-forvis-gray-500 mt-1">Budgeted expenses</p>
+            </div>
+            <div className="bg-gradient-icon-standard rounded-full p-2.5">
+              <FileText className="w-5 h-5 text-white" />
+            </div>
+          </div>
+        </div>
+
+        {/* Adjustment Card */}
+        <div className="bg-gradient-dashboard-card rounded-lg p-4 shadow-corporate border border-forvis-blue-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Adjustment</p>
+              <p className={`text-2xl font-bold mt-2 ${
+                budgetData.summary.adjustment > 0 ? 'text-forvis-error-600' : 'text-forvis-success-600'
+              }`}>
+                {budgetData.summary.adjustment > 0 ? '' : '+'}{formatCurrency(-budgetData.summary.adjustment)}
+              </p>
+              <p className="text-xs text-forvis-gray-500 mt-1">
+                {budgetData.summary.adjustment > 0 ? '' : '+'}{(-budgetData.summary.adjustmentPercentage).toFixed(2)}%
+              </p>
+            </div>
+            <div className={`rounded-full p-2.5 ${
+              budgetData.summary.adjustment > 0 ? 'bg-forvis-error-600' : 'bg-forvis-success-600'
             }`}>
-              {budgetData.summary.adjustment >= 0 ? '-' : '+'}{Math.abs(budgetData.summary.adjustmentPercentage).toFixed(2)}%
-            </span>
-            <span className={`text-right font-semibold tabular-nums ${
-              budgetData.summary.adjustment >= 0 ? 'text-forvis-success-600' : 'text-forvis-error-600'
-            }`}>
-              {budgetData.summary.adjustment >= 0 ? '-' : '+'}{formatCurrency(Math.abs(budgetData.summary.adjustment))}
-            </span>
+              <TrendingDown className="w-5 h-5 text-white" />
+            </div>
           </div>
-          
-          {/* Fees (as equation result) */}
-          <div className="grid gap-4 pt-3 border-t-2 border-white/50 text-white" style={{ gridTemplateColumns: '1fr 140px 160px' }}>
-            <span className="text-lg font-bold">Fees:</span>
-            <span></span>
-            <span className="text-right text-2xl font-bold tabular-nums">{formatCurrency(budgetData.summary.totalFees)}</span>
+        </div>
+
+        {/* Total Fees Card (Emphasized) */}
+        <div className="bg-gradient-dashboard-card rounded-lg p-4 shadow-corporate border-2 border-forvis-success-400">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Total Fees</p>
+              <p className="text-2xl font-bold mt-2 text-forvis-success-600">{formatCurrency(budgetData.summary.totalFees)}</p>
+              <p className="text-xs text-forvis-gray-500 mt-1">Final budget result</p>
+            </div>
+            <div className="bg-forvis-success-600 rounded-full p-2.5">
+              <DollarSign className="w-5 h-5 text-white" />
+            </div>
           </div>
         </div>
       </div>
 
       {/* PRODUCTION SECTION */}
       <div className="space-y-6">
-        <div className="rounded-lg p-4 border border-forvis-blue-200 shadow-sm" style={{ background: GRADIENTS.dashboard.card }}>
+        <div className="bg-gradient-dashboard-card rounded-lg p-4 border border-forvis-blue-200 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="rounded-full p-2" style={{ background: GRADIENTS.icon.standard }}>
+            <div className="bg-gradient-icon-standard rounded-full p-2">
               <TrendingUp className="h-5 w-5 text-white" />
             </div>
             <h2 className="text-xl font-bold text-forvis-gray-900">Production</h2>
@@ -294,16 +325,10 @@ export function TaskBudgetTab({ taskId }: TaskBudgetTabProps) {
                   className="rounded-lg shadow-sm border border-forvis-gray-200 overflow-hidden"
                 >
                   {/* Category Header */}
-                  <div 
-                    className="p-4 border-b border-forvis-gray-200"
-                    style={{ background: GRADIENTS.dashboard.card }}
-                  >
+                  <div className="bg-gradient-dashboard-card p-4 border-b border-forvis-gray-200">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div
-                          className="rounded-full p-2"
-                          style={{ background: GRADIENTS.icon.standard }}
-                        >
+                        <div className="bg-gradient-icon-standard rounded-full p-2">
                           <Calculator className="w-4 h-4 text-white" />
                         </div>
                         <h4 className="font-semibold text-forvis-gray-900">{category.empCatDesc}</h4>
@@ -317,7 +342,7 @@ export function TaskBudgetTab({ taskId }: TaskBudgetTabProps) {
 
                   {/* Staff Members Table */}
                   <div className="bg-white">
-                    <div className="grid gap-4 px-4 py-3 text-xs font-medium text-white uppercase tracking-wider shadow-sm" style={{ gridTemplateColumns: '80px 1fr 120px 120px 160px', background: GRADIENTS.primary.horizontal }}>
+                    <div className="bg-gradient-primary-horizontal grid gap-4 px-4 py-3 text-xs font-medium text-white uppercase tracking-wider shadow-sm" style={{ gridTemplateColumns: '80px 1fr 120px 120px 160px' }}>
                       <div>Actions</div>
                       <div>Staff Member</div>
                       <div className="text-right">Hours</div>
@@ -394,7 +419,7 @@ export function TaskBudgetTab({ taskId }: TaskBudgetTabProps) {
             </div>
           ) : (
             <div className="rounded-lg shadow-sm border border-forvis-gray-200 overflow-hidden">
-              <div className="grid gap-4 px-4 py-3 text-xs font-medium text-white uppercase tracking-wider shadow-sm" style={{ gridTemplateColumns: '80px 1fr 160px 160px', background: GRADIENTS.primary.horizontal }}>
+              <div className="bg-gradient-primary-horizontal grid gap-4 px-4 py-3 text-xs font-medium text-white uppercase tracking-wider shadow-sm" style={{ gridTemplateColumns: '80px 1fr 160px 160px' }}>
                 <div>Actions</div>
                 <div>Description</div>
                 <div className="text-right">Expected Date</div>
@@ -443,9 +468,9 @@ export function TaskBudgetTab({ taskId }: TaskBudgetTabProps) {
 
       {/* FEES SECTION */}
       <div className="space-y-6">
-        <div className="rounded-lg p-4 border border-forvis-success-200 shadow-sm" style={{ background: GRADIENTS.semantic.success.light }}>
+        <div className="bg-gradient-dashboard-card rounded-lg p-4 border border-forvis-blue-200 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="rounded-full p-2" style={{ background: GRADIENTS.semantic.success.button }}>
+            <div className="bg-gradient-icon-standard rounded-full p-2">
               <DollarSign className="h-5 w-5 text-white" />
             </div>
             <h2 className="text-xl font-bold text-forvis-gray-900">Fees</h2>
@@ -474,8 +499,8 @@ export function TaskBudgetTab({ taskId }: TaskBudgetTabProps) {
               No fees added yet
             </div>
           ) : (
-            <div className="rounded-lg shadow-sm border border-forvis-success-200 overflow-hidden">
-              <div className="grid gap-4 px-4 py-3 text-xs font-medium text-white uppercase tracking-wider shadow-sm" style={{ gridTemplateColumns: '80px 1fr 160px 160px', background: GRADIENTS.semantic.success.button }}>
+            <div className="rounded-lg shadow-sm border border-forvis-gray-200 overflow-hidden">
+              <div className="bg-gradient-primary-horizontal grid gap-4 px-4 py-3 text-xs font-medium text-white uppercase tracking-wider shadow-sm" style={{ gridTemplateColumns: '80px 1fr 160px 160px' }}>
                 <div>Actions</div>
                 <div>Description</div>
                 <div className="text-right">Expected Date</div>
@@ -485,7 +510,7 @@ export function TaskBudgetTab({ taskId }: TaskBudgetTabProps) {
                 <div
                   key={fee.id}
                   className={`grid gap-4 px-4 py-3 items-center ${
-                    idx % 2 === 0 ? 'bg-white' : 'bg-forvis-success-50/30'
+                    idx % 2 === 0 ? 'bg-white' : 'bg-forvis-gray-50'
                   }`}
                   style={{ gridTemplateColumns: '80px 1fr 160px 160px' }}
                 >
@@ -507,15 +532,15 @@ export function TaskBudgetTab({ taskId }: TaskBudgetTabProps) {
                   </div>
                   <div className="font-medium text-forvis-gray-900">{fee.description}</div>
                   <div className="text-right text-forvis-gray-700 text-sm tabular-nums">{formatDate(fee.expectedDate)}</div>
-                  <div className="text-right font-semibold text-forvis-success-600 tabular-nums">{formatCurrency(fee.amount)}</div>
+                  <div className="text-right font-semibold text-forvis-blue-600 tabular-nums">{formatCurrency(fee.amount)}</div>
                 </div>
               ))}
               {/* Fees Subtotal */}
-              <div className="grid gap-4 px-4 py-3 border-t-2 border-forvis-success-300 bg-forvis-success-50 font-semibold" style={{ gridTemplateColumns: '80px 1fr 160px 160px' }}>
+              <div className="grid gap-4 px-4 py-3 border-t-2 border-forvis-blue-200 bg-forvis-blue-50 font-semibold" style={{ gridTemplateColumns: '80px 1fr 160px 160px' }}>
                 <div></div>
                 <div className="text-forvis-gray-900">Subtotal - Fees</div>
                 <div></div>
-                <div className="text-right text-forvis-success-600 tabular-nums">{formatCurrency(budgetData.summary.totalFees)}</div>
+                <div className="text-right text-forvis-blue-600 tabular-nums">{formatCurrency(budgetData.summary.totalFees)}</div>
               </div>
             </div>
           )}

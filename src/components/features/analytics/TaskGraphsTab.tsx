@@ -1,8 +1,8 @@
 'use client';
 
-import { Calendar, DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
+import { Calendar, DollarSign, TrendingUp, TrendingDown, BarChart3 } from 'lucide-react';
 import { useTaskGraphData } from '@/hooks/tasks/useTaskGraphData';
-import { LoadingSpinner } from '@/components/ui';
+import { LoadingSpinner, Banner } from '@/components/ui';
 import {
   LineChart,
   Line,
@@ -90,23 +90,17 @@ function SummaryCard({ label, value, icon, color }: SummaryCardProps) {
   };
 
   return (
-    <div
-      className="rounded-lg p-3 shadow-corporate border border-forvis-blue-100"
-      style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
-    >
+    <div className="bg-gradient-dashboard-card rounded-lg p-4 shadow-corporate border border-forvis-blue-100">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">
             {label}
           </p>
-          <p className="text-xl font-bold mt-1" style={{ color }}>
+          <p className={`text-2xl font-bold mt-2 ${color}`}>
             {formatCurrency(value)}
           </p>
         </div>
-        <div
-          className="rounded-full p-2"
-          style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
-        >
+        <div className="bg-gradient-icon-standard rounded-full p-2.5">
           {icon}
         </div>
       </div>
@@ -144,24 +138,23 @@ export function TaskGraphsTab({ taskId }: TaskGraphsTabProps) {
 
   if (error) {
     return (
-      <div className="rounded-lg bg-red-50 border border-red-200 p-6 text-center">
-        <p className="text-red-800 font-semibold">Failed to load graph data</p>
-        <p className="text-red-600 text-sm mt-2">
-          {error instanceof Error ? error.message : 'An unknown error occurred'}
-        </p>
+      <div className="p-6">
+        <Banner
+          variant="error"
+          title="Failed to load graph data"
+          message={error instanceof Error ? error.message : 'An unknown error occurred'}
+        />
       </div>
     );
   }
 
   if (!data || !data.data || data.data.dailyMetrics.length === 0) {
     return (
-      <div className="rounded-lg bg-forvis-gray-50 border border-forvis-gray-200 p-8 text-center">
-        <Calendar className="h-12 w-12 text-forvis-gray-400 mx-auto mb-3" />
-        <p className="text-forvis-gray-700 font-semibold">No transaction data available</p>
-        <p className="text-forvis-gray-600 text-sm mt-2">
-          There are no transactions in the last 24 months for this task.
-        </p>
-      </div>
+      <Banner
+        variant="info"
+        title="No transaction data available"
+        message="There are no transactions in the last 24 months for this task."
+      />
     );
   }
 
@@ -169,57 +162,73 @@ export function TaskGraphsTab({ taskId }: TaskGraphsTabProps) {
 
   return (
     <div className="space-y-6">
+      {/* Summary Section Header */}
+      <div className="bg-gradient-dashboard-card rounded-lg p-4 border border-forvis-blue-200 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="bg-gradient-icon-standard rounded-full p-2">
+            <BarChart3 className="h-5 w-5 text-white" />
+          </div>
+          <h2 className="text-xl font-bold text-forvis-gray-900">Transaction Summary</h2>
+        </div>
+      </div>
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
         <SummaryCard
           label="Total Production"
           value={graphData.summary.totalProduction}
-          icon={<TrendingUp className="w-4 h-4 text-white" />}
-          color="#2E5AAC"
+          icon={<TrendingUp className="w-5 h-5 text-white" />}
+          color="text-forvis-blue-600"
         />
         <SummaryCard
           label="Total Adjustments"
           value={graphData.summary.totalAdjustments}
-          icon={<TrendingDown className="w-4 h-4 text-white" />}
-          color="#F97316"
+          icon={<TrendingDown className="w-5 h-5 text-white" />}
+          color="text-forvis-warning-600"
         />
         <SummaryCard
           label="Total Disbursements"
           value={graphData.summary.totalDisbursements}
-          icon={<DollarSign className="w-4 h-4 text-white" />}
-          color="#10B981"
+          icon={<DollarSign className="w-5 h-5 text-white" />}
+          color="text-forvis-success-600"
         />
         <SummaryCard
           label="Total Billing"
           value={graphData.summary.totalBilling}
-          icon={<DollarSign className="w-4 h-4 text-white" />}
-          color="#8B5CF6"
+          icon={<DollarSign className="w-5 h-5 text-white" />}
+          color="text-forvis-blue-600"
         />
         <SummaryCard
           label="Total Provisions"
           value={graphData.summary.totalProvisions || 0}
-          icon={<DollarSign className="w-4 h-4 text-white" />}
-          color="#6366F1"
+          icon={<DollarSign className="w-5 h-5 text-white" />}
+          color="text-forvis-warning-600"
         />
         <SummaryCard
           label="Current WIP Balance"
           value={graphData.summary.currentWipBalance}
-          icon={<DollarSign className="w-4 h-4 text-white" />}
-          color="#EC4899"
+          icon={<DollarSign className="w-5 h-5 text-white" />}
+          color="text-forvis-blue-600"
         />
+      </div>
+
+      {/* Chart Section Header */}
+      <div className="bg-gradient-dashboard-card rounded-lg p-4 border border-forvis-blue-200 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="bg-gradient-icon-standard rounded-full p-2">
+            <TrendingUp className="h-5 w-5 text-white" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-forvis-gray-900">Transaction Trends</h2>
+            <p className="text-xs text-forvis-gray-600 mt-0.5">
+              Daily metrics from {format(parseISO(data.startDate), 'dd MMM yyyy')} to {format(parseISO(data.endDate), 'dd MMM yyyy')}
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Line Chart */}
       <div className="rounded-lg bg-white shadow-corporate border border-forvis-gray-200 p-6">
-        <div className="mb-6">
-          <h3 className="text-lg font-semibold text-forvis-gray-900">
-            12-Month Transaction Trends
-          </h3>
-          <p className="text-sm text-forvis-gray-600 mt-1">
-            Daily transaction metrics from {format(parseISO(data.startDate), 'dd MMM yyyy')} to{' '}
-            {format(parseISO(data.endDate), 'dd MMM yyyy')}
-          </p>
-        </div>
 
         <ResponsiveContainer width="100%" height={500}>
           <LineChart
@@ -261,7 +270,7 @@ export function TaskGraphsTab({ taskId }: TaskGraphsTabProps) {
               type="monotone"
               dataKey="adjustments"
               name="Adjustments"
-              stroke="#F97316"
+              stroke="#A8803A"
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 6 }}
@@ -272,7 +281,7 @@ export function TaskGraphsTab({ taskId }: TaskGraphsTabProps) {
               type="monotone"
               dataKey="disbursements"
               name="Disbursements"
-              stroke="#10B981"
+              stroke="#2F6A5F"
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 6 }}
@@ -283,7 +292,7 @@ export function TaskGraphsTab({ taskId }: TaskGraphsTabProps) {
               type="monotone"
               dataKey="billing"
               name="Billing"
-              stroke="#8B5CF6"
+              stroke="#3F74C6"
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 6 }}
@@ -294,7 +303,7 @@ export function TaskGraphsTab({ taskId }: TaskGraphsTabProps) {
               type="monotone"
               dataKey="provisions"
               name="Provisions"
-              stroke="#6366F1"
+              stroke="#5E5AAE"
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 6 }}
@@ -305,7 +314,7 @@ export function TaskGraphsTab({ taskId }: TaskGraphsTabProps) {
               type="monotone"
               dataKey="wipBalance"
               name="WIP Balance"
-              stroke="#EC4899"
+              stroke="#872F48"
               strokeWidth={3}
               dot={false}
               activeDot={{ r: 6 }}

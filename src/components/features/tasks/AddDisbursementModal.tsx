@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, DollarSign, Calendar } from 'lucide-react';
+import { X } from 'lucide-react';
 import { Button, Input, Banner } from '@/components/ui';
 
 interface AddDisbursementModalProps {
@@ -108,37 +108,26 @@ export function AddDisbursementModal({
             required
           />
 
-          <div>
-            <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
-              <DollarSign className="w-4 h-4 inline mr-1" />
-              Amount (ZAR)
-            </label>
-            <input
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
-              step="0.01"
-              min="0"
-              disabled={isLoading}
-              className="w-full px-3 py-2 border border-forvis-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent"
-            />
-          </div>
+          <Input
+            type="number"
+            label="Amount (ZAR)"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="0.00"
+            step="0.01"
+            min="0"
+            disabled={isLoading}
+            required
+          />
 
-          <div>
-            <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
-              <Calendar className="w-4 h-4 inline mr-1" />
-              Expected Date
-            </label>
-            <input
-              type="date"
-              value={expectedDate}
-              onChange={(e) => setExpectedDate(e.target.value)}
-              disabled={isLoading}
-              required
-              className="w-full px-3 py-2 border border-forvis-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent"
-            />
-          </div>
+          <Input
+            type="date"
+            label="Expected Date"
+            value={expectedDate}
+            onChange={(e) => setExpectedDate(e.target.value)}
+            disabled={isLoading}
+            required
+          />
         </div>
 
         {/* Actions */}

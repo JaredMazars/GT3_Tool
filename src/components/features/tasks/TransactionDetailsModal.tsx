@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { X, ArrowUpDown, ArrowUp, ArrowDown, Calendar, User, Filter } from 'lucide-react';
 import { useTaskTransactions, TaskTransaction } from '@/hooks/tasks/useTaskTransactions';
 import { MetricType } from '@/types';
-import { GRADIENTS } from '@/lib/design-system/gradients';
+import { Input } from '@/components/ui';
 
 interface TransactionDetailsModalProps {
   isOpen: boolean;
@@ -244,10 +244,7 @@ export function TransactionDetailsModal({
           onClick={e => e.stopPropagation()}
         >
           {/* Header */}
-          <div 
-            className="px-6 py-4 rounded-t-lg"
-            style={{ background: GRADIENTS.primary.horizontal }}
-          >
+          <div className="bg-gradient-primary-horizontal px-6 py-4 rounded-t-lg">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-bold text-white">{metricLabel}</h2>
@@ -268,46 +265,35 @@ export function TransactionDetailsModal({
           <div className="px-6 py-4 border-b border-forvis-gray-200 bg-forvis-gray-50">
             <div className="flex items-end gap-4">
               <div className="flex-1">
-                <label className="block text-xs font-medium text-forvis-gray-700 mb-1">
-                  <Calendar className="w-3 h-3 inline mr-1" />
-                  Start Date
-                </label>
-                <input
+                <Input
                   type="date"
+                  label="Start Date"
                   value={filters.startDate}
                   onChange={e => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
-                  className="w-full px-3 py-2 border border-forvis-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-forvis-blue-500"
                 />
               </div>
               <div className="flex-1">
-                <label className="block text-xs font-medium text-forvis-gray-700 mb-1">
-                  <Calendar className="w-3 h-3 inline mr-1" />
-                  End Date
-                </label>
-                <input
+                <Input
                   type="date"
+                  label="End Date"
                   value={filters.endDate}
                   onChange={e => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
-                  className="w-full px-3 py-2 border border-forvis-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-forvis-blue-500"
                 />
               </div>
               <div className="flex-1">
-                <label className="block text-xs font-medium text-forvis-gray-700 mb-1">
-                  <User className="w-3 h-3 inline mr-1" />
-                  Employee
-                </label>
-                <select
+                <Input
+                  variant="select"
+                  label="Employee"
                   value={filters.employee}
                   onChange={e => setFilters(prev => ({ ...prev, employee: e.target.value }))}
-                  className="w-full px-3 py-2 border border-forvis-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-forvis-blue-500"
-                >
-                  <option value="">All Employees</option>
-                  {uniqueEmployees.map(emp => (
-                    <option key={emp.code} value={emp.code}>
-                      {emp.name}
-                    </option>
-                  ))}
-                </select>
+                  options={[
+                    { value: '', label: 'All Employees' },
+                    ...uniqueEmployees.map(emp => ({
+                      value: emp.code,
+                      label: emp.name
+                    }))
+                  ]}
+                />
               </div>
               <button
                 onClick={handleClearFilters}
@@ -341,10 +327,7 @@ export function TransactionDetailsModal({
               >
                 <table className="w-full">
                   <thead className="sticky top-0 z-10">
-                    <tr 
-                      className="text-left text-white text-sm"
-                      style={{ background: GRADIENTS.primary.horizontal }}
-                    >
+                    <tr className="bg-gradient-primary-horizontal text-left text-white text-sm">
                       <th 
                         className="px-4 py-3 cursor-pointer hover:bg-white/10"
                         onClick={() => handleSort('tranDate')}
@@ -431,10 +414,7 @@ export function TransactionDetailsModal({
 
           {/* Summary Footer */}
           {!isLoading && !error && sortedTransactions.length > 0 && (
-            <div 
-              className="px-6 py-4 rounded-b-lg"
-              style={{ background: GRADIENTS.primary.horizontal }}
-            >
+            <div className="bg-gradient-primary-horizontal px-6 py-4 rounded-b-lg">
               <div className="flex items-center justify-between text-white text-sm font-medium">
                 <div className="flex items-center gap-6">
                   <span>{summary.count} Transactions</span>
