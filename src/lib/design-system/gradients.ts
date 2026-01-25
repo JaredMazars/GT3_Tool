@@ -166,6 +166,9 @@ export function getGradient(category: GradientCategory, variant?: string): strin
 
   // If no variant specified or found, return first available gradient
   const firstKey = Object.keys(categoryGradients)[0];
+  if (!firstKey) {
+    return GRADIENTS.primary.diagonal;
+  }
   return (categoryGradients as Record<string, string>)[firstKey] || GRADIENTS.primary.diagonal;
 }
 
