@@ -12,6 +12,39 @@ changelog:
 **Brand Archetype:** Professional, Corporate, Trustworthy, Authoritative.  
 **Core Principle:** UI Consistency via strict Component usage.
 
+## Design System Repository (CRITICAL)
+
+**ALWAYS consult the Design System Repository for implementation details:**
+
+📚 **Location:** `docs/design-system/`
+
+### Key Resources
+
+| Document | Purpose | When to Use |
+|---|---|---|
+| **[Component Catalog](../docs/design-system/04-component-catalog.md)** | All UI components with props and examples | Building any UI component |
+| **[Gradient System](../docs/design-system/03-gradients.md)** | Centralized gradient constants, utilities, CSS classes | Using or replacing gradients |
+| **[Pattern Library](../docs/design-system/05-pattern-library.md)** | Common UI patterns (modals, forms, tables) | Implementing standard patterns |
+| **[Migration Guide](../docs/design-system/06-migration-guide.md)** | Step-by-step migration checklist | Migrating existing code |
+| **[Before/After Examples](../docs/design-system/07-before-after-examples.md)** | Code examples showing correct implementations | Need concrete examples |
+| **[Color System](../docs/design-system/02-color-system.md)** | Complete color palette with usage guidelines | Choosing colors |
+| **[Getting Started](../docs/design-system/01-getting-started.md)** | Quick start guide and overview | New to design system |
+
+### When to Use Design System Repository
+
+**✅ Required:**
+- Before creating any new UI component
+- When migrating existing components
+- When unsure about gradient usage
+- When implementing modals, forms, or tables
+- When choosing colors or styling patterns
+- When replacing browser dialogs
+- When standardizing button/input components
+
+**Key Principle:** The Design System Repository is the **single source of truth** for all UI patterns, components, and styling.
+
+---
+
 ## 1. Component Architecture (Strict Enforcement)
 
 **Rule:** Do not build custom UI elements. Use the strictly typed component library.
@@ -59,7 +92,37 @@ import { Button, Card, DashboardCard, Input, Badge, Banner, StatCard, LoadingSpi
 - `surface-100`: #EEF4FB (Subtle blue-tint)
 - `border`: rgba(17, 24, 39, 0.08) (Subtle borders)
 
-### Gradient Registry (Exact Inline Styles Only)
+### Gradient Registry
+
+**⚠️ Gradients are now centralized!** See [Gradient System Documentation](../docs/design-system/03-gradients.md) for complete reference.
+
+**Three ways to use gradients:**
+
+1. **CSS Classes** - `className="bg-gradient-dashboard-card"`
+2. **Constants** - `import { GRADIENTS } from '@/lib/design-system/gradients'`
+3. **Utility Functions** - `import { getGradient } from '@/lib/design-system/gradients'`
+
+**Quick Examples:**
+
+```tsx
+// Method 1: CSS Class (static elements)
+<div className="bg-gradient-dashboard-card">Content</div>
+
+// Method 2: Constant (inline styles)
+import { GRADIENTS } from '@/lib/design-system/gradients';
+<div style={{ background: GRADIENTS.dashboard.card }}>Content</div>
+
+// Method 3: Utility Function (dynamic/conditional)
+import { getSemanticGradient } from '@/lib/design-system/gradients';
+const gradient = getSemanticGradient('success', 'light');
+<div style={{ background: gradient }}>Content</div>
+```
+
+**Complete Documentation:** [docs/design-system/03-gradients.md](../docs/design-system/03-gradients.md)
+
+---
+
+### Legacy Gradient Reference (For Migration Only)
 
 #### A. Primary Surfaces
 ```jsx
@@ -482,6 +545,8 @@ Font Family: **Inter**
 
 #### Browser Dialogs - STRICTLY PROHIBITED
 
+**⚠️ See [Migration Guide](../docs/design-system/06-migration-guide.md#step-1-replace-browser-dialogs) for complete migration instructions.**
+
 Browser native dialogs (`confirm()`, `alert()`, `prompt()`) violate Forvis Mazars brand standards and MUST NEVER be used:
 
 **Why They're Prohibited:**
@@ -492,6 +557,8 @@ Browser native dialogs (`confirm()`, `alert()`, `prompt()`) violate Forvis Mazar
 - No contextual information or recovery options
 
 **Instead, Use:**
+
+**Complete Examples:** [docs/design-system/07-before-after-examples.md#browser-dialog-migration](../docs/design-system/07-before-after-examples.md#browser-dialog-migration)
 
 **1. Confirmation Modals** (for destructive or important actions)
 ```tsx
@@ -512,6 +579,8 @@ import { ConfirmModal } from '@/components/shared/ConfirmModal';
 **2. Banner Components** (for user notifications and alerts)
 
 **IMPORTANT:** Do NOT use `sonner`, `react-toastify`, or any external toast libraries. Use the built-in Banner component.
+
+**Pattern Reference:** [docs/design-system/05-pattern-library.md#alert--notification-patterns](../docs/design-system/05-pattern-library.md#alert--notification-patterns)
 
 ```tsx
 import { Banner } from '@/components/ui';
@@ -630,8 +699,56 @@ External toast libraries (sonner, react-toastify) are prohibited. Use Banner com
 
 **Exception**: None. The Banner component provides all required functionality with brand consistency.
 
+---
+
+## Migrating Existing Code
+
+**Migrating a domain to the design system?** Follow the comprehensive migration guide:
+
+📖 **[Migration Guide](../docs/design-system/06-migration-guide.md)** - Complete step-by-step process
+
+### Quick Migration Checklist
+
+**6 Migration Steps:**
+1. **Replace Browser Dialogs** - `window.confirm()`, `alert()` → `ConfirmModal`, `Banner`
+2. **Replace Custom Buttons** - Custom `<button>` → `<Button variant="...">`
+3. **Centralize Gradients** - Inline gradient strings → CSS classes/constants/functions
+4. **Replace Custom Alerts** - Custom divs/toast libraries → `<Banner>`
+5. **Standardize Colors** - Old Tailwind colors → Forvis brand colors
+6. **Update Forms** - Custom inputs → `<Input variant="...">`
+
+**Need Examples?** See [Before/After Examples](../docs/design-system/07-before-after-examples.md)
+
+**Key Violations to Fix:**
+- ❌ Browser dialogs (`confirm()`, `alert()`, `prompt()`)
+- ❌ Inline gradient strings (`style={{ background: 'linear-gradient(...)' }}`)
+- ❌ Custom button styling (`<button className="...">`)
+- ❌ Default Tailwind colors (`text-red-600`, `bg-green-50`)
+- ❌ Toast libraries (`sonner`, `react-toastify`)
+- ❌ Custom input styling
+
+**Migration Success Criteria:**
+- ✅ Zero browser dialogs
+- ✅ Zero inline gradients
+- ✅ All buttons use Button component
+- ✅ All alerts use Banner component
+- ✅ Forvis brand colors throughout
+- ✅ No visual regressions
+
+---
+
 ## Related Rules
 
+### Design System Documentation
+- **[Design System Repository](../docs/design-system/README.md)**: Complete design system reference
+- **[Component Catalog](../docs/design-system/04-component-catalog.md)**: All UI components with props and examples
+- **[Pattern Library](../docs/design-system/05-pattern-library.md)**: Common UI patterns (modals, forms, tables)
+- **[Migration Guide](../docs/design-system/06-migration-guide.md)**: Step-by-step migration process
+- **[Before/After Examples](../docs/design-system/07-before-after-examples.md)**: Code migration examples
+- **[Gradient System](../docs/design-system/03-gradients.md)**: Centralized gradient reference
+- **[Color System](../docs/design-system/02-color-system.md)**: Color palette and usage
+
+### Other Rule Files
 - **consolidated.mdc**: Component import paths (`@/components/ui`), TypeScript conventions, error handling
 - **security-rules.mdc**: `<FeatureGate>`, `<PageAccessGuard>`, and access control UI components
 - **approval-system-rules.mdc**: Use `UnifiedApprovalCard` for displaying approvals with proper styling

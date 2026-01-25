@@ -106,8 +106,7 @@ export function SubServiceLineQuickNav({ className = '' }: SubServiceLineQuickNa
                 <div key={serviceLineGroup.serviceLine} className="mb-2 last:mb-0">
                   {/* Service Line Header */}
                   <div
-                    className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-white"
-                    style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
+                    className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-white bg-gradient-primary-horizontal"
                   >
                     {serviceLineGroup.serviceLineName}
                   </div>
@@ -126,12 +125,9 @@ export function SubServiceLineQuickNav({ className = '' }: SubServiceLineQuickNa
                           onClick={handleGroupClick}
                           className={`flex items-center justify-between px-4 py-2 text-sm transition-colors ${
                             isActive
-                              ? 'font-medium text-white'
+                              ? 'font-medium text-white bg-gradient-premium-gold'
                               : 'text-forvis-gray-700 hover:bg-forvis-blue-50'
                           }`}
-                          style={isActive ? {
-                            background: 'linear-gradient(135deg, #D9CBA8 0%, #B0A488 100%)',
-                          } : {}}
                           role="menuitem"
                         >
                           <div className="flex items-center space-x-2 flex-1 min-w-0">

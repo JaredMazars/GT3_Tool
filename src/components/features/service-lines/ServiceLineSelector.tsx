@@ -64,13 +64,7 @@ export function ServiceLineSelector() {
         </nav>
 
         {/* Gold Container with Header and Cards */}
-        <div 
-          className="rounded-lg border-2 p-6"
-          style={{
-            background: 'linear-gradient(135deg, #D9CBA8 0%, #B0A488 100%)',
-            borderColor: '#C9BCAA',
-          }}
-        >
+        <div className="rounded-lg border-2 p-6 bg-gradient-premium-gold border-[#C9BCAA]">
           {/* Header */}
           <div className="mb-4">
             <h2 className="text-xl font-semibold text-white mb-1">
@@ -93,26 +87,15 @@ export function ServiceLineSelector() {
             {isVaultOnly && (
               <Link
                 href={`/dashboard/document-vault?serviceLine=${serviceLine.toUpperCase()}`}
-                className="group block rounded-lg border border-forvis-gray-200 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden"
-                style={{
-                  background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
-                }}
+                className="group block rounded-lg border border-forvis-gray-200 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden bg-gradient-dashboard-card"
               >
                 {/* Hover gradient overlay */}
-                <div 
-                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(91, 147, 215, 0.06) 0%, rgba(46, 90, 172, 0.08) 100%)',
-                  }}
-                />
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-gradient-dashboard-hover" />
 
                 <div className="p-6 relative z-[1]">
                   <div className="flex items-center gap-4 mb-3">
                     {/* Icon */}
-                    <div 
-                      className="w-16 h-16 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm"
-                      style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
-                    >
+                    <div className="w-16 h-16 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm bg-gradient-icon-standard">
                       <FolderOpen className="h-8 w-8 text-white" />
                     </div>
 
@@ -136,26 +119,15 @@ export function ServiceLineSelector() {
             {serviceLine === 'qrm' && (
               <Link
                 href={`/dashboard/qrm/monitoring`}
-                className="group block rounded-lg border border-forvis-gray-200 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden"
-                style={{
-                  background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
-                }}
+                className="group block rounded-lg border border-forvis-gray-200 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden bg-gradient-dashboard-card"
               >
                 {/* Hover gradient overlay */}
-                <div 
-                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(91, 147, 215, 0.06) 0%, rgba(46, 90, 172, 0.08) 100%)',
-                  }}
-                />
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-gradient-dashboard-hover" />
 
                 <div className="p-4 relative z-[1]">
                   <div className="flex items-center gap-3 mb-3">
                     {/* Icon */}
-                    <div 
-                      className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm"
-                      style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
-                    >
+                    <div className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm bg-gradient-icon-standard">
                       <Activity className="h-6 w-6 text-white" />
                     </div>
 
@@ -181,26 +153,15 @@ export function ServiceLineSelector() {
             {!isVaultOnly && serviceLine === 'business_dev' && (
               <Link
                 href={`/dashboard/${serviceLine}/bd`}
-                className="group block rounded-lg border border-forvis-gray-200 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden"
-                style={{
-                  background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
-                }}
+                className="group block rounded-lg border border-forvis-gray-200 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden bg-gradient-dashboard-card"
               >
                 {/* Hover gradient overlay */}
-                <div 
-                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(91, 147, 215, 0.06) 0%, rgba(46, 90, 172, 0.08) 100%)',
-                  }}
-                />
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-gradient-dashboard-hover" />
 
                 <div className="p-4 relative z-[1]">
                   <div className="flex items-center gap-3 mb-3">
                     {/* Icon */}
-                    <div 
-                      className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm"
-                      style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
-                    >
+                    <div className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm bg-gradient-icon-standard">
                       <BarChart3 className="h-6 w-6 text-white" />
                     </div>
 
@@ -226,26 +187,15 @@ export function ServiceLineSelector() {
             {!isVaultOnly && serviceLine === 'business_dev' && (
               <Link
                 href={`/dashboard/${serviceLine}/news`}
-                className="group block rounded-lg border border-forvis-gray-200 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden"
-                style={{
-                  background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
-                }}
+                className="group block rounded-lg border border-forvis-gray-200 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden bg-gradient-dashboard-card"
               >
                 {/* Hover gradient overlay */}
-                <div 
-                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(91, 147, 215, 0.06) 0%, rgba(46, 90, 172, 0.08) 100%)',
-                  }}
-                />
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-gradient-dashboard-hover" />
 
                 <div className="p-4 relative z-[1]">
                   <div className="flex items-center gap-3 mb-3">
                     {/* Icon */}
-                    <div 
-                      className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm"
-                      style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
-                    >
+                    <div className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm bg-gradient-icon-standard">
                       <Newspaper className="h-6 w-6 text-white" />
                     </div>
 
@@ -271,26 +221,15 @@ export function ServiceLineSelector() {
             {!isVaultOnly && serviceLine === 'country_management' && (
               <Link
                 href={`/dashboard/${serviceLine}/staff-planner`}
-                className="group block rounded-lg border border-forvis-gray-200 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden"
-                style={{
-                  background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
-                }}
+                className="group block rounded-lg border border-forvis-gray-200 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden bg-gradient-dashboard-card"
               >
                 {/* Hover gradient overlay */}
-                <div 
-                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(91, 147, 215, 0.06) 0%, rgba(46, 90, 172, 0.08) 100%)',
-                  }}
-                />
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-gradient-dashboard-hover" />
 
                 <div className="p-4 relative z-[1]">
                   <div className="flex items-center gap-3 mb-3">
                     {/* Icon */}
-                    <div 
-                      className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm"
-                      style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
-                    >
+                    <div className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm bg-gradient-icon-standard">
                       <Calendar className="h-6 w-6 text-white" />
                     </div>
 
@@ -316,26 +255,15 @@ export function ServiceLineSelector() {
             {!isVaultOnly && serviceLine === 'country_management' && (
               <Link
                 href={`/dashboard/${serviceLine}/exco-reporting`}
-                className="group block rounded-lg border border-forvis-gray-200 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden"
-                style={{
-                  background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
-                }}
+                className="group block rounded-lg border border-forvis-gray-200 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden bg-gradient-dashboard-card"
               >
                 {/* Hover gradient overlay */}
-                <div 
-                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(91, 147, 215, 0.06) 0%, rgba(46, 90, 172, 0.08) 100%)',
-                  }}
-                />
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-gradient-dashboard-hover" />
 
                 <div className="p-4 relative z-[1]">
                   <div className="flex items-center gap-3 mb-3">
                     {/* Icon */}
-                    <div 
-                      className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm"
-                      style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
-                    >
+                    <div className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm bg-gradient-icon-standard">
                       <FileBarChart className="h-6 w-6 text-white" />
                     </div>
 
@@ -361,26 +289,15 @@ export function ServiceLineSelector() {
             {!isVaultOnly && !isShared && (
               <Link
                 href={`/dashboard/${serviceLine}/internal`}
-                className="group block rounded-lg border border-forvis-gray-200 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden"
-                style={{
-                  background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
-                }}
+                className="group block rounded-lg border border-forvis-gray-200 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden bg-gradient-dashboard-card"
               >
                 {/* Hover gradient overlay */}
-                <div 
-                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(91, 147, 215, 0.06) 0%, rgba(46, 90, 172, 0.08) 100%)',
-                  }}
-                />
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-gradient-dashboard-hover" />
 
                 <div className="p-4 relative z-[1]">
                   <div className="flex items-center gap-3 mb-3">
                     {/* Icon */}
-                    <div 
-                      className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm"
-                      style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
-                    >
+                    <div className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm bg-gradient-icon-standard">
                       <Folder className="h-6 w-6 text-white" />
                     </div>
 
@@ -406,26 +323,15 @@ export function ServiceLineSelector() {
             {!isVaultOnly && !isShared && (
               <Link
                 href={`/dashboard/${serviceLine}/clients`}
-                className="group block rounded-lg border border-forvis-gray-200 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden"
-                style={{
-                  background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
-                }}
+                className="group block rounded-lg border border-forvis-gray-200 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden bg-gradient-dashboard-card"
               >
                 {/* Hover gradient overlay */}
-                <div 
-                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(91, 147, 215, 0.06) 0%, rgba(46, 90, 172, 0.08) 100%)',
-                  }}
-                />
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-gradient-dashboard-hover" />
 
                 <div className="p-4 relative z-[1]">
                   <div className="flex items-center gap-3 mb-3">
                     {/* Icon */}
-                    <div 
-                      className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm"
-                      style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
-                    >
+                    <div className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm bg-gradient-icon-standard">
                       <Building2 className="h-6 w-6 text-white" />
                     </div>
 
@@ -451,26 +357,15 @@ export function ServiceLineSelector() {
             {!isVaultOnly && (
               <Link
                 href={`/dashboard/document-vault?serviceLine=${serviceLine.toUpperCase()}`}
-                className="group block rounded-lg border border-forvis-gray-200 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden"
-                style={{
-                  background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
-                }}
+                className="group block rounded-lg border border-forvis-gray-200 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden bg-gradient-dashboard-card"
               >
                 {/* Hover gradient overlay */}
-                <div 
-                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(91, 147, 215, 0.06) 0%, rgba(46, 90, 172, 0.08) 100%)',
-                  }}
-                />
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-gradient-dashboard-hover" />
 
                 <div className="p-4 relative z-[1]">
                   <div className="flex items-center gap-3 mb-3">
                     {/* Icon */}
-                    <div 
-                      className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm"
-                      style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
-                    >
+                    <div className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm bg-gradient-icon-standard">
                       <FolderOpen className="h-6 w-6 text-white" />
                     </div>
 

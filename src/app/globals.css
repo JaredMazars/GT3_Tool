@@ -86,6 +86,97 @@
   .animate-drawIn {
     animation: drawIn 2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
   }
+
+  /* Forvis Mazars Design System - Gradient Utilities */
+  /* @see docs/design-system/03-gradients.md for complete documentation */
+  
+  /* Primary Brand Gradients */
+  .bg-gradient-primary-diagonal {
+    background: linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%);
+  }
+  
+  .bg-gradient-primary-horizontal {
+    background: linear-gradient(to right, #2E5AAC, #25488A);
+  }
+  
+  /* Dashboard & Card Gradients */
+  .bg-gradient-dashboard-card {
+    background: linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%);
+  }
+  
+  .bg-gradient-dashboard-hover {
+    background: linear-gradient(135deg, rgba(91,147,215,0.06) 0%, rgba(46,90,172,0.08) 100%);
+  }
+  
+  /* Semantic Success Gradients */
+  .bg-gradient-success-light {
+    background: linear-gradient(135deg, #E8F3F1 0%, #C8E3DF 100%);
+  }
+  
+  .bg-gradient-success-button {
+    background: linear-gradient(135deg, #4E9B8E 0%, #2F6A5F 50%, #1F4540 100%);
+  }
+  
+  /* Semantic Error Gradients */
+  .bg-gradient-error-light {
+    background: linear-gradient(135deg, #F7EBF0 0%, #EDCED9 100%);
+  }
+  
+  .bg-gradient-error-button {
+    background: linear-gradient(135deg, #B8546E 0%, #872F48 50%, #581E2F 100%);
+  }
+  
+  /* Semantic Warning Gradients */
+  .bg-gradient-warning-light {
+    background: linear-gradient(135deg, #F8F3E8 0%, #EFE3C8 100%);
+  }
+  
+  .bg-gradient-warning-button {
+    background: linear-gradient(135deg, #C09B4E 0%, #8F6A2F 50%, #5E451F 100%);
+  }
+  
+  /* Premium/Executive Gradients */
+  .bg-gradient-premium-gold {
+    background: linear-gradient(135deg, #D9CBA8 0%, #B0A488 100%);
+  }
+  
+  .bg-gradient-premium-blue-to-gold {
+    background: linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #D9CBA8 100%);
+  }
+  
+  .bg-gradient-premium-workspace {
+    background: linear-gradient(135deg, #F0EAE0 0%, #E0D5C3 100%);
+  }
+  
+  /* Icon Container Gradients */
+  .bg-gradient-icon-standard {
+    background: linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%);
+  }
+  
+  /* Data Visualization Gradients */
+  .bg-gradient-data-red {
+    background: linear-gradient(135deg, #DC2626 0%, #991B1B 100%);
+  }
+  
+  .bg-gradient-data-orange {
+    background: linear-gradient(135deg, #F97316 0%, #EA580C 100%);
+  }
+  
+  .bg-gradient-data-purple {
+    background: linear-gradient(135deg, #C084FC 0%, #9333EA 100%);
+  }
+  
+  .bg-gradient-data-green {
+    background: linear-gradient(135deg, #4ADE80 0%, #16A34A 100%);
+  }
+  
+  .bg-gradient-data-blue {
+    background: linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%);
+  }
+  
+  .bg-gradient-data-gray {
+    background: linear-gradient(135deg, #94A3B8 0%, #64748B 100%);
+  }
 }
 
 @layer components {

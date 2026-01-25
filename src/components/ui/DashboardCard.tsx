@@ -35,17 +35,11 @@ export function DashboardCard({
       onClick={onClick}
       className={`group block rounded-lg border border-forvis-gray-200 ${
         isCompact ? 'shadow-sm hover:shadow-md' : 'shadow-corporate hover:shadow-corporate-md'
-      } transition-all duration-200 relative overflow-hidden`}
-      style={{
-        background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
-      }}
+      } transition-all duration-200 relative overflow-hidden bg-gradient-dashboard-card`}
     >
       {/* Hover gradient overlay */}
       <div
-        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-        style={{
-          background: 'linear-gradient(135deg, rgba(91, 147, 215, 0.06) 0%, rgba(46, 90, 172, 0.08) 100%)',
-        }}
+        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-gradient-dashboard-hover"
       />
 
       {/* Loading overlay */}
@@ -61,10 +55,7 @@ export function DashboardCard({
           // Compact layout (horizontal)
           <div className="flex items-center gap-3">
             {icon && (
-              <div 
-                className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm"
-                style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
-              >
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm bg-gradient-icon-standard">
                 {icon}
               </div>
             )}
@@ -81,10 +72,7 @@ export function DashboardCard({
             {/* Icon and Arrow */}
             <div className="flex items-start justify-between mb-4">
               {icon && (
-                <div 
-                  className="w-12 h-12 rounded-lg flex items-center justify-center transition-transform duration-200 group-hover:scale-110 shadow-sm"
-                  style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
-                >
+                <div className="w-12 h-12 rounded-lg flex items-center justify-center transition-transform duration-200 group-hover:scale-110 shadow-sm bg-gradient-icon-standard">
                   {icon}
                 </div>
               )}

@@ -38,11 +38,7 @@ export function SharedServiceCard({ serviceLineData }: SharedServiceCardProps) {
   const href = `/dashboard/${serviceLine.toLowerCase()}`;
 
   return (
-    <div className="rounded-lg border border-forvis-gray-200 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden"
-      style={{
-        background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
-      }}
-    >
+    <div className="rounded-lg border border-forvis-gray-200 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden bg-gradient-dashboard-card">
       <div className="p-4">
         {/* Main Service Line Link */}
         <Link
@@ -50,20 +46,12 @@ export function SharedServiceCard({ serviceLineData }: SharedServiceCardProps) {
           className="group block mb-3"
         >
           {/* Hover gradient overlay */}
-          <div 
-            className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
-            style={{
-              background: 'linear-gradient(135deg, rgba(91, 147, 215, 0.06) 0%, rgba(46, 90, 172, 0.08) 100%)',
-            }}
-          />
+          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none bg-gradient-dashboard-hover" />
           
           <div className="relative z-[1]">
             <div className="flex items-center gap-3 mb-3">
               {/* Icon */}
-              <div 
-                className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm"
-                style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
-              >
+              <div className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm bg-gradient-icon-standard">
                 <Icon className="h-6 w-6 text-white" />
               </div>
 
