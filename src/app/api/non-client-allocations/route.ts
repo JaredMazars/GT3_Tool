@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db/prisma';
 import { NonClientEventType } from '@/types';
 import { startOfDay } from 'date-fns';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { CreateNonClientAllocationSchema } from '@/lib/validation/schemas';
 
 /**
  * GET /api/non-client-allocations
@@ -76,26 +77,13 @@ export const GET = secureRoute.query({
  */
 export const POST = secureRoute.mutation({
   feature: Feature.MANAGE_TASKS,
+  schema: CreateNonClientAllocationSchema,
   handler: async (request, { user, data }) => {
     const { employeeId, eventType, startDate: startDateStr, endDate: endDateStr, notes } = data;
 
-    if (!employeeId || !eventType || !startDateStr || !endDateStr) {
-      return NextResponse.json(
-        { success: false, error: 'Missing required fields: employeeId, eventType, startDate, endDate' },
-        { status: 400 }
-      );
-    }
-
-    if (!Object.values(NonClientEventType).includes(eventType)) {
-      return NextResponse.json({ success: false, error: 'Invalid event type' }, { status: 400 });
-    }
-
+    // Schema already validates: required fields, valid eventType, startDate <= endDate
     const startDate = startOfDay(new Date(startDateStr));
     const endDate = startOfDay(new Date(endDateStr));
-
-    if (startDate > endDate) {
-      return NextResponse.json({ success: false, error: 'End date cannot be before start date' }, { status: 400 });
-    }
 
     const businessDays = calculateBusinessDays(startDate, endDate);
     if (businessDays === 0) {

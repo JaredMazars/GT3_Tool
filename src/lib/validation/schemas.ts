@@ -267,6 +267,25 @@ export const UpdateTaskAllocationSchema = z.object({
 }).strict();
 
 /**
+ * Non-Client Allocation schemas (leave, training, etc.)
+ */
+export const CreateNonClientAllocationSchema = z.object({
+  employeeId: z.number().int().positive('Employee ID must be a positive integer'),
+  eventType: z.enum(['TRAINING', 'ANNUAL_LEAVE', 'SICK_LEAVE', 'PUBLIC_HOLIDAY', 'PERSONAL', 'ADMINISTRATIVE'], {
+    errorMap: () => ({ message: 'Invalid event type' })
+  }),
+  startDate: z.coerce.date(),
+  endDate: z.coerce.date(),
+  notes: safeString(500).optional().nullable(),
+}).strict().refine(
+  (data) => data.startDate <= data.endDate,
+  {
+    message: 'End date must be on or after start date',
+    path: ['endDate'],
+  }
+);
+
+/**
  * Client validation schemas
  */
 export const UpdateClientSchema = z.object({
@@ -1188,6 +1207,7 @@ export type UpdateServiceLineMasterInput = z.infer<typeof UpdateServiceLineMaste
 export type ReorderServiceLineMasterInput = z.infer<typeof ReorderServiceLineMasterSchema>;
 export type CreateTaskAllocationInput = z.infer<typeof CreateTaskAllocationSchema>;
 export type UpdateTaskAllocationInput = z.infer<typeof UpdateTaskAllocationSchema>;
+export type CreateNonClientAllocationInput = z.infer<typeof CreateNonClientAllocationSchema>;
 
 /**
  * Page Permission validation schemas

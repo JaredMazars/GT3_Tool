@@ -554,8 +554,8 @@ export default function SubServiceLineWorkspacePage() {
         });
       }
       
-      // Only add allocation if it has valid data (taskId > 0 means it's a real allocation)
-      if (alloc.taskId > 0) {
+      // Add all allocations: task allocations (taskId > 0) AND non-client events (taskId === 0 && isNonClientEvent)
+      if (alloc.taskId > 0 || alloc.isNonClientEvent) {
         employeeMap.get(alloc.userId).allocations.push({
           id: alloc.allocationId,
           taskId: alloc.taskId,

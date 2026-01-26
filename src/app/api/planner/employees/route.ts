@@ -535,6 +535,59 @@ export const GET = secureRoute.query({
         })
       : [];
 
+    // Fetch non-client allocations (leave, training, etc.)
+    const t5b = Date.now();
+    let employeeIds: number[] = [];
+    
+    if (allServiceLineEmployees.length > 0) {
+      // Use the filtered employee list if available (timeline view or filtered list view)
+      employeeIds = allServiceLineEmployees.map(emp => emp.id);
+    } else {
+      // For list view without filters, get employee IDs from the task allocations
+      const userIds = [...new Set(taskTeamAllocations.map(a => a.userId))];
+      if (userIds.length > 0) {
+        const userEmployeeMap = await mapUsersToEmployees(userIds);
+        employeeIds = Array.from(userEmployeeMap.values())
+          .map(emp => emp.id)
+          .filter(Boolean) as number[];
+      }
+    }
+    
+    const nonClientAllocations = employeeIds.length > 0 
+      ? await prisma.nonClientAllocation.findMany({
+          where: {
+            employeeId: { in: employeeIds }
+          },
+          select: {
+            id: true,
+            employeeId: true,
+            eventType: true,
+            startDate: true,
+            endDate: true,
+            allocatedHours: true,
+            allocatedPercentage: true,
+            notes: true,
+            Employee: {
+              select: {
+                id: true,
+                EmpCode: true,
+                EmpName: true,
+                EmpNameFull: true,
+                WinLogon: true,
+                EmpCatCode: true,
+                OfficeCode: true,
+                ServLineCode: true
+              }
+            }
+          },
+          orderBy: [
+            { Employee: { EmpNameFull: 'asc' } },
+            { startDate: 'asc' }
+          ]
+        })
+      : [];
+    perfLog.nonClientAllocationsQuery = Date.now() - t5b;
+
     // Fetch employee status
     const t6 = Date.now();
     const allEmployeeCodes = Array.from(employeeMap.values())
@@ -641,8 +694,64 @@ export const GET = secureRoute.query({
       };
     }));
     
-    // Merge current service line and cross-service-line allocations
-    const mergedAllocationRows = [...allocationRows, ...crossServiceLineRows];
+    // Transform non-client allocations and add them
+    const t8 = Date.now();
+    const nonClientEmployeeRecords = nonClientAllocations.map(a => a.Employee);
+    const nonClientEmployeeToUserMap = nonClientEmployeeRecords.length > 0 
+      ? await mapEmployeesToUsers(nonClientEmployeeRecords)
+      : new Map();
+    
+    const nonClientRows = await Promise.all(nonClientAllocations.map(async (allocation) => {
+      const employee = allocation.Employee;
+      const user = nonClientEmployeeToUserMap.get(employee.id);
+      
+      if (!user) {
+        // Skip if no user mapping found (employee has no User account)
+        return null;
+      }
+
+      const servLineGroup = employee.ServLineCode ? servLineCodeToGroup.get(employee.ServLineCode) : null;
+      const serviceLineRole = servLineGroup?.code 
+        ? (userServiceLineRoleMap.get(user.id)?.get(servLineGroup.code) || 'USER')
+        : 'USER';
+      
+      let empStatus = employee.EmpCode ? employeeStatusMap.get(employee.EmpCode) : undefined;
+
+      return {
+        allocationId: allocation.id,
+        userId: user.id,
+        employeeId: employee.id,
+        userName: user.name || employee.EmpNameFull,
+        userEmail: user.email,
+        jobGradeCode: employee.EmpCatCode || null,
+        serviceLineRole: serviceLineRole,
+        officeLocation: employee.OfficeCode?.trim() || null,
+        serviceLine: employee.ServLineCode || null,
+        subServiceLineGroup: servLineGroup?.code || null,
+        clientId: null,
+        clientName: `Non-Client: ${allocation.eventType.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (l: string) => l.toUpperCase())}`,
+        clientCode: 'NON_CLIENT',
+        taskId: 0,
+        taskName: allocation.eventType.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (l: string) => l.toUpperCase()),
+        taskCode: null,
+        startDate: startOfDay(allocation.startDate),
+        endDate: startOfDay(allocation.endDate),
+        role: 'USER',
+        allocatedHours: allocation.allocatedHours ? parseFloat(allocation.allocatedHours.toString()) : null,
+        allocatedPercentage: allocation.allocatedPercentage,
+        actualHours: null,
+        isNonClientEvent: true,
+        nonClientEventType: allocation.eventType,
+        notes: allocation.notes,
+        isCurrentTask: true,
+        employeeStatus: empStatus
+      };
+    }));
+    perfLog.nonClientTransformation = Date.now() - t8;
+    
+    // Filter out nulls and merge all allocations
+    const validNonClientRows = nonClientRows.filter(row => row !== null) as AllocationRow[];
+    const mergedAllocationRows = [...allocationRows, ...crossServiceLineRows, ...validNonClientRows];
     
     // Add employees with no allocations for timeline view
     let finalAllocationRows = mergedAllocationRows;

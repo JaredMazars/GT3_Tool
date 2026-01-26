@@ -461,6 +461,60 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
         })
       : [];
 
+    // 9b. Fetch non-client allocations (leave, training, etc.)
+    // Determine which employees to fetch non-client allocations for
+    const t4b = Date.now();
+    let employeeIds: number[] = [];
+    
+    if (allServiceLineEmployees.length > 0) {
+      // Use the filtered employee list if available (timeline view or filtered list view)
+      employeeIds = allServiceLineEmployees.map(emp => emp.id);
+    } else {
+      // For list view without filters, get employee IDs from the task allocations
+      // This prevents unbounded queries while still showing non-client events for allocated employees
+      const userIds = [...new Set(taskTeamAllocations.map(a => a.userId))];
+      if (userIds.length > 0) {
+        const userEmployeeMap = await mapUsersToEmployees(userIds);
+        employeeIds = Array.from(userEmployeeMap.values())
+          .map(emp => emp.id)
+          .filter(Boolean) as number[];
+      }
+    }
+    
+    const nonClientAllocations = employeeIds.length > 0 
+      ? await prisma.nonClientAllocation.findMany({
+          where: {
+            employeeId: { in: employeeIds }
+          },
+          select: {
+            id: true,
+            employeeId: true,
+            eventType: true,
+            startDate: true,
+            endDate: true,
+            allocatedHours: true,
+            allocatedPercentage: true,
+            notes: true,
+            Employee: {
+              select: {
+                id: true,
+                EmpCode: true,
+                EmpName: true,
+                EmpNameFull: true,
+                WinLogon: true,
+                EmpCatCode: true,
+                OfficeCode: true
+              }
+            }
+          },
+          orderBy: [
+            { Employee: { EmpNameFull: 'asc' } },
+            { startDate: 'asc' }
+          ]
+        })
+      : [];
+    perfLog.nonClientAllocationsQuery = Date.now() - t4b;
+
     // 10. Get user IDs and fetch Employee data for job grade and office filters
     // Optimize: If we already have employee-to-user mapping, build reverse map instead of querying again
     const t5 = Date.now();
@@ -624,8 +678,62 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
       };
     }));
     
-    // 12b. Merge current service line and cross-service-line allocations
-    const mergedAllocationRows = [...allocationRows, ...crossServiceLineRows];
+    // 12b. Transform non-client allocations and add them
+    const t6c = Date.now();
+    // Map non-client allocations to user IDs using employees we already have
+    const nonClientEmployeeRecords = nonClientAllocations.map(a => a.Employee);
+    const nonClientEmployeeToUserMap = nonClientEmployeeRecords.length > 0 
+      ? await mapEmployeesToUsers(nonClientEmployeeRecords)
+      : new Map();
+    
+    const nonClientRows = await Promise.all(nonClientAllocations.map(async (allocation) => {
+      const employee = allocation.Employee;
+      // Map employee to user
+      const user = nonClientEmployeeToUserMap.get(employee.id);
+      
+      if (!user) {
+        // Skip if no user mapping found (employee has no User account)
+        return null;
+      }
+
+      const serviceLineRole = userServiceLineRoleMap.get(user.id) || 'USER';
+      
+      // Try to get employee status from batch lookup
+      let empStatus = employee.EmpCode ? employeeStatusMap.get(employee.EmpCode) : undefined;
+
+      return {
+        allocationId: allocation.id,
+        userId: user.id,
+        employeeId: employee.id,
+        userName: user.name || employee.EmpNameFull,
+        userEmail: user.email,
+        jobGradeCode: employee.EmpCatCode || null,
+        serviceLineRole: serviceLineRole,
+        officeLocation: employee.OfficeCode?.trim() || null,
+        clientId: null,
+        clientName: `Non-Client: ${allocation.eventType.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (l: string) => l.toUpperCase())}`,
+        clientCode: 'NON_CLIENT',
+        taskId: 0, // No task for non-client events
+        taskName: allocation.eventType.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (l: string) => l.toUpperCase()),
+        taskCode: null,
+        startDate: startOfDay(allocation.startDate),
+        endDate: startOfDay(allocation.endDate),
+        role: 'USER',
+        allocatedHours: allocation.allocatedHours ? parseFloat(allocation.allocatedHours.toString()) : null,
+        allocatedPercentage: allocation.allocatedPercentage,
+        actualHours: null,
+        isNonClientEvent: true,
+        nonClientEventType: allocation.eventType,
+        notes: allocation.notes,
+        isCurrentTask: true, // Non-client events are editable
+        employeeStatus: empStatus
+      };
+    }));
+    perfLog.nonClientTransformation = Date.now() - t6c;
+    
+    // Filter out nulls and merge all allocations
+    const validNonClientRows = nonClientRows.filter(row => row !== null) as AllocationRow[];
+    const mergedAllocationRows = [...allocationRows, ...crossServiceLineRows, ...validNonClientRows];
     
     // 13. For timeline view with includeUnallocated, add employees with no allocations
     let finalAllocationRows = mergedAllocationRows;

@@ -23,6 +23,8 @@ interface AllocationData {
   allocatedPercentage: number | null;
   actualHours: number | null;
   isCurrentTask: boolean;
+  isNonClientEvent?: boolean;
+  nonClientEventType?: string;
 }
 
 interface FlatAllocationData extends AllocationData {
@@ -62,6 +64,34 @@ export const GET = secureRoute.query({
       },
       orderBy: [{ startDate: 'asc' }, { id: 'asc' }],
       take: MAX_ALLOCATIONS,
+    });
+
+    // Query non-client allocations for the current user
+    const nonClientAllocations = await prisma.nonClientAllocation.findMany({
+      where: {
+        Employee: {
+          WinLogon: user.id
+        }
+      },
+      select: {
+        id: true,
+        employeeId: true,
+        eventType: true,
+        startDate: true,
+        endDate: true,
+        allocatedHours: true,
+        allocatedPercentage: true,
+        notes: true,
+        Employee: {
+          select: {
+            id: true,
+            EmpCode: true,
+            EmpName: true,
+          }
+        }
+      },
+      orderBy: { startDate: 'asc' },
+      take: MAX_ALLOCATIONS
     });
 
     const servLineCodes = [...new Set(userAllocations.map(a => a.Task.ServLineCode).filter(Boolean))];
@@ -121,6 +151,48 @@ export const GET = secureRoute.query({
         clientId,
         serviceLine: serviceLineInfo?.masterCode || null,
         subServiceLineGroup: serviceLineInfo?.subServiceLineGroup || null
+      });
+    });
+
+    // Add non-client allocations (training, leave, etc.)
+    nonClientAllocations.forEach(allocation => {
+      const eventName = allocation.eventType.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (l: string) => l.toUpperCase());
+      const clientKey = `NON_CLIENT_${allocation.eventType}` as unknown as number | null;
+      
+      if (!clientMap.has(clientKey)) {
+        clientMap.set(clientKey, {
+          clientId: null,
+          clientName: `Non-Client: ${eventName}`,
+          clientCode: 'NON_CLIENT',
+          allocations: []
+        });
+      }
+      
+      const allocationData: AllocationData = {
+        id: allocation.id,
+        taskId: 0, // Non-client events don't have tasks
+        taskName: eventName,
+        taskCode: null,
+        clientName: `Non-Client: ${eventName}`,
+        clientCode: 'NON_CLIENT',
+        role: 'USER',
+        startDate: allocation.startDate,
+        endDate: allocation.endDate,
+        allocatedHours: allocation.allocatedHours ? parseFloat(allocation.allocatedHours.toString()) : null,
+        allocatedPercentage: allocation.allocatedPercentage,
+        actualHours: null,
+        isCurrentTask: true,
+        isNonClientEvent: true,
+        nonClientEventType: allocation.eventType
+      };
+      
+      clientMap.get(clientKey)!.allocations.push(allocationData);
+      
+      flatList.push({
+        ...allocationData,
+        clientId: null,
+        serviceLine: null,
+        subServiceLineGroup: null
       });
     });
 
