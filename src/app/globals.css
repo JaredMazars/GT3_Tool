@@ -1,0 +1,327 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply font-sans antialiased;
+    color: #343A40; /* forvis-gray-800 */
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold;
+    color: #212529; /* forvis-gray-900 */
+  }
+  
+  h1 {
+    @apply text-3xl md:text-4xl;
+  }
+  
+  h2 {
+    @apply text-2xl md:text-3xl;
+  }
+  
+  h3 {
+    @apply text-xl md:text-2xl;
+  }
+}
+
+@layer utilities {
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes drawIn {
+    0% {
+      opacity: 0;
+      transform: translateX(-20px) scale(0.7);
+    }
+    40% {
+      opacity: 0.3;
+      transform: translateX(-8px) scale(0.85);
+    }
+    70% {
+      opacity: 0.7;
+      transform: translateX(-2px) scale(0.97);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+    }
+  }
+
+  @keyframes edgeHighlight {
+    0% {
+      left: -100%;
+    }
+    100% {
+      left: 100%;
+    }
+  }
+
+  .animate-fadeIn {
+    animation: fadeIn 0.2s ease-out;
+  }
+
+  .animate-scaleIn {
+    animation: scaleIn 0.2s ease-out;
+  }
+
+  .animate-drawIn {
+    animation: drawIn 2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  }
+
+  /* Forvis Mazars Design System - Gradient Utilities */
+  /* @see docs/design-system/03-gradients.md for complete documentation */
+  
+  /* Primary Brand Gradients */
+  .bg-gradient-primary-diagonal {
+    background: linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%);
+  }
+  
+  .bg-gradient-primary-horizontal {
+    background: linear-gradient(to right, #2E5AAC, #25488A);
+  }
+  
+  /* Dashboard & Card Gradients */
+  .bg-gradient-dashboard-card {
+    background: linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%);
+  }
+  
+  .bg-gradient-dashboard-hover {
+    background: linear-gradient(135deg, rgba(91,147,215,0.06) 0%, rgba(46,90,172,0.08) 100%);
+  }
+  
+  /* Semantic Success Gradients */
+  .bg-gradient-success-light {
+    background: linear-gradient(135deg, #E8F3F1 0%, #C8E3DF 100%);
+  }
+  
+  .bg-gradient-success-button {
+    background: linear-gradient(135deg, #4E9B8E 0%, #2F6A5F 50%, #1F4540 100%);
+  }
+  
+  /* Semantic Error Gradients */
+  .bg-gradient-error-light {
+    background: linear-gradient(135deg, #F7EBF0 0%, #EDCED9 100%);
+  }
+  
+  .bg-gradient-error-button {
+    background: linear-gradient(135deg, #B8546E 0%, #872F48 50%, #581E2F 100%);
+  }
+  
+  /* Semantic Warning Gradients */
+  .bg-gradient-warning-light {
+    background: linear-gradient(135deg, #F8F3E8 0%, #EFE3C8 100%);
+  }
+  
+  .bg-gradient-warning-button {
+    background: linear-gradient(135deg, #C09B4E 0%, #8F6A2F 50%, #5E451F 100%);
+  }
+  
+  /* Premium/Executive Gradients */
+  .bg-gradient-premium-gold {
+    background: linear-gradient(135deg, #D9CBA8 0%, #B0A488 100%);
+  }
+  
+  .bg-gradient-premium-blue-to-gold {
+    background: linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #D9CBA8 100%);
+  }
+  
+  .bg-gradient-premium-workspace {
+    background: linear-gradient(135deg, #F0EAE0 0%, #E0D5C3 100%);
+  }
+  
+  /* Icon Container Gradients */
+  .bg-gradient-icon-standard {
+    background: linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%);
+  }
+  
+  /* Data Visualization Gradients */
+  .bg-gradient-data-red {
+    background: linear-gradient(135deg, #DC2626 0%, #991B1B 100%);
+  }
+  
+  .bg-gradient-data-orange {
+    background: linear-gradient(135deg, #F97316 0%, #EA580C 100%);
+  }
+  
+  .bg-gradient-data-purple {
+    background: linear-gradient(135deg, #C084FC 0%, #9333EA 100%);
+  }
+  
+  .bg-gradient-data-green {
+    background: linear-gradient(135deg, #4ADE80 0%, #16A34A 100%);
+  }
+  
+  .bg-gradient-data-blue {
+    background: linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%);
+  }
+  
+  .bg-gradient-data-gray {
+    background: linear-gradient(135deg, #94A3B8 0%, #64748B 100%);
+  }
+}
+
+@layer components {
+  /* 
+   * Legacy CSS classes - DEPRECATED
+   * Use UI components from @/components/ui instead:
+   * - <Button variant="primary" /> instead of .btn-primary
+   * - <Button variant="secondary" /> instead of .btn-secondary
+   * - <Card variant="standard" /> instead of .card
+   * - <Input /> instead of .input-field
+   * 
+   * These classes are kept for backward compatibility only.
+   * They will be removed in a future update once all components are migrated.
+   */
+  
+  .btn-primary {
+    @apply inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white transition-all duration-200;
+    background-color: #2E5AAC; /* forvis-blue-500 */
+    box-shadow: 0 1px 3px 0 rgba(46, 90, 172, 0.1), 0 1px 2px 0 rgba(46, 90, 172, 0.06);
+  }
+  
+  .btn-primary:hover {
+    background-color: #25488A; /* forvis-blue-600 */
+    box-shadow: 0 4px 6px -1px rgba(46, 90, 172, 0.1), 0 2px 4px -1px rgba(46, 90, 172, 0.06);
+  }
+  
+  .btn-primary:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(46, 90, 172, 0.5);
+  }
+  
+  .btn-secondary {
+    @apply inline-flex items-center px-4 py-2 border rounded-lg text-sm font-medium bg-white transition-all duration-200;
+    border-color: #DEE2E6; /* forvis-gray-300 */
+    color: #495057; /* forvis-gray-700 */
+  }
+  
+  .btn-secondary:hover {
+    background-color: #F8F9FA; /* forvis-gray-50 */
+  }
+  
+  .btn-secondary:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(46, 90, 172, 0.5);
+  }
+  
+  .card {
+    @apply bg-white rounded-lg border;
+    border-color: #E9ECEF; /* forvis-gray-200 */
+    box-shadow: 0 1px 3px 0 rgba(46, 90, 172, 0.1), 0 1px 2px 0 rgba(46, 90, 172, 0.06);
+  }
+  
+  .card-hover {
+    @apply card transition-shadow duration-200;
+  }
+  
+  .card-hover:hover {
+    box-shadow: 0 4px 6px -1px rgba(46, 90, 172, 0.1), 0 2px 4px -1px rgba(46, 90, 172, 0.06);
+  }
+  
+  .input-field {
+    @apply block w-full px-4 py-2 border rounded-lg text-sm transition-colors;
+    border-color: #DEE2E6; /* forvis-gray-300 */
+  }
+  
+  .input-field:focus {
+    outline: none;
+    border-color: #2E5AAC; /* forvis-blue-500 */
+    box-shadow: 0 0 0 3px rgba(46, 90, 172, 0.1);
+  }
+}
+
+/* Print Styles */
+@media print {
+  /* Hide navigation, buttons, and interactive elements */
+  nav,
+  button,
+  .no-print,
+  [class*="hover:"],
+  [class*="cursor-pointer"] {
+    display: none !important;
+  }
+
+  /* Reset page margins */
+  @page {
+    margin: 1cm;
+    size: A4;
+  }
+
+  body {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* Optimize page breaks */
+  .print-section {
+    page-break-after: always;
+    page-break-inside: avoid;
+  }
+
+  /* Ensure tables don't break awkwardly */
+  table {
+    page-break-inside: auto;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+
+  /* Optimize colors for printing */
+  .bg-gradient-to-r,
+  .bg-gradient-to-br {
+    background: #f3f4f6 !important;
+  }
+
+  /* Remove shadows for cleaner print */
+  .shadow-sm,
+  .shadow,
+  .shadow-md,
+  .shadow-lg,
+  .shadow-xl {
+    box-shadow: none !important;
+  }
+
+  /* Ensure borders are visible */
+  .border {
+    border-color: #000 !important;
+  }
+
+  /* Make text readable */
+  .text-white {
+    color: #000 !important;
+  }
+
+  /* Remove background colors from cards */
+  .rounded-lg {
+    border-radius: 0 !important;
+  }
+}

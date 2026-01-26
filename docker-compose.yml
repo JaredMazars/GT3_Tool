@@ -1,0 +1,100 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: mapper-postgres
+    environment:
+      POSTGRES_DB: mapper_production
+      POSTGRES_USER: mapperadmin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme123}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mapperadmin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mapper-network
+
+  # Next.js Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mapper-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Database
+      DATABASE_URL: postgresql://mapperadmin:${POSTGRES_PASSWORD:-changeme123}@postgres:5432/mapper_production?schema=public
+      
+      # OpenAI
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      
+      # NextAuth
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      
+      # Azure AD
+      AZURE_AD_CLIENT_ID: ${AZURE_AD_CLIENT_ID}
+      AZURE_AD_CLIENT_SECRET: ${AZURE_AD_CLIENT_SECRET}
+      AZURE_AD_TENANT_ID: ${AZURE_AD_TENANT_ID}
+      
+      # Azure Blob Storage (optional for local testing)
+      AZURE_STORAGE_CONNECTION_STRING: ${AZURE_STORAGE_CONNECTION_STRING}
+      AZURE_STORAGE_CONTAINER_NAME: ${AZURE_STORAGE_CONTAINER_NAME:-adjustment-documents}
+      
+      # Azure AI Search (optional - for RAG/document search in tax opinions)
+      AZURE_SEARCH_ENDPOINT: ${AZURE_SEARCH_ENDPOINT}
+      AZURE_SEARCH_API_KEY: ${AZURE_SEARCH_API_KEY}
+      AZURE_SEARCH_INDEX_NAME: ${AZURE_SEARCH_INDEX_NAME:-opinion-documents}
+      
+      # App Config
+      NODE_ENV: production
+      MAX_FILE_UPLOAD_SIZE: 10485760
+      RATE_LIMIT_MAX_REQUESTS: 10
+      RATE_LIMIT_WINDOW_MS: 60000
+    ports:
+      - "3000:3000"
+    networks:
+      - mapper-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); })"]
+      interval: 30s
+      timeout: 10s
+      start_period: 40s
+      retries: 3
+
+  # Azure Storage Emulator (Azurite) - for local blob storage testing
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite
+    container_name: mapper-azurite
+    ports:
+      - "10000:10000"  # Blob service
+      - "10001:10001"  # Queue service
+      - "10002:10002"  # Table service
+    volumes:
+      - azurite_data:/data
+    command: azurite-blob --blobHost 0.0.0.0 --loose
+    networks:
+      - mapper-network
+
+volumes:
+  postgres_data:
+    driver: local
+  azurite_data:
+    driver: local
+
+networks:
+  mapper-network:
+    driver: bridge
+
+
+

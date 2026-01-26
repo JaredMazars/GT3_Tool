@@ -1,0 +1,20 @@
+{
+  "extends": ["next/core-web-vitals", "next/typescript"],
+  "rules": {
+    // Enforce no 'any' types - use specific types or 'unknown' instead
+    // Existing violations are grandfathered but new code should avoid 'any'
+    "@typescript-eslint/no-explicit-any": "error",
+    "@typescript-eslint/explicit-function-return-type": "off",
+    "no-console": ["warn", { "allow": ["error", "warn"] }],
+    "@typescript-eslint/no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_"
+      }
+    ],
+    "prefer-const": "warn",
+    "no-var": "error",
+    "react/no-unescaped-entities": "warn"
+  }
+}

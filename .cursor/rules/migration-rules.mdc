@@ -1,0 +1,1188 @@
+---
+alwaysApply: false
+version: 1.2.0
+lastUpdated: 2026-01-25
+description: Prisma migration best practices for SQL Server - handles timeouts, schema drift, and deployment workflows
+changelog:
+  - "1.2.0 (2026-01-25): Added mandatory schema synchronization with prisma db pull after migrations, automated drift detection section, pre-commit hooks, and NPM scripts"
+  - "1.1.0 (2026-01-24): Added schema conventions section - @updatedAt requirement for all models"
+  - "1.0.0 (2026-01-24): Initial migration rules documentation"
+---
+
+# Prisma + SQL Server Migration Rules
+
+**Database:** SQL Server (Azure SQL Database)  
+**ORM:** Prisma 6.x  
+**Challenge:** SQL Server has unique migration requirements compared to PostgreSQL/MySQL
+
+## Core Principles
+
+1. **SQL Server is different** - Don't assume PostgreSQL/MySQL patterns work
+2. **Shadow database is optional** - Not required for all workflows
+3. **Large tables need manual handling** - Timeout issues are unavoidable
+4. **Schema drift must be prevented** - Inconsistent workflows cause drift
+5. **Always verify state** - Check migration status before and after operations
+6. **Sync schema after migrations** - Run `prisma db pull` to capture auto-created indexes
+
+---
+
+## CRITICAL: Schema Synchronization
+
+**ALWAYS run `npx prisma db pull` after migrations** to capture auto-created indexes and constraints. Prisma creates indexes for foreign keys but doesn't always add them to schema.prisma, causing "silent drift."
+
+**Quick Check:**
+```bash
+npx prisma db pull --print | grep "@@index" | wc -l  # Count indexes in DB
+grep "@@index" prisma/schema.prisma | wc -l         # Count in schema
+# Numbers should match!
+```
+
+**If counts differ:** Run `npx prisma db pull` to sync, review changes, and commit.
+
+---
+
+## Schema Conventions (CRITICAL)
+
+**Before creating any migration, ensure your schema follows these conventions:**
+
+### Timestamp Fields - ALWAYS Use @updatedAt
+
+```prisma
+// ✅ CORRECT - Auto-managed timestamps
+model YourModel {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt  // REQUIRED
+}
+
+// ❌ WRONG - Will cause TypeScript build errors
+model YourModel {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime  // Missing @updatedAt
+}
+```
+
+**Why this matters:**
+- Without `@updatedAt`, developers must manually provide `updatedAt: new Date()` in every create/update
+- Forgetting this causes TypeScript build errors
+- `@updatedAt` makes the field optional and auto-managed
+
+**See:** `.cursor/rules/database-patterns.mdc` for complete Prisma schema conventions
+
+---
+
+## Quick Decision Matrix
+
+| Scenario | Command | When to Use |
+|----------|---------|-------------|
+| **Development (rapid iteration)** | `prisma db push` | Testing schema changes, no migration file needed |
+| **Development (production-bound)** | `prisma migrate dev` | Changes going to production, need migration history |
+| **Production (standard)** | `prisma migrate deploy` | Migrations < 30 seconds, normal tables |
+| **Production (large tables)** | Manual SQL + `migrate resolve` | Migrations > 30 seconds, large indexes |
+| **Check status** | `prisma migrate status` | Before deployment, after manual migrations |
+| **Fix drift** | `prisma db pull` | Compare actual DB with schema.prisma |
+| **Sync schema after migration** | `prisma db pull` | After any migration to capture auto-created indexes |
+
+---
+
+## 1. Development Workflows
+
+### Option A: `prisma db push` (Recommended for Development)
+
+**Use when:**
+- Rapid prototyping and iteration
+- Testing schema changes locally
+- Don't need migration files yet
+- Want to avoid shadow database issues
+
+**How it works:**
+- Syncs `schema.prisma` directly to database
+- No migration files created
+- No shadow database required
+- Fast and simple
+
+**Commands:**
+```bash
+# Make changes in prisma/schema.prisma
+npx prisma db push
+
+# Regenerate Prisma Client
+npx prisma generate
+```
+
+**Pros:**
+- ✅ No shadow database needed
+- ✅ Fast iteration cycle
+- ✅ No migration files to manage
+- ✅ Works great with SQL Server
+
+**Cons:**
+- ❌ No migration history
+- ❌ Can't apply to production via `migrate deploy`
+- ❌ Harder to track changes over time
+
+**When to switch:** Once schema stabilizes and you need to deploy to production, create a migration with `migrate dev`
+
+---
+
+### Option B: `prisma migrate dev` (For Production-Ready Changes)
+
+**Use when:**
+- Creating production-bound schema changes
+- Need migration version control
+- Team collaboration requires migration files
+- Want to track schema evolution
+
+**How it works:**
+- Creates timestamped migration files
+- Applies migration to dev database
+- Requires shadow database (or use `--create-only`)
+- Generates SQL that can be reviewed
+
+**Commands:**
+```bash
+# Standard: Apply migration immediately
+npx prisma migrate dev --name descriptive_name
+
+# Create migration file only (review before applying)
+npx prisma migrate dev --name descriptive_name --create-only
+
+# Apply after reviewing
+npx prisma migrate deploy
+```
+
+**Pros:**
+- ✅ Version control for schema changes
+- ✅ Can review SQL before applying
+- ✅ Team collaboration-friendly
+- ✅ Production deployment via `migrate deploy`
+
+**Cons:**
+- ❌ Requires shadow database (or `--create-only` flag)
+- ❌ Slower than `db push`
+- ❌ More complex workflow
+
+**Shadow Database Requirement:**
+- Shadow database must be on same server as main database
+- User must have CREATE/DROP DATABASE permissions
+- Alternative: Use `--create-only` flag to skip shadow database
+
+---
+
+### Hybrid Workflow (Best Practice)
+
+**Development Phase:**
+```bash
+# Rapid iteration with db push
+prisma db push
+```
+
+**Pre-Production Phase:**
+```bash
+# Create migration for production
+prisma migrate dev --name your_change --create-only
+
+# Review generated SQL in:
+# prisma/migrations/[timestamp]_your_change/migration.sql
+
+# Apply locally to test
+prisma migrate deploy
+```
+
+**Production Deployment:**
+```bash
+# Standard migrations
+prisma migrate deploy
+
+# Large table migrations
+# (see Section 3: Large Table Migrations)
+```
+
+---
+
+### Schema Synchronization (REQUIRED After Migrations)
+
+**Problem**: Prisma auto-creates indexes for foreign keys/constraints but doesn't always add `@@index` directives to schema.prisma. This causes "silent drift" where your database has indexes that aren't documented in your schema file.
+
+**Solution**: Always run `prisma db pull` after migrations to capture database state.
+
+**Commands:**
+```bash
+# After any migration (dev or deploy)
+npx prisma migrate dev --name your_change
+npx prisma db pull  # Captures auto-created indexes
+git diff prisma/schema.prisma  # Review what changed
+
+# If changes detected, commit them
+git add prisma/schema.prisma
+git commit -m "Sync schema with auto-created indexes"
+```
+
+**What gets synced:**
+- Auto-created foreign key indexes
+- Constraint-based indexes
+- Any manual database changes
+- Index names and configurations
+
+**Make this a habit:** Add `prisma db pull` to your post-migration checklist. The few seconds it takes can save hours of debugging schema drift issues.
+
+---
+
+## 2. SQL Server-Specific Considerations
+
+### Case Sensitivity
+
+**CRITICAL:** SQL Server uses **collation-based** case sensitivity, NOT mode parameters.
+
+```typescript
+// ✅ CORRECT - SQL Server default collation is case-insensitive
+const clients = await prisma.client.findMany({
+  where: {
+    clientName: { contains: 'forvis' } // Finds 'Forvis', 'FORVIS', 'forvis'
+  }
+});
+
+// ❌ WRONG - mode: 'insensitive' is PostgreSQL/MySQL only
+const clients = await prisma.client.findMany({
+  where: {
+    clientName: { contains: 'forvis', mode: 'insensitive' } // Runtime error!
+  }
+});
+```
+
+**Default Collation:** `SQL_Latin1_General_CP1_CI_AS` (CI = Case Insensitive, AS = Accent Sensitive)
+
+---
+
+### Index Limitations
+
+**Key Columns:**
+- Max 16 columns per index
+- Max 900 bytes for key columns
+- Includes columns don't count toward 900-byte limit
+
+**Included Columns:**
+- Max 1024 columns (effectively unlimited)
+- Max 1700 bytes total size
+
+**Covering Indexes:**
+```sql
+-- ✅ CORRECT - Use INCLUDE for large columns
+CREATE INDEX idx_client_lookup 
+ON Client(clientCode) 
+INCLUDE (clientName, groupCode, Active);
+
+-- ❌ WRONG - Large VARCHAR in key columns exceeds 900 bytes
+CREATE INDEX idx_client_lookup 
+ON Client(clientCode, clientName, groupCode); -- May fail if clientName is large
+```
+
+---
+
+### Timeout Behavior
+
+**Prisma Migration Timeout:**
+- Default: **30 seconds** (cannot be increased)
+- Applies to: CREATE INDEX, ALTER TABLE, UPDATE STATISTICS
+- Workaround: Manual migration for long operations
+
+**Operations That Typically Timeout:**
+- Creating indexes on tables > 500K rows
+- Adding columns with default values to large tables
+- Updating statistics on large indexes
+- Complex ALTER TABLE operations
+
+**Solution:** See Section 3 (Large Table Migrations)
+
+---
+
+### Transaction Behavior
+
+**Prisma Migrations:**
+- Each migration runs in a transaction by default
+- Transaction rollback on failure (safe)
+- Long transactions can cause blocking
+
+**Manual Migrations:**
+```sql
+BEGIN TRANSACTION;
+
+-- Your migration steps
+CREATE INDEX idx_name ON TableName(column);
+UPDATE STATISTICS TableName;
+
+-- Explicitly commit
+COMMIT TRANSACTION;
+
+-- If error occurs, transaction auto-rolls back
+```
+
+---
+
+## 3. Large Table Migrations (> 500K rows)
+
+### Problem
+
+Tables like `WIPTransactions`, `DRSTransactions`, `Wip`, `Debtors` cause timeouts when:
+- Creating indexes (5-15 minutes)
+- Adding columns with defaults
+- Updating foreign keys
+
+### Solution: Manual Migration + Resolve
+
+**Step 1: Create Migration File**
+```bash
+# Generate migration without applying
+npx prisma migrate dev --name your_change --create-only
+```
+
+**Step 2: Review Generated SQL**
+```bash
+# File location:
+# prisma/migrations/[timestamp]_your_change/migration.sql
+```
+
+**Step 3: Estimate Execution Time**
+```sql
+-- Check table size
+SELECT 
+    t.name AS TableName,
+    p.rows AS RowCount,
+    SUM(a.total_pages) * 8 / 1024 AS TotalSizeMB
+FROM sys.tables t
+JOIN sys.partitions p ON t.object_id = p.object_id
+JOIN sys.allocation_units a ON p.partition_id = a.container_id
+WHERE t.name = 'WIPTransactions'
+GROUP BY t.name, p.rows;
+```
+
+**If > 500K rows and creating indexes, go to Step 4**
+
+**Step 4: Apply Manually**
+
+**Option A: Azure Data Studio (Recommended)**
+1. Connect to database
+2. Open migration SQL file
+3. Add progress tracking (optional):
+   ```sql
+   PRINT 'Starting migration...';
+   -- migration steps
+   PRINT 'Step 1 complete';
+   ```
+4. Execute (F5)
+5. Monitor Messages tab
+
+**Option B: sqlcmd (Command Line)**
+```bash
+# Note: If password contains special characters, wrap in single quotes
+sqlcmd -S server.database.windows.net \
+       -d database-name \
+       -U username \
+       -P 'SecureP@ss!2024' \
+       -t 600 \
+       -i prisma/migrations/[timestamp]_your_change/migration.sql
+
+# -t 600 sets 10 minute query timeout for large operations
+```
+
+**Step 5: Mark as Applied**
+```bash
+DATABASE_URL='your-connection-string' \
+npx prisma migrate resolve --applied "[timestamp]_your_change"
+```
+
+**Step 6: Verify**
+```bash
+npx prisma migrate status
+# Should show: "Database schema is up to date!"
+```
+
+---
+
+### Example: WIP Indexes Migration
+
+**Reference:** `/docs/APPLY_WIP_MIGRATION_MANUALLY.md`
+
+```bash
+# Migration timed out via Prisma CLI
+npx prisma migrate deploy
+# Error: Query timeout after 30 seconds
+
+# Solution: Apply manually
+# 1. Open Azure Data Studio
+# 2. Run: prisma/migrations/20260123063454_replace_simple_with_covering_wip_indexes/migration.sql
+# 3. Wait 5-15 minutes for completion
+# 4. Mark as resolved:
+npx prisma migrate resolve --applied "20260123063454_replace_simple_with_covering_wip_indexes"
+```
+
+---
+
+## 4. Production Deployment
+
+### Standard Workflow
+
+```bash
+# 1. Check migration status
+DATABASE_URL='production-url' npx prisma migrate status
+
+# 2. Verify schema is in sync (before deploying)
+DATABASE_URL='production-url' npx prisma db pull --print | head -50
+# Review output for unexpected differences
+
+# 3. If pending migrations exist and are small:
+DATABASE_URL='production-url' npx prisma migrate deploy
+
+# 4. Sync schema with any auto-created indexes
+DATABASE_URL='production-url' npx prisma db pull
+git diff prisma/schema.prisma  # Review changes
+
+# 5. Verify success
+DATABASE_URL='production-url' npx prisma migrate status
+```
+
+---
+
+### Large Table Workflow
+
+```bash
+# 1. Check which migrations are pending
+DATABASE_URL='production-url' npx prisma migrate status
+
+# 2. Review migration SQL files
+# Check prisma/migrations/[timestamp]/migration.sql
+
+# 3. Identify large table operations
+# - CREATE INDEX on WIPTransactions, DRSTransactions, Wip, Debtors
+# - ALTER TABLE with large data updates
+
+# 4. Apply large migrations manually
+# Use Azure Data Studio or sqlcmd
+
+# 5. Mark each as resolved
+DATABASE_URL='production-url' \
+npx prisma migrate resolve --applied "[timestamp]_migration_name"
+
+# 6. Apply remaining migrations via Prisma
+DATABASE_URL='production-url' npx prisma migrate deploy
+
+# 7. Verify all applied
+DATABASE_URL='production-url' npx prisma migrate status
+```
+
+---
+
+### Deployment Script Pattern
+
+```bash
+#!/bin/bash
+set -e
+
+echo "Checking migration status..."
+npx prisma migrate status
+
+# Check exit code
+if [ $? -eq 0 ]; then
+  echo "✅ No pending migrations"
+  exit 0
+fi
+
+echo "Pending migrations detected"
+echo "Review migration files before proceeding"
+echo ""
+echo "For small migrations:"
+echo "  npx prisma migrate deploy"
+echo ""
+echo "For large table migrations:"
+echo "  1. Apply SQL manually via Azure Data Studio"
+echo "  2. Run: npx prisma migrate resolve --applied 'migration-name'"
+echo ""
+
+exit 1
+```
+
+---
+
+## 5. Schema Drift Prevention
+
+### What is Schema Drift?
+
+**Schema drift** occurs when database state doesn't match `schema.prisma`:
+- Manual SQL changes not reflected in schema
+- Failed migrations leave partial changes
+- Using `db push` in production
+- Multiple developers making conflicting changes
+
+---
+
+### Detection
+
+**Check for drift:**
+```bash
+# Pull current database schema
+npx prisma db pull
+
+# Compare with existing schema.prisma
+# If changes detected, you have drift
+```
+
+**Verify migration status:**
+```bash
+npx prisma migrate status
+
+# Possible outputs:
+# ✅ "Database schema is up to date!"
+# ⚠️  "Your database schema is not in sync with your migration history"
+# ❌ "Following migrations have not yet been applied: [list]"
+```
+
+---
+
+### Resolution
+
+**Scenario 1: Database has extra changes**
+```bash
+# Database was modified manually
+# Option A: Accept database changes (update schema.prisma)
+npx prisma db pull
+
+# Option B: Force schema.prisma to database
+npx prisma db push --accept-data-loss
+
+# WARNING: Option B may delete data!
+```
+
+**Scenario 2: Missing migrations**
+```bash
+# Migrations exist but not applied
+npx prisma migrate deploy
+
+# If timeout occurs, apply manually (see Section 3)
+```
+
+**Scenario 3: Failed migration (partial state)**
+```bash
+# 1. Check which migration failed
+npx prisma migrate status
+
+# 2. Fix database manually
+#    - Rollback partial changes
+#    - OR complete the migration
+
+# 3. Mark as resolved or rolled back
+npx prisma migrate resolve --applied "migration-name"
+# OR
+npx prisma migrate resolve --rolled-back "migration-name"
+
+# 4. Verify
+npx prisma migrate status
+```
+
+---
+
+### Prevention Best Practices
+
+1. **Never modify database directly** (except during manual migrations)
+2. **Always use migration files** for production changes
+3. **Verify status before deployment**
+4. **Use version control** for migration files
+5. **Document manual migrations** in README files
+6. **Test migrations locally** before production
+7. **Run `prisma db pull` after every migration** to capture auto-created indexes
+
+---
+
+## 5.5 Automated Drift Detection (Recommended)
+
+### Pre-Commit Hook
+
+Prevent commits when schema is out of sync with database:
+
+**Setup (.husky/pre-commit):**
+```bash
+#!/bin/sh
+
+# Check if DATABASE_URL is available
+if [ -z "$DATABASE_URL" ]; then
+  echo "⚠️  DATABASE_URL not set, skipping schema sync check"
+  exit 0
+fi
+
+# Check for schema drift
+echo "Checking Prisma schema sync..."
+npx prisma db pull --print > /tmp/prisma-schema-check 2>&1
+
+if ! diff -q prisma/schema.prisma /tmp/prisma-schema-check > /dev/null; then
+  echo ""
+  echo "❌ Schema drift detected!"
+  echo "Your schema.prisma doesn't match the database."
+  echo ""
+  echo "Run: npx prisma db pull"
+  echo "Then review and commit changes."
+  exit 1
+fi
+
+echo "✅ Schema is in sync"
+```
+
+---
+
+### NPM Scripts
+
+Add to package.json for easy schema sync management:
+
+```json
+{
+  "scripts": {
+    "db:check-sync": "prisma db pull --print | diff prisma/schema.prisma - || echo 'Schema drift detected'",
+    "db:sync": "prisma db pull && git diff prisma/schema.prisma",
+    "db:migrate": "prisma migrate dev && prisma db pull"
+  }
+}
+```
+
+**Usage:**
+```bash
+# Check if schema is in sync (no file changes)
+npm run db:check-sync
+
+# Sync schema and show changes
+npm run db:sync
+
+# Migrate and auto-sync (recommended workflow)
+npm run db:migrate
+```
+
+---
+
+### Weekly Audit Task
+
+Add to your weekly maintenance routine:
+
+```bash
+# Run weekly or before major deployments
+npm run db:check-sync
+
+# If drift detected:
+npm run db:sync
+# Review changes in git diff
+# Commit if changes are valid
+git add prisma/schema.prisma
+git commit -m "Sync schema with database indexes"
+```
+
+---
+
+### CI/CD Integration
+
+Add schema drift check to your CI pipeline:
+
+```yaml
+# .github/workflows/schema-check.yml
+name: Schema Drift Check
+on: [pull_request]
+
+jobs:
+  check-schema:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - run: npm ci
+      - name: Check schema sync
+        run: |
+          npx prisma db pull --print > /tmp/db-schema
+          if ! diff -q prisma/schema.prisma /tmp/db-schema; then
+            echo "::error::Schema drift detected! Run 'npx prisma db pull' locally."
+            exit 1
+          fi
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+```
+
+---
+
+## 6. Shadow Database Strategy
+
+### What is Shadow Database?
+
+Temporary database created by Prisma to:
+- Validate migration SQL
+- Check for breaking changes
+- Test migration before applying
+
+**Required for:** `prisma migrate dev` (unless using `--create-only`)  
+**Not required for:** `prisma db push`, `prisma migrate deploy`
+
+---
+
+### Option A: Disable Shadow Database
+
+**Recommended if:**
+- You have permission issues
+- You use `db push` for development
+- You create migrations with `--create-only`
+
+**Configuration:**
+```prisma
+// prisma/schema.prisma
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+  // shadowDatabaseUrl removed
+}
+```
+
+**Workflow:**
+```bash
+# Use db push for development
+npx prisma db push
+
+# Create migrations without applying (no shadow DB needed)
+npx prisma migrate dev --name change --create-only
+
+# Review and apply
+npx prisma migrate deploy
+```
+
+---
+
+### Option B: Configure Shadow Database
+
+**Recommended if:**
+- You want full `migrate dev` functionality
+- You have database admin permissions
+- You prefer automatic validation
+
+**Configuration:**
+```prisma
+// prisma/schema.prisma
+datasource db {
+  provider          = "sqlserver"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+```
+
+**Environment Variables:**
+```bash
+# Main database - note special characters in password escaped with curly braces
+DATABASE_URL="sqlserver://server.database.windows.net:1433;database=gt3-db;user=admin;password={SecureP@ss!2024};encrypt=true;trustServerCertificate=true;connectTimeout=30;socketTimeout=60;schema=dbo;connectionLimit=20;poolTimeout=20"
+
+# Shadow database (must be on same server) - uses same parameters but different database name
+SHADOW_DATABASE_URL="sqlserver://server.database.windows.net:1433;database=gt3-db-shadow;user=admin;password={SecureP@ss!2024};encrypt=true;trustServerCertificate=true;connectTimeout=30;socketTimeout=60;schema=dbo;connectionLimit=5;poolTimeout=10"
+```
+
+**Requirements:**
+- Shadow database on same server
+- User must have CREATE DATABASE permission
+- User must have DROP DATABASE permission
+- Shadow database is temporary (created/destroyed automatically)
+
+---
+
+## 6.5 Connection String Best Practices for Azure SQL
+
+### Special Character Escaping
+
+According to [Prisma SQL Server documentation](https://www.prisma.io/docs/orm/overview/databases/sql-server#connection-details), passwords containing special characters MUST be escaped with curly braces.
+
+**Special characters that require escaping:**
+- `:` (colon)
+- `;` (semicolon)  
+- `=` (equals)
+- `/` (forward slash)
+- `[` `]` (square brackets)
+- `{` `}` (curly braces)
+- `!` `@` `#` `$` `%` `^` `&` `*` (symbols)
+
+**Example:**
+```bash
+# WRONG - password with special characters not escaped
+password=SecureP@ss!2024
+
+# CORRECT - password wrapped in curly braces
+password={SecureP@ss!2024}
+```
+
+---
+
+### Timeout Configuration for Azure SQL
+
+Azure SQL Database can experience cold starts (10-30 seconds) and long-running queries. Configure appropriate timeouts:
+
+| Parameter | Recommended Value | Purpose |
+|-----------|------------------|---------|
+| `connectTimeout` | 30 seconds | Allows time for Azure SQL to wake from cold start |
+| `socketTimeout` | 60 seconds | Query execution timeout for migration operations |
+| `poolTimeout` | 20 seconds | Wait time for connection from pool |
+| `connectionLimit` | 20 (main), 5 (shadow) | Connection pool size |
+
+---
+
+### Certificate Trust for Azure SQL
+
+Azure SQL uses self-signed certificates. Set `trustServerCertificate=true`:
+
+```bash
+# Standard for Azure SQL Database
+trustServerCertificate=true
+```
+
+Do NOT use `trustServerCertificate=false` with Azure SQL - it can cause SSL validation errors.
+
+---
+
+### Complete Connection String Template
+
+```bash
+DATABASE_URL="sqlserver://HOST:1433;database=DB_NAME;user=USERNAME;password={PASSWORD};encrypt=true;trustServerCertificate=true;connectTimeout=30;socketTimeout=60;schema=dbo;connectionLimit=20;poolTimeout=20"
+```
+
+**Replace:**
+- `HOST` - Azure SQL server (e.g., `gt3-sql-server.database.windows.net`)
+- `DB_NAME` - Database name (e.g., `gt3-db`)
+- `USERNAME` - SQL admin username (e.g., `sqladmin`)
+- `PASSWORD` - Password with special characters (wrap entire password in curly braces)
+
+---
+
+### Shadow Database Configuration
+
+Shadow database should use same parameters but:
+- Different database name (e.g., `gt3-db-shadow`)
+- Lower connection limit (5 vs 20) since only used during migrations
+- Same timeout settings for reliability
+
+```bash
+SHADOW_DATABASE_URL="sqlserver://HOST:1433;database=DB_NAME-shadow;user=USERNAME;password={PASSWORD};encrypt=true;trustServerCertificate=true;connectTimeout=30;socketTimeout=60;schema=dbo;connectionLimit=5;poolTimeout=10"
+```
+
+---
+
+## 7. Common Issues & Solutions
+
+### Issue: "P1012 - Environment variable not found: DATABASE_URL"
+
+**Cause:** DATABASE_URL not set or incorrectly formatted
+
+**Solutions:**
+```bash
+# Set in terminal
+export DATABASE_URL="sqlserver://..."
+
+# Or use dotenv file (.env in project root)
+DATABASE_URL="sqlserver://HOST:1433;database=DB;user=USER;password={PASS};encrypt=true;trustServerCertificate=true;connectTimeout=30"
+
+# Or pass inline
+DATABASE_URL="sqlserver://..." npx prisma migrate status
+```
+
+**IMPORTANT:** If your password contains special characters (`:;=!@#$%^&*`), wrap it in curly braces:
+```bash
+# Correct
+password={MyP@ss!123}
+
+# Incorrect - will fail to parse
+password=MyP@ss!123
+```
+
+---
+
+### Issue: "P3009 - Failed to create the shadow database"
+
+**Cause:** Shadow database configuration issue
+
+**Solutions:**
+1. **Remove shadow database** (use `db push` or `--create-only`)
+2. **Fix permissions** (grant CREATE DATABASE)
+3. **Use different shadow DB name**
+
+---
+
+### Issue: "P3014 - Prisma Migrate could not create the shadow database"
+
+**Cause:** Shadow database already exists or permission denied
+
+**Solution:**
+```sql
+-- Drop existing shadow database
+DROP DATABASE IF EXISTS [gt3-db-shadow];
+
+-- Or grant permissions
+GRANT CREATE ANY DATABASE TO [username];
+```
+
+---
+
+### Issue: Connection timeout or SSL certificate errors
+
+**Cause:** Azure SQL connection not properly configured
+
+**Symptoms:**
+- "Connection timeout" during migration
+- "SSL certificate validation failed"
+- "Unable to connect to database"
+
+**Solution:** Verify connection string has proper Azure SQL settings:
+
+```bash
+DATABASE_URL="sqlserver://HOST:1433;database=DB;user=USER;password={PASS};encrypt=true;trustServerCertificate=true;connectTimeout=30;socketTimeout=60;schema=dbo"
+```
+
+**Key parameters:**
+- `trustServerCertificate=true` - Required for Azure SQL (uses self-signed certificates)
+- `connectTimeout=30` - Allows time for cold start (default 5s is too short)
+- `socketTimeout=60` - Query execution timeout for migrations
+- `password={...}` - Curly braces if password has special characters
+
+---
+
+### Issue: Migration timeout (30 seconds)
+
+**Cause:** Operation takes too long for Prisma's timeout
+
+**Solution:** Apply manually (see Section 3: Large Table Migrations)
+
+---
+
+### Issue: Schema drift detected
+
+**Cause:** Database doesn't match `schema.prisma`
+
+**Solution:**
+```bash
+# Check current state
+npx prisma db pull
+
+# Review differences in schema.prisma
+# Decide: Accept DB changes OR force schema
+
+# Accept DB changes:
+# Keep pulled schema, create migration
+npx prisma migrate dev --name sync_from_db
+
+# Force schema to DB:
+npx prisma db push --accept-data-loss  # WARNING: May lose data
+```
+
+---
+
+### Issue: "Migration failed to apply cleanly"
+
+**Cause:** SQL error during migration
+
+**Solution:**
+```bash
+# 1. Check error message for SQL details
+npx prisma migrate deploy
+
+# 2. Fix database manually (remove partial changes)
+# Connect with Azure Data Studio and fix
+
+# 3. Mark migration as rolled back
+npx prisma migrate resolve --rolled-back "migration-name"
+
+# 4. Fix migration SQL
+# Edit prisma/migrations/[timestamp]/migration.sql
+
+# 5. Re-apply
+npx prisma migrate deploy
+```
+
+---
+
+## 8. Best Practices Checklist
+
+### Before Making Schema Changes
+- [ ] Pull latest migrations from version control
+- [ ] Check current migration status
+- [ ] Decide: `db push` (dev) or `migrate dev` (production-bound)
+
+### During Development
+- [ ] Use `db push` for rapid iteration
+- [ ] Create migration when schema stabilizes
+- [ ] Review generated SQL before applying
+- [ ] Test migration on local database
+
+### Before Production Deployment
+- [ ] All migrations in version control
+- [ ] Migrations tested locally
+- [ ] Large table migrations identified
+- [ ] Rollback plan documented
+- [ ] Database backup created
+
+### During Production Deployment
+- [ ] Check migration status
+- [ ] Apply small migrations via `migrate deploy`
+- [ ] Apply large migrations manually
+- [ ] Mark manual migrations as resolved
+- [ ] Verify final status
+
+### After Deployment
+- [ ] Verify application works
+- [ ] Run `prisma db pull` to sync schema with database state
+- [ ] Commit schema.prisma if changes detected
+- [ ] Check for schema drift
+- [ ] Monitor query performance
+- [ ] Update documentation
+
+---
+
+## 9. Maintenance & Monitoring
+
+### Regular Checks
+
+**Weekly:**
+```bash
+# Check for schema drift
+npx prisma migrate status
+
+# Verify no unapplied migrations
+npx prisma db pull
+# Compare with schema.prisma
+```
+
+**After Each Deployment:**
+```bash
+# Verify status
+npx prisma migrate status
+
+# Regenerate client if needed
+npx prisma generate
+```
+
+---
+
+### Index Maintenance
+
+**Large table indexes need regular maintenance:**
+
+```sql
+-- Check fragmentation
+SELECT 
+    i.name AS IndexName,
+    ips.avg_fragmentation_in_percent AS Fragmentation
+FROM sys.dm_db_index_physical_stats(DB_ID(), NULL, NULL, NULL, 'SAMPLED') ips
+JOIN sys.indexes i ON ips.object_id = i.object_id AND ips.index_id = i.index_id
+WHERE ips.avg_fragmentation_in_percent > 10
+ORDER BY ips.avg_fragmentation_in_percent DESC;
+
+-- Rebuild if fragmentation > 30%
+ALTER INDEX idx_name ON TableName REBUILD;
+
+-- Update statistics
+UPDATE STATISTICS TableName WITH FULLSCAN;
+```
+
+**Reference:** `/docs/WIP_INDEX_MAINTENANCE.md`
+
+---
+
+## 10. Documentation Standards
+
+### For Each Large Migration
+
+Create `README.md` in migration folder:
+
+```markdown
+# Migration: [Descriptive Name]
+
+**Date:** YYYY-MM-DD
+**Reason:** Why this migration is needed
+**Estimated Time:** X-Y minutes
+
+## Changes
+- What tables/indexes are affected
+- What columns are added/modified
+
+## Application Method
+- [ ] Standard: `prisma migrate deploy`
+- [x] Manual: Apply SQL directly (>30s operation)
+
+## Steps
+1. Backup database (if critical)
+2. Apply SQL via Azure Data Studio
+3. Monitor progress (PRINT statements)
+4. Verify completion
+5. Mark as resolved
+
+## Rollback
+- SQL to undo changes
+- Data restoration steps
+
+## Verification
+- Queries to verify migration success
+```
+
+**Examples:**
+- `/prisma/migrations/20260123063454_replace_simple_with_covering_wip_indexes/README.md`
+- `/docs/APPLY_WIP_MIGRATION_MANUALLY.md`
+
+---
+
+## Summary: When to Use Each Command
+
+| Command | Use Case | Creates Migration? | Requires Shadow DB? | Timeout Risk? |
+|---------|----------|-------------------|-------------------|---------------|
+| `prisma db push` | Dev iteration | No | No | Medium |
+| `prisma migrate dev` | Production-bound change | Yes | Yes (or `--create-only`) | Low |
+| `prisma migrate dev --create-only` | Review before apply | Yes | No | Low |
+| `prisma migrate deploy` | Production deployment | No (applies existing) | No | High (large tables) |
+| `prisma migrate resolve --applied` | After manual migration | No | No | None |
+| `prisma migrate status` | Check state | No | No | None |
+| `prisma db pull` | Detect drift | No | No | None |
+| Manual SQL + resolve | Large table migrations | No | No | None |
+
+---
+
+## Quick Reference: Common Commands
+
+```bash
+# Development
+npx prisma db push                      # Fast iteration
+npx prisma migrate dev --name change    # Create migration
+npx prisma db pull                      # Sync schema with database (REQUIRED after migrations)
+npx prisma generate                     # Regenerate client
+
+# Production
+npx prisma migrate deploy               # Apply migrations
+npx prisma db pull                      # Sync schema after deployment
+npx prisma migrate status               # Check status
+npx prisma migrate resolve --applied "name"  # After manual migration
+
+# Schema Sync (use regularly)
+npx prisma db pull                      # Sync schema with database
+npx prisma db pull --print              # Preview without modifying files
+npx prisma db pull --print | grep "@@index"  # Check indexes in database
+
+# Troubleshooting
+npx prisma db pull                      # Check for drift
+npx prisma migrate resolve --rolled-back "name"  # Mark failed migration
+npx prisma studio                       # Browse database
+```
+
+---
+
+## Related Documentation
+
+- **Manual Migration Guide:** `/docs/APPLY_WIP_MIGRATION_MANUALLY.md`
+- **Index Maintenance:** `/docs/WIP_INDEX_MAINTENANCE.md`
+- **Query Optimization:** `/docs/WIP_QUERY_OPTIMIZATION_SUMMARY.md`
+- **Migration Examples:** `/prisma/migrations/*/README.md`
+- **Prisma Docs:** https://www.prisma.io/docs/guides/migrate/developing-with-prisma-migrate
+
+---
+
+## Key Takeaways
+
+1. **SQL Server is special** - Requires different approach than PostgreSQL
+2. **Use `db push` for dev** - Faster, simpler, avoids shadow DB issues
+3. **Create migrations for production** - Version control and deployment
+4. **Large tables need manual handling** - Timeouts are unavoidable
+5. **Always check status** - Before and after deployments
+6. **Run `prisma db pull` after every migration** - Captures auto-created indexes and prevents silent drift
+7. **Document everything** - Future you will appreciate it
+8. **Test locally first** - Catch issues before production
+9. **Keep schema.prisma as source of truth** - Sync with database regularly

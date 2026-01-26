@@ -1,0 +1,504 @@
+---
+description: Centralized approval system for workflow management - use for all approval workflows
+alwaysApply: false
+version: 1.1.0
+lastUpdated: 2026-01-21
+changelog:
+  - "1.1.0 (2026-01-21): Added comprehensive error handling section"
+  - "1.0.0: Initial approval system documentation"
+---
+
+# Approval System
+
+**Centralized approval workflow management system with multi-approver support, delegation, and conditional routing.**
+
+## When To Apply This Rule
+
+- Implementing any workflow requiring approval (acceptance, engagement letters, change requests, DPA, continuance, review notes)
+- Creating new approval routes or workflows
+- Handling approval actions (approve, reject, delegate)
+- Displaying approval status in UI
+- Working with any feature that requires multi-step approval
+
+## Core Principles
+
+1. **Centralized System**: ALL approval workflows MUST use the approval system - no custom approval logic
+2. **Workflow Registry**: Register all workflow types in `workflowRegistry.ts`
+3. **Route-Based Assignment**: Use approval routes to determine who approves what
+4. **Cache Invalidation**: ALWAYS call `invalidateApprovalsCache()` after mutations
+5. **Unified UI**: Use `UnifiedApprovalCard` component for displaying approvals
+
+## Implementation Guide
+
+### 1. Register Workflow Type
+
+Add to `src/lib/services/approvals/workflowRegistry.ts`:
+
+```typescript
+import type { WorkflowTypeConfig } from '@/types/approval';
+
+export const WORKFLOW_REGISTRY: Record<string, WorkflowTypeConfig> = {
+  YOUR_WORKFLOW: {
+    type: 'YOUR_WORKFLOW',
+    label: 'Your Workflow',
+    description: 'Description of your workflow',
+    tableName: 'YourTable',
+    defaultRoute: 'your-default-route', // Name of ApprovalRoute
+    allowedRoutes: ['your-default-route', 'alternative-route'],
+  },
+  // ... existing workflows
+};
+```
+
+### 2. Create Approval Route
+
+Routes can be created via:
+- Database seed: `prisma/seed-approval-routes.sql`
+- API: `POST /api/admin/approval-routes`
+
+**Route Structure:**
+```json
+{
+  "name": "your-route",
+  "description": "Description",
+  "workflowType": "YOUR_WORKFLOW",
+  "requiresAllSteps": true,
+  "steps": [
+    {
+      "stepNumber": 1,
+      "stepType": "ROLE",
+      "roleRequired": "PARTNER",
+      "condition": "context.riskLevel > 3"
+    }
+  ]
+}
+```
+
+### 3. Create Approval in Your Service
+
+```typescript
+import { approvalService } from '@/lib/services/approvals/approvalService';
+
+// When creating item that needs approval
+const approval = await approvalService.createApproval({
+  workflowType: 'YOUR_WORKFLOW',
+  workflowId: item.id,
+  title: 'Descriptive title',
+  priority: 'MEDIUM', // LOW, MEDIUM, HIGH, URGENT
+  requestedById: user.id,
+  routeName: 'your-route', // Optional - uses default if not provided
+  context: {
+    // Data needed for route evaluation and assignment
+    userId: someUserId,
+    riskLevel: 5,
+    amount: 10000,
+  }
+});
+
+// Link approval back to your workflow table
+await prisma.yourTable.update({
+  where: { id: workflowItem.id },
+  data: { approvalId: approval.id }
+});
+```
+
+### 4. Handle Approval Actions
+
+Use the built-in API endpoints:
+- `POST /api/approvals/[id]/steps/[stepId]/approve`
+- `POST /api/approvals/[id]/steps/[stepId]/reject`
+
+**Cache Invalidation:** ALWAYS call after approval actions:
+
+```typescript
+import { invalidateApprovalsCache } from '@/lib/services/cache/cacheInvalidation';
+
+// After creating, approving, or rejecting approval
+await invalidateApprovalsCache();
+```
+
+### 5. Display in UI
+
+Use the unified approval card component:
+
+```typescript
+import { UnifiedApprovalCard } from '@/components/features/approvals';
+import { useApproveStep, useRejectStep } from '@/hooks/approvals/useUnifiedApprovals';
+
+function YourComponent() {
+  const approveStep = useApproveStep();
+  const rejectStep = useRejectStep();
+
+  return (
+    <UnifiedApprovalCard
+      approval={approval}
+      onApprove={(stepId, comment) => approveStep.mutateAsync({ stepId, comment })}
+      onReject={(stepId, comment) => rejectStep.mutateAsync({ stepId, comment })}
+    />
+  );
+}
+```
+
+## Pre-Configured Routes
+
+**Default routes available:**
+- `partner-approval` - Single partner approval (default for ACCEPTANCE, ENGAGEMENT_LETTER, DPA)
+- `dual-approval` - Both proposed + current employee (default for CHANGE_REQUEST)
+- `single-approval` - Only proposed employee (alternative for CHANGE_REQUEST)
+- `assignee-approval` - Assignee approval (default for REVIEW_NOTE)
+- `risk-based-approval` - Conditional routing (default for CONTINUANCE)
+- `senior-approval` - Partner OR Administrator (alternative for ACCEPTANCE)
+
+## Key Features
+
+### Multi-Approver Support
+
+**Sequential** (`requiresAllSteps: true`):
+- All steps must be completed in order
+- Step 2 can't start until Step 1 is approved
+- Used for hierarchical approvals
+
+**Parallel** (`requiresAllSteps: false`):
+- Any one step can complete the approval
+- All steps are active simultaneously
+- Used for "any partner can approve" scenarios
+
+### Delegation
+
+Users can delegate approvals when out of office:
+
+```typescript
+await approvalService.delegateApprovals(fromUserId, {
+  toUserId: delegateUserId,
+  workflowType: 'CHANGE_REQUEST', // Optional - delegates specific workflow
+  startDate: new Date(),
+  endDate: new Date('2024-12-31'),
+  reason: 'On vacation',
+});
+```
+
+### Conditional Routing
+
+Routes can include conditions that determine which steps apply:
+
+```json
+{
+  "condition": "context.riskLevel > 3"
+}
+```
+
+Supported operators: `>`, `<`, `>=`, `<=`, `==`, `!=`, `&&`, `||`
+
+## Error Handling
+
+### Common Failure Scenarios
+
+**Approval Creation Fails:**
+```typescript
+try {
+  const approval = await approvalService.createApproval({...});
+} catch (error) {
+  logger.error('Approval creation failed', { error, workflowType, workflowId });
+  
+  // Rollback: Remove the workflow item if approval creation failed
+  await prisma.yourTable.delete({ where: { id: workflowId } });
+  
+  throw new AppError(500, 'Failed to create approval', ErrorCodes.SERVER_ERROR);
+}
+```
+
+**Route Not Found:**
+```typescript
+// Service handles this automatically, but you can catch:
+try {
+  const approval = await approvalService.createApproval({
+    routeName: 'non-existent-route',
+    // ...
+  });
+} catch (error) {
+  if (error.message.includes('Route not found')) {
+    // Falls back to default route automatically
+    logger.warn('Custom route not found, using default', { routeName });
+  }
+}
+```
+
+**Approval Step Fails:**
+```typescript
+try {
+  await approveStep.mutateAsync({ stepId, comment });
+} catch (error) {
+  logger.error('Approval action failed', { error, stepId });
+  
+  // Show user-friendly error
+  setError('Failed to approve. Please try again or contact support.');
+  
+  // Don't invalidate cache on failure
+  return;
+}
+
+// Only invalidate cache on success
+await invalidateApprovalsCache();
+```
+
+**Delegate Not Available:**
+```typescript
+// Check delegate availability before showing in UI
+const delegation = await prisma.approvalDelegation.findFirst({
+  where: {
+    fromUserId: user.id,
+    workflowType: 'YOUR_WORKFLOW',
+    startDate: { lte: new Date() },
+    endDate: { gte: new Date() },
+  },
+});
+
+if (delegation) {
+  // Show delegated approvals to delegate
+}
+```
+
+### Cleanup Procedures
+
+**On Workflow Cancellation:**
+```typescript
+// When cancelling workflow item, also cancel approval
+await prisma.$transaction([
+  prisma.yourWorkflowItem.update({
+    where: { id },
+    data: { status: 'CANCELLED' },
+  }),
+  prisma.approval.update({
+    where: { id: approvalId },
+    data: { status: 'CANCELLED' },
+  }),
+]);
+
+await invalidateApprovalsCache();
+```
+
+**On Workflow Deletion:**
+```typescript
+// Approval will cascade delete due to foreign key
+// Just invalidate cache
+await prisma.yourWorkflowItem.delete({ where: { id } });
+await invalidateApprovalsCache();
+```
+
+## Anti-Patterns & Common Mistakes
+
+### ❌ Wrong: Custom Approval Logic
+```typescript
+// DON'T DO THIS - bypasses centralized system
+await prisma.changeRequest.create({
+  data: {
+    status: 'PENDING_APPROVAL',
+    approvedBy: null,
+    approvedAt: null,
+  }
+});
+
+// Custom approval check
+if (user.role === 'PARTNER') {
+  await prisma.changeRequest.update({
+    where: { id },
+    data: { status: 'APPROVED', approvedBy: user.id, approvedAt: new Date() }
+  });
+}
+```
+
+**✅ Correct: Use Approval System**
+```typescript
+const changeRequest = await prisma.changeRequest.create({ data: {...} });
+
+const approval = await approvalService.createApproval({
+  workflowType: 'CHANGE_REQUEST',
+  workflowId: changeRequest.id,
+  title: `Change request for ${employeeName}`,
+  requestedById: user.id,
+});
+
+await prisma.changeRequest.update({
+  where: { id: changeRequest.id },
+  data: { approvalId: approval.id }
+});
+```
+
+### ❌ Wrong: Manually Creating Approval Steps
+```typescript
+// DON'T DO THIS - bypasses route logic
+const approval = await prisma.approval.create({ data: {...} });
+await prisma.approvalStep.create({
+  data: {
+    approvalId: approval.id,
+    stepNumber: 1,
+    assignedToId: someUserId,
+  }
+});
+```
+
+**✅ Correct: Let Service Create Steps via Routes**
+```typescript
+// Service automatically creates steps based on route
+const approval = await approvalService.createApproval({
+  workflowType: 'CHANGE_REQUEST',
+  routeName: 'dual-approval', // Route defines steps
+  context: { userId, proposedEmployeeId },
+});
+```
+
+### ❌ Wrong: Missing Cache Invalidation
+```typescript
+// DON'T DO THIS
+await approvalService.createApproval({...});
+// Cache still has old data!
+
+// Later in approval action
+await prisma.approvalStep.update({...});
+// Cache not updated!
+```
+
+**✅ Correct: Always Invalidate Cache**
+```typescript
+await approvalService.createApproval({...});
+await invalidateApprovalsCache();
+
+// Later in approval action
+await prisma.approvalStep.update({...});
+await invalidateApprovalsCache();
+```
+
+### ❌ Wrong: No Workflow Registration
+```typescript
+// DON'T DO THIS - workflow not registered
+const approval = await approvalService.createApproval({
+  workflowType: 'MY_NEW_WORKFLOW', // Not in registry!
+  workflowId: item.id,
+});
+```
+
+**✅ Correct: Register in workflowRegistry.ts First**
+```typescript
+// In workflowRegistry.ts
+export const WORKFLOW_REGISTRY = {
+  MY_NEW_WORKFLOW: {
+    type: 'MY_NEW_WORKFLOW',
+    label: 'My New Workflow',
+    tableName: 'MyTable',
+    defaultRoute: 'my-default-route',
+  },
+};
+
+// Then use it
+const approval = await approvalService.createApproval({
+  workflowType: 'MY_NEW_WORKFLOW',
+  workflowId: item.id,
+});
+```
+
+### ❌ Wrong: Ignoring Approval Failures
+```typescript
+// DON'T DO THIS
+const item = await prisma.myItem.create({ data: {...} });
+try {
+  await approvalService.createApproval({...});
+} catch (error) {
+  // Ignoring error - item created but no approval!
+}
+```
+
+**✅ Correct: Transaction or Rollback**
+```typescript
+const item = await prisma.myItem.create({ data: {...} });
+try {
+  const approval = await approvalService.createApproval({...});
+  await prisma.myItem.update({
+    where: { id: item.id },
+    data: { approvalId: approval.id }
+  });
+} catch (error) {
+  // Rollback: delete the item
+  await prisma.myItem.delete({ where: { id: item.id } });
+  throw error;
+}
+```
+
+### ❌ Wrong: Using Workflow-Specific Fields
+```typescript
+// DON'T DO THIS - duplicates approval system
+model ChangeRequest {
+  id Int @id
+  status String
+  approvedBy String?
+  approvedAt DateTime?
+  approverComments String?
+  // These duplicate ApprovalStep functionality!
+}
+```
+
+**✅ Correct: Link to Approval System**
+```typescript
+model ChangeRequest {
+  id Int @id
+  approvalId Int?
+  Approval Approval? @relation(fields: [approvalId], references: [id])
+  // Approval system handles status, approver, comments
+}
+```
+
+## Don'ts Summary
+
+❌ Don't create custom approval logic outside the approval system
+❌ Don't bypass the approval service to create approvals directly
+❌ Don't forget to invalidate approval cache after mutations
+❌ Don't use workflow-specific approval fields when approval system is available
+❌ Don't create approval steps manually - let the service handle it via routes
+❌ Don't forget to rollback workflow item if approval creation fails
+❌ Don't skip workflow registration in workflowRegistry.ts
+❌ Don't ignore approval creation errors
+
+## Migration from Legacy Approvals
+
+If migrating existing approval logic:
+
+1. Create workflow registry entry
+2. Create approval route matching existing logic
+3. Update creation logic to use `approvalService.createApproval()`
+4. Replace approval checks with `ApprovalStep` queries
+5. Update UI to use `UnifiedApprovalCard`
+6. Deprecate old approval fields (keep for data migration period)
+
+## Related Rules
+
+- **consolidated.mdc**: Main project conventions, security patterns, database conventions
+- **tool-system-rules.mdc**: Tool-approval integration patterns (see "Integration with Approval System" section)
+- **security-rules.mdc**: API route security, permissions, role-based access control
+- **forvis-design-rules.mdc**: UI components for approval displays, modal patterns
+
+## Quick Reference
+
+**Files:**
+- Core Service: `src/lib/services/approvals/approvalService.ts`
+- Workflow Registry: `src/lib/services/approvals/workflowRegistry.ts`
+- Types: `src/types/approval.ts`
+- UI Component: `src/components/features/approvals/UnifiedApprovalCard.tsx`
+- Hooks: `src/hooks/approvals/useUnifiedApprovals.ts`
+- API Endpoints: `src/app/api/approvals/[id]/steps/[stepId]/{approve,reject}/route.ts`
+- Seed Routes: `prisma/seed-approval-routes.sql`
+
+**Common Tasks:**
+```typescript
+// Create approval
+await approvalService.createApproval({ workflowType, workflowId, title, requestedById, context });
+
+// Invalidate cache
+await invalidateApprovalsCache();
+
+// Get user's approvals
+const approvals = await approvalService.getUserApprovals(userId, { status: 'PENDING' });
+
+// Delegate approvals
+await approvalService.delegateApprovals(fromUserId, { toUserId, startDate, endDate });
+```
+
+**Documentation:** See `GENERIC_APPROVAL_SYSTEM_IMPLEMENTATION.md` for complete implementation details.

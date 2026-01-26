@@ -1,0 +1,91 @@
+---
+alwaysApply: true
+version: 1.1.0
+lastUpdated: 2026-01-24
+description: Performance optimization patterns for imports, database queries, caching, and request handling - mandatory requirements for all files
+changelog:
+  - "1.1.0 (2026-01-24): Changed to always applied - explicit select, logger usage, and static imports are required everywhere"
+  - "1.0.0 (2026-01-24): Initial performance patterns documentation"
+---
+
+# Performance Optimization Rules
+
+React Query + Redis Caching | Database Optimization | Request Handling
+
+## Imports
+
+- **Static imports ONLY** at top of file - NO `await import()` in handlers
+- Exception: AI/ML dependencies may use lazy loading for bundle size
+
+## Database
+
+- ALWAYS explicit `select:` fields
+- Batch queries: `Promise.all()`
+- Transactions (`prisma.$transaction`) for multi-step mutations
+- Prevent N+1 queries
+- Default limits on `findMany()` - no unbounded queries on large tables
+- Deterministic ordering for pagination (cursor or stable `orderBy` with secondary sort)
+
+## Request Handling
+
+- Large payloads: paginate or stream responses
+- External API calls: parallelize with `Promise.all()` + set timeouts
+- Race conditions: use optimistic locking or transactions for concurrent mutations
+- Response size: bound large JSON responses
+
+## Caching Strategy
+
+**Hybrid Approach:** React Query (client-side) + Redis (server-side)
+
+**React Query (Client-Side):**
+- Entity details (tasks, clients, groups, employees)
+- List data with pagination
+- Automatic invalidation on mutations
+- Cache keys: `['tasks', taskId]`, `['clients', clientId]`
+
+**Redis/Memory Cache (Server-Side):**
+- **Sessions** (1h) - User authentication sessions
+- **Permissions** (10min) - User feature/role permissions
+- **Rate Limiting** (varies) - Per-user and per-IP rate limits
+- **Analytics** (30min) - Workspace counts, graphs, aggregations
+- **Planner Data** (5-30min) - Staff planner queries (expensive joins)
+- **Service Lines** (10min) - Service line mappings and metadata
+- **Client Acceptance** (10min) - Server-side validation data
+- **Document Vault** (10min) - Vault metadata
+- **Employee Lookups** (10min) - Employee data for relationships
+
+**When to Use Which:**
+- **React Query:** Entity CRUD, lists, user-specific data
+- **Redis:** Shared state, expensive aggregations, rate limiting, sessions
+
+**Cache Invalidation (after mutations):**
+```typescript
+import { invalidateApprovalsCache, invalidateWorkspaceCounts, invalidatePlannerCachesForServiceLine } from '@/lib/services/cache/cacheInvalidation';
+
+// After approval mutations
+await invalidateApprovalsCache();
+
+// After task/client mutations affecting counts
+await invalidateWorkspaceCounts(serviceLine, subServiceLineGroup);
+
+// After task team mutations (invalidates planner)
+await invalidatePlannerCachesForServiceLine(serviceLine, subServiceLineGroup);
+
+// React Query invalidation (client-side)
+queryClient.invalidateQueries({ queryKey: ['tasks', taskId] });
+queryClient.invalidateQueries({ queryKey: ['clients', clientId] });
+```
+
+**List Caching:** Only first 3 pages cached (5min TTL), searches skipped.
+
+**Performance:** Uses SCAN (not KEYS) for pattern invalidation, silent failure on cache errors.
+
+## Logging
+
+```typescript
+import { logger } from '@/lib/utils/logger';
+logger.info('Action completed', { userId, taskId });
+logger.warn('Unusual condition', { details });
+logger.error('Operation failed', error);
+// NEVER use console.log/warn/error in production code
+```

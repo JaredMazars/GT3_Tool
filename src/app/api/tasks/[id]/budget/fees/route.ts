@@ -1,0 +1,72 @@
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/db/prisma';
+import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
+import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+import { toTaskId } from '@/types/branded';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { budgetFeeSchema } from '@/lib/validation/schemas';
+import { logger } from '@/lib/utils/logger';
+
+/**
+ * POST /api/tasks/[id]/budget/fees
+ * Create a new budget fee
+ */
+export const POST = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TASKS,
+  schema: budgetFeeSchema,
+  handler: async (request, { user, params, data }) => {
+    const taskId = toTaskId(parseTaskId(params.id));
+
+    // Check task access
+    const accessResult = await checkTaskAccess(user.id, taskId, 'MANAGER');
+    if (!accessResult.canAccess) {
+      throw new AppError(403, 'Access denied', ErrorCodes.FORBIDDEN);
+    }
+
+    // Verify task exists
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { id: true, TaskDesc: true }
+    });
+
+    if (!task) {
+      throw new AppError(404, 'Task not found', ErrorCodes.NOT_FOUND);
+    }
+
+    // Create fee
+    const fee = await prisma.taskBudgetFee.create({
+      data: {
+        taskId,
+        description: data.description,
+        amount: data.amount,
+        expectedDate: data.expectedDate,
+        createdBy: user.id,
+        updatedAt: new Date()
+      },
+      select: {
+        id: true,
+        description: true,
+        amount: true,
+        expectedDate: true,
+        createdBy: true,
+        createdAt: true
+      }
+    });
+
+    logger.info('Budget fee created', {
+      taskId,
+      feeId: fee.id,
+      userId: user.id
+    });
+
+    return NextResponse.json(successResponse({
+      id: fee.id,
+      description: fee.description,
+      amount: parseFloat(fee.amount.toString()),
+      expectedDate: fee.expectedDate.toISOString(),
+      createdBy: fee.createdBy,
+      createdAt: fee.createdAt.toISOString()
+    }));
+  }
+});

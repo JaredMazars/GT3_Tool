@@ -1,0 +1,388 @@
+---
+alwaysApply: true
+version: 2.2.0
+lastUpdated: 2026-01-24
+changelog:
+  - "2.2.0 (2026-01-24): Extracted database/performance to separate files, added code duplication rule and mandatory plan mode"
+  - "2.1.0 (2026-01-23): Added migration-rules.mdc for Prisma + SQL Server best practices"
+  - "2.0.0 (2026-01-21): Removed security duplication, streamlined with references to specialized files"
+  - "1.0.0: Initial consolidated conventions"
+---
+
+# Project Conventions
+
+Next.js 14 (App Router) | TypeScript (strict) | Prisma | React Query | Azure OpenAI | Azure AD
+
+## Quick Reference Table
+
+| Task | Rule/Pattern | See Section |
+|------|--------------|-------------|
+| Plan before executing | ALWAYS use Plan Mode | Planning & Execution |
+| Prevent duplications | Search before coding | Code Duplication Prevention |
+| Create API route | Use `secureRoute.mutation/query` | Security (CRITICAL) |
+| Validate user input | Zod schemas + `parseXxxId()` | Security (CRITICAL) |
+| Protect page | `<PageAccessGuard pathname={...}>` | Security > Page-Level Access |
+| Check feature access | `<FeatureGate feature={...}>` | Security > Frontend Security |
+| Database queries | Use dual-ID convention, fiscal helpers | See database-patterns.mdc |
+| Optimize performance | Explicit selects, caching, batching | See performance-rules.mdc |
+| Work with employees/staff | Use Employee table (Active status), not User | See database-patterns.mdc |
+| Store files | Purpose-specific blob containers | See blob-storage-rules.mdc |
+| Create approval flow | `approvalService.createApproval()` | See approval-system-rules.mdc |
+| Use AI generation | Import from `@/lib/ai/config` | See ai-patterns.mdc |
+| Show user messages | Banner component (NOT toast/alert) | See forvis-design-rules.mdc |
+| Handle errors | `try/catch` + `logger.error()` + `AppError` | Error Handling |
+| Invalidate cache | Call specific cache invalidation functions | See performance-rules.mdc |
+| Add new tool | Register in ToolRegistry + database | See tool-system-rules.mdc |
+| Schema migration | Use `db push` for dev, `migrate dev` for production | See migration-rules.mdc |
+
+## Specialized Rule Files (When To Consult)
+
+**ALWAYS consult these files for their specific domains:**
+
+### `.cursor/rules/forvis-design-rules.mdc` (CRITICAL)
+**When:** Building ANY UI components, modals, forms, cards, or interactive elements
+**Key Rules:** 
+- NEVER use browser dialogs (`confirm()`, `alert()`, `prompt()`)
+- Use `@/components/ui` imports for all UI components
+- Follow gradient registry for backgrounds and styling
+- Use Banner component (NOT toast libraries like sonner/react-toastify)
+
+### `.cursor/rules/security-rules.mdc` (REQUIRED)
+**When:** Creating API routes, implementing page permissions, or access control
+**Key Rules:**
+- ALL API routes MUST use `secureRoute` wrapper
+- Use `<PageAccessGuard>` for page protection
+- Use `<FeatureGate>` for conditional UI rendering
+- Follow 4-tier permission lookup (Cache → DB → Code → Convention)
+
+### `.cursor/rules/approval-system-rules.mdc`
+**When:** Implementing ANY workflow requiring approval (acceptance, engagement letters, change requests, DPA, review notes)
+**Key Rules:**
+- Use centralized `approvalService.createApproval()`
+- Register workflow type in `workflowRegistry.ts`
+- ALWAYS call `invalidateApprovalsCache()` after mutations
+- Use `UnifiedApprovalCard` for UI display
+
+### `.cursor/rules/ai-patterns.mdc`
+**When:** Using Azure OpenAI, document intelligence, RAG, or AI agents
+**Key Rules:**
+- Import models from `@/lib/ai/config`
+- Use `secureRoute.ai()` for AI endpoints (strict rate limiting)
+- Check `RAGEngine.isConfigured()` before use
+- Follow service selection hierarchy (orchestrator → individual agents → RAG → direct SDK)
+
+### `.cursor/rules/blob-storage-rules.mdc`
+**When:** Uploading files to Azure Blob Storage or creating new document storage features
+**Key Rules:**
+- MUST use purpose-specific containers (never mix document types)
+- Follow naming: `{purpose}` or `{purpose}-{category}`
+- Path structure: `{entityId}/{timestamp}_{sanitized_filename}`
+- Create dedicated container client for each document type
+
+### `.cursor/rules/tool-system-rules.mdc`
+**When:** Creating tools, working with junction tables, or tool-task relationships
+**Key Rules:**
+- All Prisma relations MUST use PascalCase matching model names
+- Junction tables: `[Entity1][Entity2]` naming pattern
+- User relations: Use descriptive names `User_[Model]_[field]ToUser`
+- Tools integrate with approval system for items requiring approval
+
+### `.cursor/rules/migration-rules.mdc` (REQUIRED)
+**When:** Making schema changes, running migrations, or troubleshooting database issues
+**Key Rules:**
+- Use `prisma db push` for development iteration (fast, no shadow DB)
+- Use `prisma migrate dev` for production-bound changes (creates migration files)
+- Large table migrations (>500K rows) MUST be applied manually to avoid timeouts
+- Always run `prisma migrate status` before deployments
+- NEVER use `mode: 'insensitive'` in Prisma queries (not supported by SQL Server)
+- Document manual migrations with README in migration folder
+
+## TypeScript
+
+**Type Organization:** Prisma Schema -> `types/index.ts` -> derive DTOs with Partial/Pick/Omit
+- `types/branded.ts`: Branded ID types | `types/dto.ts`: DTOs | `types/api.ts`: API types
+
+**Requirements:**
+- Strict mode, `@/*` imports, ALL IDs use branded types
+- Route params via `parseXxxId()` utilities
+- Define enums ONCE in `types/index.ts` (e.g., `SystemRole`, `ServiceLineRole`)
+- `undefined` for optional, `null` for database nulls
+- **NO `any` types** - Use `unknown`, `Record<string, unknown>`, or proper interfaces
+- All input validated via Zod schemas in `/src/lib/validation/schemas.ts`
+
+## Database
+
+See `.cursor/rules/database-patterns.mdc` for complete database conventions including:
+- Dual-ID Convention (Internal IDs vs External IDs vs Codes)
+- SQL Server case sensitivity rules
+- Data model relationships and validation patterns
+- Fiscal period filtering utilities
+- Prisma schema conventions (timestamps, indexes, etc.)
+
+**Quick Reference:**
+- External tables: use `GS*` IDs for relationships
+- Internal tables: use `id` for relationships
+- Codes: display/search ONLY, never for relationships
+- NEVER use `mode: 'insensitive'` (SQL Server not supported)
+- Use fiscal period helpers from `@/lib/services/reports/fiscalPeriodQueries`
+- **Prisma Schema:** ALWAYS use `updatedAt DateTime @updatedAt` (not plain `DateTime`)
+
+## Service Lines
+
+**Client-Facing:** TAX, AUDIT, ACCOUNTING, ADVISORY
+**Shared Services:** QRM, BUSINESS_DEV, IT, FINANCE, HR, COUNTRY_MANAGEMENT
+
+**Tables:**
+- `ServiceLineMaster`: Application master list (code, name, active)
+- `ServiceLineExternal`: Maps `ServLineCode` -> `SubServlineGroupCode` -> `masterCode`
+- `ServiceLineUser`: User assignments to `subServiceLineGroup` with `role`
+
+**Access Pattern:** Task's `ServLineCode` -> `SubServlineGroupCode` -> check user's `ServiceLineUser` assignments
+
+**URL:** `/dashboard/[serviceLine]/[subServiceLineGroup]/clients/[id]/tasks/[taskId]`
+
+## Security (CRITICAL)
+
+### Role Model
+
+1. **System**: `SYSTEM_ADMIN` > `USER`
+2. **Service Line**: `ADMINISTRATOR` > `PARTNER` > `MANAGER` > `SUPERVISOR` > `USER` > `VIEWER`
+
+Roles defined in `@/lib/utils/roleHierarchy.ts`. SYSTEM_ADMIN bypasses all checks.
+
+### API Routes - Use secureRoute (REQUIRED)
+
+All API routes MUST use the `secureRoute` wrapper. See `.cursor/rules/security-rules.mdc` for complete documentation.
+
+**Quick Reference:**
+```typescript
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+
+// Mutations: secureRoute.mutation({ feature, schema, handler })
+// Queries: secureRoute.query({ feature, handler })
+// With params: secureRoute.queryWithParams({ taskIdParam: 'id', handler })
+// AI endpoints: secureRoute.ai({ schema, handler })
+// File uploads: secureRoute.fileUpload({ handler })
+```
+
+**secureRoute handles:** Authentication, rate limiting, input sanitization, Zod validation, error handling, performance tracking
+
+**Your responsibility:** Choose correct wrapper, specify feature, use explicit `select:`, call cache invalidation, use `logger`
+
+### Page-Level Access
+
+See `.cursor/rules/security-rules.mdc` for complete page permissions system (4-tier lookup, admin UI, implementation guide).
+
+**Quick Usage:**
+```typescript
+// Every page layout must use PageAccessGuard
+<PageAccessGuard pathname={pathname}>{children}</PageAccessGuard>
+
+// Check access level in components
+const { isViewOnly, canEdit } = usePageAccess();
+```
+
+### Frontend Security
+
+- `<FeatureGate feature={Feature.X}>` for conditional UI
+- `useFeature(Feature.X)` hook for checks
+- Server Components default, `'use client'` only when needed
+
+### User Interface & Interaction Patterns
+
+**CRITICAL:** Browser dialogs (`confirm()`, `alert()`, `prompt()`) are PROHIBITED.
+
+See `.cursor/rules/forvis-design-rules.mdc` for:
+- Confirmation modal patterns
+- Banner component usage
+- Inline validation
+- Modal specifications
+
+### Input Validation, Authorization & Data Protection
+
+See `.cursor/rules/security-rules.mdc` for complete security guidelines including:
+- Input validation and sanitization patterns
+- IDOR protection strategies
+- Authorization beyond roles
+- Data protection and audit logging
+
+**Key Points:**
+- Validate ALL inputs (params, query, body) via Zod or `parseXxxId()`
+- Use `.strict()` on Zod schemas for mutations
+- IDOR protection: verify user access to specific resources
+- Blob Storage: use purpose-specific containers (see `.cursor/rules/blob-storage-rules.mdc`)
+
+## Post-Edit Validation (REQUIRED)
+
+After changing or adding files, verify:
+
+### API Routes (src/app/api/**/route.ts)
+- ✅ Uses `secureRoute` wrapper (query/mutation/ai/fileUpload)
+- ✅ *WithParams variant for routes with [id] segments
+- ✅ Feature permission specified
+- ✅ Schema validation for mutations (POST/PUT/PATCH/DELETE)
+- ✅ Route params validated with `parseXxxId()` utilities
+- ✅ IDOR protection (user can only access their resources)
+- ✅ Explicit `select:` fields in Prisma queries
+- ✅ Cache invalidation after mutations
+- ✅ No `console.log` - use `logger` instead
+- ✅ No manual `sanitizeText()` calls (automatic in secureRoute)
+- ✅ List endpoints have `take` limits
+
+### Components (src/components/**/*)
+- ✅ No browser dialogs (`confirm()`, `alert()`, `prompt()`)
+- ✅ Use Banner component for messages (not toast libraries)
+- ✅ Use `@/components/ui` imports for UI elements
+- ✅ `<FeatureGate>` for conditional access
+- ✅ `'use client'` only when needed
+
+### Database Queries (All Files)
+- ✅ Explicit `select:` - never select all fields
+- ✅ `take` limits on `findMany()` for large tables
+- ✅ No N+1 queries - use `include` or batch with `Promise.all()`
+- ✅ Transactions for multi-step mutations
+
+### All Files
+- ✅ No `any` types - use `unknown` or proper interfaces
+- ✅ Branded IDs used correctly (TaskId, ClientId, etc.)
+- ✅ No `console.log/warn/error` - use `logger`
+- ✅ Static imports only (no `await import()` except AI/ML)
+- ✅ Correct import paths (no stale imports)
+
+**Full Route Review:** See `/ROUTE_REVIEW_INDEX.md` for route review dashboard. Detailed review standards in `/docs/ROUTE_REVIEW_STANDARDS.md`. Domain-specific reviews in `/docs/route-reviews/*.md`.
+
+## Performance (REQUIRED)
+
+See `.cursor/rules/performance-rules.mdc` for complete performance guidelines including:
+- Import patterns (static only, no dynamic imports except AI/ML)
+- Database optimization (explicit select, batching, transactions)
+- Caching strategy (React Query + Redis)
+- Request handling and rate limiting
+
+**Quick Reference:**
+- ALWAYS use explicit `select:` fields in Prisma queries
+- Add `take` limits on `findMany()` for large tables
+- Use `Promise.all()` for parallel queries
+- Call cache invalidation after mutations
+- Use `logger` instead of `console.log`
+
+## Error Handling
+
+```typescript
+throw new AppError(status, message, ErrorCodes.X, metadata);
+return handleApiError(error, 'Context');
+```
+
+Codes: `VALIDATION_ERROR`, `NOT_FOUND`, `FORBIDDEN`, `UNAUTHORIZED`
+
+## Data Integrity
+
+- Validate foreign key references exist before insert/update
+- Idempotency for critical mutations (retrying POST/PUT shouldn't create duplicates)
+- Check unique constraints before insert to prevent race condition errors
+- Timezone: store/return UTC, convert on frontend
+- Decimal precision: use `Decimal.js` for financial data, never floats
+
+## Approval System (REQUIRED)
+
+**All approval workflows MUST use the centralized approval system** (see `.cursor/rules/approval-system-rules.mdc`):
+
+```typescript
+import { approvalService } from '@/lib/services/approvals/approvalService';
+
+// Create approval when workflow needs approval
+const approval = await approvalService.createApproval({
+  workflowType: 'CHANGE_REQUEST', // or ACCEPTANCE, ENGAGEMENT_LETTER, etc.
+  workflowId: item.id,
+  title: 'Descriptive title',
+  requestedById: user.id,
+  context: { /* data for routing */ }
+});
+
+// Link back to workflow
+await prisma.yourTable.update({
+  where: { id: item.id },
+  data: { approvalId: approval.id }
+});
+```
+
+**Benefits:** Centralized logic, reusable workflows, multi-approver support, delegation, audit trail
+
+## Code Quality
+
+**Directory Structure:**
+- API Routes: `/src/app/api/<domain>/` (clients/, tasks/, admin/)
+- Services: `/src/lib/services/<domain>/` (clients/, tasks/, templates/)
+- Components: `ui/`, `layout/`, `shared/`, `features/<domain>/`
+- Hooks: `/src/hooks/<domain>/` (tasks/, clients/, templates/, approvals/)
+- Types: `/src/types/` (flat structure, domain-specific files)
+- Utils: `/src/lib/utils/` (flat structure, single-purpose utilities)
+- Constants: `/src/constants/` (flat structure)
+- Tools: `/src/lib/tools/<tool-name>/` (complex tools with api/, services/, types/ subdirs)
+
+**File Standards:**
+- Extract utilities for 3+ uses
+- Files under 500 lines
+- camelCase file names
+- No duplicates, no deprecated code
+
+## Code Duplication Prevention (REQUIRED)
+
+**Before creating ANY new code:** Search codebase for existing implementations using `Grep` or `SemanticSearch`.
+
+**Common Search Targets:**
+- API routes: `/src/app/api/` - Check for similar CRUD patterns
+- Components: `/src/components/` - Look for reusable UI patterns
+- Services: `/src/lib/services/` - Find related business logic
+- Utilities: `/src/lib/utils/` - Verify helper doesn't exist
+- Hooks: `/src/hooks/` - Check for similar custom hooks
+
+**Action Required:**
+- If similar code exists: Refactor to accept parameters or extend existing
+- If 3+ uses: Extract to shared utility
+- If duplicating UI: Create variant prop instead of new component
+
+Extract for reuse ≥3 uses | Refactor over copy-paste | Document with JSDoc for discoverability
+
+## Planning & Execution (REQUIRED)
+
+**ALWAYS use Plan Mode for ANY user instruction** - Never execute immediately without a plan.
+
+**During Planning Phase:**
+1. **Review ALL relevant rule files** before creating plan (see list below)
+2. **Search for existing implementations** to prevent code duplication
+3. **Verify ALL implementations align with rules:**
+   - UI changes must follow `forvis-design-rules.mdc` (gradients, components, no browser dialogs)
+   - API routes must use `secureRoute` wrapper per `security-rules.mdc`
+   - Database queries must follow patterns in `database-patterns.mdc`
+   - Performance patterns must comply with `performance-rules.mdc`
+   - File uploads must follow `blob-storage-rules.mdc` container rules
+4. **Document compliance** in plan: Explicitly state which rules apply and how implementation follows them
+5. **Cite specific files and code** in the plan
+
+**Rule Files to Consider** (consult based on task domain):
+- `consolidated.mdc` - Core conventions (always review)
+- `forvis-design-rules.mdc` - UI components, styling, user interactions
+- `security-rules.mdc` - API routes, permissions, access control
+- `database-patterns.mdc` - Database queries, IDs, fiscal periods
+- `performance-rules.mdc` - Caching, optimization, logging
+- `approval-system-rules.mdc` - Workflow approvals
+- `migration-rules.mdc` - Schema changes, Prisma migrations
+- `blob-storage-rules.mdc` - File uploads, Azure storage
+- `tool-system-rules.mdc` - Tool creation, junction tables
+- `ai-patterns.mdc` - Azure OpenAI, document intelligence, RAG
+
+**Rule Compliance is NOT optional** - Plans that don't verify rule alignment will be incomplete.
+
+**If unsure which rules apply:** Read relevant rule files during planning phase.
+
+## AI Assistant
+
+- Upon task completion, simply state "Completed"
+- No verbose summaries after finishing work
+
+## Core Principles
+
+Security checks are NOT optional. Performance patterns are REQUIRED. Type safety is MANDATORY.
+
+

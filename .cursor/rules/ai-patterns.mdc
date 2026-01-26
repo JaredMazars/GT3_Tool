@@ -1,0 +1,446 @@
+---
+description: General AI patterns for Azure OpenAI integration
+alwaysApply: false
+version: 1.1.0
+lastUpdated: 2026-01-21
+changelog:
+  - "1.1.0 (2026-01-21): Expanded error handling with retry strategies and graceful degradation"
+  - "1.0.0: Initial AI patterns documentation"
+---
+
+# AI Patterns
+
+Azure OpenAI integration for AI-powered generation, analysis, and document intelligence.
+
+## When To Apply This Rule
+
+- Implementing AI-powered features (text generation, analysis, extraction)
+- Using Azure OpenAI models for content generation or structured output
+- Implementing document intelligence or RAG (Retrieval Augmented Generation)
+- Creating AI agents or multi-step workflows
+- Extracting structured data from documents (PDFs, images)
+- Building conversational or interview-based AI features
+
+## Azure OpenAI Configuration
+
+**Always import from `@/lib/ai/config`:**
+- `models.mini`: GPT-5 Mini for generation tasks
+- `models.nano`: Lightweight tasks (document extraction)
+- `models.embedding`: Text embeddings for RAG/semantic search
+
+**Model parameters**: Use `getModelParams()` for reasoning models (o1/o3/gpt-5) that don't support all parameters
+
+## AI SDK Usage
+
+**Text Generation:**
+```typescript
+import { generateText } from 'ai';
+const result = await generateText({
+  model: models.mini,
+  prompt: 'Your prompt',
+  ...getModelParams({ temperature: 0.7 })
+});
+```
+
+**Structured Output:**
+```typescript
+import { generateObject } from 'ai';
+const result = await generateObject({
+  model: models.mini,
+  schema: zodSchema,
+  prompt: 'Your prompt'
+});
+```
+
+**Streaming:**
+```typescript
+import { streamText } from 'ai';
+const stream = await streamText({
+  model: models.mini,
+  prompt: 'Your prompt'
+});
+```
+
+## Agent Orchestration
+
+**Location:** `/src/lib/agents/`
+
+**Pattern:** Multi-step AI workflows with phase-based coordination
+
+**Agent Types:**
+- Interview: Gather information via questions
+- Research: Search and retrieve relevant data
+- Analysis: Analyze and identify patterns/risks
+- Drafting: Generate structured content
+- Review: Quality assurance and feedback
+
+**Rules:**
+1. Sequential phase progression
+2. Track state via `WorkflowState`
+3. Pass conversation history between agents
+4. Include phase metadata in responses
+
+## RAG (Retrieval Augmented Generation)
+
+**When to use:** Document-based AI tasks requiring context from uploaded files
+
+**Location:** `/src/lib/services/opinions/ragEngine.ts`
+
+**Pattern:**
+1. Check `RAGEngine.isConfigured()` before use
+2. Index documents: Automatic chunking (1000 chars, 200 overlap)
+3. Search: `ragEngine.search(query, scopeId, { topK, minScore })`
+4. Format context: `ragEngine.formatContext(results)`
+5. Extract sources: `ragEngine.extractSources(results)`
+
+**Backend:** Azure AI Search with vector embeddings (cosine similarity)
+
+**Best Practices:**
+- Always check availability
+- Scope searches appropriately
+- Return cited sources
+- Fallback gracefully when unavailable
+
+## Document Intelligence
+
+**When to use:** Extract structured data from PDFs, images, documents
+
+**Service:** `@/lib/services/documents/documentIntelligence`
+
+**Returns:** Structured content, tables, key-value pairs
+
+## Service Selection
+
+1. **Agent Orchestrator** → Complex multi-step workflows
+2. **Individual Agents** → Single-purpose AI tasks
+3. **RAG Engine** → Document context retrieval
+4. **Document Intelligence** → Structured extraction
+5. **Direct AI SDK** → Simple generation/structured output
+
+## Error Handling
+
+### Common Failure Scenarios
+
+**AI API Timeout:**
+```typescript
+import { generateText } from 'ai';
+
+try {
+  const result = await generateText({
+    model: models.mini,
+    prompt: 'Your prompt',
+    maxRetries: 2,
+    abortSignal: AbortSignal.timeout(30000), // 30 second timeout
+  });
+  return result.text;
+} catch (error) {
+  if (error.name === 'AbortError') {
+    logger.error('AI generation timeout', { prompt: prompt.slice(0, 100) });
+    throw new AppError(504, 'AI request timed out. Please try again.', ErrorCodes.SERVER_ERROR);
+  }
+  throw error;
+}
+```
+
+**Rate Limit Exceeded:**
+```typescript
+try {
+  const result = await generateText({ model, prompt });
+  return result.text;
+} catch (error) {
+  if (error.status === 429) {
+    logger.warn('AI rate limit exceeded', { userId: user.id });
+    throw new AppError(429, 'Too many requests. Please wait a moment and try again.', ErrorCodes.RATE_LIMIT);
+  }
+  logger.error('AI generation failed', { error });
+  throw new AppError(500, 'Failed to generate response', ErrorCodes.SERVER_ERROR);
+}
+```
+
+**Invalid Model Configuration:**
+```typescript
+import { models } from '@/lib/ai/config';
+
+// Check model availability before use
+if (!models.mini) {
+  logger.error('AI model not configured');
+  throw new AppError(503, 'AI service temporarily unavailable', ErrorCodes.SERVICE_UNAVAILABLE);
+}
+```
+
+**RAG Engine Not Available:**
+```typescript
+import { ragEngine } from '@/lib/services/opinions/ragEngine';
+
+// Always check before using RAG
+if (!ragEngine.isConfigured()) {
+  logger.warn('RAG not configured, using fallback');
+  // Provide fallback behavior without RAG
+  return await generateWithoutContext(prompt);
+}
+
+try {
+  const results = await ragEngine.search(query, scopeId);
+  const context = ragEngine.formatContext(results);
+  return await generateWithContext(prompt, context);
+} catch (error) {
+  logger.error('RAG search failed', { error, query });
+  // Graceful degradation: proceed without RAG context
+  return await generateWithoutContext(prompt);
+}
+```
+
+**Document Intelligence Extraction Fails:**
+```typescript
+import { extractFromDocument } from '@/lib/services/documents/documentIntelligence';
+
+try {
+  const extracted = await extractFromDocument(fileUrl);
+  return extracted;
+} catch (error) {
+  logger.error('Document extraction failed', { error, fileUrl });
+  
+  // Provide partial results if available
+  if (error.partialData) {
+    logger.info('Returning partial extraction results');
+    return error.partialData;
+  }
+  
+  throw new AppError(422, 'Could not extract data from document. Please check file format.', ErrorCodes.VALIDATION_ERROR);
+}
+```
+
+### Retry Strategies
+
+**Exponential Backoff for Transient Failures:**
+```typescript
+async function generateWithRetry(prompt: string, maxRetries = 3) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await generateText({ model: models.mini, prompt });
+    } catch (error) {
+      const isLastAttempt = attempt === maxRetries - 1;
+      const isRetryable = error.status >= 500 || error.status === 429;
+      
+      if (!isRetryable || isLastAttempt) {
+        throw error;
+      }
+      
+      // Exponential backoff: 1s, 2s, 4s
+      const delayMs = Math.pow(2, attempt) * 1000;
+      logger.warn(`AI request failed, retrying in ${delayMs}ms`, { attempt });
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+  }
+}
+```
+
+### User Communication
+
+**Graceful Degradation Messages:**
+```typescript
+// When AI feature unavailable
+setWarning('AI assistance is temporarily unavailable. You can still complete this manually.');
+
+// When AI takes too long
+setInfo('AI is processing your request. This may take a moment...');
+
+// When partial results available
+setBanner({
+  variant: 'warning',
+  message: 'AI analysis completed with limited data. Please review carefully.',
+});
+```
+
+## Logging
+
+**Use structured logging:**
+```typescript
+import { logger } from '@/lib/utils/logger';
+logger.info('AI operation', { agent, context });
+logger.error('AI failed', { error: error.message, agent });
+```
+
+## Environment Variables
+
+```bash
+AZURE_OPENAI_API_KEY=your_key
+AZURE_OPENAI_DEPLOYMENT=gpt-5-mini
+AZURE_OPENAI_EMBEDDING_DEPLOYMENT=text-embedding-3-small
+AZURE_SEARCH_ENDPOINT=https://resource.search.windows.net
+AZURE_SEARCH_API_KEY=your_key
+AZURE_SEARCH_INDEX_NAME=your-index
+AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT=your_endpoint
+AZURE_DOCUMENT_INTELLIGENCE_KEY=your_key
+```
+
+## Cost Optimization
+
+1. Use `models.nano` for simple tasks
+2. Set reasonable `maxTokens` limits
+3. Cache repeated operations (`CacheService`)
+4. Batch operations when possible
+5. Stream long-form generation for UX
+
+## Prompt Engineering
+
+1. Be specific: Clear instructions
+2. Provide context: Relevant background
+3. Use examples: Few-shot prompting
+4. Structure output: Request specific formats
+5. Iterate: Refine based on quality
+
+## Rate Limiting
+
+### Default Rate Limits for AI Endpoints
+
+When using `secureRoute.ai()`, these limits are automatically applied:
+
+**Per-User Limits**:
+- **Default**: 10 requests per minute
+- **Burst**: 20 requests per 5 minutes
+- **Daily**: 200 requests per day
+
+**Per-IP Limits** (in addition to per-user):
+- **Default**: 30 requests per minute (protects against abuse)
+
+**Example**:
+```typescript
+import { secureRoute } from '@/lib/api/secureRoute';
+
+export const POST = secureRoute.ai({
+  schema: GenerateReportSchema,
+  handler: async (request, { user, data }) => {
+    // Rate limiting automatically enforced
+    const result = await generateReport(data);
+    return NextResponse.json(successResponse(result));
+  },
+});
+```
+
+### Handling Rate Limit Errors
+
+**Client-Side Handling**:
+```typescript
+try {
+  const response = await fetch('/api/ai/generate', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  
+  if (response.status === 429) {
+    const retryAfter = response.headers.get('Retry-After');
+    setError(`Rate limit exceeded. Please wait ${retryAfter} seconds before trying again.`);
+    return;
+  }
+  
+  const result = await response.json();
+} catch (error) {
+  logger.error('AI request failed', { error });
+}
+```
+
+**Server-Side Handling**:
+```typescript
+// secureRoute.ai() automatically returns 429 with Retry-After header
+// No manual handling needed in handler function
+```
+
+### Backoff Strategies
+
+**Exponential Backoff for Client**:
+```typescript
+async function generateWithBackoff(data: any, maxAttempts = 3) {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      const response = await fetch('/api/ai/generate', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      
+      if (response.ok) {
+        return await response.json();
+      }
+      
+      if (response.status === 429) {
+        const retryAfter = parseInt(response.headers.get('Retry-After') || '60');
+        
+        if (attempt < maxAttempts - 1) {
+          logger.info('Rate limited, retrying', { attempt, retryAfter });
+          await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+          continue;
+        }
+      }
+      
+      throw new Error(`Request failed: ${response.status}`);
+    } catch (error) {
+      if (attempt === maxAttempts - 1) throw error;
+    }
+  }
+}
+```
+
+### User Communication
+
+**Rate Limit Reached**:
+```tsx
+{rateLimitError && (
+  <Banner
+    variant="warning"
+    title="Rate Limit Reached"
+    message={`You've reached the AI generation limit. Please wait ${retryAfter} seconds before trying again.`}
+    dismissible
+    onDismiss={() => setRateLimitError(null)}
+  />
+)}
+```
+
+**Approaching Limit**:
+```tsx
+{requestCount > 150 && (
+  <Banner
+    variant="info"
+    message={`You've used ${requestCount}/200 AI requests today. Requests reset at midnight.`}
+  />
+)}
+```
+
+### Custom Rate Limits
+
+**For specific endpoints requiring different limits**:
+```typescript
+// Contact platform team to adjust rate limits
+// Document reason in API route comments:
+
+/**
+ * High-volume AI endpoint for batch processing
+ * Rate limit: 50 req/min (custom - approved by platform team)
+ */
+export const POST = secureRoute.ai({
+  // Custom limits configured at infrastructure level
+  schema: BatchProcessSchema,
+  handler: async (request, { user, data }) => {
+    // ...
+  },
+});
+```
+
+### Monitoring Rate Limits
+
+**Log rate limit hits**:
+```typescript
+// Automatically logged by secureRoute.ai()
+// Check logs for patterns:
+logger.warn('Rate limit exceeded', { 
+  userId: user.id, 
+  endpoint: '/api/ai/generate',
+  limit: 'per-user',
+});
+```
+
+## Related Rules
+
+- **security-rules.mdc**: API route security with `secureRoute` wrapper, use `secureRoute.ai()` for AI endpoints
+- **blob-storage-rules.mdc**: Document storage for AI-extracted content (engagement letters, DPAs, acceptance docs)
+- **consolidated.mdc**: Main conventions including error handling, logging, and performance patterns
+- **approval-system-rules.mdc**: Use approval system for AI-generated content requiring review/approval

@@ -1,0 +1,339 @@
+---
+description: for blob storage services
+alwaysApply: false
+version: 1.1.0
+lastUpdated: 2026-01-21
+changelog:
+  - "1.1.0 (2026-01-21): Added comprehensive error handling and cleanup procedures"
+  - "1.0.0: Initial blob storage conventions"
+---
+# Blob Storage Container Convention
+
+## When To Apply This Rule
+
+- Uploading files to Azure Blob Storage
+- Creating new document storage features
+- Working with engagement letters, DPAs, or acceptance documents
+- Implementing file upload/download functionality
+- Designing storage architecture for new document types
+- Reviewing blob storage code for compliance
+
+## RULE: Purpose-Specific Containers
+
+**All blob storage operations MUST use purpose-specific containers. Never store different document types in the same container.**
+
+### Container Naming
+- Format: `{purpose}` or `{purpose}-{category}`
+- Examples: `engagement-letters`, `acceptance-documents`, `dpa`
+- Use lowercase with hyphens for multi-word names
+
+### Path Structure
+Within each container: `{entityId}/{timestamp}_{sanitized_filename}`
+
+### Current Containers
+| Container | Purpose | Path Pattern |
+|-----------|---------|--------------|
+| `engagement-letters` | Engagement letter documents | `{taskId}/{timestamp}_{filename}` |
+| `dpa` | Data Processing Agreements | `{taskId}/{timestamp}_{filename}` |
+| `acceptance-documents` | A&C (Acceptance & Continuance) documents | `{taskId}/{timestamp}_{filename}` |
+| `review-notes` | Review note attachments | `{noteId}/{timestamp}_{filename}` |
+| `news-bulletins` | News bulletin documents | `{bulletinId}/{timestamp}_{filename}` |
+
+### Implementation Requirements
+
+For each new document type, create:
+1. Container name constant
+2. Container client function
+3. Initialization function  
+4. Upload/download functions using the dedicated container
+
+### Benefits
+- Clear separation of document types
+- Better access control via container-level permissions
+- Easier lifecycle management per type
+- Simpler paths without redundant prefixes
+- Independent scaling per container
+
+### Anti-Patterns to Avoid
+
+**❌ Wrong: Mixing document types in one container**
+```typescript
+// DON'T DO THIS
+const containerClient = blobServiceClient.getContainerClient('documents');
+await containerClient.getBlockBlobClient('engagement-letters/task123/letter.pdf').upload();
+await containerClient.getBlockBlobClient('dpa/task123/dpa.pdf').upload();
+await containerClient.getBlockBlobClient('acceptance/task123/doc.pdf').upload();
+```
+
+**✅ Correct: Purpose-specific containers**
+```typescript
+// Each document type has its own container
+const elContainer = blobServiceClient.getContainerClient('engagement-letters');
+const dpaContainer = blobServiceClient.getContainerClient('dpa');
+const acceptanceContainer = blobServiceClient.getContainerClient('acceptance-documents');
+```
+
+**❌ Wrong: User-controlled paths**
+```typescript
+// DON'T DO THIS - security risk
+const blobName = `${userId}/${req.body.path}/${req.body.filename}`;
+// User could inject: "../../other-user/sensitive.pdf"
+```
+
+**✅ Correct: Sanitized, controlled paths**
+```typescript
+const timestamp = Date.now();
+const sanitizedName = filename.replace(/[^a-zA-Z0-9.-]/g, '_');
+const blobName = `${entityId}/${timestamp}_${sanitizedName}`;
+```
+
+**❌ Wrong: No file validation**
+```typescript
+// DON'T DO THIS
+async function uploadFile(file: File) {
+  await blockBlobClient.uploadData(await file.arrayBuffer());
+}
+```
+
+**✅ Correct: Validate before upload**
+```typescript
+async function uploadFile(file: File) {
+  validateFile(file); // Check size and MIME type
+  await blockBlobClient.uploadData(await file.arrayBuffer(), {
+    blobHTTPHeaders: {
+      blobContentType: file.type,
+    },
+  });
+}
+```
+
+**❌ Wrong: Hardcoded container names**
+```typescript
+// DON'T DO THIS
+await blobServiceClient.getContainerClient('engagement-letters').getBlockBlobClient(name).upload();
+```
+
+**✅ Correct: Use constants and helper functions**
+```typescript
+const ENGAGEMENT_LETTERS_CONTAINER = 'engagement-letters';
+
+function getEngagementLettersContainer() {
+  return blobServiceClient.getContainerClient(ENGAGEMENT_LETTERS_CONTAINER);
+}
+
+await getEngagementLettersContainer().getBlockBlobClient(name).upload();
+```
+
+**❌ Wrong: No cleanup on entity deletion**
+```typescript
+// DON'T DO THIS - orphaned files
+await prisma.task.delete({ where: { id: taskId } });
+// Files still in blob storage!
+```
+
+**✅ Correct: Cleanup associated files**
+```typescript
+await prisma.task.delete({ where: { id: taskId } });
+await cleanupTaskDocuments(taskId, 'engagement-letters');
+```
+
+### Code Review Checklist
+- New blob storage code uses dedicated container
+- Container name reflects document purpose
+- Container initialization function exists
+- Upload/download functions use correct container client
+- No mixing of document types in same container
+
+## Error Handling
+
+### Common Failure Scenarios
+
+**Container Does Not Exist:**
+```typescript
+import { getBlobServiceClient } from '@/lib/services/documents/blobStorage';
+
+async function ensureContainerExists(containerName: string) {
+  try {
+    const blobServiceClient = getBlobServiceClient();
+    const containerClient = blobServiceClient.getContainerClient(containerName);
+    
+    // Check if container exists, create if not
+    const exists = await containerClient.exists();
+    if (!exists) {
+      logger.info('Creating blob container', { containerName });
+      await containerClient.create();
+    }
+    
+    return containerClient;
+  } catch (error) {
+    logger.error('Failed to ensure container exists', { error, containerName });
+    throw new AppError(500, 'Storage container unavailable', ErrorCodes.SERVER_ERROR);
+  }
+}
+```
+
+**Upload Fails:**
+```typescript
+async function uploadDocument(file: File, entityId: string, containerName: string) {
+  try {
+    const containerClient = await ensureContainerExists(containerName);
+    const timestamp = Date.now();
+    const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const blobName = `${entityId}/${timestamp}_${sanitizedName}`;
+    
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+    const uploadResponse = await blockBlobClient.uploadData(
+      await file.arrayBuffer(),
+      {
+        blobHTTPHeaders: {
+          blobContentType: file.type,
+        },
+      }
+    );
+    
+    logger.info('Document uploaded', { blobName, entityId });
+    return { url: blockBlobClient.url, blobName };
+    
+  } catch (error) {
+    logger.error('Document upload failed', { error, entityId, fileName: file.name });
+    
+    // Check for specific errors
+    if (error.statusCode === 403) {
+      throw new AppError(403, 'Storage access denied', ErrorCodes.FORBIDDEN);
+    }
+    if (error.statusCode === 413) {
+      throw new AppError(413, 'File too large', ErrorCodes.VALIDATION_ERROR);
+    }
+    
+    throw new AppError(500, 'Failed to upload document', ErrorCodes.SERVER_ERROR);
+  }
+}
+```
+
+**Download Fails:**
+```typescript
+async function downloadDocument(blobName: string, containerName: string) {
+  try {
+    const containerClient = await ensureContainerExists(containerName);
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+    
+    // Check if blob exists
+    const exists = await blockBlobClient.exists();
+    if (!exists) {
+      throw new AppError(404, 'Document not found', ErrorCodes.NOT_FOUND);
+    }
+    
+    const downloadResponse = await blockBlobClient.download();
+    return downloadResponse;
+    
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    
+    logger.error('Document download failed', { error, blobName });
+    throw new AppError(500, 'Failed to download document', ErrorCodes.SERVER_ERROR);
+  }
+}
+```
+
+**Delete Fails:**
+```typescript
+async function deleteDocument(blobName: string, containerName: string) {
+  try {
+    const containerClient = await ensureContainerExists(containerName);
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+    
+    await blockBlobClient.deleteIfExists();
+    logger.info('Document deleted', { blobName });
+    
+  } catch (error) {
+    logger.error('Document delete failed', { error, blobName });
+    // Don't throw - deletion failures shouldn't block other operations
+    // Just log the error for monitoring
+  }
+}
+```
+
+### Cleanup Procedures
+
+**On Entity Deletion:**
+```typescript
+// Delete all documents associated with entity
+async function cleanupEntityDocuments(entityId: string, containerName: string) {
+  try {
+    const containerClient = await ensureContainerExists(containerName);
+    const prefix = `${entityId}/`;
+    
+    // List all blobs with this prefix
+    const blobs = containerClient.listBlobsFlat({ prefix });
+    const deletePromises: Promise<void>[] = [];
+    
+    for await (const blob of blobs) {
+      deletePromises.push(
+        containerClient.getBlockBlobClient(blob.name).deleteIfExists()
+      );
+    }
+    
+    await Promise.all(deletePromises);
+    logger.info('Entity documents cleaned up', { entityId, count: deletePromises.length });
+    
+  } catch (error) {
+    logger.error('Document cleanup failed', { error, entityId });
+    // Don't throw - allow deletion to proceed even if cleanup fails
+  }
+}
+
+// Call during entity deletion
+await prisma.$transaction([
+  prisma.yourEntity.delete({ where: { id: entityId } }),
+]);
+// Cleanup happens after transaction succeeds
+await cleanupEntityDocuments(entityId, 'your-container');
+```
+
+### File Validation
+
+**Before Upload:**
+```typescript
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const ALLOWED_MIME_TYPES = ['application/pdf', 'image/png', 'image/jpeg'];
+
+function validateFile(file: File) {
+  if (file.size > MAX_FILE_SIZE) {
+    throw new AppError(413, 'File size exceeds 10MB limit', ErrorCodes.VALIDATION_ERROR);
+  }
+  
+  if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+    throw new AppError(
+      400,
+      `Invalid file type. Allowed types: ${ALLOWED_MIME_TYPES.join(', ')}`,
+      ErrorCodes.VALIDATION_ERROR
+    );
+  }
+}
+```
+
+## Rule Exceptions
+
+The purpose-specific container rule may be relaxed only in these scenarios:
+
+1. **Development/Testing Environments**: Temporary shared container for rapid prototyping
+   - MUST document in code: `// RULE EXCEPTION: Dev testing only - DO NOT use in production`
+   - MUST create proper containers before production deployment
+
+2. **Data Migration**: Temporary co-location during migration from old system
+   - MUST have migration plan with end date
+   - MUST be reviewed by architect
+   - MUST clean up after migration completes
+
+**Requesting Exception:**
+1. Document reason in code and git commit message
+2. Create tracking issue with cleanup timeline
+3. Get approval from technical lead
+4. Add TODO with deadline
+
+## Related Rules
+
+- **ai-patterns.mdc**: Document Intelligence for extracting structured data from uploaded documents
+- **approval-system-rules.mdc**: Approval workflows for documents requiring review (engagement letters, DPAs)
+- **security-rules.mdc**: File upload security, MIME type validation, access control for blob storage
+- **consolidated.mdc**: Error handling, logging, and data protection requirements for file operations

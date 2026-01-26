@@ -1,0 +1,756 @@
+---
+alwaysApply: true
+version: 2.1.0
+lastUpdated: 2026-01-21
+changelog:
+  - "2.1.0 (2026-01-21): Fixed ConfirmModal import path, removed toast example confusion"
+  - "2.0.0: Initial design system standards"
+---
+# Forvis Mazars Design System Standards
+
+**System Version:** 2.0  
+**Brand Archetype:** Professional, Corporate, Trustworthy, Authoritative.  
+**Core Principle:** UI Consistency via strict Component usage.
+
+## Design System Repository (CRITICAL)
+
+**ALWAYS consult the Design System Repository for implementation details:**
+
+📚 **Location:** `docs/design-system/`
+
+### Key Resources
+
+| Document | Purpose | When to Use |
+|---|---|---|
+| **[Component Catalog](../docs/design-system/04-component-catalog.md)** | All UI components with props and examples | Building any UI component |
+| **[Gradient System](../docs/design-system/03-gradients.md)** | Centralized gradient constants, utilities, CSS classes | Using or replacing gradients |
+| **[Pattern Library](../docs/design-system/05-pattern-library.md)** | Common UI patterns (modals, forms, tables) | Implementing standard patterns |
+| **[Migration Guide](../docs/design-system/06-migration-guide.md)** | Step-by-step migration checklist | Migrating existing code |
+| **[Before/After Examples](../docs/design-system/07-before-after-examples.md)** | Code examples showing correct implementations | Need concrete examples |
+| **[Color System](../docs/design-system/02-color-system.md)** | Complete color palette with usage guidelines | Choosing colors |
+| **[Getting Started](../docs/design-system/01-getting-started.md)** | Quick start guide and overview | New to design system |
+
+### When to Use Design System Repository
+
+**✅ Required:**
+- Before creating any new UI component
+- When migrating existing components
+- When unsure about gradient usage
+- When implementing modals, forms, or tables
+- When choosing colors or styling patterns
+- When replacing browser dialogs
+- When standardizing button/input components
+
+**Key Principle:** The Design System Repository is the **single source of truth** for all UI patterns, components, and styling.
+
+---
+
+## 1. Component Architecture (Strict Enforcement)
+
+**Rule:** Do not build custom UI elements. Use the strictly typed component library.
+
+**Import Path:**
+```typescript
+import { Button, Card, DashboardCard, Input, Badge, Banner, StatCard, LoadingSpinner } from '@/components/ui';
+```
+
+### Component Reference Map
+| Component      | Variants/Props                                   | Usage Context |
+|----------------|--------------------------------------------------|---------------|
+| Button         | primary, secondary, gradient, danger             | All interactive triggers. Use gradient for primary CTAs. |
+| Card           | standard, dashboard, shared-service, stats       | Base containers. `dashboard` adds hover/interaction logic. |
+| DashboardCard  | title, icon, stats, href                         | Interactive navigation cards with hover + stats. |
+| Input          | text, email, password, select, textarea          | Forms with built‑in label + error states. |
+| Badge          | Color variants, dot                              | Status indicators. |
+| Banner         | info, error, warning, success                    | Alerts + notifications. |
+| StatCard       | gradientVariant={1,2}                            | Metrics and high‑visibility KPIs. |
+
+---
+
+## 2. Brand Identity & Design Tokens
+
+### Color Palette (Hex Reference)
+- **Primary Blue:** `#2E5AAC`, `#1C3667`, `#5B93D7`  
+- **Gold Accent:** `#D9CBA8`, `#B0A488`  
+- **Backgrounds:** `#F0F7FD`, `#F8F9FA`, `#FFFFFF`  
+- **Text:** `#212529`, `#343A40`, `#6C757D`
+
+### Corporate Neutrals (Professional Finance Palette)
+
+**Ink (Dark Grays):**
+- `ink-950`: #0F172A (Deepest dark, rare use)
+- `ink-900`: #111827 (Primary text, headings)
+- `ink-700`: #334155 (Secondary text)
+
+**Muted (Medium Grays):**
+- `muted-600`: #64748B (Tertiary text, labels)
+- `muted-500`: #6B7280 (Subtle text, metadata)
+
+**Surfaces (Backgrounds):**
+- `surface-0`: #FFFFFF (Pure white)
+- `surface-50`: #F7FAFD (Cool off-white)
+- `surface-100`: #EEF4FB (Subtle blue-tint)
+- `border`: rgba(17, 24, 39, 0.08) (Subtle borders)
+
+### Gradient Registry
+
+**⚠️ Gradients are now centralized!** See [Gradient System Documentation](../docs/design-system/03-gradients.md) for complete reference.
+
+**Three ways to use gradients:**
+
+1. **CSS Classes** - `className="bg-gradient-dashboard-card"`
+2. **Constants** - `import { GRADIENTS } from '@/lib/design-system/gradients'`
+3. **Utility Functions** - `import { getGradient } from '@/lib/design-system/gradients'`
+
+**Quick Examples:**
+
+```tsx
+// Method 1: CSS Class (static elements)
+<div className="bg-gradient-dashboard-card">Content</div>
+
+// Method 2: Constant (inline styles)
+import { GRADIENTS } from '@/lib/design-system/gradients';
+<div style={{ background: GRADIENTS.dashboard.card }}>Content</div>
+
+// Method 3: Utility Function (dynamic/conditional)
+import { getSemanticGradient } from '@/lib/design-system/gradients';
+const gradient = getSemanticGradient('success', 'light');
+<div style={{ background: gradient }}>Content</div>
+```
+
+**Complete Documentation:** [docs/design-system/03-gradients.md](../docs/design-system/03-gradients.md)
+
+---
+
+### Legacy Gradient Reference (For Migration Only)
+
+#### A. Primary Surfaces
+```jsx
+// Diagonal Blue
+style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)' }}
+
+// Horizontal Blue
+style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
+```
+
+#### B. Dashboard Interaction
+```jsx
+// Base Card Background
+style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+
+// Hover Overlay
+style={{ background: 'linear-gradient(135deg, rgba(91,147,215,0.06) 0%, rgba(46,90,172,0.08) 100%)' }}
+```
+
+#### C. Premium / Executive Gold
+```jsx
+// Gold Premium
+style={{ background: 'linear-gradient(135deg, #D9CBA8 0%, #B0A488 100%)' }}
+
+// Blue → Gold
+style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #D9CBA8 100%)' }}
+```
+
+#### D. Workspaces (Data‑Heavy)
+```jsx
+style={{ background: 'linear-gradient(135deg, #F0EAE0 0%, #E0D5C3 100%)', borderColor: '#C9BCAA' }}
+```
+
+#### E. Semantic Gradients
+
+**Light Background Gradients** (Alerts, Containers):
+```jsx
+// Success (approval states, success alerts)
+style={{ background: 'linear-gradient(135deg, #E8F3F1 0%, #C8E3DF 100%)' }}
+
+// Warning (pending states, warning alerts)
+style={{ background: 'linear-gradient(135deg, #F8F3E8 0%, #EFE3C8 100%)' }}
+
+// Error (rejection states, error alerts)
+style={{ background: 'linear-gradient(135deg, #F7EBF0 0%, #EDCED9 100%)' }}
+```
+
+**Deep Button Gradients** (Interactive Elements):
+```jsx
+// Success Button (Approve, Confirm, Save) - Uses success-400 → 600 → 800
+style={{ background: 'linear-gradient(135deg, #4E9B8E 0%, #2F6A5F 50%, #1F4540 100%)' }}
+
+// Warning Button (Review, Caution, Pending) - Uses warning-400 → 600 → 800
+style={{ background: 'linear-gradient(135deg, #C09B4E 0%, #8F6A2F 50%, #5E451F 100%)' }}
+
+// Error Button (Delete, Reject, Cancel) - Uses error-400 → 600 → 800
+style={{ background: 'linear-gradient(135deg, #B8546E 0%, #872F48 50%, #581E2F 100%)' }}
+```
+
+**Pattern:** Semantic buttons use 3-stop gradients (light → medium → dark) matching the Forvis diagonal blue gradient style for consistent depth and visual interest.
+
+---
+
+## 3. Semantic & Data Visualization Colors
+
+**Visual Reference:** See [`docs/color-reference.html`](../docs/color-reference.html) for interactive examples and complete palette visualization.
+
+### Semantic Status Colors
+
+Professional, muted color palettes for success, error, and warning states that harmonize with Forvis brand identity. These darker, more saturated colors provide better depth and professionalism than standard bright colors.
+
+#### Success (Teal-Green) - Professional Growth
+
+**Complete Scale:**
+- `success-50`: #E8F3F1 (Lightest background)
+- `success-100`: #C8E3DF (Light background)
+- `success-200`: #A0CFC8 (Soft borders)
+- `success-300`: #71B5AA (Muted accents)
+- `success-400`: #4E9B8E (Interactive elements)
+- `success-500`: #3A7F73 (Base - buttons, emphasis)
+- `success-600`: #2F6A5F (Text on light - WCAG AA)
+- `success-700`: #27574F (Dark text)
+- `success-800`: #1F4540 (High contrast)
+- `success-900`: #163530 (Darkest)
+
+**Usage:** Approved status, completed actions, positive metrics, profit indicators
+
+**Tailwind Classes:**
+- Text: `text-forvis-success-600` (on light), `text-forvis-success-800` (emphasis)
+- Backgrounds: `bg-forvis-success-50` (light), `bg-forvis-success-100` (cards)
+- Borders: `border-forvis-success-200`
+
+**Gradient (Light Backgrounds):**
+```jsx
+style={{ background: 'linear-gradient(135deg, #E8F3F1 0%, #C8E3DF 100%)' }}
+```
+
+#### Error (Burgundy) - Professional Alert
+
+**Complete Scale:**
+- `error-50`: #F7EBF0 (Lightest background)
+- `error-100`: #EDCED9 (Light background)
+- `error-200`: #DFA8B8 (Soft borders)
+- `error-300`: #CD7B91 (Muted accents)
+- `error-400`: #B8546E (Interactive elements)
+- `error-500`: #9F3B56 (Base - buttons, emphasis)
+- `error-600`: #872F48 (Text on light - WCAG AA)
+- `error-700`: #6F263B (Dark text)
+- `error-800`: #581E2F (High contrast)
+- `error-900`: #421624 (Darkest)
+
+**Usage:** Rejected status, failed operations, negative metrics, loss indicators, overdue/high risk
+
+**Tailwind Classes:**
+- Text: `text-forvis-error-600` (on light), `text-forvis-error-800` (emphasis)
+- Backgrounds: `bg-forvis-error-50` (light), `bg-forvis-error-100` (cards)
+- Borders: `border-forvis-error-200`
+
+**Gradient (Light Backgrounds):**
+```jsx
+style={{ background: 'linear-gradient(135deg, #F7EBF0 0%, #EDCED9 100%)' }}
+```
+
+#### Warning (Ochre/Amber) - Professional Caution
+
+**Complete Scale:**
+- `warning-50`: #F8F3E8 (Lightest background)
+- `warning-100`: #EFE3C8 (Light background)
+- `warning-200`: #E3CFA0 (Soft borders)
+- `warning-300`: #D4B571 (Muted accents)
+- `warning-400`: #C09B4E (Interactive elements)
+- `warning-500`: #A8803A (Base - buttons, emphasis)
+- `warning-600`: #8F6A2F (Text on light - WCAG AA)
+- `warning-700`: #765727 (Dark text)
+- `warning-800`: #5E451F (High contrast)
+- `warning-900`: #473418 (Darkest)
+
+**Usage:** Pending review, attention needed, approaching deadline, caution states
+
+**Tailwind Classes:**
+- Text: `text-forvis-warning-600` (on light), `text-forvis-warning-800` (emphasis)
+- Backgrounds: `bg-forvis-warning-50` (light), `bg-forvis-warning-100` (cards)
+- Borders: `border-forvis-warning-200`
+
+**Gradient (Light Backgrounds):**
+```jsx
+style={{ background: 'linear-gradient(135deg, #F8F3E8 0%, #EFE3C8 100%)' }}
+```
+
+### Data Visualization Colors (Charts & Graphs)
+
+9 harmonious colors for Recharts multi-line charts, maintaining professional Forvis aesthetic with muted, corporate tones:
+
+| Purpose | Variable | Hex Value | Usage |
+|---------|----------|-----------|-------|
+| Primary Series | `viz-1` | #2E5AAC | Main data (revenue, primary metric) |
+| Secondary Series | `viz-2` | #3F74C6 | Refined mid-blue (forecast, comparison) |
+| Tertiary Series | `viz-3` | #2C5A8A | Slate-blue (supporting data) |
+| Success Metrics | `viz-4` | #2F6A5F | Positive trends (from success-600) |
+| Warning Metrics | `viz-5` | #A8803A | Attention needed (from warning-500) |
+| Error Metrics | `viz-6` | #872F48 | Negative trends (from error-600) |
+| Additional 1 | `viz-7` | #5E5AAE | Muted violet (multi-series) |
+| Additional 2 | `viz-8` | #2E7C7A | Muted teal (multi-series) |
+| Additional 3 | `viz-9` | #B56A3B | Muted copper (multi-series) |
+
+**Recharts Implementation:**
+```tsx
+import { LineChart, Line } from 'recharts';
+
+<LineChart data={data}>
+  <Line dataKey="revenue" stroke="#2E5AAC" strokeWidth={2} /> {/* viz-1 */}
+  <Line dataKey="costs" stroke="#872F48" strokeWidth={2} /> {/* viz-6 error */}
+  <Line dataKey="profit" stroke="#2F6A5F" strokeWidth={2} /> {/* viz-4 success */}
+  <Line dataKey="forecast" stroke="#3F74C6" strokeWidth={2} /> {/* viz-2 */}
+</LineChart>
+```
+
+### Financial Data Color Patterns
+
+**Positive/Negative Values:**
+```tsx
+// Dynamic coloring based on value
+const value = -5000;
+const isPositive = value >= 0;
+
+<div className={`${isPositive ? 'bg-forvis-success-50' : 'bg-forvis-error-50'} rounded-lg p-3`}>
+  <span className={`font-semibold tabular-nums ${isPositive ? 'text-forvis-success-600' : 'text-forvis-error-600'}`}>
+    {formatCurrency(value)}
+  </span>
+</div>
+```
+
+**Budget Variance Indicators:**
+```tsx
+// Under budget = success, over budget = error, at budget = blue
+const variance = actual - budget;
+const isUnderBudget = variance <= 0;
+const isOverBudget = variance > 0;
+
+<span className={isUnderBudget ? 'text-forvis-success-600' : 'text-forvis-error-600'}>
+  {formatCurrency(Math.abs(variance))}
+</span>
+```
+
+### Accessibility Compliance
+
+All semantic colors meet **WCAG AA accessibility standards**:
+
+| Shade | Background | Min Contrast | Usage |
+|-------|-----------|--------------|-------|
+| 50-100 | Light backgrounds | N/A | Containers, cards |
+| 200-300 | Borders | 3:1 | Visible distinction |
+| 500-700 | Large text (18px+) | 3:1 | Headings, buttons |
+| 600-900 | Body text (16px) | 4.5:1 | Text content |
+
+### Migration from Default Tailwind Colors
+
+Replace existing default Tailwind semantic colors with Forvis brand colors:
+
+| Old (Tailwind Default) | New (Forvis Brand) | Context |
+|------------------------|-------------------|---------|
+| `text-red-600` | `text-forvis-error-600` | Error messages |
+| `bg-red-50` | `bg-forvis-error-50` | Error backgrounds |
+| `border-red-200` | `border-forvis-error-200` | Error borders |
+| `text-green-600` | `text-forvis-success-600` | Success messages |
+| `bg-green-50` | `bg-forvis-success-50` | Success backgrounds |
+| `border-green-200` | `border-forvis-success-200` | Success borders |
+| `text-yellow-600` / `text-amber-600` | `text-forvis-warning-600` | Warning messages |
+| `bg-yellow-50` / `bg-amber-50` | `bg-forvis-warning-50` | Warning backgrounds |
+| `border-yellow-200` / `border-amber-200` | `border-forvis-warning-200` | Warning borders |
+
+### Common Patterns
+
+**Status Badges:**
+```tsx
+// Success badge
+<span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-forvis-success-100 text-forvis-success-800 border border-forvis-success-200">
+  <CheckCircle className="h-3 w-3 mr-1" />
+  Approved
+</span>
+
+// Error badge
+<span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-forvis-error-100 text-forvis-error-800 border border-forvis-error-200">
+  <XCircle className="h-3 w-3 mr-1" />
+  Rejected
+</span>
+
+// Warning badge
+<span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-forvis-warning-100 text-forvis-warning-800 border border-forvis-warning-200">
+  <AlertTriangle className="h-3 w-3 mr-1" />
+  Pending
+</span>
+```
+
+**Alert Containers:**
+```tsx
+// Success alert
+<div className="bg-forvis-success-50 border-2 border-forvis-success-200 rounded-lg p-4">
+  <div className="flex items-start gap-3">
+    <CheckCircle className="h-5 w-5 text-forvis-success-600 flex-shrink-0" />
+    <div>
+      <h3 className="text-sm font-semibold text-forvis-success-900">Success</h3>
+      <p className="text-sm text-forvis-success-800 mt-1">Operation completed successfully</p>
+    </div>
+  </div>
+</div>
+
+// Error alert
+<div className="bg-forvis-error-50 border-2 border-forvis-error-200 rounded-lg p-4">
+  <div className="flex items-start gap-3">
+    <XCircle className="h-5 w-5 text-forvis-error-600 flex-shrink-0" />
+    <div>
+      <h3 className="text-sm font-semibold text-forvis-error-900">Error</h3>
+      <p className="text-sm text-forvis-error-800 mt-1">Operation failed</p>
+    </div>
+  </div>
+</div>
+
+// Warning alert
+<div className="bg-forvis-warning-50 border-2 border-forvis-warning-200 rounded-lg p-4">
+  <div className="flex items-start gap-3">
+    <AlertTriangle className="h-5 w-5 text-forvis-warning-600 flex-shrink-0" />
+    <div>
+      <h3 className="text-sm font-semibold text-forvis-warning-900">Warning</h3>
+      <p className="text-sm text-forvis-warning-800 mt-1">Action required</p>
+    </div>
+  </div>
+</div>
+```
+
+---
+
+## 4. Typography & Hierarchy
+
+Font Family: **Inter**
+
+| Element | Class | Color |
+|--------|--------|--------|
+| H1 | `text-3xl font-semibold` | `text-forvis-gray-900` |
+| H2 | `text-2xl font-semibold` | `text-forvis-gray-900` |
+| H3 | `text-xl font-semibold` | White on gradients |
+| Body | `text-sm font-normal` | `text-forvis-gray-800` |
+| Muted | `text-sm font-normal` | `text-forvis-gray-600` |
+| Label | `text-sm font-medium` | `text-forvis-gray-700` |
+| Data | tabular nums | red for negatives |
+
+---
+
+## 5. Implementation Patterns
+
+### Layout & Spacing
+- **Page Container:** `max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8` (full-width, never constrain)
+- **Vertical Spacing:** `space-y-6`
+- **Grids:** Standard: `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6` | Dense: `grid grid-cols-1 md:grid-cols-4 gap-3`
+- **Modals:** `max-w-lg w-full p-6 bg-white rounded-lg shadow-corporate-lg`
+
+---
+
+### Data Tables
+```tsx
+<div className="grid py-2 shadow-sm"
+     style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)', gridTemplateColumns: '...' }}>
+</div>
+
+<div className={\`grid cursor-pointer hover:bg-forvis-blue-50 \${index % 2 === 0 ? 'bg-white' : 'bg-forvis-gray-50'}\`}>
+</div>
+```
+
+### Dashboard Card Icons
+**Components:** `DashboardCard`, `ServiceLineCard`, `SharedServiceCard`, `ServiceLineSelector`  
+**Locations:** 
+- `@/components/ui/DashboardCard.tsx`
+- `@/components/features/service-lines/ServiceLineCard.tsx`
+- `@/components/features/service-lines/SharedServiceCard.tsx`
+- `@/components/features/service-lines/ServiceLineSelector.tsx`
+
+```tsx
+// Icon Container - Standard Size
+<div 
+  className="w-12 h-12 rounded-lg flex items-center justify-center transition-transform duration-200 group-hover:scale-110 shadow-sm"
+  style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+>
+  <Icon className="h-6 w-6 text-white" />
+</div>
+
+// Icon Container - Compact Size (for compact cards)
+<div 
+  className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm"
+  style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+>
+  <Icon className="h-5 w-5 text-white" />
+</div>
+```
+
+**Key Points:**
+- ✅ Use lighter gradient: `#5B93D7 → #2E5AAC` (135deg angle)
+- ✅ Standard cards: 12x12 container, 6x6 icon
+- ✅ Compact cards: 10x10 container, 5x5 icon
+- ❌ Never use darker gradient: `#2E5AAC → #1C3667`
+- ❌ Never use `to bottom right` direction
+
+### Analytics/Stats Cards (Soft Professional Style)
+**Usage:** Dashboard metrics, pipeline stats, KPI displays  
+**Example:** BD Pipeline page (`/dashboard/[serviceLine]/bd/page.tsx`)
+
+```tsx
+<div
+  className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100"
+  style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+>
+  <div className="flex items-center justify-between">
+    <div>
+      <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Metric Label</p>
+      <p className="text-2xl font-bold mt-2 text-forvis-blue-600">Value</p>
+    </div>
+    <div
+      className="rounded-full p-2.5"
+      style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
+    >
+      <Icon className="w-5 h-5 text-white" />
+    </div>
+  </div>
+</div>
+```
+
+**Key Points:**
+- ✅ Light card background: `#F0F7FD → #E0EDFB`
+- ✅ Blue values: `text-forvis-blue-600`
+- ✅ Gray labels: `text-forvis-gray-600`
+- ✅ Gradient icon circles for visual interest
+- ❌ Never use dark blue backgrounds for stat cards
+- ❌ Never use white text on light backgrounds
+
+### File Upload Area
+```tsx
+<div className="flex justify-center px-6 pt-5 pb-6 border-3 border-dashed rounded-xl"
+     style={{ borderColor: '#2E5AAC', borderWidth: '3px', background: 'linear-gradient(135deg, #F0F7FD 0%, #E5F1FB 100%)' }}>
+</div>
+```
+
+### Premium Gold Container
+```tsx
+<div className="rounded-lg border-2 p-6"
+     style={{ background: 'linear-gradient(135deg, #D9CBA8 0%, #B0A488 100%)', borderColor: '#C9BCAA' }}>
+  <h2 className="text-xl font-semibold text-white mb-1">Shared Services</h2>
+</div>
+```
+
+---
+
+## 6. Professional Polish & Accessibility
+
+- **Transitions:** `transition-all duration-200 ease-in-out`
+- **Focus:** `focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2`
+- **Contrast:** White text on gradients only
+- **Shadows:** `shadow-corporate`, `shadow-corporate-md`
+- **Mobile First:** `flex-col`, `grid-cols-1`
+
+### User Interactions (CRITICAL)
+
+#### Browser Dialogs - STRICTLY PROHIBITED
+
+**⚠️ See [Migration Guide](../docs/design-system/06-migration-guide.md#step-1-replace-browser-dialogs) for complete migration instructions.**
+
+Browser native dialogs (`confirm()`, `alert()`, `prompt()`) violate Forvis Mazars brand standards and MUST NEVER be used:
+
+**Why They're Prohibited:**
+- Cannot be styled to match brand identity
+- Poor accessibility (screen readers, keyboard navigation)
+- Unprofessional appearance
+- Break immersive user experience
+- No contextual information or recovery options
+
+**Instead, Use:**
+
+**Complete Examples:** [docs/design-system/07-before-after-examples.md#browser-dialog-migration](../docs/design-system/07-before-after-examples.md#browser-dialog-migration)
+
+**1. Confirmation Modals** (for destructive or important actions)
+```tsx
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
+
+<ConfirmModal
+  isOpen={showModal}
+  onClose={() => setShowModal(false)}
+  onConfirm={handleAction}
+  title="Confirm Action"
+  message="Are you sure you want to proceed? This action cannot be undone."
+  confirmText="Confirm"
+  cancelText="Cancel"
+  variant="danger" // or "primary" for non-destructive
+/>
+```
+
+**2. Banner Components** (for user notifications and alerts)
+
+**IMPORTANT:** Do NOT use `sonner`, `react-toastify`, or any external toast libraries. Use the built-in Banner component.
+
+**Pattern Reference:** [docs/design-system/05-pattern-library.md#alert--notification-patterns](../docs/design-system/05-pattern-library.md#alert--notification-patterns)
+
+```tsx
+import { Banner } from '@/components/ui';
+
+// Error message (dismissible)
+const [error, setError] = useState<string | null>(null);
+{error && (
+  <Banner 
+    variant="error" 
+    message={error}
+    dismissible
+    onDismiss={() => setError(null)}
+  />
+)}
+
+// Success message (auto-dismiss after 5 seconds)
+const [success, setSuccess] = useState<string | null>(null);
+useEffect(() => {
+  if (success) {
+    const timer = setTimeout(() => setSuccess(null), 5000);
+    return () => clearTimeout(timer);
+  }
+}, [success]);
+
+{success && (
+  <Banner 
+    variant="success" 
+    message={success}
+    dismissible
+    onDismiss={() => setSuccess(null)}
+  />
+)}
+
+// Warning message (persistent)
+<Banner 
+  variant="warning"
+  title="Session Expiring"
+  message="Your session will expire in 5 minutes. Please save your work."
+/>
+
+// Info message
+<Banner 
+  variant="info"
+  message="Client acceptance must be completed before engagement acceptance."
+/>
+```
+
+**Banner Variants:**
+- `error` - Red, for errors and failures
+- `success` - Green, for successful operations
+- `warning` - Yellow/amber, for warnings and cautions
+- `info` - Blue, for informational messages
+
+**Best Practices:**
+- Use state variables (`useState`) to manage Banner visibility
+- Make success/error banners dismissible
+- Auto-hide success messages after 5 seconds
+- Keep error messages visible until user dismisses or resolves issue
+- Place banners at the top of the affected section or page
+
+**3. Inline Validation** (for form errors)
+```tsx
+import { Input } from '@/components/ui';
+
+<Input
+  label="Email"
+  error="Please enter a valid email address"
+  value={email}
+  onChange={setEmail}
+/>
+```
+
+#### Modal Component Specifications
+
+**Standard Modal Structure:**
+- White background with corporate shadow
+- Rounded corners (`rounded-lg`)
+- Max width appropriate to content (typically `max-w-lg`)
+- Gradient buttons matching action severity
+- Focus trap for accessibility
+- ESC key to close (unless blocking action)
+
+**Action Button Colors:**
+- **Danger** (delete, remove): Red gradient
+- **Primary** (confirm, save): Blue gradient  
+- **Secondary** (cancel, close): Gray outline
+
+### Common Mistakes
+❌ Black text on gradients | ❌ Custom button styles | ❌ Hardcoded paddings  
+❌ Mixing Gold + Blue without context | ❌ Dark icon gradient (`#2E5AAC → #1C3667`)  
+❌ Inconsistent icon sizes | ❌ Browser popups (`confirm()`, `alert()`)  
+❌ External toast libraries (`sonner`, `react-toastify`) - Use Banner component instead
+
+## Rule Exceptions
+
+### When Browser Dialogs Might Be Acceptable
+
+Browser dialogs (`confirm()`, `alert()`, `prompt()`) are strictly prohibited in production code. However, exceptions exist for:
+
+1. **Development/Debugging Only**: Quick debugging during development
+   - MUST be removed before PR review
+   - MUST NOT be committed to repository
+   - Example: `console.log()` with `confirm()` for step-through debugging
+
+2. **Emergency Hotfix**: Critical production issue requiring immediate user notification
+   - MUST create follow-up ticket to replace with proper modal
+   - MUST be replaced within 1 sprint
+   - Document: `// EMERGENCY HOTFIX: Replace with ConfirmModal - Ticket #123`
+   - Requires approval from technical lead
+
+**There are NO other exceptions.** Browser dialogs violate brand standards and accessibility requirements.
+
+### When External Toast Libraries Might Be Used
+
+External toast libraries (sonner, react-toastify) are prohibited. Use Banner component instead.
+
+**Exception**: None. The Banner component provides all required functionality with brand consistency.
+
+---
+
+## Migrating Existing Code
+
+**Migrating a domain to the design system?** Follow the comprehensive migration guide:
+
+📖 **[Migration Guide](../docs/design-system/06-migration-guide.md)** - Complete step-by-step process
+
+### Quick Migration Checklist
+
+**6 Migration Steps:**
+1. **Replace Browser Dialogs** - `window.confirm()`, `alert()` → `ConfirmModal`, `Banner`
+2. **Replace Custom Buttons** - Custom `<button>` → `<Button variant="...">`
+3. **Centralize Gradients** - Inline gradient strings → CSS classes/constants/functions
+4. **Replace Custom Alerts** - Custom divs/toast libraries → `<Banner>`
+5. **Standardize Colors** - Old Tailwind colors → Forvis brand colors
+6. **Update Forms** - Custom inputs → `<Input variant="...">`
+
+**Need Examples?** See [Before/After Examples](../docs/design-system/07-before-after-examples.md)
+
+**Key Violations to Fix:**
+- ❌ Browser dialogs (`confirm()`, `alert()`, `prompt()`)
+- ❌ Inline gradient strings (`style={{ background: 'linear-gradient(...)' }}`)
+- ❌ Custom button styling (`<button className="...">`)
+- ❌ Default Tailwind colors (`text-red-600`, `bg-green-50`)
+- ❌ Toast libraries (`sonner`, `react-toastify`)
+- ❌ Custom input styling
+
+**Migration Success Criteria:**
+- ✅ Zero browser dialogs
+- ✅ Zero inline gradients
+- ✅ All buttons use Button component
+- ✅ All alerts use Banner component
+- ✅ Forvis brand colors throughout
+- ✅ No visual regressions
+
+---
+
+## Related Rules
+
+### Design System Documentation
+- **[Design System Repository](../docs/design-system/README.md)**: Complete design system reference
+- **[Component Catalog](../docs/design-system/04-component-catalog.md)**: All UI components with props and examples
+- **[Pattern Library](../docs/design-system/05-pattern-library.md)**: Common UI patterns (modals, forms, tables)
+- **[Migration Guide](../docs/design-system/06-migration-guide.md)**: Step-by-step migration process
+- **[Before/After Examples](../docs/design-system/07-before-after-examples.md)**: Code migration examples
+- **[Gradient System](../docs/design-system/03-gradients.md)**: Centralized gradient reference
+- **[Color System](../docs/design-system/02-color-system.md)**: Color palette and usage
+
+### Other Rule Files
+- **consolidated.mdc**: Component import paths (`@/components/ui`), TypeScript conventions, error handling
+- **security-rules.mdc**: `<FeatureGate>`, `<PageAccessGuard>`, and access control UI components
+- **approval-system-rules.mdc**: Use `UnifiedApprovalCard` for displaying approvals with proper styling
+- **tool-system-rules.mdc**: Tool UI components and modal patterns for tool management
+

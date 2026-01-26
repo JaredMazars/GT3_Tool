@@ -1,0 +1,971 @@
+---
+description: Security & access control patterns - mandatory for all API routes and pages
+alwaysApply: true
+version: 1.1.0
+lastUpdated: 2026-01-24
+changelog:
+  - "1.1.0 (2026-01-24): Changed to always applied - security is foundational (100% adoption rate)"
+  - "1.0.0 (2026-01-21): Initial security & access control documentation"
+---
+# Security & Access Control
+
+**Application Security Model and Page-Level Access Control**
+
+This document provides comprehensive security guidelines including the page permissions system, role-based access control, and security best practices.
+
+## When To Apply This Rule
+
+- Implementing API routes (MUST use `secureRoute` wrapper)
+- Checking page-level permissions or access control
+- Working with role hierarchies or feature permissions
+- Implementing guards, gates, or access wrappers in UI
+- Validating user input or preventing IDOR attacks
+- Setting up audit logging or data protection
+- Configuring page permissions via Admin UI
+
+## Quick Reference
+
+### Common Security Tasks
+
+| Task | Pattern | Code Example |
+|------|---------|--------------|
+| Create API mutation | `secureRoute.mutation()` | `export const POST = secureRoute.mutation({ feature, schema, handler })` |
+| Create API query | `secureRoute.query()` | `export const GET = secureRoute.query({ feature, handler })` |
+| API with route params | `secureRoute.queryWithParams()` | `export const GET = secureRoute.queryWithParams({ taskIdParam: 'id', handler })` |
+| Protect page | `<PageAccessGuard>` | `<PageAccessGuard pathname="/dashboard/admin">{children}</PageAccessGuard>` |
+| Conditional UI | `<FeatureGate>` | `<FeatureGate feature={Feature.MANAGE_TASKS}><Button>Edit</Button></FeatureGate>` |
+| Check permission | `useFeature()` | `const canManage = useFeature(Feature.MANAGE_TASKS);` |
+| Check page access | `checkPageAccess()` | `const { canAccess, accessLevel } = await checkPageAccess(userId, pathname);` |
+| Validate input | Zod schema | `const data = CreateTaskSchema.parse(req.body);` |
+| Check user access | IDOR protection | `where: { id, team: { some: { userId } } }` |
+
+### Key Concepts
+
+**Role Hierarchy**: `SYSTEM_ADMIN` > `ADMINISTRATOR` > `PARTNER` > `MANAGER` > `SUPERVISOR` > `USER` > `VIEWER`
+
+**Access Levels**: `NONE` (redirect) | `VIEW` (read-only) | `FULL` (all actions)
+
+**4-Tier Lookup**: Redis Cache → Database Override → Code Override → Convention Default
+
+### Code Snippets
+
+**API Routes**:
+```typescript
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+
+// Mutations: secureRoute.mutation({ feature, schema, handler })
+// Queries: secureRoute.query({ feature, handler })
+// AI: secureRoute.ai({ schema, handler })
+```
+
+**Page Protection**:
+```tsx
+import { PageAccessGuard } from '@/components/guards/PageAccessGuard';
+<PageAccessGuard pathname={pathname}>{children}</PageAccessGuard>
+```
+
+**UI Access Control**:
+```tsx
+import { FeatureGate } from '@/components/guards/FeatureGate';
+import { useFeature } from '@/hooks/useFeature';
+
+<FeatureGate feature={Feature.MANAGE_TASKS}><Button>Edit</Button></FeatureGate>
+const canManage = useFeature(Feature.MANAGE_TASKS);
+```
+
+## Overview
+
+The application implements a multi-layered security model:
+
+1. **Authentication**: Azure AD integration via NextAuth
+2. **Role-Based Access Control**: Dual role system (System + Service Line roles)
+3. **Page-Level Permissions**: 4-tier lookup system for fine-grained access control
+4. **API Security**: Centralized secureRoute wrapper with automatic protection
+5. **Frontend Security**: Guards, gates, and access wrappers
+6. **Data Protection**: Caching, audit logging, and input sanitization
+
+## Role Hierarchy
+
+### System Roles
+
+Defined in `@/types/index.ts`:
+
+- **SYSTEM_ADMIN**: Full system access, bypasses all permission checks, can access admin pages
+- **USER**: Standard user with access determined by service line assignments
+
+### Service Line Roles
+
+Defined in `@/types/index.ts`, used for service line context:
+
+- **ADMINISTRATOR**: Full control within service line
+- **PARTNER**: Full access to all features including analytics and BD
+- **MANAGER**: Full CRUD operations, VIEW access to analytics/BD
+- **SUPERVISOR**: Can create tasks, assign users, approve acceptance
+- **USER**: Can work on assigned tasks, create mappings and adjustments
+- **VIEWER**: Read-only access across the board
+
+**Role Hierarchy** (defined in `@/lib/utils/roleHierarchy.ts`):
+
+```
+SYSTEM_ADMIN (bypasses all checks)
+├─ ADMINISTRATOR
+   ├─ PARTNER
+      ├─ MANAGER
+         ├─ SUPERVISOR
+            ├─ USER
+               └─ VIEWER
+```
+
+## Page-Level Access Control (4-Tier System)
+
+### Architecture Overview
+
+```mermaid
+graph TD
+    A[User Requests Page] --> B[PageAccessGuard]
+    B --> C[Get User and Role]
+    C --> D{Is SYSTEM_ADMIN?}
+    D -->|Yes| E[Grant FULL Access]
+    D -->|No| F{Is Service Line Page?}
+    
+    F -->|Yes| G[Get Service Line Role]
+    F -->|No| H[Use System Role]
+    
+    G --> I{Has Service Line Assignment?}
+    I -->|No| J[Deny Access - Redirect]
+    I -->|Yes| K
+    H --> K
+    
+    K{Tier 1: Redis Cache Hit?}
+    K -->|Yes| L[Return Cached Permission]
+    K -->|No| M{Tier 2: DB Override Exists?}
+    
+    M -->|Yes| N[Cache and Return]
+    M -->|No| O{Tier 3: Code Config Exists?}
+    
+    O -->|Yes| P[Return Code Permission]
+    O -->|No| Q[Tier 4: Apply Convention Default]
+    
+    Q --> P
+    
+    L --> R{What Access Level?}
+    N --> R
+    P --> R
+    
+    R -->|NONE| S[Redirect to Dashboard]
+    R -->|VIEW| T[Provide View-Only Context]
+    R -->|FULL| U[Provide Full Access Context]
+    
+    E --> U
+    J --> S
+    
+    style A fill:#e1f5ff
+    style E fill:#c8e6c9
+    style U fill:#c8e6c9
+    style T fill:#fff9c4
+    style S fill:#ffcdd2
+    style J fill:#ffcdd2
+```
+
+### 4-Tier Lookup System
+
+Page permissions are resolved through a 4-tier cascading lookup system:
+
+#### Tier 1: Redis Cache (Performance Layer)
+
+- **Purpose**: Fast permission lookups without database queries
+- **TTL**: 10 minutes (`PAGE_PERMISSION_TTL = 600`)
+- **Cache Key**: `page_perm:{pathname}:{role}`
+- **Location**: `@/lib/cache/pagePermissionCache.ts`
+
+**Cache Operations**:
+```typescript
+// Get from cache
+const cached = await getCachedPagePermission(pathname, role);
+
+// Set cache
+await setCachedPagePermission(pathname, role, result);
+
+// Invalidate cache (after updates)
+await clearPagePermissionCache(pathname); // specific page
+await clearPagePermissionCache(); // all pages
+```
+
+**Auto-invalidation**: Cache automatically clears when:
+- Page permissions updated via admin UI
+- Bulk permission operations performed
+- Manual invalidation called after mutations
+
+#### Tier 2: Database Override (Runtime Configuration)
+
+- **Purpose**: Runtime-configurable permissions for specific deployments
+- **Table**: `PagePermission`
+- **Precedence**: Overrides code-based and convention defaults
+- **Management**: Via `/dashboard/admin/page-permissions` UI (SYSTEM_ADMIN only)
+
+**PagePermission Table Schema**:
+```typescript
+{
+  id: number;              // Auto-increment PK
+  pathname: string;        // Page path (supports patterns)
+  role: string;            // Role (SystemRole or ServiceLineRole)
+  accessLevel: string;     // NONE, VIEW, or FULL
+  description?: string;    // Optional explanation
+  active: boolean;         // Enable/disable override
+  createdAt: DateTime;
+  updatedAt: DateTime;
+  createdBy?: string;      // User who created override
+  
+  // Unique constraint: (pathname, role)
+}
+```
+
+**Use Cases**:
+- Temporary access restrictions during maintenance
+- Client-specific permission requirements
+- Testing new permission models before code deployment
+- Emergency access adjustments
+
+#### Tier 3: Code-Based Configuration (Version Controlled)
+
+- **Purpose**: Application-wide defaults defined in code
+- **Location**: `@/lib/permissions/pagePermissions.ts`
+- **File**: `PAGE_PERMISSIONS` object
+- **Version Control**: Changes tracked in git
+
+**Pattern Matching**:
+```typescript
+export const PAGE_PERMISSIONS = {
+  // Exact match
+  '/dashboard/admin/users': {
+    [SystemRole.SYSTEM_ADMIN]: PageAccessLevel.FULL,
+    [SystemRole.USER]: PageAccessLevel.NONE,
+  },
+  
+  // Dynamic params (matches any value)
+  '/dashboard/tasks/:id': {
+    [SystemRole.SYSTEM_ADMIN]: PageAccessLevel.FULL,
+    [SystemRole.USER]: PageAccessLevel.FULL,
+  },
+  
+  // Wildcards (matches all descendants)
+  '/dashboard/admin/*': {
+    [SystemRole.SYSTEM_ADMIN]: PageAccessLevel.FULL,
+    [SystemRole.USER]: PageAccessLevel.NONE,
+  },
+  
+  // Service line roles
+  '/dashboard/:serviceLine/:subServiceLineGroup/clients': {
+    [ServiceLineRole.PARTNER]: PageAccessLevel.FULL,
+    [ServiceLineRole.MANAGER]: PageAccessLevel.FULL,
+    [ServiceLineRole.VIEWER]: PageAccessLevel.VIEW,
+  },
+};
+```
+
+**Pattern Matching Rules**:
+1. **Exact match**: `/dashboard/admin/users` matches only that exact path
+2. **Dynamic params**: `:paramName` matches any single path segment
+   - `/dashboard/tasks/:id` matches `/dashboard/tasks/123`, `/dashboard/tasks/abc`
+3. **Wildcards**: `*` matches any remaining path segments
+   - `/dashboard/admin/*` matches `/dashboard/admin/users`, `/dashboard/admin/tools/subtabs`
+4. **Precedence**: Most specific pattern wins (exact > dynamic > wildcard)
+
+#### Tier 4: Convention-Based Defaults (Automatic Fallback)
+
+- **Purpose**: Sensible defaults for pages not explicitly configured
+- **Location**: `@/lib/services/admin/pageDiscovery.ts`
+- **Function**: `getConventionBasedPermission(pathname)`
+- **Behavior**: Infers permissions from URL patterns
+
+**Convention Rules by Page Category**:
+
+| Page Category | Pattern | SYSTEM_ADMIN | ADMINISTRATOR | PARTNER | MANAGER | SUPERVISOR | USER | VIEWER |
+|---------------|---------|--------------|---------------|---------|---------|------------|------|--------|
+| **Admin Pages** | `/dashboard/admin/*` | FULL | NONE | NONE | NONE | NONE | NONE | NONE |
+| **Analytics** | `*/analytics` | FULL | FULL | FULL | VIEW | NONE | NONE | NONE |
+| **Business Development** | `*/bd` | FULL | FULL | FULL | VIEW | NONE | NONE | NONE |
+| **Templates** | `*/templates` | FULL | FULL | FULL | FULL | VIEW | VIEW | VIEW |
+| **Regular Pages** | All others | FULL | FULL | FULL | FULL | FULL | FULL | VIEW |
+
+**Convention Logic**:
+```typescript
+// Admin pages: SYSTEM_ADMIN only
+if (pathname.startsWith('/dashboard/admin')) {
+  return { SYSTEM_ADMIN: FULL, all others: NONE };
+}
+
+// Analytics: PARTNER+ get FULL, MANAGER gets VIEW
+if (pathname.includes('/analytics')) {
+  return { ADMIN/PARTNER: FULL, MANAGER: VIEW, others: NONE };
+}
+
+// BD pages: PARTNER+ get FULL, MANAGER gets VIEW  
+if (pathname.includes('/bd')) {
+  return { ADMIN/PARTNER: FULL, MANAGER: VIEW, others: NONE };
+}
+
+// Templates: Most roles can VIEW, MANAGER+ can EDIT
+if (pathname.includes('/templates')) {
+  return { MANAGER+: FULL, SUPERVISOR/USER/VIEWER: VIEW };
+}
+
+// Default: Active workers get FULL, VIEWERs get VIEW
+return { All roles: FULL, VIEWER: VIEW };
+```
+
+### Database Tables
+
+#### PagePermission (Database Overrides)
+
+Stores runtime-configurable permission overrides that take precedence over code and convention defaults.
+
+**Schema** (Prisma):
+```prisma
+model PagePermission {
+  id          Int      @id @default(autoincrement())
+  pathname    String   // Page path (supports patterns: :param, *)
+  role        String   // SystemRole or ServiceLineRole
+  accessLevel String   // NONE, VIEW, or FULL
+  description String?  @db.NVarChar(Max)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String?  // User ID of creator
+
+  @@unique([pathname, role])
+  @@index([active])
+  @@index([pathname])
+  @@index([role])
+}
+```
+
+**Service Layer**: `@/lib/services/admin/pagePermissionService.ts`
+
+#### PageRegistry (Auto-Discovery)
+
+Tracks all pages discovered by scanning the filesystem, used for admin UI display and validation.
+
+**Schema** (Prisma):
+```prisma
+model PageRegistry {
+  id         Int      @id @default(autoincrement())
+  pathname   String   @unique  // Page path (with :params converted)
+  pageTitle  String?             // Extracted from page metadata
+  category   String?             // admin, analytics, clients, tasks, etc.
+  discovered Boolean  @default(true)
+  active     Boolean  @default(true)  // False if page deleted
+  lastSeen   DateTime @default(now()) // Updated each discovery scan
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([active])
+  @@index([category])
+}
+```
+
+**Discovery Process**:
+1. Scan `src/app/dashboard/**/*` for `page.tsx` files
+2. Convert `[param]` folders to `:param` patterns
+3. Infer category from path (admin, analytics, bd, clients, tasks, templates, general)
+4. Upsert into PageRegistry with current timestamp
+5. Mark pages not seen as inactive (deleted pages)
+
+**Trigger**: Admin UI "Discover Pages" button or API endpoint `/api/admin/page-permissions/discover`
+
+### Access Levels
+
+Three levels of access control:
+
+- **NONE**: User cannot access page (redirects to dashboard with error)
+- **VIEW**: User can view page but no edit/create/delete actions (read-only mode)
+- **FULL**: User has complete access to all page features
+
+**View-Only Mode Behavior**:
+- Forms disabled or hidden
+- Edit/Delete buttons hidden
+- Create actions unavailable
+- Data displayed in read-only format
+- `<EditActionWrapper>` components hide children
+- `isViewOnly` flag available in components
+
+### Role Context Determination
+
+The system determines which role to use based on the page context:
+
+**Service Line Pages** (require service line assignment):
+- Pattern: `/dashboard/{serviceLine}/{subServiceLineGroup}/*`
+- Examples: `/dashboard/tax/corp_tax/clients`, `/dashboard/audit/external/clients/123`
+- Role Used: User's highest Service Line role for that service line
+- No Assignment: Access denied (NONE)
+
+**System Pages** (use system role):
+- Pattern: `/dashboard/admin/*`, `/dashboard/notifications`, `/dashboard`, etc.
+- Examples: `/dashboard/admin/users`, `/dashboard/notifications`
+- Role Used: User's System Role (SYSTEM_ADMIN or USER)
+
+**Service Line Assignment Check**:
+```typescript
+// Get user's service line roles
+const assignments = await prisma.serviceLineUser.findMany({
+  where: { userId },
+  select: { role, subServiceLineGroup }
+});
+
+// Map to service line via ServiceLineExternal
+const externalMappings = await prisma.serviceLineExternal.findMany({
+  where: { masterCode: serviceLine }
+});
+
+// Find highest role among relevant assignments
+const highestRole = getHighestRole(assignments, externalMappings);
+```
+
+### Implementation Files
+
+**Core Permission Logic**:
+- `src/lib/permissions/pageAccess.ts` - 4-tier lookup implementation, pattern matching
+- `src/lib/permissions/pagePermissions.ts` - Code-based PAGE_PERMISSIONS matrix
+- `src/components/guards/PageAccessGuard.tsx` - Server component wrapper for pages
+
+**Service Layer**:
+- `src/lib/services/admin/pagePermissionService.ts` - CRUD operations for PagePermission
+- `src/lib/services/admin/pageDiscovery.ts` - Filesystem scanner, convention defaults
+
+**Cache Layer**:
+- `src/lib/cache/pagePermissionCache.ts` - Redis caching for permissions
+
+**Types**:
+- `src/types/pagePermissions.ts` - PageAccessLevel, PagePermission, PageRegistry types
+
+**Admin UI**:
+- `src/app/dashboard/admin/page-permissions/page.tsx` - Management interface
+- `src/components/features/admin/page-permissions/PermissionTable.tsx` - Display table
+- `src/components/features/admin/page-permissions/PermissionEditModal.tsx` - Edit modal
+
+**Frontend Components**:
+- `src/components/providers/PageAccessProvider.tsx` - Context provider
+- `src/hooks/ui/usePageAccess.ts` - Hook for access level checks
+
+## Admin UI: Page Permissions Management
+
+**Access**: `/dashboard/admin/page-permissions` (SYSTEM_ADMIN only)
+
+### Features
+
+1. **View All Pages**: See merged view of discovered pages with effective permissions
+2. **Filter & Search**: Search by pathname, filter by source (DB/CODE/AUTO)
+3. **Discover Pages**: Scan filesystem to find new/changed pages
+4. **Create Override**: Add database-level permission for any pathname and role
+5. **Edit Override**: Modify existing database permissions
+6. **Delete Override**: Remove override (reverts to code/convention defaults)
+
+### Step-by-Step Usage Guide
+
+#### 1. Initial Setup - Discover Pages
+
+**Action**: Click "Discover Pages" button
+
+**What Happens**:
+- Scans `src/app/dashboard/**/*` for all `page.tsx` files
+- Converts dynamic route segments: `[id]` → `:id`
+- Infers page categories (admin, analytics, bd, clients, tasks, etc.)
+- Updates PageRegistry table with all found pages
+- Marks pages not found as inactive (deleted)
+- Displays: "Discovery complete: X new pages, Y updated, Z deactivated"
+
+**When to Use**:
+- After adding new pages to codebase
+- After renaming or moving pages
+- Initial setup of permission system
+- Regular audits to ensure registry is current
+
+#### 2. View Current Permissions
+
+**Display**: Table showing all registered pages
+
+**Columns**:
+- **Pathname**: Page route (with patterns like `:id`)
+- **Category**: admin, analytics, bd, clients, tasks, templates, general
+- **Permissions by Role**: Shows access level for each role (color-coded)
+  - Green badge = FULL access
+  - Blue badge = VIEW access
+  - Gray badge = NONE (no access)
+- **Source**: Where permission comes from (DB/CODE/AUTO)
+- **Actions**: Edit, Delete buttons
+
+**Permission Source Indicators**:
+- **DB** (Database): Override configured via admin UI (highest priority)
+- **CODE**: Defined in `pagePermissions.ts` (version controlled)
+- **AUTO**: Convention-based default (automatic fallback)
+
+#### 3. Filter and Search
+
+**Search Box**: Filter pages by pathname
+- Example: Search "admin" shows all `/dashboard/admin/*` pages
+- Example: Search "tasks" shows all task-related pages
+
+**Source Filter Dropdown**:
+- **All Sources**: Show all pages
+- **Database Only**: Show only pages with DB overrides
+- **Code Only**: Show only pages with code-based permissions
+- **Auto Only**: Show only pages using convention defaults
+
+#### 4. Create Permission Override
+
+**Action**: Click "Add Override" button
+
+**Modal Fields**:
+1. **Pathname**: Enter page path
+   - Exact: `/dashboard/admin/users`
+   - Dynamic: `/dashboard/tasks/:id`
+   - Wildcard: `/dashboard/admin/*`
+2. **Permissions**: Set access level for each role
+   - Dropdown per role: NONE / VIEW / FULL
+   - Only configure roles that should differ from defaults
+3. **Description** (optional): Explain why override needed
+   - Example: "Restricted during Q4 close"
+
+**Click "Save"**:
+- Creates PagePermission records in database
+- Clears Redis cache for affected pages
+- Takes effect immediately for all users
+- Shows success message
+
+**Use Cases**:
+- Temporarily restrict access during maintenance
+- Grant special access for specific deployment
+- Override convention defaults for edge cases
+- Test permission changes before code deployment
+
+#### 5. Edit Existing Override
+
+**Action**: Click "Edit" button on any page with DB override
+
+**Modal Shows**: Current database permissions for that page
+
+**Modify**:
+- Change access levels for any role
+- Update description
+- Save changes
+
+**Result**:
+- Updates PagePermission records
+- Clears cache
+- Effective immediately
+
+#### 6. Delete Override
+
+**Action**: Click "Delete" button on page with DB override
+
+**Confirmation**: "Delete all database overrides for {pathname}? This will revert to default permissions."
+
+**Click "Yes"**:
+- Removes all PagePermission records for that pathname
+- Clears cache
+- Page reverts to Code or Convention defaults
+- Cannot be undone (but can recreate override)
+
+**When to Use**:
+- Override no longer needed
+- Want to use code-based or convention defaults
+- Cleaning up test/temporary overrides
+
+#### 7. Understanding Permission Sources
+
+**Priority Order** (highest to lowest):
+1. **Database (DB)**: Your overrides via this UI
+2. **Code (CODE)**: Developer-defined in `pagePermissions.ts`
+3. **Auto (AUTO)**: System-inferred from URL patterns
+
+**Example Scenario**:
+- Page: `/dashboard/tax/corp_tax/clients`
+- AUTO default: MANAGER gets FULL
+- CODE override: MANAGER gets VIEW (defined by developer)
+- DB override: MANAGER gets FULL (you override developer's setting)
+- **Result**: MANAGER gets FULL (DB wins)
+
+### Best Practices
+
+**When to Use Database Overrides**:
+- ✅ Temporary access changes
+- ✅ Environment-specific requirements
+- ✅ Testing new permission models
+- ✅ Emergency access adjustments
+- ✅ Client-specific customizations
+
+**When to Use Code Configuration**:
+- ✅ Company-wide permanent changes
+- ✅ Version-controlled security policies
+- ✅ Changes that should deploy with code
+- ✅ Documented permission requirements
+- ✅ Changes reviewed by security team
+
+**When to Rely on Conventions**:
+- ✅ Standard pages following normal patterns
+- ✅ Prototyping/development phase
+- ✅ Low-security internal tools
+- ✅ Pages matching established categories
+
+## Developer Guidelines
+
+### Adding New Pages
+
+**Automatic Handling**:
+1. Create page at `src/app/dashboard/{path}/page.tsx`
+2. Page automatically discovered on next admin scan
+3. Convention-based defaults apply immediately
+4. No code changes needed for standard permissions
+
+**If Custom Permissions Needed**:
+1. Add entry to `PAGE_PERMISSIONS` in `src/lib/permissions/pagePermissions.ts`
+2. Use patterns (`:param`, `*`) for flexibility
+3. Document rationale in code comments
+4. Deploy with code changes
+
+**Example**:
+```typescript
+// Custom permission for sensitive analytics page
+'/dashboard/:serviceLine/analytics/sensitive': {
+  [SystemRole.SYSTEM_ADMIN]: PageAccessLevel.FULL,
+  [ServiceLineRole.PARTNER]: PageAccessLevel.FULL,
+  [ServiceLineRole.MANAGER]: PageAccessLevel.NONE,  // Override convention
+  [ServiceLineRole.SUPERVISOR]: PageAccessLevel.NONE,
+  [ServiceLineRole.USER]: PageAccessLevel.NONE,
+  [ServiceLineRole.VIEWER]: PageAccessLevel.NONE,
+},
+```
+
+### Protecting Pages
+
+**Every page layout must use PageAccessGuard**:
+
+```typescript
+// src/app/dashboard/admin/users/layout.tsx
+import { PageAccessGuard } from '@/components/guards/PageAccessGuard';
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return (
+    <PageAccessGuard pathname="/dashboard/admin/users">
+      {children}
+    </PageAccessGuard>
+  );
+}
+```
+
+**What PageAccessGuard Does**:
+1. Gets current user from session
+2. Calls `checkPageAccess(user.id, pathname)`
+3. If `NONE`: Redirects to dashboard with error
+4. If `VIEW` or `FULL`: Provides `PageAccessProvider` context
+5. Children components can use `usePageAccess()` hook
+
+### Using Access Context in Components
+
+**Check if view-only mode**:
+
+```typescript
+'use client';
+import { usePageAccess } from '@/hooks/ui/usePageAccess';
+
+export function MyComponent() {
+  const { isViewOnly, canEdit, accessLevel } = usePageAccess();
+  
+  return (
+    <div>
+      {isViewOnly && <ViewOnlyBadge />}
+      
+      {canEdit && (
+        <button>Edit</button>
+      )}
+      
+      {/* Alternative using wrapper */}
+      <EditActionWrapper>
+        <button>This button hidden in VIEW mode</button>
+      </EditActionWrapper>
+    </div>
+  );
+}
+```
+
+**Available from usePageAccess()**:
+- `isViewOnly: boolean` - True if accessLevel is VIEW
+- `canEdit: boolean` - True if accessLevel is FULL
+- `accessLevel: PageAccessLevel` - NONE, VIEW, or FULL
+
+### Checking Permissions Programmatically
+
+**Server-side (in API routes, server components)**:
+
+```typescript
+import { checkPageAccess } from '@/lib/permissions/pageAccess';
+
+// Async check with full 4-tier lookup
+const { canAccess, accessLevel } = await checkPageAccess(userId, pathname);
+
+if (!canAccess) {
+  return redirect('/dashboard?error=access_denied');
+}
+
+if (accessLevel === PageAccessLevel.VIEW) {
+  // Return read-only data
+}
+```
+
+**Client-side (in components, hooks)**:
+
+```typescript
+import { checkPageAccessSync } from '@/lib/permissions/pageAccess';
+
+// Synchronous check (uses code + convention only, no DB lookup)
+const { canAccess, accessLevel } = checkPageAccessSync(role, pathname);
+```
+
+**Note**: Client-side checks don't access database or cache (performance + security). For authoritative checks, always use server-side `checkPageAccess()`.
+
+### Testing Permissions
+
+**Test with Different Roles**:
+
+```typescript
+// Test as SYSTEM_ADMIN
+const adminAccess = await checkPageAccess(adminUserId, '/dashboard/admin/users');
+expect(adminAccess.accessLevel).toBe(PageAccessLevel.FULL);
+
+// Test as regular USER
+const userAccess = await checkPageAccess(regularUserId, '/dashboard/admin/users');
+expect(userAccess.accessLevel).toBe(PageAccessLevel.NONE);
+
+// Test as VIEWER
+const viewerAccess = await checkPageAccess(viewerUserId, '/dashboard/tasks/123');
+expect(viewerAccess.accessLevel).toBe(PageAccessLevel.VIEW);
+```
+
+**Test Pattern Matching**:
+
+```typescript
+import { matchPagePattern } from '@/lib/permissions/pageAccess';
+
+// Exact match
+expect(matchPagePattern('/dashboard/admin/users', '/dashboard/admin/users')).toBe(true);
+
+// Dynamic param
+expect(matchPagePattern('/dashboard/tasks/123', '/dashboard/tasks/:id')).toBe(true);
+expect(matchPagePattern('/dashboard/tasks/abc', '/dashboard/tasks/:id')).toBe(true);
+
+// Wildcard
+expect(matchPagePattern('/dashboard/admin/users', '/dashboard/admin/*')).toBe(true);
+expect(matchPagePattern('/dashboard/admin/tools/subtabs', '/dashboard/admin/*')).toBe(true);
+```
+
+### Cache Invalidation
+
+**After updating permissions programmatically**:
+
+```typescript
+import { clearPagePermissionCache } from '@/lib/cache/pagePermissionCache';
+
+// After creating/updating permission
+await pagePermissionService.createPagePermission({...});
+await clearPagePermissionCache(pathname); // Clear specific page
+
+// After bulk operations
+await pagePermissionService.bulkUpsertPagePermissions({...});
+await clearPagePermissionCache(); // Clear all pages
+```
+
+**Automatic Invalidation**: Admin UI automatically clears cache after all operations.
+
+## API Security Reference
+
+For API route security, see consolidated.mdc "API Routes - Use secureRoute (REQUIRED)" section.
+
+**Quick Reference**:
+- All API routes use `secureRoute` wrapper from `@/lib/api/secureRoute.ts`
+- Provides authentication, authorization, rate limiting, validation
+- Use `.mutation()`, `.query()`, `.ai()`, `.fileUpload()` variants
+- Specify `feature` for authorization checks
+
+## Frontend Security
+
+### Feature Gates
+
+**Conditional UI based on features**:
+
+```typescript
+import { FeatureGate, Feature } from '@/components/guards/FeatureGate';
+
+<FeatureGate feature={Feature.MANAGE_TASKS}>
+  <button>Create Task</button>
+</FeatureGate>
+```
+
+### Feature Hooks
+
+**Check features in components**:
+
+```typescript
+import { useFeature } from '@/hooks/permissions/useFeature';
+
+const canManageTasks = useFeature(Feature.MANAGE_TASKS);
+
+if (canManageTasks) {
+  // Show management UI
+}
+```
+
+### Security Best Practices
+
+**NEVER use browser dialogs**:
+- ❌ `confirm()`, `alert()`, `prompt()`
+- ✅ Use custom modal components
+
+**Server Components by default**:
+- Use `'use client'` only when needed
+- Keep sensitive logic on server
+
+**Always validate user input**:
+- Route params, query strings, body
+- Use Zod schemas with `.strict()`
+- Sanitize before database operations
+
+## Input Validation & Sanitization
+
+See consolidated.mdc "Input Validation & Sanitization" section for complete guidelines.
+
+**Key Points**:
+- Validate route params + query strings (not just body)
+- Use Zod schemas with `.strict()` for mutations
+- User-controlled sorting/filtering must use allowlists
+- List endpoints enforce limits with max values
+- Never spread user input directly into Prisma `data`
+
+## Authorization Beyond Roles
+
+**IDOR Protection** (Insecure Direct Object Reference):
+
+```typescript
+// ❌ BAD: Only checks role
+const task = await prisma.task.findUnique({ where: { id } });
+
+// ✅ GOOD: Verifies user has access to specific resource
+const task = await prisma.task.findFirst({
+  where: {
+    id,
+    team: {
+      some: { userId: user.id }
+    }
+  }
+});
+
+if (!task) {
+  throw new AppError(404, 'Task not found', ErrorCodes.NOT_FOUND);
+}
+```
+
+**Business Logic Authorization**:
+
+```typescript
+// Users can't approve their own submissions
+if (approval.requestedById === user.id) {
+  throw new AppError(403, 'Cannot approve own submission', ErrorCodes.FORBIDDEN);
+}
+```
+
+## Data Protection
+
+**Sensitive Responses**:
+
+```typescript
+// No caching for user-specific data
+return NextResponse.json(data, {
+  headers: {
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
+  }
+});
+```
+
+**Audit Logging**:
+
+```typescript
+import { logger } from '@/lib/utils/logger';
+
+// Log sensitive operations (no secrets/PII)
+logger.info('Permission override created', {
+  userId: user.id,
+  pathname,
+  role,
+  accessLevel,
+});
+```
+
+**File Uploads**:
+- Validate size limits
+- MIME type allowlist
+- Storage paths not user-controlled
+- Use purpose-specific blob containers (see `.cursor/rules/blob-storage-rules.mdc`)
+
+## Summary
+
+The page permissions system provides:
+
+✅ **Flexibility**: 4-tier system allows runtime and code-based configuration
+✅ **Performance**: Redis caching minimizes database queries
+✅ **Auditability**: Database overrides tracked with creator and timestamps
+✅ **Maintainability**: Convention defaults reduce configuration overhead
+✅ **Security**: Pattern-based permissions prevent unauthorized access
+✅ **Usability**: Admin UI for non-technical permission management
+
+**Key Principles**:
+1. SYSTEM_ADMIN bypasses all checks
+2. Service line pages require service line assignments
+3. Most specific permission wins (DB > Code > Convention)
+4. Cache invalidation is automatic
+5. View-only mode preserves data integrity
+6. All pages must use PageAccessGuard
+
+## Rule Exceptions
+
+### When secureRoute May Not Be Required
+
+The `secureRoute` wrapper requirement may be relaxed only in these specific scenarios:
+
+1. **Public Endpoints**: Truly public APIs with no user context
+   - Example: Health check endpoints, public documentation APIs
+   - MUST still implement rate limiting manually
+   - Document: `// RULE EXCEPTION: Public endpoint - no authentication required`
+
+2. **Webhook Receivers**: External service callbacks with custom auth
+   - Example: Payment gateway webhooks, third-party integrations
+   - MUST implement alternative authentication (signature validation)
+   - MUST implement rate limiting
+   - Document: `// RULE EXCEPTION: Webhook with signature validation`
+
+3. **Internal Service-to-Service**: Server-side only, never exposed to clients
+   - MUST verify call origin
+   - MUST document security model
+   - Get approval from security team
+
+**Exception Process:**
+1. Document exception reason with `// RULE EXCEPTION: [reason]`
+2. Implement alternative security measures
+3. Add to security review checklist
+4. Get approval from SYSTEM_ADMIN or security lead
+
+### When Page Permissions May Be Overridden
+
+Database overrides via admin UI are the approved mechanism for page permission exceptions. Code-level exceptions require:
+
+1. Business justification documented in commit message
+2. Review by security team
+3. Alternative access control mechanism in place
+
+## Related Rules
+
+- **consolidated.mdc**: Main security patterns, API route requirements with `secureRoute`, role hierarchy
+- **forvis-design-rules.mdc**: UI components for security (`<FeatureGate>`, modals, no browser dialogs)
+- **ai-patterns.mdc**: Use `secureRoute.ai()` for AI endpoints with strict rate limiting
+- **blob-storage-rules.mdc**: File upload security, MIME validation, access control
+- **approval-system-rules.mdc**: Approval permissions, role-based routing, business logic authorization
+- **tool-system-rules.mdc**: Tool access permissions, service line-based authorization

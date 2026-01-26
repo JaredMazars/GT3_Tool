@@ -1,0 +1,689 @@
+---
+description: Tool System Architecture & Patterns - Comprehensive guide for implementing and maintaining the modular tool system
+alwaysApply: false
+version: 1.0.0
+lastUpdated: 2026-01-21
+changelog:
+  - "1.0.0 (2026-01-21): Initial tool system architecture documentation"
+---
+
+# Tool System Architecture & Patterns
+
+## When To Apply This Rule
+
+- Creating new tools for tasks (Review Notebook, Document Vault, etc.)
+- Implementing tool registration or assignment features
+- Working with junction tables connecting tools to tasks/service lines
+- Debugging tool-related Prisma queries or TypeScript types
+- Integrating tools with the approval system
+- Managing tool sub-tabs or tool metadata
+
+## Core Principles
+
+1. **Consistent Naming**: All Prisma relations use PascalCase matching model names
+2. **Junction Tables**: Named as `[Entity1][Entity2]` (e.g., `TaskTool`, `ServiceLineTool`)
+3. **User Relations**: Always use full descriptive relation names with format `User_[Model]_[field]ToUser`
+4. **Foreign Keys**: All user ID references MUST have proper User relations, never plain strings if querying user data
+
+## Prisma Schema Patterns
+
+### Tool Entity Structure
+
+**Main Entity**: `Tool`
+- Fields: `id`, `name`, `code`, `description`, `icon`, `componentPath`, `active`, `sortOrder`
+- Relations: `ServiceLineTool[]`, `TaskTool[]`, `ToolSubTab[]`
+
+**Child Entity**: `ToolSubTab`
+- Belongs to one Tool
+- Has own: `id`, `name`, `code`, `icon`, `componentPath`, `active`, `sortOrder`
+
+**Junction Tables**: `TaskTool`, `ServiceLineTool`
+- Connect tools to tasks and service lines respectively
+
+### Relation Naming Convention
+
+**Format**: PascalCase matching the model name exactly
+
+```prisma
+model Tool {
+  ServiceLineTool ServiceLineTool[]  // PascalCase, plural
+  TaskTool        TaskTool[]         // PascalCase, plural
+  ToolSubTab      ToolSubTab[]       // PascalCase, plural
+}
+
+model ToolSubTab {
+  Tool Tool @relation(...)           // PascalCase, singular
+}
+
+model TaskTool {
+  Tool Tool @relation(...)           // PascalCase, singular
+  Task Task @relation(...)           // PascalCase, singular
+  User User @relation(...)           // PascalCase, singular
+}
+```
+
+### Why PascalCase for Relations?
+
+**Prisma Requirement**: Prisma auto-generates relation names using PascalCase to match model names. While this differs from JavaScript/TypeScript conventions (which typically use camelCase for object properties), we follow Prisma's convention for consistency between schema and generated types.
+
+**Important Distinctions**:
+- **Prisma Relations**: MUST use PascalCase (e.g., `taskTool.Tool.ToolSubTab`)
+- **Regular TypeScript**: Should use camelCase (e.g., `interface MyData { userName: string }`)
+- **Prisma Field Names**: Use camelCase (e.g., `taskId: Int`, `createdAt: DateTime`)
+
+**Why This Matters**:
+```typescript
+// ✅ Correct: Prisma-generated types use PascalCase for relations
+const task = await prisma.task.findUnique({
+  include: {
+    TaskTool: {           // PascalCase (relation name)
+      include: {
+        Tool: {           // PascalCase (relation name)
+          include: {
+            ToolSubTab: true  // PascalCase (relation name)
+          }
+        }
+      }
+    }
+  }
+});
+
+// Access data using PascalCase relation names
+task.TaskTool.forEach(tt => {
+  console.log(tt.Tool.name);
+  console.log(tt.Tool.ToolSubTab);
+});
+
+// ❌ Wrong: Using camelCase for Prisma relations doesn't match generated types
+const task = await prisma.task.findUnique({
+  include: {
+    taskTool: { ... }  // TypeScript error: Property 'taskTool' does not exist
+  }
+});
+```
+
+### Junction Table Pattern
+
+All junction tables MUST follow this structure:
+
+```prisma
+model TaskTool {
+  id        Int      @id @default(autoincrement())
+  taskId    Int      // Foreign key to Task
+  toolId    Int      // Foreign key to Tool
+  addedBy   String   // Foreign key to User
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations - all PascalCase
+  User User @relation(fields: [addedBy], references: [id], onUpdate: NoAction)
+  Task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  Tool Tool @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  
+  // Constraints
+  @@unique([taskId, toolId])
+  @@index([taskId])
+  @@index([toolId])
+  @@index([addedBy])
+  @@index([taskId, sortOrder])
+}
+```
+
+**Key Requirements:**
+- Auto-increment `id` primary key
+- Foreign keys for both entities being joined
+- `createdAt` and `updatedAt` timestamps
+- Unique constraint on logical pair (prevents duplicates)
+- Indexes on foreign keys and common query patterns
+- `sortOrder` for ordered collections
+
+### User Relation Pattern
+
+**For multiple relations to same User entity, use descriptive relation names:**
+
+```prisma
+model ReviewNote {
+  // Foreign key fields
+  raisedBy         String
+  assignedTo       String?
+  
+  // User relations - descriptive names prevent conflicts
+  User_ReviewNote_raisedByToUser   User  @relation("ReviewNote_raisedByToUser", fields: [raisedBy], references: [id])
+  User_ReviewNote_assignedToToUser User? @relation("ReviewNote_assignedToToUser", fields: [assignedTo], references: [id])
+}
+
+model User {
+  // Reverse relations in User model
+  ReviewNote_ReviewNote_raisedByToUser   ReviewNote[] @relation("ReviewNote_raisedByToUser")
+  ReviewNote_ReviewNote_assignedToToUser ReviewNote[] @relation("ReviewNote_assignedToToUser")
+}
+```
+
+**CRITICAL**: NEVER leave user ID fields as plain strings without relations if you need to query or display user data.
+
+**Relation Naming Format**:
+- Forward: `User_[Model]_[fieldName]ToUser`
+- Reverse: `[Model]_[Model]_[fieldName]ToUser` (duplicated model name for uniqueness)
+- Relation string: `"[Model]_[fieldName]ToUser"`
+
+## Tool Registration Process
+
+### 1. Code Structure
+
+```
+src/components/tools/
+  ├── ToolRegistry.ts              # Client-side registry (imports components)
+  ├── ToolRegistry.server.ts       # Server-side registry (for API/server use)
+  ├── types.ts                     # Shared TypeScript interfaces
+  └── {ToolName}/
+      ├── index.tsx                # Main component export + config
+      ├── components/              # Sub-components
+      └── hooks/                   # Tool-specific hooks (optional)
+```
+
+### 2. Tool Component Interface
+
+All tools MUST implement this interface:
+
+```typescript
+interface ToolComponentProps {
+  taskId: string;              // Required: Task context
+  toolId?: number;             // Optional: Specific tool instance ID
+  subTabs?: Array<{            // Optional: Sub-tabs from DB
+    id: number;
+    name: string;
+    code: string;
+    icon?: string;
+    sortOrder: number;
+  }>;
+  initialNoteId?: number;      // Optional: For deep linking
+}
+
+export type ToolComponent = React.ComponentType<ToolComponentProps>;
+```
+
+### 3. Tool Config Structure
+
+Each tool MUST export a config:
+
+```typescript
+interface ToolModuleConfig {
+  code: string;              // MUST match DB tool.code exactly
+  name: string;              // Display name
+  description: string;       // Brief description
+  version: string;           // Semantic version
+  defaultSubTabs?: Array<{   // Optional: Default sub-tabs for registration
+    id: string;              // Code/identifier
+    label: string;           // Display name
+    icon: string;            // Icon name (lucide-react)
+  }>;
+}
+```
+
+**Example Tool Export**:
+
+```typescript
+// src/components/tools/ReviewNotebookTool/index.tsx
+export const ReviewNotebookTool: ToolComponent = ({ taskId, toolId, subTabs, initialNoteId }) => {
+  // Tool implementation
+};
+
+export const reviewNotebookToolConfig: ToolModuleConfig = {
+  code: 'review-notebook',
+  name: 'Review Notebook',
+  description: 'Manage review notes and action items',
+  version: '1.0.0',
+  defaultSubTabs: [
+    { id: 'notes', label: 'Notes', icon: 'FileText' },
+    { id: 'categories', label: 'Categories', icon: 'Folder' },
+  ],
+};
+```
+
+### 4. Registration Steps
+
+**Step 1: Create Tool Component**
+1. Create directory: `src/components/tools/{ToolName}/`
+2. Implement component following `ToolComponentProps` interface
+3. Export component and config from `index.tsx`
+
+**Step 2: Register in Code**
+1. Import in `src/components/tools/ToolRegistry.ts`
+2. Add to `TOOL_MODULES` array
+
+**Step 3: Register in Database**
+```bash
+POST /api/tools/register
+Body: { "code": "your-tool-code" }
+```
+
+**Step 4: Assign to Service Lines**
+```bash
+PUT /api/tools/[id]/assignments
+Body: { "subServiceLineGroups": ["TAX-CORP", "TAX-INDIV"] }
+```
+
+**Step 5: Use on Tasks**
+```bash
+POST /api/tools/task/[taskId]
+Body: { "toolId": 123, "sortOrder": 0 }
+```
+
+## API Patterns
+
+### Tool Management Endpoints
+
+**Tool CRUD**:
+- `GET /api/tools` - List all tools (with optional `?active=true` filter)
+- `POST /api/tools/register` - Register tool from code registry (preferred)
+- `GET /api/tools/[id]` - Get tool details with counts
+- `PUT /api/tools/[id]` - Update tool metadata
+- `DELETE /api/tools/[id]` - Delete tool (fails if assigned to tasks)
+
+**Service Line Assignments**:
+- `GET /api/tools/[id]/assignments` - Get assigned service line groups
+- `PUT /api/tools/[id]/assignments` - Update assignments (replaces all)
+
+**Tool Discovery**:
+- `GET /api/tools/available?subServiceLineGroup=TAX-CORP` - Get tools available for service line
+
+**Task-Tool Relationship**:
+- `GET /api/tools/task/[taskId]` - Get all tools assigned to task
+- `POST /api/tools/task/[taskId]` - Add tool to task
+- `DELETE /api/tools/task/[taskId]?toolId=X` - Remove tool from task
+
+### API Response Pattern
+
+All tool APIs return PascalCase relations matching Prisma:
+
+```typescript
+// GET /api/tools/[id]
+{
+  "data": {
+    "id": 1,
+    "name": "Review Notebook",
+    "code": "review-notebook",
+    "ToolSubTab": [              // PascalCase!
+      { "id": 1, "name": "Notes", "code": "notes" }
+    ],
+    "ServiceLineTool": [         // PascalCase!
+      { "subServiceLineGroup": "TAX-CORP" }
+    ],
+    "_count": {
+      "TaskTool": 5,             // PascalCase!
+      "ToolSubTab": 2,
+      "ServiceLineTool": 3
+    }
+  }
+}
+```
+
+## TypeScript Type Patterns
+
+### Relation Names MUST Match Prisma Exactly
+
+```typescript
+// ✅ CORRECT - PascalCase matching schema
+interface TaskTool {
+  id: number;
+  taskId: number;
+  toolId: number;
+  Tool: {              // PascalCase
+    id: number;
+    name: string;
+    code: string;
+    ToolSubTab?: {     // PascalCase
+      id: number;
+      name: string;
+      code: string;
+    }[];
+  };
+}
+
+// Frontend usage
+const toolName = taskTool.Tool.name;
+const subTabs = taskTool.Tool.ToolSubTab;
+```
+
+## Integration with Approval System
+
+### Approval-Tool Integration Pattern
+
+When tools generate items requiring approval:
+
+```typescript
+import { approvalService } from '@/lib/services/approvals/approvalService';
+
+// Step 1: Create the tool-specific item
+const reviewNote = await prisma.reviewNote.create({
+  data: { taskId, title: 'Review note requiring approval', raisedBy: user.id },
+});
+
+// Step 2: Create approval workflow
+const approval = await approvalService.createApproval({
+  workflowType: 'REVIEW_NOTE',
+  workflowId: reviewNote.id,
+  title: `Review note: ${reviewNote.title}`,
+  requestedById: user.id,
+  context: { taskId, categoryId: reviewNote.categoryId },
+});
+
+// Step 3: Link approval back to tool item
+await prisma.reviewNote.update({
+  where: { id: reviewNote.id },
+  data: { approvalId: approval.id },
+});
+
+// Step 4: Invalidate caches
+await invalidateApprovalsCache();
+```
+
+## Common Patterns & Best Practices
+
+### ✅ DO: Follow Consistent Patterns
+
+```typescript
+// Correct relation access
+const tool = await prisma.tool.findUnique({
+  include: {
+    ToolSubTab: true,        // PascalCase
+    ServiceLineTool: true,   // PascalCase
+  },
+});
+
+tool.ToolSubTab.forEach(subTab => {
+  console.log(subTab.name);
+});
+```
+
+### ❌ DON'T: Common Mistakes & Anti-Patterns
+
+**Relation Naming**:
+```typescript
+// ❌ Wrong: camelCase (doesn't match Prisma schema)
+const subTabs = taskTool.tool.subTabs;
+// ✅ Correct: PascalCase (matches Prisma model names)
+const subTabs = taskTool.Tool.ToolSubTab;
+```
+
+**User Relations**:
+```prisma
+// ❌ Wrong: Missing User relation
+model ReviewNote {
+  currentOwner String?
+  // Missing: User relation!
+}
+
+// ✅ Correct: Proper User relation
+model ReviewNote {
+  currentOwner String?
+  User_ReviewNote_currentOwnerToUser User? @relation("ReviewNote_currentOwnerToUser", fields: [currentOwner], references: [id])
+}
+```
+
+**Inconsistent Junction Table Naming**:
+```prisma
+// ❌ Wrong: Non-standard naming
+model Tool_To_Task {  // Don't use underscores and "To"
+  id Int @id
+  toolId Int
+  taskId Int
+}
+
+// ❌ Wrong: Reversed order (confusing)
+model ToolTask {  // Could be confused with TaskTool
+  id Int @id
+  toolId Int
+  taskId Int
+}
+
+// ✅ Correct: Standard [Entity1][Entity2] pattern
+model TaskTool {
+  id Int @id @default(autoincrement())
+  taskId Int
+  toolId Int
+  // ... rest of fields
+}
+```
+
+**Missing Unique Constraints**:
+```prisma
+// ❌ Wrong: Can create duplicate tool assignments
+model TaskTool {
+  id Int @id
+  taskId Int
+  toolId Int
+  // Missing: unique constraint!
+}
+
+// ✅ Correct: Prevents duplicates
+model TaskTool {
+  id Int @id
+  taskId Int
+  toolId Int
+  @@unique([taskId, toolId])
+}
+```
+
+**Cache Invalidation**:
+```typescript
+// ❌ Wrong: Missing cache invalidation
+await prisma.taskTool.create({ data: { ... } });
+
+// ✅ Correct: Invalidate cache
+await prisma.taskTool.create({ data: { ... } });
+await invalidateOnTaskMutation(taskId);
+```
+
+**Incorrect Tool Registration**:
+```typescript
+// ❌ Wrong: Bypassing registration service
+await prisma.tool.create({
+  data: {
+    code: 'my-tool',
+    name: 'My Tool',
+    componentPath: '@/components/tools/MyTool',
+  }
+});
+
+// ✅ Correct: Use registration API
+const response = await fetch('/api/tools/register', {
+  method: 'POST',
+  body: JSON.stringify({ code: 'my-tool' }),
+});
+```
+
+**Missing Component Config**:
+```typescript
+// ❌ Wrong: Only exporting component
+export const MyTool: ToolComponent = ({ taskId }) => {
+  return <div>My Tool</div>;
+};
+// Missing: Tool config export!
+
+// ✅ Correct: Export both component and config
+export const MyTool: ToolComponent = ({ taskId }) => {
+  return <div>My Tool</div>;
+};
+
+export const myToolConfig: ToolModuleConfig = {
+  code: 'my-tool',
+  name: 'My Tool',
+  description: 'Description here',
+  version: '1.0.0',
+};
+```
+
+**Hardcoded Tool Access**:
+```typescript
+// ❌ Wrong: Directly accessing tool without checking assignments
+const tools = await prisma.tool.findMany();
+
+// ✅ Correct: Check service line assignments
+const tools = await prisma.tool.findMany({
+  where: {
+    ServiceLineTool: {
+      some: {
+        subServiceLineGroup: userServiceLine
+      }
+    }
+  }
+});
+```
+
+## Validation Checklists
+
+### Schema Requirements
+
+- [ ] All user ID fields have corresponding User relations
+- [ ] All relation names use PascalCase matching model names
+- [ ] Junction tables follow `[Entity1][Entity2]` naming
+- [ ] All foreign keys have proper indexes
+- [ ] Unique constraints on logical pairs
+- [ ] Timestamps on all tables
+- [ ] Cascade deletes configured appropriately
+
+### Code Requirements
+
+- [ ] TypeScript types match Prisma relation names (PascalCase)
+- [ ] Service layer uses explicit `select:` with PascalCase relations
+- [ ] All mutations call appropriate cache invalidation
+- [ ] API routes use `secureRoute` wrapper
+- [ ] Input validation uses Zod schemas
+
+### Tool-Specific Requirements
+
+- [ ] Tool code is unique and matches registry
+- [ ] Component implements `ToolComponentProps`
+- [ ] Component path in DB points to valid module
+- [ ] Tool registered in `ToolRegistry.ts`
+- [ ] Service line assignments created before task assignment
+
+## Tool Versioning Strategy
+
+### Semantic Versioning for Tools
+
+Tools MUST follow semantic versioning (MAJOR.MINOR.PATCH):
+
+- **MAJOR**: Breaking changes (incompatible component props, removed features)
+- **MINOR**: New features (new sub-tabs, enhanced functionality)
+- **PATCH**: Bug fixes, minor UI improvements
+
+### Version Tracking
+
+**Tool Config Version**:
+```typescript
+export const reviewNotebookToolConfig: ToolModuleConfig = {
+  code: 'review-notebook',
+  name: 'Review Notebook',
+  version: '2.1.0', // Update this with changes
+  // ...
+};
+```
+
+**Database Version** (optional future enhancement):
+```sql
+ALTER TABLE Tool ADD COLUMN version VARCHAR(20);
+```
+
+### Handling Breaking Changes
+
+**When Tool Props Change**:
+
+1. **Document Migration** in tool README:
+```markdown
+## Version 2.0.0 Migration
+
+Breaking changes:
+- `initialTab` prop renamed to `activeTabCode`
+- `onNoteSelect` callback signature changed
+```
+
+2. **Deprecation Period** (for major changes):
+```typescript
+interface ToolComponentProps {
+  taskId: string;
+  toolId?: number;
+  
+  // Deprecated: Use activeTabCode instead
+  /** @deprecated Use activeTabCode - will be removed in v3.0.0 */
+  initialTab?: string;
+  
+  // New prop
+  activeTabCode?: string;
+}
+```
+
+3. **Support Both Old and New** during transition:
+```typescript
+export const MyTool: ToolComponent = ({ taskId, initialTab, activeTabCode }) => {
+  // Support both old and new prop names
+  const activeTab = activeTabCode || initialTab || 'default';
+  
+  if (initialTab) {
+    console.warn('initialTab is deprecated, use activeTabCode instead');
+  }
+  // ...
+};
+```
+
+### Version Update Checklist
+
+When updating a tool:
+
+- [ ] Update `version` in tool config
+- [ ] Document changes in tool-specific README or CHANGELOG
+- [ ] Test with existing task assignments
+- [ ] Update ToolRegistry import if component name changed
+- [ ] Update API responses if tool metadata changed
+- [ ] Notify users if breaking changes affect their workflows
+
+### Multiple Tool Versions (Future)
+
+If supporting multiple versions simultaneously:
+
+```prisma
+model Tool {
+  id Int @id
+  code String
+  version String
+  active Boolean
+  deprecated Boolean @default(false)
+  
+  @@unique([code, version])
+}
+```
+
+**Migration Strategy**:
+1. Deploy new version with new code: `review-notebook-v2`
+2. Both versions available simultaneously
+3. Migrate tasks gradually
+4. Deprecate old version
+5. Remove old version after migration complete
+
+## Related Rules
+
+- **approval-system-rules.mdc**: Tool-approval integration patterns, workflow integration for tool-generated items
+- **consolidated.mdc**: Database conventions, Prisma patterns, TypeScript rules, junction table patterns
+- **security-rules.mdc**: API route security with `secureRoute`, feature permissions for tool access
+- **forvis-design-rules.mdc**: Tool UI components, modal patterns, design system compliance
+
+## Quick Reference
+
+**Key Files**:
+- `src/components/tools/ToolRegistry.ts` - Client-side tool registry
+- `src/components/tools/types.ts` - Tool interfaces
+- `src/app/api/tools/` - Tool management APIs
+
+**Common Tasks**:
+```typescript
+// Register tool from code
+POST /api/tools/register { code: "tool-code" }
+
+// Assign to service lines
+PUT /api/tools/[id]/assignments { subServiceLineGroups: ["TAX-CORP"] }
+
+// Add to task
+POST /api/tools/task/[taskId] { toolId: 123 }
+```

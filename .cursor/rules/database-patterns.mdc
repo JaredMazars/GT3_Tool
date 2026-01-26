@@ -1,0 +1,164 @@
+---
+alwaysApply: true
+version: 1.2.0
+lastUpdated: 2026-01-24
+description: Database query patterns, conventions, and fiscal period utilities for SQL Server - foundational to all data access
+changelog:
+  - "1.2.0 (2026-01-24): Added Prisma schema conventions - @updatedAt required for all models"
+  - "1.1.0 (2026-01-24): Changed to always applied - dual-ID convention and SQL Server rules affect every query"
+  - "1.0.0 (2026-01-24): Initial database patterns documentation"
+---
+
+# Database Patterns & Conventions
+
+SQL Server | Prisma | Dual-ID Convention | Fiscal Period Utilities
+
+## Dual-ID Convention
+
+- **Internal IDs** (`id`): Auto-increment PKs for internal-only tables (TaskTeam, BDOpportunity)
+- **External IDs** (`GS*`): GUIDs for external system tables (Client, Task, Employee, Wip)
+- **Codes** (`*Code`): Display/search ONLY, NEVER for relationships
+
+## Query Patterns
+
+```typescript
+// External tables: use GS* for relationships
+const tasks = await prisma.task.findMany({ where: { GSClientID: client.GSClientID } });
+
+// Internal tables: use id
+const team = await prisma.taskTeam.findMany({ where: { taskId: task.id } });
+
+// Codes: search only
+const clients = await prisma.client.findMany({ where: { clientCode: { contains: term } } });
+```
+
+## Prisma Schema Conventions (REQUIRED)
+
+### Timestamp Fields
+
+**All models MUST use `@updatedAt` for automatic timestamp management:**
+
+```prisma
+model Example {
+  id        Int      @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now())  // ✅ Auto-managed on create
+  updatedAt DateTime @updatedAt       // ✅ Auto-managed on create/update
+}
+```
+
+**Rules:**
+- ✅ `createdAt DateTime @default(now())` - Auto-set on creation
+- ✅ `updatedAt DateTime @updatedAt` - Auto-updated on every write
+- ❌ **NEVER** use plain `updatedAt DateTime` - requires manual management and causes build errors
+- ❌ **NEVER** manually set `updatedAt: new Date()` in new code (legacy code can remain)
+
+**Why:**
+- Prevents TypeScript build errors from missing `updatedAt` fields
+- Ensures consistent timestamp management across all operations
+- Reduces boilerplate code
+- Standard Prisma best practice
+
+**Migration Creation:**
+```bash
+# When adding new models or updating existing ones:
+# 1. Add @updatedAt attribute in schema
+# 2. Run: npx prisma db push (dev) or npx prisma migrate dev (production)
+# 3. Prisma Client regenerates automatically
+```
+
+**Example - Creating New Model:**
+```prisma
+// ✅ CORRECT
+model NewFeature {
+  id        Int      @id @default(autoincrement())
+  data      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt  // Always include this
+}
+
+// ❌ WRONG - Will cause build errors
+model NewFeature {
+  id        Int      @id @default(autoincrement())
+  data      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime  // Missing @updatedAt
+}
+```
+
+## SQL Server Case Sensitivity
+
+- **NEVER use `mode: 'insensitive'`** - not supported by SQL Server (PostgreSQL/MySQL only)
+- SQL Server uses collation-based case sensitivity (default: `SQL_Latin1_General_CP1_CI_AS` is case-insensitive)
+- Use `contains`, `startsWith`, `endsWith` without mode parameter for case-insensitive searches
+
+## Data Model Relationships (CRITICAL)
+
+- **Clients are unique to Groups**: Each client belongs to exactly one group (`groupCode`). When creating/updating APIs that work with clients, always validate that the client belongs to the specified group.
+- **Tasks are unique to Clients**: Each task belongs to exactly one client (`GSClientID`). When creating/updating APIs that work with tasks, always validate that the task belongs to the specified client.
+- **Employees vs Users (CRITICAL)**: Employee table is the source of truth for all staff functionality. User table is for Azure AD authentication only. Employee functionality is governed by `Active = 'Yes'`, regardless of whether employee has a User account. Employee.WinLogon (optional) links to User for system access confirmation.
+
+```typescript
+// Example: Validate task belongs to client in API
+const task = await prisma.task.findUnique({
+  where: { id: taskId },
+  select: { GSClientID: true }
+});
+if (task?.GSClientID !== clientId) {
+  throw new AppError(404, 'Task not found', ErrorCodes.NOT_FOUND);
+}
+
+// Example: Validate client belongs to group in API
+const client = await prisma.client.findUnique({
+  where: { GSClientID: clientId },
+  select: { groupCode: true }
+});
+if (client?.groupCode !== groupCode) {
+  throw new AppError(404, 'Client not found', ErrorCodes.NOT_FOUND);
+}
+
+// Example: Query active employees (includes those without User accounts)
+const staff = await prisma.employee.findMany({
+  where: { Active: 'Yes', ServLineCode: serviceLineCode }
+});
+
+// INCORRECT: Filtering out employees without accounts
+const staff = await prisma.employee.findMany({
+  where: { Active: 'Yes', WinLogon: { not: null } } // ❌ Excludes active employees
+});
+```
+
+## Fiscal Period Filtering (REQUIRED)
+
+- **Fiscal Year:** September to August (FY2024 = Sep 2023 - Aug 2024)
+- **ALWAYS use fiscal period helpers** from `@/lib/services/reports/fiscalPeriodQueries` for date filtering
+- **NEVER manually calculate** fiscal periods - use provided utilities
+- **Available on transaction tables:** `WIPTransactions`, `DrsTransactions`, `Wip`, `Debtors`, `WIPAging`
+
+```typescript
+import { buildFiscalPeriodFilter, getFiscalPeriods } from '@/lib/services/reports/fiscalPeriodQueries';
+import { getFiscalYear, formatFiscalPeriod } from '@/lib/utils/fiscalPeriod';
+
+// Server-side: Filter transactions by fiscal period
+const where = buildFiscalPeriodFilter(
+  { fiscalYear: 2024, fiscalQuarter: 2 },
+  'TranDate' // date field name
+);
+const transactions = await prisma.wIPTransactions.findMany({ where });
+
+// Client-side: Get fiscal year from date
+const fiscalYear = getFiscalYear(new Date()); // Returns 2024
+
+// Get available fiscal periods for dropdowns
+const years = await getFiscalPeriods({ groupBy: 'year' });
+const quarters = await getFiscalPeriods({ fiscalYear: 2024, groupBy: 'quarter' });
+```
+
+## SQL Functions Available
+
+- `dbo.GetFiscalYear(date)` - Returns fiscal year (e.g., 2024)
+- `dbo.GetFiscalQuarter(date)` - Returns quarter 1-4
+- `dbo.GetFiscalMonth(date)` - Returns fiscal month 1-12 (1=Sep, 12=Aug)
+- `dbo.GetFiscalPeriodKey(date)` - Returns period key for joins
+
+**Documentation:** See `docs/FISCAL_PERIOD_USAGE.md` for complete guide

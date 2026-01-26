@@ -1,0 +1,2351 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider          = "sqlserver"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+model AcceptanceAnswer {
+  id                       Int                      @id(map: "PK__Acceptan__3213E83F4AB0FF4B") @default(autoincrement())
+  responseId               Int
+  questionId               Int
+  answer                   String?                  @db.NVarChar(Max)
+  comment                  String?                  @db.NVarChar(Max)
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @default(now())
+  ClientAcceptanceResponse ClientAcceptanceResponse @relation(fields: [responseId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_AcceptanceAnswer_EngagementResponse")
+  AcceptanceQuestion       AcceptanceQuestion       @relation(fields: [questionId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_AcceptanceAnswer_Question")
+
+  @@unique([responseId, questionId])
+  @@index([questionId])
+  @@index([responseId])
+}
+
+model AcceptanceDocument {
+  id                       Int                      @id(map: "PK__Acceptan__3213E83FEBEE39E6") @default(autoincrement())
+  responseId               Int
+  documentType             String                   @db.NVarChar(50)
+  fileName                 String                   @db.NVarChar(255)
+  filePath                 String                   @db.NVarChar(500)
+  fileSize                 Int
+  uploadedBy               String                   @db.NVarChar(200)
+  uploadedAt               DateTime                 @default(now())
+  createdAt                DateTime                 @default(now())
+  ClientAcceptanceResponse ClientAcceptanceResponse @relation(fields: [responseId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_AcceptanceDocument_Response")
+
+  @@index([documentType])
+  @@index([responseId])
+}
+
+model AcceptanceQuestion {
+  id                     Int                      @id(map: "PK__Acceptan__3213E83FB3075BED") @default(autoincrement())
+  questionnaireType      String                   @db.NVarChar(50)
+  sectionKey             String                   @db.NVarChar(100)
+  questionKey            String                   @db.NVarChar(100)
+  questionText           String                   @db.NVarChar(Max)
+  description            String?                  @db.NVarChar(Max)
+  fieldType              String                   @db.NVarChar(50)
+  options                String?                  @db.NVarChar(Max)
+  required               Boolean                  @default(true)
+  order                  Int
+  riskWeight             Float                    @default(1.0)
+  highRiskAnswers        String?                  @db.NVarChar(500)
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @default(now())
+  AcceptanceAnswer       AcceptanceAnswer[]
+  ClientAcceptanceAnswer ClientAcceptanceAnswer[]
+
+  @@unique([questionnaireType, questionKey])
+  // Covering index (INCLUDE columns added via SQL migration)
+  @@index([questionnaireType, order], map: "idx_accquestion_type_order_covering")
+}
+
+model Account {
+  id                String  @id
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  User              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Accounts {
+  id             Int     @id @default(autoincrement())
+  GSAccountID    String  @unique @db.UniqueIdentifier
+  Account        String  @db.NVarChar(30)
+  AccDesc        String  @db.NVarChar(255)
+  DescriptionSub String? @db.NVarChar(255)
+  Category       String  @db.NVarChar(30)
+  CatDesc        String? @db.NVarChar(128)
+  BS             Boolean
+  AccStatus      String? @db.NVarChar(50)
+  AccLevel       String? @db.NVarChar(1)
+  OfficeCode     String  @db.NVarChar(10)
+  OfficeDesc     String  @db.NVarChar(100)
+
+  @@index([Account])
+  @@index([AccStatus])
+  @@index([Category])
+  @@index([OfficeCode])
+}
+
+model AdjustmentDocument {
+  id               Int            @id @default(autoincrement())
+  taskId           Int
+  taxAdjustmentId  Int?
+  fileName         String
+  fileType         String
+  fileSize         Int
+  filePath         String
+  uploadedBy       String?
+  extractionStatus String         @default("PENDING")
+  extractedData    String?
+  extractionError  String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime @updatedAt
+  Task             Task           @relation(fields: [taskId], references: [id], onUpdate: NoAction)
+  TaxAdjustment    TaxAdjustment? @relation(fields: [taxAdjustmentId], references: [id], onUpdate: NoAction)
+
+  @@index([extractionStatus])
+  @@index([extractionStatus, taskId])
+  @@index([taskId])
+  @@index([taxAdjustmentId])
+}
+
+model AITaxReport {
+  id                Int      @id @default(autoincrement())
+  taskId            Int
+  executiveSummary  String   @db.NVarChar(Max)
+  risks             String   @db.NVarChar(Max)
+  taxSensitiveItems String   @db.NVarChar(Max)
+  detailedFindings  String   @db.NVarChar(Max)
+  recommendations   String   @db.NVarChar(Max)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  Task              Task     @relation(fields: [taskId], references: [id])
+
+  @@index([taskId])
+}
+
+model Approval {
+  id                                Int                                 @id(map: "PK_Approval") @default(autoincrement())
+  workflowType                      String                              @db.VarChar(50)
+  workflowId                        Int
+  status                            String                              @db.VarChar(20)
+  priority                          String                              @default("MEDIUM", map: "DF_Approval_priority") @db.VarChar(20)
+  title                             String                              @db.NVarChar(255)
+  description                       String?                             @db.NVarChar(Max)
+  requestedById                     String
+  requestedAt                       DateTime                            @default(now(), map: "DF_Approval_requestedAt")
+  currentStepId                     Int?
+  requiresAllSteps                  Boolean                             @default(false, map: "DF_Approval_requiresAllSteps")
+  completedAt                       DateTime?
+  completedById                     String?
+  resolutionComment                 String?                             @db.NVarChar(Max)
+  createdAt                         DateTime                            @default(now(), map: "DF_Approval_createdAt")
+  updatedAt                         DateTime @updatedAt
+  User_Approval_completedByIdToUser User?                               @relation("Approval_completedByIdToUser", fields: [completedById], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Approval_CompletedBy")
+  User_Approval_requestedByIdToUser User                                @relation("Approval_requestedByIdToUser", fields: [requestedById], references: [id], onUpdate: NoAction, map: "FK_Approval_RequestedBy")
+  ApprovalStep                      ApprovalStep[]
+  ClientAcceptance                  ClientAcceptance[]
+  ClientPartnerManagerChangeRequest ClientPartnerManagerChangeRequest[]
+  VaultDocument                     VaultDocument[]
+
+  @@index([requestedById])
+  @@index([status])
+  @@index([workflowType])
+  @@index([workflowType, workflowId])
+}
+
+model ApprovalDelegation {
+  id                                       Int       @id(map: "PK_ApprovalDelegation") @default(autoincrement())
+  fromUserId                               String
+  toUserId                                 String
+  workflowType                             String?   @db.VarChar(50)
+  startDate                                DateTime
+  endDate                                  DateTime?
+  reason                                   String?   @db.NVarChar(500)
+  isActive                                 Boolean   @default(true, map: "DF_ApprovalDelegation_isActive")
+  createdAt                                DateTime  @default(now(), map: "DF_ApprovalDelegation_createdAt")
+  User_ApprovalDelegation_fromUserIdToUser User      @relation("ApprovalDelegation_fromUserIdToUser", fields: [fromUserId], references: [id], onUpdate: NoAction, map: "FK_ApprovalDelegation_From")
+  User_ApprovalDelegation_toUserIdToUser   User      @relation("ApprovalDelegation_toUserIdToUser", fields: [toUserId], references: [id], onUpdate: NoAction, map: "FK_ApprovalDelegation_To")
+
+  @@index([fromUserId])
+  @@index([fromUserId, isActive])
+  @@index([isActive, endDate])
+}
+
+model ApprovalRoute {
+  id           Int      @id(map: "PK_ApprovalRoute") @default(autoincrement())
+  workflowType String   @db.VarChar(50)
+  routeName    String   @db.NVarChar(100)
+  description  String?  @db.NVarChar(500)
+  routeConfig  String   @db.NVarChar(Max)
+  isActive     Boolean  @default(true, map: "DF_ApprovalRoute_isActive")
+  isDefault    Boolean  @default(false, map: "DF_ApprovalRoute_isDefault")
+  createdAt    DateTime @default(now(), map: "DF_ApprovalRoute_createdAt")
+  updatedAt    DateTime @updatedAt
+
+  @@unique([workflowType, routeName], map: "UQ_ApprovalRoute_workflowType_routeName")
+  @@index([workflowType, isDefault])
+}
+
+model ApprovalStep {
+  id                                        Int       @id(map: "PK_ApprovalStep") @default(autoincrement())
+  approvalId                                Int
+  stepOrder                                 Int
+  stepType                                  String    @db.VarChar(50)
+  isRequired                                Boolean   @default(true, map: "DF_ApprovalStep_isRequired")
+  assignedToUserId                          String?
+  assignedToRole                            String?   @db.VarChar(50)
+  assignedToCondition                       String?   @db.NVarChar(Max)
+  status                                    String    @default("PENDING", map: "DF_ApprovalStep_status") @db.VarChar(20)
+  approvedAt                                DateTime?
+  approvedById                              String?
+  comment                                   String?   @db.NVarChar(Max)
+  isDelegated                               Boolean   @default(false, map: "DF_ApprovalStep_isDelegated")
+  delegatedToUserId                         String?
+  createdAt                                 DateTime  @default(now(), map: "DF_ApprovalStep_createdAt")
+  updatedAt                                 DateTime @updatedAt
+  Approval                                  Approval  @relation(fields: [approvalId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_ApprovalStep_Approval")
+  User_ApprovalStep_approvedByIdToUser      User?     @relation("ApprovalStep_approvedByIdToUser", fields: [approvedById], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_ApprovalStep_ApprovedBy")
+  User_ApprovalStep_assignedToUserIdToUser  User?     @relation("ApprovalStep_assignedToUserIdToUser", fields: [assignedToUserId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_ApprovalStep_AssignedTo")
+  User_ApprovalStep_delegatedToUserIdToUser User?     @relation("ApprovalStep_delegatedToUserIdToUser", fields: [delegatedToUserId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_ApprovalStep_DelegatedTo")
+
+  // Covering index (INCLUDE columns added via SQL migration)
+  @@index([approvalId, stepOrder, status], map: "idx_approvalstep_approval_order_status_covering")
+  // User lookup index (kept)
+  @@index([assignedToUserId])
+}
+
+model BDActivity {
+  id            Int           @id @default(autoincrement())
+  opportunityId Int
+  contactId     Int?
+  activityType  String
+  subject       String
+  description   String?       @db.NVarChar(Max)
+  status        String        @default("SCHEDULED")
+  dueDate       DateTime?
+  completedAt   DateTime?
+  duration      Int?
+  location      String?
+  assignedTo    String
+  createdBy     String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime @updatedAt
+  BDContact     BDContact?    @relation(fields: [contactId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  BDOpportunity BDOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  // Covering indexes (INCLUDE columns added via SQL migration)
+  @@index([assignedTo, status, dueDate], map: "idx_bdactivity_assigned_status_due_covering")
+  @@index([opportunityId, createdAt(sort: Desc)], map: "idx_bdactivity_opp_created_covering")
+  // FK indexes (kept)
+  @@index([opportunityId])
+  @@index([contactId])
+}
+
+model BDContact {
+  id            Int             @id @default(autoincrement())
+  companyName   String?
+  firstName     String
+  lastName      String
+  email         String?
+  phone         String?
+  mobile        String?
+  jobTitle      String?
+  linkedin      String?
+  industry      String?
+  sector        String?
+  website       String?
+  address       String?
+  city          String?
+  province      String?
+  postalCode    String?
+  country       String?         @default("South Africa")
+  notes         String?         @db.NVarChar(Max)
+  createdBy     String
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime @updatedAt
+  BDActivity    BDActivity[]
+  BDOpportunity BDOpportunity[]
+
+  @@index([companyName])
+  @@index([createdAt(sort: Desc)])
+  @@index([email])
+}
+
+model BDNote {
+  id            Int           @id @default(autoincrement())
+  opportunityId Int
+  content       String        @db.NVarChar(Max)
+  isPrivate     Boolean       @default(false)
+  createdBy     String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime @updatedAt
+  BDOpportunity BDOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt(sort: Desc)])
+  @@index([opportunityId])
+}
+
+model BDOpportunity {
+  id                  Int          @id @default(autoincrement())
+  title               String
+  description         String?      @db.NVarChar(Max)
+  companyName         String?
+  contactId           Int?
+  serviceLine         String
+  stageId             Int
+  value               Float?
+  probability         Float?
+  expectedCloseDate   DateTime?
+  source              String?
+  status              String       @default("OPEN")
+  lostReason          String?
+  assignedTo          String
+  convertedToClientId Int?
+  convertedAt         DateTime?
+  createdBy           String
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime @updatedAt
+  clientId            Int?
+  BDActivity          BDActivity[]
+  BDNote              BDNote[]
+  Client              Client?      @relation(fields: [clientId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  BDContact           BDContact?   @relation(fields: [contactId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  BDStage             BDStage      @relation(fields: [stageId], references: [id], onUpdate: NoAction)
+  BDProposal          BDProposal[]
+
+  // Covering indexes (INCLUDE columns added via SQL migration)
+  @@index([assignedTo, status], map: "idx_bdopp_assigned_status_covering")
+  @@index([serviceLine, status], map: "idx_bdopp_serviceline_status_covering")
+  @@index([createdAt(sort: Desc)], map: "idx_bdopp_created_covering")
+  @@index([updatedAt(sort: Desc)], map: "idx_bdopp_updated_covering")
+  // FK indexes (kept)
+  @@index([clientId])
+  @@index([stageId])
+  @@index([expectedCloseDate])
+}
+
+model BDProposal {
+  id            Int           @id @default(autoincrement())
+  opportunityId Int
+  title         String
+  description   String?       @db.NVarChar(Max)
+  fileName      String
+  filePath      String
+  fileSize      Int
+  proposedValue Float?
+  validUntil    DateTime?
+  status        String        @default("DRAFT")
+  sentAt        DateTime?
+  viewedAt      DateTime?
+  respondedAt   DateTime?
+  version       Int           @default(1)
+  uploadedBy    String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime @updatedAt
+  BDOpportunity BDOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  @@index([opportunityId])
+  @@index([opportunityId, version])
+  @@index([sentAt])
+  @@index([status])
+}
+
+model BDStage {
+  id            Int             @id @default(autoincrement())
+  name          String
+  description   String?
+  order         Int
+  probability   Float
+  serviceLine   String?
+  isActive      Boolean         @default(true)
+  isDefault     Boolean         @default(false)
+  color         String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime @updatedAt
+  BDOpportunity BDOpportunity[]
+
+  @@unique([serviceLine, name])
+  @@index([isActive])
+  @@index([order])
+  @@index([serviceLine])
+}
+
+model BugReport {
+  id                              Int       @id @default(autoincrement())
+  reportedBy                      String
+  reportedAt                      DateTime  @default(now())
+  url                             String    @db.NVarChar(500)
+  description                     String    @db.NVarChar(Max)
+  screenshotPath                  String?   @db.NVarChar(500)
+  status                          String    @default("OPEN") @db.NVarChar(20)
+  testedAt                        DateTime?
+  testedBy                        String?
+  resolvedAt                      DateTime?
+  resolvedBy                      String?
+  resolutionNotes                 String?   @db.NVarChar(Max)
+  priority                        String    @default("MEDIUM") @db.NVarChar(20)
+  User_BugReport_reportedByToUser User      @relation("BugReport_reportedByToUser", fields: [reportedBy], references: [id], onUpdate: NoAction)
+  User_BugReport_resolvedByToUser User?     @relation("BugReport_resolvedByToUser", fields: [resolvedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  User_BugReport_testedByToUser   User?     @relation("BugReport_testedByToUser", fields: [testedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  // Covering index (INCLUDE columns added via SQL migration)
+  @@index([status, priority, reportedAt(sort: Desc)], map: "idx_bugreport_status_priority_covering")
+  // FK index (kept)
+  @@index([reportedBy])
+}
+
+model CategoryApprover {
+  id                                    Int                   @id(map: "PK_CategoryApprover") @default(autoincrement())
+  categoryId                            Int
+  userId                                String
+  stepOrder                             Int                   @default(1, map: "DF__CategoryA__stepO__01")
+  createdAt                             DateTime              @default(now(), map: "DF__CategoryA__creat__02")
+  createdBy                             String
+  VaultDocumentCategory                 VaultDocumentCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_CategoryApprover_Category")
+  User_CategoryApprover_createdByToUser User                  @relation("CategoryApprover_createdByToUser", fields: [createdBy], references: [id], onUpdate: NoAction, map: "FK_CategoryApprover_CreatedBy")
+  User_CategoryApprover_userIdToUser    User                  @relation("CategoryApprover_userIdToUser", fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_CategoryApprover_User")
+
+  @@unique([categoryId, userId], map: "UQ_CategoryApprover_CategoryId_UserId")
+  // Covering index (INCLUDE columns added via SQL migration)
+  @@index([categoryId, stepOrder], map: "idx_categoryapprover_category_steporder_covering")
+  // FK index (kept)
+  @@index([userId], map: "IX_CategoryApprover_UserId")
+}
+
+model Client {
+  id                                Int                                 @id @default(autoincrement())
+  clientCode                        String                              @unique @db.NVarChar(10)
+  clientNameFull                    String?                             @db.NVarChar(255)
+  groupCode                         String                              @db.NVarChar(10)
+  groupDesc                         String                              @db.NVarChar(150)
+  clientPartner                     String                              @db.NVarChar(10)
+  clientManager                     String                              @db.NVarChar(10)
+  clientIncharge                    String                              @db.NVarChar(10)
+  active                            String                              @db.VarChar(3)
+  clientDateOpen                    DateTime?
+  clientDateTerminate               DateTime?
+  industry                          String?                             @db.NVarChar(255)
+  sector                            String?                             @db.NVarChar(255)
+  forvisMazarsIndustry              String?                             @db.NVarChar(255)
+  forvisMazarsSector                String?                             @db.NVarChar(255)
+  forvisMazarsSubsector             String?                             @db.NVarChar(255)
+  clientOCFlag                      Boolean
+  clientTaxFlag                     Boolean?
+  clientSecFlag                     Boolean?
+  creditor                          Boolean?
+  rolePlayer                        Boolean
+  typeCode                          String                              @db.NVarChar(10)
+  typeDesc                          String                              @db.NVarChar(50)
+  createdAt                         DateTime                            @default(now())
+  updatedAt                         DateTime @updatedAt
+  GSClientID                        String                              @unique @db.UniqueIdentifier
+  BDOpportunity                     BDOpportunity[]
+  ClientAcceptance                  ClientAcceptance?
+  ClientAcceptanceResponse          ClientAcceptanceResponse[]
+  ClientAnalyticsDocument           ClientAnalyticsDocument[]
+  ClientCreditRating                ClientCreditRating[]
+  ClientPartnerManagerChangeRequest ClientPartnerManagerChangeRequest[]
+  Debtors                           Debtors[]
+  DrsTransactions                   DrsTransactions[]
+  Task                              Task[]
+  TaskBudget                        TaskBudget[]
+  Wip                               Wip[]
+  WIPAging                          WIPAging[]
+  WIPTransactions                   WIPTransactions[]
+
+  @@index([active, groupCode])
+  @@index([active, industry])
+  @@index([clientTaxFlag])
+  @@index([groupDesc, clientNameFull])
+  @@index([industry, clientNameFull])
+  @@index([sector])
+  @@index([updatedAt(sort: Desc)])
+}
+
+model ClientAcceptance {
+  id                     Int                      @id(map: "PK__ClientAc__3213E83F94B62F26") @default(autoincrement())
+  clientId               Int                      @unique
+  riskRating             String?                  @db.NVarChar(20)
+  overallRiskScore       Float?
+  riskSummary            String?                  @db.NVarChar(Max)
+  completedAt            DateTime?
+  completedBy            String?                  @db.NVarChar(200)
+  approvedAt             DateTime?
+  approvedBy             String?                  @db.NVarChar(200)
+  approvalId             Int?
+  validUntil             DateTime?
+  lastReviewedAt         DateTime?
+  createdAt              DateTime                 @default(now(), map: "DF_ClientAcceptance_createdAt")
+  updatedAt              DateTime                 @default(now(), map: "DF_ClientAcceptance_updatedAt")
+  userId                 String?
+  researchData           String?                  @db.NVarChar(Max)
+  researchedAt           DateTime?
+  researchCompleted      Boolean                  @default(false)
+  researchSkipped        Boolean                  @default(false)
+  pendingInchargeCode    String?                  @db.NVarChar(10)
+  pendingManagerCode     String?                  @db.NVarChar(10)
+  pendingPartnerCode     String?                  @db.NVarChar(10)
+  teamChangesApplied     Boolean                  @default(false)
+  teamChangesAppliedAt   DateTime?
+  User                   User?                    @relation(fields: [userId], references: [id])
+  Approval               Approval?                @relation(fields: [approvalId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_ClientAcceptance_Approval")
+  Client                 Client                   @relation(fields: [clientId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_ClientAcceptance_Client")
+  ClientAcceptanceAnswer ClientAcceptanceAnswer[]
+
+  @@index([approvalId])
+  @@index([approvedAt])
+  @@index([clientId])
+  @@index([riskRating])
+}
+
+model ClientAcceptanceAnswer {
+  id                 Int                @id(map: "PK__ClientAc__3213E83F4AB0FF4C") @default(autoincrement())
+  clientAcceptanceId Int
+  questionId         Int
+  answer             String?            @db.NVarChar(Max)
+  comment            String?            @db.NVarChar(Max)
+  createdAt          DateTime           @default(now(), map: "DF_ClientAcceptanceAnswer_createdAt")
+  updatedAt          DateTime           @default(now(), map: "DF_ClientAcceptanceAnswer_updatedAt")
+  ClientAcceptance   ClientAcceptance   @relation(fields: [clientAcceptanceId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_ClientAcceptanceAnswer_ClientAcceptance")
+  AcceptanceQuestion AcceptanceQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_ClientAcceptanceAnswer_Question")
+
+  @@unique([clientAcceptanceId, questionId])
+  // Covering index (INCLUDE columns added via SQL migration)
+  @@index([clientAcceptanceId], map: "idx_clientaccanswer_acceptance_covering")
+}
+
+model ClientAcceptanceResponse {
+  id                 Int                  @id(map: "PK__ClientAc__3213E83F94B62F25") @default(autoincrement())
+  taskId             Int
+  clientId           Int
+  questionnaireType  String               @db.NVarChar(50)
+  overallRiskScore   Float?
+  riskRating         String?              @db.NVarChar(20)
+  riskSummary        String?              @db.NVarChar(Max)
+  completedAt        DateTime?
+  completedBy        String?              @db.NVarChar(200)
+  reviewedBy         String?              @db.NVarChar(200)
+  reviewedAt         DateTime?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @default(now())
+  AcceptanceAnswer   AcceptanceAnswer[]
+  AcceptanceDocument AcceptanceDocument[]
+  Client             Client               @relation(fields: [clientId], references: [id], onUpdate: NoAction, map: "FK_ClientAcceptanceResponse_Client")
+  Task               Task                 @relation(fields: [taskId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_ClientAcceptanceResponse_Task")
+
+  @@index([clientId])
+  @@index([questionnaireType])
+  @@index([riskRating])
+  @@index([taskId])
+  @@index([taskId, questionnaireType])
+}
+
+model ClientAnalyticsDocument {
+  id                   Int                    @id @default(autoincrement())
+  clientId             Int
+  documentType         String
+  fileName             String
+  filePath             String
+  fileSize             Int
+  uploadedBy           String
+  uploadedAt           DateTime               @default(now())
+  extractedData        String?                @db.NVarChar(Max)
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime @updatedAt
+  Client               Client                 @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  CreditRatingDocument CreditRatingDocument[]
+
+  @@index([clientId])
+  @@index([documentType])
+  @@index([uploadedAt(sort: Desc)])
+}
+
+model ClientCreditRating {
+  id                   Int                    @id @default(autoincrement())
+  clientId             Int
+  ratingScore          Float
+  ratingGrade          String
+  ratingDate           DateTime               @default(now())
+  analysisReport       String                 @db.NVarChar(Max)
+  financialRatios      String                 @db.NVarChar(Max)
+  confidence           Float
+  analyzedBy           String
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime @updatedAt
+  Client               Client                 @relation(fields: [clientId], references: [id], onUpdate: NoAction)
+  CreditRatingDocument CreditRatingDocument[]
+
+  @@index([clientId])
+  @@index([clientId, ratingDate(sort: Desc)])
+  @@index([ratingDate(sort: Desc)])
+  @@index([ratingGrade])
+}
+
+model ClientPartnerManagerChangeRequest {
+  id                                                                        Int       @id(map: "PK_ClientPartnerManagerChangeRequest") @default(autoincrement())
+  clientId                                                                  Int
+  changeType                                                                String    @db.VarChar(20)
+  currentEmployeeCode                                                       String    @db.NVarChar(10)
+  currentEmployeeName                                                       String?   @db.NVarChar(100)
+  proposedEmployeeCode                                                      String    @db.NVarChar(10)
+  proposedEmployeeName                                                      String?   @db.NVarChar(100)
+  reason                                                                    String?   @db.NVarChar(500)
+  status                                                                    String    @db.VarChar(20)
+  requestedById                                                             String
+  requestedAt                                                               DateTime  @default(now(), map: "DF_ClientPartnerManagerChangeRequest_requestedAt")
+  resolvedById                                                              String?
+  resolvedAt                                                                DateTime?
+  resolutionComment                                                         String?   @db.NVarChar(500)
+  requiresDualApproval                                                      Boolean   @default(false, map: "DF_ClientPartnerManagerChangeRequest_requiresDualApproval")
+  currentEmployeeApprovedAt                                                 DateTime?
+  currentEmployeeApprovedById                                               String?
+  proposedEmployeeApprovedAt                                                DateTime?
+  proposedEmployeeApprovedById                                              String?
+  approvalId                                                                Int?
+  Approval                                                                  Approval? @relation(fields: [approvalId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_ChangeRequest_Approval")
+  Client                                                                    Client    @relation(fields: [clientId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_ClientPartnerManagerChangeRequest_Client")
+  User_ClientPartnerManagerChangeRequest_currentEmployeeApprovedByIdToUser  User?     @relation("ClientPartnerManagerChangeRequest_currentEmployeeApprovedByIdToUser", fields: [currentEmployeeApprovedById], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_ClientPartnerManagerChangeRequest_CurrentApprover")
+  User_ClientPartnerManagerChangeRequest_proposedEmployeeApprovedByIdToUser User?     @relation("ClientPartnerManagerChangeRequest_proposedEmployeeApprovedByIdToUser", fields: [proposedEmployeeApprovedById], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_ClientPartnerManagerChangeRequest_ProposedApprover")
+  User_ClientPartnerManagerChangeRequest_requestedByIdToUser                User      @relation("ClientPartnerManagerChangeRequest_requestedByIdToUser", fields: [requestedById], references: [id], onUpdate: NoAction, map: "FK_ClientPartnerManagerChangeRequest_RequestedBy")
+  User_ClientPartnerManagerChangeRequest_resolvedByIdToUser                 User?     @relation("ClientPartnerManagerChangeRequest_resolvedByIdToUser", fields: [resolvedById], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_ClientPartnerManagerChangeRequest_ResolvedBy")
+
+  @@index([approvalId])
+  @@index([clientId])
+  @@index([currentEmployeeApprovedById])
+  @@index([proposedEmployeeApprovedById])
+  @@index([proposedEmployeeCode, status])
+  @@index([requestedAt(sort: Desc)])
+  @@index([requiresDualApproval])
+  @@index([status])
+}
+
+model ComplianceChecklist {
+  id          Int       @id @default(autoincrement())
+  taskId      Int
+  title       String
+  description String?   @db.NVarChar(Max)
+  dueDate     DateTime?
+  priority    String    @default("MEDIUM")
+  status      String    @default("PENDING")
+  assignedTo  String?
+  completedAt DateTime?
+  completedBy String?
+  createdBy   String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime @updatedAt
+  Task        Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([assignedTo])
+  @@index([dueDate])
+  @@index([status])
+  @@index([taskId])
+}
+
+model Creditors {
+  id              Int      @id @default(autoincrement())
+  GSTranID        String   @unique @db.UniqueIdentifier
+  GSTaskID        String?  @db.UniqueIdentifier
+  GSDisbID        String?  @db.UniqueIdentifier
+  GSMatchID       String?  @db.UniqueIdentifier
+  TranType        String   @db.VarChar(3)
+  BatchNumber     String?  @db.NVarChar(20)
+  InvNumber       String   @db.NVarChar(20)
+  TranDate        DateTime
+  MatchDate       DateTime
+  CreditorCode    String   @db.NVarChar(10)
+  CreditorControl String?  @db.NVarChar(30)
+  OfficeCode      String?  @db.NVarChar(10)
+  ClntDisb        Int
+  Account         String?  @db.NVarChar(30)
+  AccDesc         String?  @db.NVarChar(255)
+  InvAmount       Float?   @db.Money
+  InvVatAmount    Float?   @db.Money
+  InvTotal        Float?   @db.Money
+  InvNarr         String?  @db.Text
+  MatchNr         String   @db.NVarChar(20)
+
+  @@index([BatchNumber])
+  @@index([CreditorCode])
+  @@index([GSTaskID])
+  @@index([InvNumber])
+  @@index([MatchDate])
+  @@index([OfficeCode])
+  @@index([TranDate])
+}
+
+model CreditRatingDocument {
+  id                      Int                     @id @default(autoincrement())
+  creditRatingId          Int
+  analyticsDocumentId     Int
+  createdAt               DateTime                @default(now())
+  ClientAnalyticsDocument ClientAnalyticsDocument @relation(fields: [analyticsDocumentId], references: [id], onUpdate: NoAction)
+  ClientCreditRating      ClientCreditRating      @relation(fields: [creditRatingId], references: [id], onDelete: Cascade)
+
+  @@unique([creditRatingId, analyticsDocumentId])
+  @@index([analyticsDocumentId])
+  @@index([creditRatingId])
+}
+
+model Debtors {
+  id                 Int       @id @default(autoincrement())
+  GSClientID         String    @db.UniqueIdentifier
+  PeriodRef          Int?
+  PeriodStart        DateTime?
+  PeriodEnd          DateTime?
+  ClientCode         String    @db.NVarChar(10)
+  Biller             String    @db.NVarChar(10)
+  OfficeCode         String    @db.NVarChar(10)
+  ServLineCode       String    @db.NVarChar(10)
+  LTDInv             Float?    @db.Money
+  LTDFee             Float?    @db.Money
+  LTDVat             Float?    @db.Money
+  LTDCn              Float?    @db.Money
+  LTDRec             Float?    @db.Money
+  LTDInt             Float?    @db.Money
+  LTDPLFC            Float?    @db.Money
+  YTDInv             Float?    @db.Money
+  YTDFee             Float?    @db.Money
+  YTDVat             Float?    @db.Money
+  YTDCn              Float?    @db.Money
+  YTDRec             Float?    @db.Money
+  YTDInt             Float?    @db.Money
+  YTDPLFC            Float?    @db.Money
+  PTDInv             Float?    @db.Money
+  PTDFee             Float?    @db.Money
+  PTDVat             Float?    @db.Money
+  PTDCn              Float?    @db.Money
+  PTDRec             Float?    @db.Money
+  PTDInt             Float?    @db.Money
+  PTDPLFC            Float?    @db.Money
+  CBal               Float?    @db.Money
+  BalCurr            Float?    @db.Money
+  Bal30              Float?    @db.Money
+  Bal60              Float?    @db.Money
+  Bal90              Float?    @db.Money
+  Bal120             Float?    @db.Money
+  Bal150             Float?    @db.Money
+  Bal180             Float?    @db.Money
+  DebtorProvision    Float?    @db.Money
+  PTDDebtorProvision Float?    @db.Money
+  YTDDebtorProvision Float?    @db.Money
+  createdAt          DateTime  @default(now(), map: "DF_Debtors_createdAt")
+  updatedAt          DateTime @updatedAt
+  Client             Client    @relation(fields: [GSClientID], references: [GSClientID], onUpdate: NoAction)
+
+  @@index([Biller])
+  @@index([GSClientID])
+  @@index([GSClientID, PeriodRef])
+  @@index([OfficeCode])
+  @@index([PeriodRef])
+  @@index([ServLineCode])
+}
+
+model DrsTransactions {
+  id                Int      @id @default(autoincrement())
+  GSDebtorsTranID   String   @unique @db.UniqueIdentifier
+  GSClientID        String   @db.UniqueIdentifier
+  ClientCode        String   @db.NVarChar(10)
+  ClientNameFull    String?  @db.NVarChar(222)
+  GroupCode         String   @db.NVarChar(10)
+  GroupDesc         String   @db.NVarChar(150)
+  OfficeCode        String   @db.NVarChar(10)
+  OfficeDesc        String   @db.NVarChar(100)
+  ServLineCode      String   @db.NVarChar(10)
+  ServLineDesc      String   @db.NVarChar(150)
+  Biller            String   @db.NVarChar(10)
+  BillerName        String   @db.NVarChar(50)
+  TranDate          DateTime
+  EntryType         String?  @db.VarChar(19)
+  Ordinal           Int?
+  Reference         String?  @db.NVarChar(20)
+  InvNumber         String?  @db.NVarChar(20)
+  Amount            Float?   @db.Money
+  Vat               Float?   @db.Money
+  Total             Float?   @db.Money
+  Batch             String?  @db.NVarChar(10)
+  Allocation        String   @db.NVarChar(20)
+  Narration         String?  @db.Text
+  VatCode           String?  @db.NVarChar(2)
+  PeriodKey         Int
+  EntryGroupCode    String?  @db.NVarChar(10)
+  EntryGroup        String?  @db.NVarChar(50)
+  DRAccount         String?  @db.NVarChar(30)
+  CRAccount         String?  @db.NVarChar(30)
+  ClientPartner     String   @db.NVarChar(10)
+  ClientPartnerName String   @db.NVarChar(50)
+  ClientManager     String   @db.NVarChar(10)
+  ClientManagerName String   @db.NVarChar(50)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  Client            Client   @relation(fields: [GSClientID], references: [GSClientID], onUpdate: NoAction)
+
+  // Super covering indexes (created via SQL migration - INCLUDE columns not supported in Prisma)
+  // idx_drs_gsclientid_super_covering: (GSClientID, TranDate) INCLUDE (Total, EntryType, InvNumber, Reference, Narration, ServLineCode, Biller, updatedAt)
+  // idx_drs_biller_super_covering: (Biller, TranDate) INCLUDE (Total, EntryType, ServLineCode, TranYearMonth, InvNumber, Reference)
+
+  // Single column indexes (kept)
+  @@index([OfficeCode])
+  @@index([PeriodKey])
+  @@index([ServLineCode])
+  @@index([TranDate])
+}
+
+model EmailLog {
+  id              Int       @id @default(autoincrement())
+  recipientEmail  String
+  recipientUserId String?
+  emailType       String
+  subject         String
+  status          String
+  errorMessage    String?
+  metadata        String?   @db.NVarChar(Max)
+  sentAt          DateTime?
+  createdAt       DateTime  @default(now())
+  User            User?     @relation(fields: [recipientUserId], references: [id])
+
+  @@index([emailType])
+  @@index([recipientUserId])
+  @@index([status])
+}
+
+model Employee {
+  id                  Int                   @id @default(autoincrement())
+  GSEmployeeID        String                @unique @db.UniqueIdentifier
+  EmpCode             String                @db.NVarChar(10)
+  EmpName             String                @db.NVarChar(50)
+  EmpNameFull         String                @db.NVarChar(63)
+  OfficeCode          String                @db.NVarChar(10)
+  SLGroup             String                @db.NVarChar(10)
+  ServLineCode        String                @db.NVarChar(10)
+  ServLineDesc        String                @db.NVarChar(150)
+  SubServLineCode     String                @db.NVarChar(10)
+  SubServLineDesc     String                @db.NVarChar(50)
+  EmpCatCode          String                @db.NVarChar(5)
+  EmpCatDesc          String                @db.NVarChar(50)
+  EmpCatType          String?               @db.NVarChar(1)
+  RateValue           Float                 @db.Money
+  EmpDateLeft         DateTime?
+  Active              String                @db.VarChar(3)
+  EmpDateStarted      DateTime?
+  Team                String?               @db.NVarChar(100)
+  WinLogon            String?               @db.NVarChar(100)
+  createdAt           DateTime              @default(now(), map: "DF__Employee__create__15C52FC4")
+  updatedAt           DateTime @updatedAt
+  LeaderGroupMember   LeaderGroupMember[]
+  NonClientAllocation NonClientAllocation[]
+
+  @@index([Active])
+  @@index([EmpCatCode])
+  @@index([EmpCode, Active])
+  @@index([GSEmployeeID])
+  @@index([OfficeCode])
+  @@index([ServLineCode])
+  @@index([SLGroup])
+  @@index([WinLogon])
+  @@index([EmpCode, Active], map: "idx_employee_empcode_active")
+}
+
+model ExternalLink {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.NVarChar(100)
+  url       String   @db.NVarChar(500)
+  icon      String   @db.NVarChar(50)
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active])
+  @@index([name])
+}
+
+model FilingStatus {
+  id              Int       @id @default(autoincrement())
+  taskId          Int
+  filingType      String
+  description     String?
+  status          String    @default("PENDING")
+  deadline        DateTime?
+  submittedDate   DateTime?
+  approvedDate    DateTime?
+  referenceNumber String?
+  notes           String?   @db.NVarChar(Max)
+  createdBy       String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime @updatedAt
+  Task            Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([deadline])
+  @@index([status])
+  @@index([taskId])
+}
+
+model FiscalPeriod {
+  id            Int      @id(map: "PK_FiscalPeriod") @default(autoincrement())
+  periodKey     Int      @unique(map: "UQ_FiscalPeriod_periodKey")
+  fiscalYear    Int
+  fiscalQuarter Int
+  fiscalMonth   Int
+  calendarMonth Int
+  calendarYear  Int
+  startDate     DateTime
+  endDate       DateTime
+  periodName    String   @db.NVarChar(50)
+  quarterName   String   @db.NVarChar(50)
+  createdAt     DateTime @default(now(), map: "DF_FiscalPeriod_createdAt")
+  updatedAt     DateTime @updatedAt
+
+  @@index([calendarYear, calendarMonth], map: "IX_FiscalPeriod_calendarYear_calendarMonth")
+  @@index([fiscalQuarter], map: "IX_FiscalPeriod_fiscalQuarter")
+  @@index([fiscalYear], map: "IX_FiscalPeriod_fiscalYear")
+  @@index([fiscalYear, fiscalMonth], map: "IX_FiscalPeriod_fiscalYear_fiscalMonth")
+  @@index([fiscalYear, fiscalQuarter], map: "IX_FiscalPeriod_fiscalYear_fiscalQuarter")
+  @@index([startDate, endDate], map: "IX_FiscalPeriod_startDate_endDate")
+}
+
+model GL {
+  id             Int       @id @default(autoincrement())
+  GSEntryID      String    @unique @db.UniqueIdentifier
+  GSAccountID    String    @db.UniqueIdentifier
+  Account        String    @db.NVarChar(30)
+  AccDesc        String    @db.NVarChar(255)
+  DescriptionSub String?   @db.NVarChar(255)
+  SourceBatch    String?   @db.NVarChar(50)
+  EntryDate      DateTime?
+  DatePosted     DateTime?
+  Reference      String?   @db.NVarChar(20)
+  Amount         Float?    @db.Money
+  Debit          Float?    @db.Money
+  Credit         Float?    @db.Money
+  Category       String    @db.NVarChar(30)
+  CatDesc        String?   @db.NVarChar(128)
+  BS             Boolean
+  OfficeCode     String    @db.NVarChar(10)
+  OfficeDesc     String    @db.NVarChar(100)
+  Narration      String?   @db.NVarChar(255)
+  EntryGroup     String?   @db.UniqueIdentifier
+  EntryTypeCode  String    @db.NVarChar(3)
+  EntryGroupCode String    @db.NVarChar(10)
+  EntryGroupDesc String?   @db.NVarChar(50)
+  AccStatus      String?   @db.NVarChar(50)
+
+  @@index([Account])
+  @@index([DatePosted])
+  @@index([EntryDate])
+  @@index([EntryGroup])
+  @@index([GSAccountID])
+  @@index([OfficeCode])
+  @@index([SourceBatch])
+}
+
+model GLBudgets {
+  id             Int    @id @default(autoincrement())
+  GSBudgetID     String @unique @db.UniqueIdentifier
+  GSBudgetTypeID String @db.UniqueIdentifier
+  GSAccountID    String @db.UniqueIdentifier
+  BudgetCode     String @db.NVarChar(10)
+  PeriodYear     Int
+  PeriodNumber   Int
+  BudgetAmount   Float?
+
+  @@index([BudgetCode])
+  @@index([GSAccountID])
+  @@index([GSBudgetTypeID])
+  @@index([PeriodYear, PeriodNumber])
+}
+
+model GS_Stg_TSChargeable {
+  TSID        String    @id(map: "PK_GS_Stg_TSChargeable") @db.UniqueIdentifier
+  TSDate      DateTime  @db.DateTime
+  ClientCode  String    @db.NVarChar(10)
+  TaskCode    String    @db.NVarChar(10)
+  TaskID      String    @db.UniqueIdentifier
+  EmpCode     String    @db.NVarChar(10)
+  EmpID       String    @db.UniqueIdentifier
+  ActCode     String    @db.NVarChar(10)
+  ActID       String    @db.UniqueIdentifier
+  RateCode    String    @db.NVarChar(2)
+  RateValue   Float     @db.Money
+  TSHour      Float     @db.Money
+  TSValue     Float     @db.Money
+  TSCost      Float     @db.Money
+  TSNarr      String?   @db.NVarChar(4000)
+  LastUpdated DateTime? @default(now(), map: "DF_GS_Stg_TSChargeable_LastUpdated") @db.DateTime
+}
+
+model GS_TSChargeable {
+  TSID        String    @id(map: "PK_GS_TSChargeable") @db.UniqueIdentifier
+  TSDate      DateTime  @db.DateTime
+  ClientCode  String    @db.NVarChar(10)
+  TaskCode    String    @db.NVarChar(10)
+  TaskID      String    @db.UniqueIdentifier
+  EmpCode     String    @db.NVarChar(10)
+  EmpID       String    @db.UniqueIdentifier
+  ActCode     String    @db.NVarChar(10)
+  ActID       String    @db.UniqueIdentifier
+  RateCode    String    @db.NVarChar(2)
+  RateValue   Float     @db.Money
+  TSHour      Float     @db.Money
+  TSValue     Float     @db.Money
+  TSCost      Float     @db.Money
+  TSNarr      String?   @db.NVarChar(4000)
+  LastUpdated DateTime? @default(now(), map: "DF_GS_TSChargeable_LastUpdated") @db.DateTime
+}
+
+model InAppNotification {
+  id                                      Int       @id @default(autoincrement())
+  userId                                  String
+  taskId                                  Int?
+  type                                    String
+  title                                   String
+  message                                 String    @db.NVarChar(Max)
+  actionUrl                               String?
+  isRead                                  Boolean   @default(false)
+  readAt                                  DateTime?
+  metadata                                String?   @db.NVarChar(Max)
+  fromUserId                              String?
+  createdAt                               DateTime  @default(now())
+  User_InAppNotification_fromUserIdToUser User?     @relation("InAppNotification_fromUserIdToUser", fields: [fromUserId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Task                                    Task?     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  User_InAppNotification_userIdToUser     User      @relation("InAppNotification_userIdToUser", fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  // Covering indexes (INCLUDE columns added via SQL migration)
+  @@index([userId, isRead], map: "idx_notification_user_read_covering")
+  @@index([createdAt(sort: Desc)], map: "idx_notification_created_covering")
+}
+
+model LeaderGroup {
+  id                Int                 @id @default(autoincrement())
+  name              String              @unique @db.NVarChar(100)
+  description       String?             @db.NVarChar(500)
+  createdById       String
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime @updatedAt
+  type              String              @default("GROUP") @db.NVarChar(20)
+  User              User                @relation(fields: [createdById], references: [id])
+  LeaderGroupMember LeaderGroupMember[]
+
+  @@index([name])
+  @@index([type])
+}
+
+model LeaderGroupMember {
+  id            Int         @id @default(autoincrement())
+  leaderGroupId Int
+  employeeId    Int
+  addedById     String
+  addedAt       DateTime    @default(now())
+  User          User        @relation(fields: [addedById], references: [id], onUpdate: NoAction)
+  Employee      Employee    @relation(fields: [employeeId], references: [id], onUpdate: NoAction)
+  LeaderGroup   LeaderGroup @relation(fields: [leaderGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([leaderGroupId, employeeId])
+  @@index([employeeId])
+  @@index([leaderGroupId])
+}
+
+model LegalPrecedent {
+  id        Int      @id @default(autoincrement())
+  taskId    Int
+  caseName  String
+  citation  String
+  court     String?
+  year      Int?
+  summary   String   @db.NVarChar(Max)
+  relevance String?  @db.NVarChar(Max)
+  link      String?
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  Task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([year])
+}
+
+model MappedAccount {
+  id               Int      @id @default(autoincrement())
+  accountCode      String
+  accountName      String
+  section          String
+  subsection       String
+  balance          Float
+  priorYearBalance Float    @default(0)
+  sarsItem         String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  taskId           Int
+  Task             Task     @relation(fields: [taskId], references: [id])
+
+  @@index([taskId, accountCode])
+  @@index([taskId])
+  @@index([taskId, section])
+  @@index([taskId, section, subsection])
+}
+
+model NewsBulletin {
+  id                 Int       @id @default(autoincrement())
+  title              String    @db.NVarChar(255)
+  summary            String    @db.NVarChar(500)
+  body               String    @db.NVarChar(Max)
+  category           String    @db.NVarChar(50)
+  serviceLine        String?   @db.NVarChar(50)
+  effectiveDate      DateTime
+  expiresAt          DateTime?
+  contactPerson      String?   @db.NVarChar(255)
+  actionRequired     Boolean   @default(false)
+  callToActionUrl    String?   @db.NVarChar(500)
+  callToActionText   String?   @db.NVarChar(100)
+  isPinned           Boolean   @default(false)
+  isActive           Boolean   @default(true)
+  createdById        String
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime @updatedAt
+  documentFileName   String?   @db.NVarChar(255)
+  documentFilePath   String?   @db.NVarChar(500)
+  documentFileSize   Int?
+  documentUploadedAt DateTime?
+  showDocumentLink   Boolean   @default(false)
+  User               User      @relation(fields: [createdById], references: [id], onUpdate: NoAction)
+
+  @@index([category])
+  @@index([effectiveDate])
+  @@index([isActive, effectiveDate(sort: Desc)])
+  @@index([isActive])
+  @@index([isPinned])
+  @@index([serviceLine])
+}
+
+model NonClientAllocation {
+  id                  Int      @id @default(autoincrement())
+  eventType           String   @db.NVarChar(50)
+  startDate           DateTime
+  endDate             DateTime
+  allocatedHours      Decimal  @db.Decimal(10, 2)
+  allocatedPercentage Int      @default(100)
+  notes               String?  @db.NVarChar(Max)
+  createdBy           String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  employeeId          Int
+  Employee            Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@index([employeeId, startDate, endDate])
+  @@index([eventType])
+}
+
+model NotificationPreference {
+  id               Int      @id @default(autoincrement())
+  userId           String
+  taskId           Int?
+  notificationType String
+  emailEnabled     Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  Task             Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  User             User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([userId, taskId, notificationType])
+  @@index([taskId])
+  @@index([userId])
+}
+
+model OpinionChatMessage {
+  id                  Int          @id @default(autoincrement())
+  opinionDraftId      Int
+  role                String
+  content             String       @db.NVarChar(Max)
+  metadata            String?      @db.NVarChar(Max)
+  sectionGenerationId String?
+  sectionType         String?
+  createdAt           DateTime     @default(now())
+  OpinionDraft        OpinionDraft @relation(fields: [opinionDraftId], references: [id], onDelete: Cascade)
+
+  @@index([opinionDraftId, createdAt])
+  @@index([sectionGenerationId])
+}
+
+model OpinionDocument {
+  id             Int          @id @default(autoincrement())
+  opinionDraftId Int
+  fileName       String
+  fileType       String
+  fileSize       Int
+  filePath       String
+  category       String
+  extractedText  String?      @db.NVarChar(Max)
+  vectorized     Boolean      @default(false)
+  uploadedBy     String
+  createdAt      DateTime     @default(now())
+  OpinionDraft   OpinionDraft @relation(fields: [opinionDraftId], references: [id], onDelete: Cascade)
+
+  @@index([category])
+  @@index([opinionDraftId])
+}
+
+model OpinionDraft {
+  id                 Int                  @id @default(autoincrement())
+  taskId             Int
+  version            Int                  @default(1)
+  title              String
+  content            String               @db.NVarChar(Max)
+  status             String               @default("DRAFT")
+  createdBy          String
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime @updatedAt
+  OpinionChatMessage OpinionChatMessage[]
+  OpinionDocument    OpinionDocument[]
+  Task               Task                 @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  OpinionSection     OpinionSection[]
+
+  @@index([status])
+  @@index([taskId])
+  @@index([taskId, version])
+}
+
+model OpinionSection {
+  id             Int          @id @default(autoincrement())
+  opinionDraftId Int
+  sectionType    String
+  title          String
+  content        String       @db.NVarChar(Max)
+  aiGenerated    Boolean      @default(false)
+  reviewed       Boolean      @default(false)
+  reviewedBy     String?
+  reviewedAt     DateTime?
+  order          Int
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime @updatedAt
+  OpinionDraft   OpinionDraft @relation(fields: [opinionDraftId], references: [id], onDelete: Cascade)
+
+  @@index([opinionDraftId, order])
+}
+
+model PagePermission {
+  id          Int      @id @default(autoincrement())
+  pathname    String
+  role        String
+  accessLevel String
+  description String?  @db.NVarChar(Max)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String?
+
+  @@unique([pathname, role])
+  @@index([active])
+  @@index([pathname])
+  @@index([role])
+}
+
+model PageRegistry {
+  id         Int      @id @default(autoincrement())
+  pathname   String   @unique
+  pageTitle  String?
+  category   String?
+  discovered Boolean  @default(true)
+  active     Boolean  @default(true)
+  lastSeen   DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([active])
+  @@index([category])
+}
+
+model ResearchNote {
+  id        Int      @id @default(autoincrement())
+  taskId    Int
+  title     String
+  content   String   @db.NVarChar(Max)
+  tags      String?
+  category  String?
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  Task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([category])
+  @@index([taskId])
+}
+
+model ReviewCategory {
+  id          Int          @id @default(autoincrement())
+  name        String       @db.NVarChar(100)
+  description String?      @db.NVarChar(500)
+  serviceLine String?      @db.NVarChar(50)
+  active      Boolean      @default(true)
+  sortOrder   Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime @updatedAt
+  ReviewNote  ReviewNote[]
+
+  @@index([active])
+  @@index([serviceLine])
+  @@index([sortOrder])
+}
+
+model ReviewNote {
+  id                                    Int                    @id @default(autoincrement())
+  taskId                                Int
+  title                                 String                 @db.NVarChar(255)
+  description                           String?                @db.NVarChar(Max)
+  referenceUrl                          String?
+  referenceType                         String                 @default("EXTERNAL") @db.NVarChar(20)
+  referenceId                           String?                @db.NVarChar(100)
+  section                               String?                @db.NVarChar(255)
+  status                                String                 @default("OPEN") @db.NVarChar(20)
+  priority                              String                 @default("MEDIUM") @db.NVarChar(20)
+  categoryId                            Int?
+  dueDate                               DateTime?
+  raisedBy                              String
+  assignedTo                            String?
+  addressedAt                           DateTime?
+  addressedBy                           String?
+  addressedComment                      String?                @db.NVarChar(Max)
+  clearedAt                             DateTime?
+  clearedBy                             String?
+  clearanceComment                      String?                @db.NVarChar(Max)
+  rejectedAt                            DateTime?
+  rejectionReason                       String?                @db.NVarChar(Max)
+  createdAt                             DateTime               @default(now())
+  updatedAt                             DateTime @updatedAt
+  currentOwner                          String?
+  lastRespondedBy                       String?
+  lastRespondedAt                       DateTime?
+  User_ReviewNote_addressedByToUser     User?                  @relation("ReviewNote_addressedByToUser", fields: [addressedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  User_ReviewNote_assignedToToUser      User?                  @relation("ReviewNote_assignedToToUser", fields: [assignedTo], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ReviewCategory                        ReviewCategory?        @relation(fields: [categoryId], references: [id])
+  User_ReviewNote_clearedByToUser       User?                  @relation("ReviewNote_clearedByToUser", fields: [clearedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  User_ReviewNote_currentOwnerToUser    User?                  @relation("ReviewNote_currentOwnerToUser", fields: [currentOwner], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  User_ReviewNote_lastRespondedByToUser User?                  @relation("ReviewNote_lastRespondedByToUser", fields: [lastRespondedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  User_ReviewNote_raisedByToUser        User                   @relation("ReviewNote_raisedByToUser", fields: [raisedBy], references: [id], onUpdate: NoAction)
+  Task                                  Task                   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  ReviewNoteAssignee                    ReviewNoteAssignee[]
+  ReviewNoteAttachment                  ReviewNoteAttachment[]
+  ReviewNoteComment                     ReviewNoteComment[]
+
+  // Covering indexes (INCLUDE columns added via SQL migration)
+  @@index([assignedTo, status], map: "idx_reviewnote_assigned_status_covering")
+  @@index([taskId, status], map: "idx_reviewnote_task_status_covering")
+  @@index([createdAt(sort: Desc)], map: "idx_reviewnote_created_covering")
+  // FK and query indexes (kept)
+  @@index([taskId])
+  @@index([categoryId])
+  @@index([dueDate])
+}
+
+model ReviewNoteAssignee {
+  id                                       Int        @id(map: "PK_ReviewNoteAssignee") @default(autoincrement())
+  reviewNoteId                             Int
+  userId                                   String
+  assignedAt                               DateTime   @default(now())
+  assignedBy                               String
+  isForwarded                              Boolean    @default(false)
+  ReviewNote                               ReviewNote @relation(fields: [reviewNoteId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_ReviewNoteAssignee_ReviewNote")
+  User_ReviewNoteAssignee_assignedByToUser User       @relation("ReviewNoteAssignee_assignedByToUser", fields: [assignedBy], references: [id], onUpdate: NoAction, map: "FK_ReviewNoteAssignee_User_assignedBy")
+  User_ReviewNoteAssignee_userIdToUser     User       @relation("ReviewNoteAssignee_userIdToUser", fields: [userId], references: [id], onUpdate: NoAction, map: "FK_ReviewNoteAssignee_User_userId")
+
+  @@unique([reviewNoteId, userId])
+  @@index([assignedBy])
+  @@index([reviewNoteId])
+  @@index([userId])
+}
+
+model ReviewNoteAttachment {
+  id                Int                @id @default(autoincrement())
+  reviewNoteId      Int
+  fileName          String             @db.NVarChar(255)
+  filePath          String
+  fileSize          Int
+  fileType          String             @db.NVarChar(100)
+  uploadedBy        String
+  createdAt         DateTime           @default(now())
+  commentId         Int?
+  ReviewNoteComment ReviewNoteComment? @relation(fields: [commentId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_ReviewNoteAttachment_Comment")
+  ReviewNote        ReviewNote         @relation(fields: [reviewNoteId], references: [id], onDelete: Cascade)
+  User              User               @relation(fields: [uploadedBy], references: [id], onUpdate: NoAction)
+
+  @@index([reviewNoteId])
+  @@index([uploadedBy])
+}
+
+model ReviewNoteComment {
+  id                   Int                    @id @default(autoincrement())
+  reviewNoteId         Int
+  userId               String
+  comment              String                 @db.NVarChar(Max)
+  isInternal           Boolean                @default(false)
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime @updatedAt
+  ReviewNoteAttachment ReviewNoteAttachment[]
+  ReviewNote           ReviewNote             @relation(fields: [reviewNoteId], references: [id], onDelete: Cascade)
+  User                 User                   @relation(fields: [userId], references: [id], onUpdate: NoAction)
+
+  @@index([createdAt])
+  @@index([reviewNoteId])
+  @@index([userId])
+}
+
+model SarsResponse {
+  id              Int       @id @default(autoincrement())
+  taskId          Int
+  referenceNumber String
+  subject         String
+  content         String    @db.NVarChar(Max)
+  status          String    @default("PENDING")
+  responseType    String
+  deadline        DateTime?
+  sentDate        DateTime?
+  receivedDate    DateTime?
+  documentPath    String?
+  createdBy       String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime @updatedAt
+  Task            Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([deadline])
+  @@index([status])
+  @@index([taskId])
+}
+
+model ServiceLineExternal {
+  id                   Int      @id @default(autoincrement())
+  ServLineCode         String?  @db.NVarChar(10)
+  ServLineDesc         String?  @db.NVarChar(150)
+  GLPrefix             String?  @db.NVarChar(10)
+  SLGroup              String?  @db.NVarChar(10)
+  masterCode           String?  @db.NVarChar(50)
+  SubServlineGroupCode String?  @db.NVarChar(10)
+  SubServlineGroupDesc String?  @db.NVarChar(150)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  Active               Boolean?
+
+  @@index([ServLineCode], map: "idx_servline_code")
+  @@index([masterCode])
+  @@index([ServLineCode])
+  @@index([SLGroup])
+  @@index([SubServlineGroupCode])
+}
+
+model ServiceLineMaster {
+  code          String          @id @db.NVarChar(50)
+  name          String          @db.NVarChar(200)
+  description   String?         @db.NVarChar(500)
+  active        Boolean         @default(true)
+  sortOrder     Int             @default(0)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime @updatedAt
+  VaultDocument VaultDocument[]
+
+  @@index([code], map: "idx_master_sl_code")
+  @@index([active])
+  @@index([sortOrder])
+}
+
+model ServiceLineTool {
+  id                  Int      @id @default(autoincrement())
+  subServiceLineGroup String   @db.NVarChar(50)
+  toolId              Int
+  active              Boolean  @default(true)
+  createdAt           DateTime @default(now(), map: "DF__ServiceLi__creat__08362A7C")
+  updatedAt           DateTime @updatedAt
+  Tool                Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+
+  @@unique([subServiceLineGroup, toolId])
+  @@index([active])
+  @@index([subServiceLineGroup])
+  @@index([toolId])
+}
+
+model ServiceLineUser {
+  id                  Int      @id @default(autoincrement())
+  userId              String
+  subServiceLineGroup String
+  role                String   @default("USER")
+  assignmentType      String   @default("SPECIFIC_SUBGROUP")
+  parentAssignmentId  Int?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  masterCode          String?  @db.NVarChar(50)
+  User                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([masterCode], map: "idx_ServiceLineUser_masterCode")
+  @@index([assignmentType])
+  @@index([parentAssignmentId])
+  @@index([subServiceLineGroup])
+  @@index([userId, assignmentType])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  User         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model StandardTask {
+  id           Int      @id @default(autoincrement())
+  GSStdTaskID  String   @unique @db.UniqueIdentifier
+  StdTaskCode  String   @db.NVarChar(10)
+  StdTaskDesc  String   @db.NVarChar(150)
+  ServLineCode String   @db.NVarChar(10)
+  createdAt    DateTime @default(now(), map: "DF_StandardTask_createdAt")
+  updatedAt    DateTime @updatedAt
+
+  @@index([GSStdTaskID])
+  @@index([ServLineCode])
+  @@index([StdTaskCode])
+}
+
+model Task {
+  id                       Int                        @id @default(autoincrement())
+  GSTaskID                 String                     @unique @db.UniqueIdentifier
+  GSClientID               String?                    @db.UniqueIdentifier
+  TaskCode                 String                     @db.NVarChar(10)
+  TaskDesc                 String                     @db.NVarChar(150)
+  TaskPartner              String                     @db.NVarChar(10)
+  TaskPartnerName          String                     @db.NVarChar(50)
+  TaskManager              String                     @db.NVarChar(10)
+  TaskManagerName          String                     @db.NVarChar(50)
+  OfficeCode               String                     @db.NVarChar(10)
+  SLGroup                  String                     @db.NVarChar(10)
+  ServLineCode             String                     @db.NVarChar(10)
+  ServLineDesc             String                     @db.NVarChar(150)
+  Active                   String                     @db.VarChar(3)
+  TaskDateOpen             DateTime
+  TaskDateTerminate        DateTime?
+  createdBy                String?
+  createdAt                DateTime                   @default(now())
+  updatedAt                DateTime @updatedAt
+  taskYear                 Int
+  AdjustmentDocument       AdjustmentDocument[]
+  AITaxReport              AITaxReport[]
+  ClientAcceptanceResponse ClientAcceptanceResponse[]
+  ComplianceChecklist      ComplianceChecklist[]
+  FilingStatus             FilingStatus[]
+  InAppNotification        InAppNotification[]
+  LegalPrecedent           LegalPrecedent[]
+  MappedAccount            MappedAccount[]
+  NotificationPreference   NotificationPreference[]
+  OpinionDraft             OpinionDraft[]
+  ResearchNote             ResearchNote[]
+  ReviewNote               ReviewNote[]
+  SarsResponse             SarsResponse[]
+  User                     User?                      @relation(fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Client                   Client?                    @relation(fields: [GSClientID], references: [GSClientID], onDelete: NoAction, onUpdate: NoAction)
+  TaskAcceptance           TaskAcceptance?
+  TaskBudget               TaskBudget[]
+  TaskBudgetDisbursement   TaskBudgetDisbursement[]
+  TaskBudgetFee            TaskBudgetFee[]
+  TaskDocument             TaskDocument[]
+  TaskEngagementLetter     TaskEngagementLetter?
+  TaskStage                TaskStage[]
+  TaskTeam                 TaskTeam[]
+  TaskTool                 TaskTool[]
+  TaxAdjustment            TaxAdjustment[]
+  Wip                      Wip[]
+  WIPAging                 WIPAging[]
+  WIPTransactions          WIPTransactions[]
+  WorkspaceFolder          WorkspaceFolder[]
+
+  @@index([GSClientID], map: "idx_task_gsclientid")
+  @@index([ServLineCode, Active], map: "idx_task_servlinecode_active")
+  @@index([GSClientID, Active, updatedAt(sort: Desc)])
+  @@index([GSClientID])
+  @@index([ServLineCode, Active])
+  @@index([ServLineCode, Active, updatedAt(sort: Desc)])
+  @@index([ServLineCode, SLGroup])
+  @@index([TaskManager, Active])
+  @@index([TaskPartner, Active])
+  @@index([taskYear])
+}
+
+model TaskAcceptance {
+  id                 Int       @id @default(autoincrement())
+  taskId             Int       @unique
+  acceptanceApproved Boolean   @default(false)
+  approvedBy         String?
+  approvedAt         DateTime?
+  questionnaireType  String?
+  overallRiskScore   Float?
+  riskRating         String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime @updatedAt
+  Task               Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([riskRating])
+  @@index([taskId])
+}
+
+model TaskBudget {
+  id              Int       @id @default(autoincrement())
+  TaskBudgetID    String    @unique @db.UniqueIdentifier
+  GSClientID      String?   @db.UniqueIdentifier
+  GSTaskID        String?   @db.UniqueIdentifier
+  ClientCode      String?   @db.NVarChar(10)
+  TaskCode        String?   @db.NVarChar(10)
+  EstFeeTime      Float?    @db.Money
+  EstFeeDisb      Float?    @db.Money
+  EstChgTime      Float?    @db.Money
+  EstChgDisb      Float?    @db.Money
+  EstChgHours     Float?    @db.Money
+  EstAdjTime      Float?    @db.Money
+  EstAdjDisb      Float?    @db.Money
+  EstRecoveryPerc Int?
+  BudDetails      String?   @db.NVarChar(255)
+  LastUser        String?   @db.NVarChar(50)
+  LastUpdated     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime @updatedAt
+  BudApproveDate  DateTime?
+  BudDueDate      DateTime?
+  BudStartDate    DateTime?
+  Client          Client?   @relation(fields: [GSClientID], references: [GSClientID], onDelete: NoAction, onUpdate: NoAction)
+  Task            Task?     @relation(fields: [GSTaskID], references: [GSTaskID], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([GSClientID])
+  @@index([GSTaskID])
+  @@index([TaskBudgetID])
+}
+
+model TaskBudgetDisbursement {
+  id           Int      @id @default(autoincrement())
+  taskId       Int
+  description  String   @db.NVarChar(255)
+  amount       Decimal  @db.Decimal(18, 2)
+  createdBy    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  expectedDate DateTime
+  User         User     @relation(fields: [createdBy], references: [id], onUpdate: NoAction)
+  Task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([createdBy])
+  @@index([taskId])
+}
+
+model TaskBudgetFee {
+  id           Int      @id @default(autoincrement())
+  taskId       Int
+  description  String   @db.NVarChar(255)
+  amount       Decimal  @db.Decimal(18, 2)
+  createdBy    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  expectedDate DateTime
+  User         User     @relation(fields: [createdBy], references: [id], onUpdate: NoAction)
+  Task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([createdBy])
+  @@index([taskId])
+}
+
+model TaskDocument {
+  id          Int      @id @default(autoincrement())
+  taskId      Int
+  fileName    String
+  fileType    String
+  fileSize    Int
+  filePath    String
+  category    String
+  description String?
+  version     Int      @default(1)
+  uploadedBy  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  Task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([category])
+  @@index([taskId])
+}
+
+model TaskEngagementLetter {
+  id                      Int              @id @default(autoincrement())
+  taskId                  Int              @unique
+  generated               Boolean          @default(false)
+  uploaded                Boolean          @default(false)
+  filePath                String?
+  content                 String?          @db.NVarChar(Max)
+  templateId              Int?
+  generatedAt             DateTime?
+  generatedBy             String?
+  uploadedAt              DateTime?
+  uploadedBy              String?
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime @updatedAt
+  dpaUploaded             Boolean          @default(false, map: "DF_TaskEngagementLetter_dpaUploaded")
+  dpaFilePath             String?          @db.NVarChar(Max)
+  dpaUploadedAt           DateTime?
+  dpaUploadedBy           String?          @db.NVarChar(Max)
+  elExtractionStatus      String?          @db.NVarChar(20)
+  elExtractionError       String?          @db.NVarChar(Max)
+  elLetterDate            DateTime?
+  elLetterAge             Int?
+  elSigningPartner        String?          @db.NVarChar(100)
+  elSigningPartnerCode    String?          @db.NVarChar(10)
+  elServicesCovered       String?          @db.NVarChar(Max)
+  elHasPartnerSignature   Boolean?
+  elHasClientSignature    Boolean?
+  elHasTermsConditions    Boolean?
+  elHasTcPartnerSignature Boolean?
+  elHasTcClientSignature  Boolean?
+  elExtractedText         String?          @db.NVarChar(Max)
+  dpaExtractionStatus     String?          @db.NVarChar(20)
+  dpaExtractionError      String?          @db.NVarChar(Max)
+  dpaLetterDate           DateTime?
+  dpaLetterAge            Int?
+  dpaSigningPartner       String?          @db.NVarChar(100)
+  dpaSigningPartnerCode   String?          @db.NVarChar(10)
+  dpaHasPartnerSignature  Boolean?
+  dpaHasClientSignature   Boolean?
+  dpaExtractedText        String?          @db.NVarChar(Max)
+  templateVersionId       Int?
+  Task                    Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  TemplateVersion         TemplateVersion? @relation(fields: [templateVersionId], references: [id])
+
+  // Covering indexes (INCLUDE columns added via SQL migration)
+  @@index([dpaExtractionStatus], map: "idx_taskengagement_dpa_covering")
+  @@index([elExtractionStatus], map: "idx_taskengagement_el_covering")
+  // FK indexes (kept)
+  @@index([taskId])
+  @@index([templateVersionId])
+}
+
+model TaskIndependenceConfirmation {
+  id          Int       @id @default(autoincrement())
+  taskTeamId  Int       @unique
+  confirmed   Boolean   @default(false)
+  confirmedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime @updatedAt
+  TaskTeam    TaskTeam  @relation(fields: [taskTeamId], references: [id], onDelete: Cascade)
+
+  @@index([confirmed])
+  @@index([taskTeamId])
+}
+
+model TaskStage {
+  id        Int      @id(map: "PK_TaskStage") @default(autoincrement())
+  taskId    Int
+  stage     String   @db.NVarChar(50)
+  movedBy   String   @db.NVarChar(Max)
+  notes     String?  @db.NVarChar(500)
+  createdAt DateTime @default(now(), map: "DF_TaskStage_createdAt")
+  Task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_TaskStage_Task")
+
+  @@index([taskId, createdAt(sort: Desc)], map: "idx_taskstage_taskid_created")
+  @@index([stage])
+  @@index([taskId, stage])
+}
+
+model TaskTeam {
+  id                           Int                           @id @default(autoincrement())
+  taskId                       Int
+  userId                       String
+  role                         String                        @default("VIEWER")
+  createdAt                    DateTime                      @default(now())
+  startDate                    DateTime?
+  endDate                      DateTime?
+  allocatedHours               Decimal?                      @db.Decimal(10, 2)
+  allocatedPercentage          Int?
+  actualHours                  Decimal?                      @db.Decimal(10, 2)
+  TaskIndependenceConfirmation TaskIndependenceConfirmation?
+  Task                         Task                          @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  User                         User                          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId])
+  @@index([userId, taskId], map: "idx_taskteam_userid_taskid")
+  @@index([role])
+  @@index([taskId, startDate, endDate])
+  @@index([userId, startDate, endDate])
+  @@index([userId, taskId])
+  @@index([userId, taskId, role])
+}
+
+model TaskTool {
+  id        Int      @id @default(autoincrement())
+  taskId    Int
+  toolId    Int
+  addedBy   String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now(), map: "DF__TaskTool__create__0EE3280B")
+  updatedAt DateTime @updatedAt
+  User      User     @relation(fields: [addedBy], references: [id], onUpdate: NoAction)
+  Task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  Tool      Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, toolId])
+  @@index([addedBy])
+  @@index([taskId])
+  @@index([taskId, sortOrder])
+  @@index([toolId])
+}
+
+model TaxAdjustment {
+  id                 Int                  @id @default(autoincrement())
+  taskId             Int
+  type               String
+  description        String
+  amount             Float
+  status             String               @default("SUGGESTED")
+  sourceDocuments    String?
+  extractedData      String?
+  calculationDetails String?
+  notes              String?
+  sarsSection        String?
+  confidenceScore    Float?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime @updatedAt
+  AdjustmentDocument AdjustmentDocument[]
+  Task               Task                 @relation(fields: [taskId], references: [id])
+
+  @@index([createdAt])
+  @@index([status])
+  @@index([status, taskId])
+  @@index([taskId])
+  @@index([taskId, status, createdAt(sort: Desc)])
+}
+
+model Template {
+  id              Int               @id @default(autoincrement())
+  name            String
+  description     String?
+  type            String
+  serviceLine     String?
+  active          Boolean           @default(true)
+  createdBy       String
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime @updatedAt
+  currentVersion  Int               @default(1)
+  TemplateSection TemplateSection[]
+  TemplateVersion TemplateVersion[]
+
+  @@index([active])
+  @@index([serviceLine])
+  @@index([type])
+}
+
+model TemplateSection {
+  id                     Int      @id @default(autoincrement())
+  templateId             Int
+  sectionKey             String
+  title                  String
+  content                String   @db.NVarChar(Max)
+  isRequired             Boolean  @default(true)
+  isAiAdaptable          Boolean  @default(false)
+  order                  Int
+  applicableServiceLines String?  @db.NVarChar(Max)
+  applicableProjectTypes String?  @db.NVarChar(Max)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  Template               Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([sectionKey])
+  @@index([templateId])
+}
+
+model TemplateSectionVersion {
+  id                     Int             @id @default(autoincrement())
+  templateVersionId      Int
+  sectionKey             String
+  title                  String
+  content                String          @db.NVarChar(Max)
+  isRequired             Boolean         @default(true)
+  isAiAdaptable          Boolean         @default(false)
+  order                  Int
+  applicableServiceLines String?         @db.NVarChar(Max)
+  applicableProjectTypes String?         @db.NVarChar(Max)
+  createdAt              DateTime        @default(now(), map: "DF__TemplateS__creat__6359AB88")
+  TemplateVersion        TemplateVersion @relation(fields: [templateVersionId], references: [id], onDelete: Cascade)
+
+  @@index([templateVersionId])
+  @@index([templateVersionId, order])
+}
+
+model TemplateVersion {
+  id                     Int                      @id @default(autoincrement())
+  templateId             Int
+  version                Int
+  name                   String
+  description            String?
+  type                   String
+  serviceLine            String?
+  isActive               Boolean                  @default(false)
+  createdBy              String
+  createdAt              DateTime                 @default(now(), map: "DF__TemplateV__creat__5DA0D232")
+  changeNotes            String?                  @db.NVarChar(Max)
+  TaskEngagementLetter   TaskEngagementLetter[]
+  TemplateSectionVersion TemplateSectionVersion[]
+  Template               Template                 @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, version], map: "UQ_TemplateVersion_Number")
+  @@index([createdAt])
+  @@index([templateId])
+  @@index([templateId, isActive])
+}
+
+model Tool {
+  id              Int               @id @default(autoincrement())
+  name            String            @db.NVarChar(200)
+  code            String            @unique @db.NVarChar(50)
+  description     String?           @db.NVarChar(Max)
+  icon            String?           @db.NVarChar(50)
+  componentPath   String            @db.NVarChar(500)
+  active          Boolean           @default(true)
+  sortOrder       Int               @default(0)
+  createdAt       DateTime          @default(now(), map: "DF__Tool__createdAt__7ADC2F5E")
+  updatedAt       DateTime @updatedAt
+  ServiceLineTool ServiceLineTool[]
+  TaskTool        TaskTool[]
+  ToolSubTab      ToolSubTab[]
+
+  @@index([active])
+  @@index([code])
+  @@index([sortOrder])
+}
+
+model ToolSubTab {
+  id            Int      @id @default(autoincrement())
+  toolId        Int
+  name          String   @db.NVarChar(200)
+  code          String   @db.NVarChar(50)
+  componentPath String   @db.NVarChar(500)
+  icon          String?  @db.NVarChar(50)
+  sortOrder     Int      @default(0)
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now(), map: "DF__ToolSubTa__creat__01892CED")
+  updatedAt     DateTime @updatedAt
+  Tool          Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+
+  @@unique([toolId, code])
+  @@index([active])
+  @@index([toolId])
+  @@index([toolId, sortOrder])
+}
+
+model User {
+  id                                                                                                     String                              @id
+  name                                                                                                   String?
+  email                                                                                                  String                              @unique
+  emailVerified                                                                                          DateTime?
+  image                                                                                                  String?
+  role                                                                                                   String                              @default("USER")
+  createdAt                                                                                              DateTime                            @default(now())
+  updatedAt                                                                                              DateTime @updatedAt
+  Account                                                                                                Account[]
+  Approval_Approval_completedByIdToUser                                                                  Approval[]                          @relation("Approval_completedByIdToUser")
+  Approval_Approval_requestedByIdToUser                                                                  Approval[]                          @relation("Approval_requestedByIdToUser")
+  ApprovalDelegation_ApprovalDelegation_fromUserIdToUser                                                 ApprovalDelegation[]                @relation("ApprovalDelegation_fromUserIdToUser")
+  ApprovalDelegation_ApprovalDelegation_toUserIdToUser                                                   ApprovalDelegation[]                @relation("ApprovalDelegation_toUserIdToUser")
+  ApprovalStep_ApprovalStep_approvedByIdToUser                                                           ApprovalStep[]                      @relation("ApprovalStep_approvedByIdToUser")
+  ApprovalStep_ApprovalStep_assignedToUserIdToUser                                                       ApprovalStep[]                      @relation("ApprovalStep_assignedToUserIdToUser")
+  ApprovalStep_ApprovalStep_delegatedToUserIdToUser                                                      ApprovalStep[]                      @relation("ApprovalStep_delegatedToUserIdToUser")
+  BugReport_BugReport_reportedByToUser                                                                   BugReport[]                         @relation("BugReport_reportedByToUser")
+  BugReport_BugReport_resolvedByToUser                                                                   BugReport[]                         @relation("BugReport_resolvedByToUser")
+  BugReport_BugReport_testedByToUser                                                                     BugReport[]                         @relation("BugReport_testedByToUser")
+  CategoryApprover_CategoryApprover_createdByToUser                                                      CategoryApprover[]                  @relation("CategoryApprover_createdByToUser")
+  CategoryApprover_CategoryApprover_userIdToUser                                                         CategoryApprover[]                  @relation("CategoryApprover_userIdToUser")
+  ClientAcceptance                                                                                       ClientAcceptance[]
+  ClientPartnerManagerChangeRequest_ClientPartnerManagerChangeRequest_currentEmployeeApprovedByIdToUser  ClientPartnerManagerChangeRequest[] @relation("ClientPartnerManagerChangeRequest_currentEmployeeApprovedByIdToUser")
+  ClientPartnerManagerChangeRequest_ClientPartnerManagerChangeRequest_proposedEmployeeApprovedByIdToUser ClientPartnerManagerChangeRequest[] @relation("ClientPartnerManagerChangeRequest_proposedEmployeeApprovedByIdToUser")
+  ClientPartnerManagerChangeRequest_ClientPartnerManagerChangeRequest_requestedByIdToUser                ClientPartnerManagerChangeRequest[] @relation("ClientPartnerManagerChangeRequest_requestedByIdToUser")
+  ClientPartnerManagerChangeRequest_ClientPartnerManagerChangeRequest_resolvedByIdToUser                 ClientPartnerManagerChangeRequest[] @relation("ClientPartnerManagerChangeRequest_resolvedByIdToUser")
+  EmailLog                                                                                               EmailLog[]
+  InAppNotification_InAppNotification_fromUserIdToUser                                                   InAppNotification[]                 @relation("InAppNotification_fromUserIdToUser")
+  InAppNotification_InAppNotification_userIdToUser                                                       InAppNotification[]                 @relation("InAppNotification_userIdToUser")
+  LeaderGroup                                                                                            LeaderGroup[]
+  LeaderGroupMember                                                                                      LeaderGroupMember[]
+  NewsBulletin                                                                                           NewsBulletin[]
+  NotificationPreference                                                                                 NotificationPreference[]
+  ReviewNote_ReviewNote_addressedByToUser                                                                ReviewNote[]                        @relation("ReviewNote_addressedByToUser")
+  ReviewNote_ReviewNote_assignedToToUser                                                                 ReviewNote[]                        @relation("ReviewNote_assignedToToUser")
+  ReviewNote_ReviewNote_clearedByToUser                                                                  ReviewNote[]                        @relation("ReviewNote_clearedByToUser")
+  ReviewNote_ReviewNote_currentOwnerToUser                                                               ReviewNote[]                        @relation("ReviewNote_currentOwnerToUser")
+  ReviewNote_ReviewNote_lastRespondedByToUser                                                            ReviewNote[]                        @relation("ReviewNote_lastRespondedByToUser")
+  ReviewNote_ReviewNote_raisedByToUser                                                                   ReviewNote[]                        @relation("ReviewNote_raisedByToUser")
+  ReviewNoteAssignee_ReviewNoteAssignee_assignedByToUser                                                 ReviewNoteAssignee[]                @relation("ReviewNoteAssignee_assignedByToUser")
+  ReviewNoteAssignee_ReviewNoteAssignee_userIdToUser                                                     ReviewNoteAssignee[]                @relation("ReviewNoteAssignee_userIdToUser")
+  ReviewNoteAttachment                                                                                   ReviewNoteAttachment[]
+  ReviewNoteComment                                                                                      ReviewNoteComment[]
+  ServiceLineUser                                                                                        ServiceLineUser[]
+  Session                                                                                                Session[]
+  Task                                                                                                   Task[]
+  TaskBudgetDisbursement                                                                                 TaskBudgetDisbursement[]
+  TaskBudgetFee                                                                                          TaskBudgetFee[]
+  TaskTeam                                                                                               TaskTeam[]
+  TaskTool                                                                                               TaskTool[]
+  VaultDocument                                                                                          VaultDocument[]
+  VaultDocumentVersion                                                                                   VaultDocumentVersion[]
+
+  @@index([role])
+}
+
+model VaultDocument {
+  id                    Int                    @id(map: "PK_VaultDocument") @default(autoincrement())
+  title                 String                 @db.NVarChar(200)
+  description           String?                @db.NVarChar(Max)
+  documentType          String                 @db.NVarChar(50)
+  fileName              String                 @db.NVarChar(255)
+  filePath              String                 @db.NVarChar(500)
+  fileSize              Int
+  mimeType              String                 @db.NVarChar(100)
+  categoryId            Int
+  scope                 String                 @db.NVarChar(50)
+  serviceLine           String?                @db.NVarChar(50)
+  version               Int                    @default(1, map: "DF__VaultDocu__versi__72D0F942")
+  status                String                 @db.NVarChar(50)
+  approvalId            Int?
+  aiExtractionStatus    String                 @default("PENDING", map: "DF__VaultDocu__aiExt__73C51D7B") @db.NVarChar(50)
+  aiSummary             String?                @db.NVarChar(Max)
+  aiKeyPoints           String?                @db.NVarChar(Max)
+  aiExtractedText       String?                @db.NVarChar(Max)
+  effectiveDate         DateTime?              @db.Date
+  expiryDate            DateTime?              @db.Date
+  tags                  String?                @db.NVarChar(Max)
+  uploadedBy            String
+  publishedAt           DateTime?
+  archivedAt            DateTime?
+  archivedBy            String?
+  createdAt             DateTime               @default(now(), map: "DF__VaultDocu__creat__74B941B4")
+  updatedAt             DateTime               @default(now(), map: "DF__VaultDocu__updat__75AD65ED")
+  documentVersion       String?                @db.NVarChar(50)
+  Approval              Approval?              @relation(fields: [approvalId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_VaultDocument_Approval")
+  VaultDocumentCategory VaultDocumentCategory  @relation(fields: [categoryId], references: [id], onUpdate: NoAction, map: "FK_VaultDocument_Category")
+  VaultDocumentType     VaultDocumentType      @relation(fields: [documentType], references: [code], onUpdate: NoAction, map: "FK_VaultDocument_DocumentType")
+  ServiceLineMaster     ServiceLineMaster?     @relation(fields: [serviceLine], references: [code], onDelete: NoAction, onUpdate: NoAction, map: "FK_VaultDocument_ServiceLineMaster")
+  User                  User                   @relation(fields: [uploadedBy], references: [id], onUpdate: NoAction, map: "FK_VaultDocument_User")
+  VaultDocumentVersion  VaultDocumentVersion[]
+
+  @@index([approvalId], map: "IX_VaultDocument_ApprovalId")
+  @@index([categoryId], map: "IX_VaultDocument_CategoryId")
+  @@index([documentType], map: "IX_VaultDocument_DocumentType")
+  @@index([documentType, categoryId], map: "IX_VaultDocument_DocumentType_CategoryId")
+  @@index([publishedAt], map: "IX_VaultDocument_PublishedAt")
+  @@index([scope], map: "IX_VaultDocument_Scope")
+  @@index([serviceLine], map: "IX_VaultDocument_ServiceLine")
+  @@index([status], map: "IX_VaultDocument_Status")
+  @@index([status, scope, serviceLine], map: "IX_VaultDocument_Status_Scope_ServiceLine")
+  @@index([uploadedBy], map: "IX_VaultDocument_UploadedBy")
+}
+
+model VaultDocumentCategory {
+  id                Int                @id(map: "PK_VaultDocumentCategory") @default(autoincrement())
+  name              String             @db.NVarChar(200)
+  description       String?            @db.NVarChar(500)
+  icon              String?            @db.NVarChar(50)
+  color             String?            @db.NVarChar(20)
+  documentType      String?            @db.NVarChar(50)
+  active            Boolean            @default(true, map: "DF__VaultDocu__activ__6D181FEC")
+  sortOrder         Int                @default(0, map: "DF__VaultDocu__sortO__6E0C4425")
+  createdAt         DateTime           @default(now(), map: "DF__VaultDocu__creat__6F00685E")
+  updatedAt         DateTime           @default(now(), map: "DF__VaultDocu__updat__6FF48C97")
+  CategoryApprover  CategoryApprover[]
+  VaultDocument     VaultDocument[]
+  VaultDocumentType VaultDocumentType? @relation(fields: [documentType], references: [code], onDelete: NoAction, onUpdate: NoAction, map: "FK_VaultDocumentCategory_DocumentType")
+
+  @@index([active], map: "IX_VaultDocumentCategory_Active")
+  @@index([documentType], map: "IX_VaultDocumentCategory_DocumentType")
+  @@index([sortOrder], map: "IX_VaultDocumentCategory_SortOrder")
+}
+
+model VaultDocumentType {
+  id                    Int                     @id(map: "PK_VaultDocumentType") @default(autoincrement())
+  code                  String                  @unique(map: "UQ_VaultDocumentType_Code") @db.NVarChar(50)
+  name                  String                  @db.NVarChar(100)
+  description           String?                 @db.NVarChar(500)
+  icon                  String?                 @db.NVarChar(50)
+  color                 String?                 @db.NVarChar(20)
+  active                Boolean                 @default(true, map: "DF__VaultDocu__activ__06D7F1EF")
+  sortOrder             Int                     @default(0, map: "DF__VaultDocu__sortO__07CC1628")
+  createdAt             DateTime                @default(now(), map: "DF__VaultDocu__creat__08C03A61")
+  updatedAt             DateTime                @default(now(), map: "DF__VaultDocu__updat__09B45E9A")
+  VaultDocument         VaultDocument[]
+  VaultDocumentCategory VaultDocumentCategory[]
+
+  @@index([active], map: "IX_VaultDocumentType_Active")
+  @@index([sortOrder], map: "IX_VaultDocumentType_SortOrder")
+}
+
+model VaultDocumentVersion {
+  id            Int           @id(map: "PK_VaultDocumentVersion") @default(autoincrement())
+  documentId    Int
+  version       Int
+  fileName      String        @db.NVarChar(255)
+  filePath      String        @db.NVarChar(500)
+  fileSize      Int
+  uploadedBy    String
+  uploadedAt    DateTime      @default(now(), map: "DF__VaultDocu__uploa__011F1899")
+  supersededAt  DateTime?
+  changeNotes   String?       @db.NVarChar(Max)
+  VaultDocument VaultDocument @relation(fields: [documentId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_VaultDocumentVersion_Document")
+  User          User          @relation(fields: [uploadedBy], references: [id], onUpdate: NoAction, map: "FK_VaultDocumentVersion_User")
+
+  @@unique([documentId, version], map: "UQ_VaultDocumentVersion_DocumentId_Version")
+  @@index([documentId], map: "IX_VaultDocumentVersion_DocumentId")
+  @@index([documentId, version], map: "IX_VaultDocumentVersion_DocumentId_Version")
+  @@index([version], map: "IX_VaultDocumentVersion_Version")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Wip {
+  id               Int       @id @default(autoincrement())
+  GSClientID       String    @db.UniqueIdentifier
+  GSTaskID         String    @db.UniqueIdentifier
+  PeriodRef        Int?
+  PeriodStart      DateTime?
+  PeriodEnd        DateTime?
+  ClientCode       String    @db.NVarChar(10)
+  TaskCode         String    @db.NVarChar(10)
+  OfficeCode       String    @db.NVarChar(10)
+  ServLineCode     String    @db.NVarChar(10)
+  TaskPartner      String    @db.NVarChar(10)
+  LTDTime          Float?    @db.Money
+  LTDDisb          Float?    @db.Money
+  LTDFeeTime       Float?    @db.Money
+  LTDFeeDisb       Float?    @db.Money
+  LTDAdjTime       Float?    @db.Money
+  LTDAdjDisb       Float?    @db.Money
+  LTDCost          Float?    @db.Money
+  YTDTime          Float?    @db.Money
+  YTDDisb          Float?    @db.Money
+  YTDFeeTime       Float?    @db.Money
+  YTDFeeDisb       Float?    @db.Money
+  YTDAdjTime       Float?    @db.Money
+  YTDAdjDisb       Float?    @db.Money
+  YTDCost          Float?    @db.Money
+  PTDTime          Float?    @db.Money
+  PTDDisb          Float?    @db.Money
+  PTDFeeTime       Float?    @db.Money
+  PTDFeeDisb       Float?    @db.Money
+  PTDAdjTime       Float?    @db.Money
+  PTDAdjDisb       Float?    @db.Money
+  PTDCost          Float?    @db.Money
+  BalTime          Float?    @db.Money
+  BalDisb          Float?    @db.Money
+  BalWIP           Float?    @db.Money
+  WipProvision     Float?    @db.Money
+  PTDProvision     Float?    @db.Money
+  YTDProvision     Float?    @db.Money
+  PTDPendingTime   Float?    @db.Money
+  YTDPendingTime   Float?    @db.Money
+  LTDPendingTime   Float?    @db.Money
+  PTDCostExcludeCP Float?    @db.Money
+  YTDCostExcludeCP Float?    @db.Money
+  LTDCostExcludeCP Float?    @db.Money
+  LTDHours         Float?    @db.Money
+  YTDHours         Float?    @db.Money
+  PTDHours         Float?    @db.Money
+  createdAt        DateTime  @default(now(), map: "DF_Wip_createdAt")
+  updatedAt        DateTime @updatedAt
+  Client           Client    @relation(fields: [GSClientID], references: [GSClientID], onUpdate: NoAction)
+  Task             Task      @relation(fields: [GSTaskID], references: [GSTaskID], onUpdate: NoAction)
+
+  @@index([GSClientID])
+  @@index([GSClientID, PeriodRef])
+  @@index([GSTaskID])
+  @@index([GSTaskID, PeriodRef])
+  @@index([OfficeCode])
+  @@index([PeriodRef])
+  @@index([ServLineCode])
+  @@index([TaskPartner])
+}
+
+model WIPAging {
+  id           Int       @id @default(autoincrement())
+  GSClientID   String    @db.UniqueIdentifier
+  GSTaskID     String    @db.UniqueIdentifier
+  PeriodRef    Int?
+  PeriodStart  DateTime?
+  PeriodEnd    DateTime?
+  ClientCode   String?   @db.NVarChar(10)
+  TaskCode     String?   @db.NVarChar(10)
+  OfficeCode   String    @db.NVarChar(10)
+  ServLineCode String    @db.NVarChar(10)
+  TaskPartner  String    @db.NVarChar(10)
+  Curr         Float?    @db.Money
+  Bal30        Float?    @db.Money
+  Bal60        Float?    @db.Money
+  Bal90        Float?    @db.Money
+  Bal120       Float?    @db.Money
+  Bal150       Float?    @db.Money
+  Bal180       Float?    @db.Money
+  BalWip       Float?    @db.Money
+  Provision    Float?    @db.Money
+  NettWip      Float?    @db.Money
+  PtdFeeAmt    Float?    @db.Money
+  createdAt    DateTime  @default(now(), map: "DF_WIPAging_createdAt")
+  updatedAt    DateTime @updatedAt
+  Client       Client    @relation(fields: [GSClientID], references: [GSClientID], onUpdate: NoAction)
+  Task         Task      @relation(fields: [GSTaskID], references: [GSTaskID], onUpdate: NoAction)
+
+  @@index([GSClientID])
+  @@index([GSClientID, PeriodRef])
+  @@index([GSTaskID])
+  @@index([GSTaskID, PeriodRef])
+  @@index([OfficeCode])
+  @@index([PeriodRef])
+  @@index([ServLineCode])
+  @@index([TaskPartner])
+}
+
+model WIPTransactions {
+  id                  Int       @id @default(autoincrement())
+  GSWIPTransID        String    @unique @db.UniqueIdentifier
+  GSTaskID            String    @db.UniqueIdentifier
+  GSClientID          String?   @db.UniqueIdentifier
+  OfficeCode          String    @db.NVarChar(10)
+  OfficeDesc          String    @db.NVarChar(100)
+  TranDate            DateTime
+  TranType            String    @db.VarChar(23)
+  TType               String    @db.VarChar(3)
+  Ref                 String?   @db.NVarChar(20)
+  ClientCode          String    @db.NVarChar(10)
+  ClientName          String?   @db.NVarChar(259)
+  TaskCode            String    @db.NVarChar(10)
+  TaskDesc            String    @db.NVarChar(150)
+  TaskPartner         String    @db.NVarChar(10)
+  PartnerName         String    @db.NVarChar(50)
+  TaskManager         String    @db.NVarChar(10)
+  ManagerName         String    @db.NVarChar(50)
+  TaskServLine        String    @db.NVarChar(10)
+  TaskServLineDesc    String    @db.NVarChar(150)
+  EmpCode             String?   @db.NVarChar(10)
+  EmpName             String?   @db.NVarChar(50)
+  EmpOffice           String?   @db.NVarChar(10)
+  EmpServLineCode     String?   @db.NVarChar(10)
+  EmpServLineDesc     String?   @db.NVarChar(150)
+  TranSubServLine     String?   @db.NVarChar(10)
+  TranSubServLineDesc String?   @db.NVarChar(50)
+  ADOType             String?   @db.NVarChar(10)
+  ADODesc             String?   @db.NVarChar(100)
+  Hour                Float     @db.Money
+  Rate                String?   @db.NVarChar(2)
+  Amount              Float?    @db.Money
+  Cost                Float     @db.Money
+  Narr                String?   @db.Text
+  TaskDateTerminate   DateTime?
+  Ordinal             Int
+  GroupCode           String?   @db.NVarChar(10)
+  GroupDesc           String?   @db.NVarChar(150)
+  MainServLineCode    String    @db.NVarChar(10)
+  MainServLineDesc    String    @db.NVarChar(150)
+  ServLineGroup       String    @db.NVarChar(10)
+  EmpMainServLineCode String?   @db.NVarChar(10)
+  EmpMainServLineDesc String?   @db.NVarChar(150)
+  EmpServLineGroup    String?   @db.NVarChar(10)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime @updatedAt
+  Client              Client?   @relation(fields: [GSClientID], references: [GSClientID], onDelete: NoAction, onUpdate: NoAction)
+  Task                Task      @relation(fields: [GSTaskID], references: [GSTaskID], onUpdate: NoAction)
+
+  // Super covering indexes (created via SQL migration - INCLUDE columns not supported in Prisma)
+  // idx_wip_gsclientid_super_covering: (GSClientID, TranDate) INCLUDE (TType, TranType, Amount, Cost, Hour, MainServLineCode, TaskPartner, TaskManager, updatedAt) WHERE GSClientID IS NOT NULL
+  // idx_wip_gstaskid_super_covering: (GSTaskID, TranDate) INCLUDE (TType, TranType, Amount, Cost, Hour, MainServLineCode, TaskPartner, TaskManager, updatedAt)
+  // These super covering indexes replace the composite indexes that were removed in migration 20260125215455
+
+  // Composite indexes for other query patterns
+  @@index([TaskManager, TranDate])
+  @@index([TaskPartner, TranDate])
+  @@index([TranDate])
+
+  // Conditional indexes (kept unless verified unused via check_wip_indexes.sql)
+  @@index([EmpCode])
+  @@index([OfficeCode])
+  @@index([ServLineGroup])
+}
+
+model WorkspaceFile {
+  id                      Int                       @id @default(autoincrement())
+  folderId                Int
+  name                    String                    @db.NVarChar(255)
+  description             String?                   @db.NVarChar(Max)
+  fileType                String                    @db.NVarChar(50)
+  fileSize                BigInt
+  driveId                 String                    @db.NVarChar(255)
+  itemId                  String                    @db.NVarChar(255)
+  webUrl                  String                    @db.NVarChar(500)
+  embedUrl                String?                   @db.NVarChar(500)
+  thumbnailUrl            String?                   @db.NVarChar(500)
+  uploadedBy              String                    @db.NVarChar(200)
+  lastModifiedBy          String?                   @db.NVarChar(200)
+  lastModifiedAt          DateTime?
+  version                 Int                       @default(1)
+  createdAt               DateTime                  @default(now(), map: "DF_WorkspaceFile_createdAt")
+  updatedAt               DateTime @updatedAt
+  WorkspaceFolder         WorkspaceFolder           @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  WorkspaceFileActivity   WorkspaceFileActivity[]
+  WorkspaceFilePermission WorkspaceFilePermission[]
+}
+
+model WorkspaceFileActivity {
+  id            Int           @id @default(autoincrement())
+  fileId        Int
+  userId        String        @db.NVarChar(200)
+  action        String        @db.NVarChar(50)
+  description   String?       @db.NVarChar(500)
+  timestamp     DateTime      @default(now(), map: "DF_WorkspaceFileActivity_timestamp")
+  WorkspaceFile WorkspaceFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+}
+
+model WorkspaceFilePermission {
+  id            Int           @id @default(autoincrement())
+  fileId        Int
+  userId        String?       @db.NVarChar(200)
+  role          String        @db.NVarChar(50)
+  serviceLine   String?       @db.NVarChar(50)
+  grantedBy     String        @db.NVarChar(200)
+  createdAt     DateTime      @default(now(), map: "DF_WorkspaceFilePermission_createdAt")
+  WorkspaceFile WorkspaceFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+}
+
+model WorkspaceFolder {
+  id                    Int               @id @default(autoincrement())
+  name                  String            @db.NVarChar(255)
+  description           String?           @db.NVarChar(Max)
+  serviceLine           String?           @db.NVarChar(50)
+  subServiceLineGroup   String?           @db.NVarChar(100)
+  parentFolderId        Int?
+  driveId               String?           @db.NVarChar(255)
+  itemId                String?           @db.NVarChar(255)
+  sharepointUrl         String?           @db.NVarChar(500)
+  createdBy             String            @db.NVarChar(200)
+  createdAt             DateTime          @default(now(), map: "DF_WorkspaceFolder_createdAt")
+  updatedAt             DateTime @updatedAt
+  active                Boolean           @default(true)
+  taskId                Int?
+  WorkspaceFile         WorkspaceFile[]
+  WorkspaceFolder       WorkspaceFolder?  @relation("WorkspaceFolderToWorkspaceFolder", fields: [parentFolderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_WorkspaceFolder WorkspaceFolder[] @relation("WorkspaceFolderToWorkspaceFolder")
+  Task                  Task?             @relation(fields: [taskId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}

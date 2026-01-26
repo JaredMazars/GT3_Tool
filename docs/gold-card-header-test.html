@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gold Card Header Test - Forvis Mazars Design System</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%);
+      padding: 40px 20px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      color: #1C3667;
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    .page-subtitle {
+      text-align: center;
+      color: #64748B;
+      font-size: 1rem;
+      margin-bottom: 40px;
+    }
+
+    .test-section {
+      margin-bottom: 48px;
+    }
+
+    .section-title {
+      color: #2E5AAC;
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+      padding-left: 4px;
+    }
+
+    .card-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 24px;
+      margin-bottom: 20px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06);
+      overflow: hidden;
+    }
+
+    .gold-card-header {
+      padding: 16px 20px;
+      background: linear-gradient(
+        165deg,
+        #D4C4A0 0%,
+        #C6B58D 18%,
+        #B0A488 38%,
+        #998A6F 58%,
+        #7A6E52 78%,
+        #5E533A 100%
+      );
+      border-bottom: 1px solid rgba(70, 60, 40, 0.45);
+      box-shadow: 
+        inset 0 1px 0 rgba(255, 255, 255, 0.25),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .gold-card-header-textured {
+      padding: 16px 20px;
+      background-image:
+        linear-gradient(
+          165deg,
+          #D4C4A0 0%,
+          #C6B58D 18%,
+          #B0A488 38%,
+          #998A6F 58%,
+          #7A6E52 78%,
+          #5E533A 100%
+        ),
+        repeating-linear-gradient(
+          135deg,
+          rgba(255,255,255,0.04),
+          rgba(255,255,255,0.04) 1px,
+          rgba(0,0,0,0.02) 2px
+        );
+      background-blend-mode: overlay;
+      border-bottom: 1px solid rgba(70, 60, 40, 0.45);
+      box-shadow: 
+        inset 0 1px 0 rgba(255, 255, 255, 0.25),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .header-content {
+      flex: 1;
+    }
+
+    .header-subtitle {
+      font-size: 0.85rem;
+      letter-spacing: 0.08em;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #FFFFFF;
+      opacity: 0.95;
+      margin-bottom: 4px;
+    }
+
+    .header-title {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: #FFFFFF;
+    }
+
+    .header-actions {
+      margin-left: 16px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .card-body {
+      padding: 20px;
+      color: #334155;
+      line-height: 1.6;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%);
+      color: white;
+      box-shadow: 0 2px 4px rgba(46, 90, 172, 0.2);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(46, 90, 172, 0.3);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.95);
+      color: #5E533A;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .btn-secondary:hover {
+      background: white;
+      border-color: rgba(255, 255, 255, 0.5);
+    }
+
+    .icon {
+      width: 20px;
+      height: 20px;
+      vertical-align: middle;
+      margin-right: 4px;
+    }
+
+    .specs {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+    }
+
+    .specs h3 {
+      color: #2E5AAC;
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    .specs ul {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    .specs li {
+      color: #475569;
+      font-size: 0.9rem;
+      padding: 6px 0;
+      border-bottom: 1px solid #E5E7EB;
+    }
+
+    .specs li:last-child {
+      border-bottom: none;
+    }
+
+    .specs code {
+      background: #F1F5F9;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      color: #1E293B;
+    }
+
+    .color-swatch {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    @media (max-width: 768px) {
+      .card-container {
+        grid-template-columns: 1fr;
+      }
+
+      .header-actions {
+        flex-direction: column;
+        gap: 4px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Gold Card Header Component Test</h1>
+    <p class="page-subtitle">Premium darker gold gradient header with white text for Shared Services & Executive sections</p>
+
+    <!-- Basic Example -->
+    <div class="test-section">
+      <h2 class="section-title">1. Darker Gold Header with White Text (No Texture)</h2>
+      <div class="card-container">
+        <div class="card">
+          <div class="gold-card-header">
+            <div class="header-content">
+              <div class="header-subtitle">Shared Services</div>
+              <div class="header-title">Quality & Risk Management</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <p>This card uses the darker gold gradient without texture overlay. The gradient flows from a medium-light gold (#D4C4A0) through rich gold tones to a dark bronze (#5E533A). White text provides excellent contrast and professional appearance.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="gold-card-header">
+            <div class="header-content">
+              <div class="header-subtitle">Executive Dashboard</div>
+              <div class="header-title">Partner Performance</div>
+            </div>
+            <div class="header-actions">
+              <button class="btn btn-secondary">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                View
+              </button>
+            </div>
+          </div>
+          <div class="card-body">
+            <p>Gold header with action button. Notice the inset shadows creating depth and the subtle border treatment.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Textured Example -->
+    <div class="test-section">
+      <h2 class="section-title">2. Darker Gold Header with White Text & Texture Overlay</h2>
+      <div class="card-container">
+        <div class="card">
+          <div class="gold-card-header-textured">
+            <div class="header-content">
+              <div class="header-subtitle">Shared Services</div>
+              <div class="header-title">Business Development</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <p>This version includes the repeating diagonal line texture overlay using <code>background-blend-mode: overlay</code>. The texture adds subtle visual richness and premium feel.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="gold-card-header-textured">
+            <div class="header-content">
+              <div class="header-subtitle">Executive Suite</div>
+              <div class="header-title">Strategic Planning</div>
+            </div>
+            <div class="header-actions">
+              <button class="btn btn-primary">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Add
+              </button>
+              <button class="btn btn-secondary">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Settings
+              </button>
+            </div>
+          </div>
+          <div class="card-body">
+            <p>Textured gold header with multiple action buttons. The texture is subtle but adds refinement and prevents flatness.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Large Format Example -->
+    <div class="test-section">
+      <h2 class="section-title">3. Large Format Card</h2>
+      <div class="card">
+        <div class="gold-card-header-textured">
+          <div class="header-content">
+            <div class="header-subtitle">Forvis Mazars | Shared Services</div>
+            <div class="header-title">IT Infrastructure & Support Services</div>
+          </div>
+          <div class="header-actions">
+            <button class="btn btn-primary">Export Report</button>
+            <button class="btn btn-secondary">Configure</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <h3 style="color: #2E5AAC; margin-bottom: 12px;">Full-Width Premium Card</h3>
+          <p style="margin-bottom: 12px;">The darker gold card header scales beautifully to full-width layouts. The 165-degree gradient angle creates an elegant diagonal flow that maintains visual interest across wide containers. White text ensures excellent readability and professional appearance.</p>
+          
+          <h4 style="color: #5E533A; font-size: 0.95rem; margin: 20px 0 8px 0;">Key Design Features:</h4>
+          <ul style="list-style: disc; padding-left: 24px; color: #475569;">
+            <li>6-stop darker gold gradient from light gold to dark bronze for rich depth</li>
+            <li>White text with subtle opacity variation for hierarchy</li>
+            <li>Inset highlight and shadow for dimensional appearance</li>
+            <li>Optional diagonal texture overlay for premium finish</li>
+            <li>Complementary darker border treatments</li>
+            <li>Typography hierarchy with uppercase subtitle and larger title</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Technical Specifications -->
+    <div class="test-section">
+      <h2 class="section-title">4. Technical Specifications</h2>
+      <div class="specs">
+        <h3>Gradient Color Stops (Darker Version)</h3>
+        <ul>
+          <li><span class="color-swatch" style="background: #D4C4A0;"></span> <code>#D4C4A0</code> at 0% — Light gold</li>
+          <li><span class="color-swatch" style="background: #C6B58D;"></span> <code>#C6B58D</code> at 18% — Medium-light gold</li>
+          <li><span class="color-swatch" style="background: #B0A488;"></span> <code>#B0A488</code> at 38% — Standard gold (from design system)</li>
+          <li><span class="color-swatch" style="background: #998A6F;"></span> <code>#998A6F</code> at 58% — Medium-dark gold</li>
+          <li><span class="color-swatch" style="background: #7A6E52;"></span> <code>#7A6E52</code> at 78% — Deep gold</li>
+          <li><span class="color-swatch" style="background: #5E533A;"></span> <code>#5E533A</code> at 100% — Dark bronze</li>
+        </ul>
+
+        <h3 style="margin-top: 24px;">Typography Colors</h3>
+        <ul>
+          <li><span class="color-swatch" style="background: #FFFFFF;"></span> <code>#FFFFFF</code> — Subtitle text (white with 95% opacity)</li>
+          <li><span class="color-swatch" style="background: #FFFFFF;"></span> <code>#FFFFFF</code> — Title text (white)</li>
+        </ul>
+
+        <h3 style="margin-top: 24px;">Effects</h3>
+        <ul>
+          <li>Gradient angle: <code>165deg</code> (diagonal flow)</li>
+          <li>Inset highlight: <code>inset 0 1px 0 rgba(255, 255, 255, 0.25)</code></li>
+          <li>Inset shadow: <code>inset 0 -1px 0 rgba(0, 0, 0, 0.25)</code></li>
+          <li>Border: <code>1px solid rgba(70, 60, 40, 0.45)</code></li>
+          <li>Texture: Diagonal repeating gradient at 135deg (optional)</li>
+          <li>Text: White with subtle transparency on subtitle</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Comparison Section -->
+    <div class="test-section">
+      <h2 class="section-title">5. Side-by-Side Comparison</h2>
+      <div class="card-container">
+        <div class="card">
+          <div class="gold-card-header">
+            <div class="header-content">
+              <div class="header-subtitle">Without Texture</div>
+              <div class="header-title">Clean Darker Gold</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <p><strong>Pros:</strong> Cleaner, simpler, excellent white text contrast</p>
+            <p><strong>Best for:</strong> Compact cards, mobile interfaces, minimal design preference</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="gold-card-header-textured">
+            <div class="header-content">
+              <div class="header-subtitle">With Texture</div>
+              <div class="header-title">Premium Textured Finish</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <p><strong>Pros:</strong> More luxurious, richer depth, subtle sophistication</p>
+            <p><strong>Best for:</strong> Executive dashboards, large cards, desktop displays, premium sections</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>
