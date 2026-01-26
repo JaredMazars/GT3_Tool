@@ -257,6 +257,88 @@ export interface MyReportsOverviewData {
   isCumulative: boolean;      // Always true now
 }
 
+/**
+ * My Reports - Recoverability Report types
+ */
+
+/**
+ * Aging buckets for debtor analysis
+ */
+export interface AgingBuckets {
+  current: number;       // 0-30 days
+  days31_60: number;     // 31-60 days
+  days61_90: number;     // 61-90 days
+  days91_120: number;    // 91-120 days
+  days120Plus: number;   // 120+ days
+}
+
+/**
+ * Recoverability Report request parameters
+ */
+export interface RecoverabilityReportParams {
+  fiscalYear?: number;        // If provided, show fiscal year view
+  startDate?: string;         // For custom date range (ISO format)
+  endDate?: string;           // For custom date range (ISO format)
+  mode?: 'fiscal' | 'custom'; // View mode
+}
+
+/**
+ * Recoverability Report response data
+ */
+export interface RecoverabilityReportData {
+  clients: ClientDebtorData[];
+  totalAging: AgingBuckets;
+  receiptsComparison: {
+    currentPeriodReceipts: number;
+    priorMonthBalance: number;
+    variance: number;
+  };
+  employeeCode: string;
+  fiscalYear?: number;        // If fiscal year mode
+  dateRange?: {               // If custom mode
+    start: string;
+    end: string;
+  };
+}
+
+/**
+ * Monthly receipt data for a single month
+ */
+export interface MonthlyReceiptData {
+  month: string;           // 'Sep', 'Oct', etc.
+  monthYear: string;       // '2024-09' for sorting
+  openingBalance: number;  // Balance at start of month
+  receipts: number;        // Payments received in month
+  variance: number;        // Receipts - Opening Balance (surplus/deficit)
+  recoveryPercent: number; // receipts / openingBalance * 100
+  billings: number;        // Positive transactions in month
+  closingBalance: number;  // Opening + Billings - Receipts
+}
+
+/**
+ * Client-level debtor data with aging and receipts
+ */
+export interface ClientDebtorData {
+  GSClientID: string;
+  clientCode: string;
+  clientNameFull: string | null;
+  groupCode: string;
+  groupDesc: string;
+  servLineCode: string;
+  serviceLineName: string;
+  masterServiceLineCode: string;
+  masterServiceLineName: string;
+  subServlineGroupCode: string;
+  subServlineGroupDesc: string;
+  totalBalance: number;
+  aging: AgingBuckets;
+  currentPeriodReceipts: number;
+  priorMonthBalance: number;
+  invoiceCount: number;
+  avgPaymentDaysOutstanding: number;
+  monthlyReceipts: MonthlyReceiptData[];  // Monthly breakdown for receipts view
+}
+
 
 
 

@@ -144,7 +144,7 @@ async function fetchMetricsForFiscalYear(
       )
     ),
 
-    // Debtors balances
+    // Debtors balances - cumulative from inception, carry forward for months without transactions
     prisma.$queryRaw<Array<{
       month: Date;
       balance: number;
@@ -179,14 +179,19 @@ async function fetchMetricsForFiscalYear(
       )
       SELECT 
         m.month,
-        ISNULL(r.balance, 0) as balance
+        COALESCE(r.balance, (
+          SELECT TOP 1 r2.balance 
+          FROM RunningTotals r2 
+          WHERE r2.month < m.month 
+          ORDER BY r2.month DESC
+        ), 0) as balance
       FROM MonthSeries m
       LEFT JOIN RunningTotals r ON m.month = r.month
       ORDER BY m.month
       OPTION (MAXRECURSION 100)
     `,
 
-    // WIP balances
+    // WIP balances - cumulative from inception, carry forward for months without transactions
     prisma.$queryRaw<Array<{
       month: Date;
       wipBalance: number;
@@ -231,7 +236,12 @@ async function fetchMetricsForFiscalYear(
       )
       SELECT 
         m.month,
-        ISNULL(r.wipBalance, 0) as wipBalance
+        COALESCE(r.wipBalance, (
+          SELECT TOP 1 r2.wipBalance 
+          FROM RunningTotals r2 
+          WHERE r2.month < m.month 
+          ORDER BY r2.month DESC
+        ), 0) as wipBalance
       FROM MonthSeries m
       LEFT JOIN RunningTotals r ON m.month = r.month
       ORDER BY m.month
@@ -243,7 +253,10 @@ async function fetchMetricsForFiscalYear(
   const monthlyMetricsMap = new Map<string, Partial<MonthlyMetrics>>();
   
   let currentMonth = startOfMonth(startDate);
-  const endOfPeriod = endOfMonth(endDate);
+  // Cap at current month to avoid future months with zero values
+  const now = new Date();
+  const currentMonthEnd = endOfMonth(now);
+  const endOfPeriod = endOfMonth(endDate) < currentMonthEnd ? endOfMonth(endDate) : currentMonthEnd;
   while (currentMonth <= endOfPeriod) {
     const monthKey = format(currentMonth, 'yyyy-MM');
     monthlyMetricsMap.set(monthKey, {
@@ -588,8 +601,7 @@ export const GET = secureRoute.query({
           )
         ),
 
-        // 8. Debtors balances by month (OPTIMIZED: window function for running total)
-        // Single scan with running total vs correlated subquery for each month
+        // 8. Debtors balances by month - cumulative from inception, carry forward for months without transactions
         prisma.$queryRaw<Array<{
           month: Date;
           balance: number;
@@ -624,15 +636,19 @@ export const GET = secureRoute.query({
           )
           SELECT 
             m.month,
-            ISNULL(r.balance, 0) as balance
+            COALESCE(r.balance, (
+              SELECT TOP 1 r2.balance 
+              FROM RunningTotals r2 
+              WHERE r2.month < m.month 
+              ORDER BY r2.month DESC
+            ), 0) as balance
           FROM MonthSeries m
           LEFT JOIN RunningTotals r ON m.month = r.month
           ORDER BY m.month
           OPTION (MAXRECURSION 100)
         `,
 
-        // 9. WIP balances by month-end (OPTIMIZED: window function for running total)
-        // Single scan with running total vs correlated subquery for each month
+        // 9. WIP balances by month-end - cumulative from inception, carry forward for months without transactions
         prisma.$queryRaw<Array<{
           month: Date;
           wipBalance: number;
@@ -677,7 +693,12 @@ export const GET = secureRoute.query({
           )
           SELECT 
             m.month,
-            ISNULL(r.wipBalance, 0) as wipBalance
+            COALESCE(r.wipBalance, (
+              SELECT TOP 1 r2.wipBalance 
+              FROM RunningTotals r2 
+              WHERE r2.month < m.month 
+              ORDER BY r2.month DESC
+            ), 0) as wipBalance
           FROM MonthSeries m
           LEFT JOIN RunningTotals r ON m.month = r.month
           ORDER BY m.month
@@ -698,9 +719,11 @@ export const GET = secureRoute.query({
       // 10. Build monthly metrics array
       const monthlyMetricsMap = new Map<string, Partial<MonthlyMetrics>>();
       
-      // Initialize months for the selected period
+      // Initialize months for the selected period, capped at current month
       let currentMonth = startOfMonth(startDate);
-      const endOfPeriod = endOfMonth(endDate);
+      const now = new Date();
+      const currentMonthEnd = endOfMonth(now);
+      const endOfPeriod = endOfMonth(endDate) < currentMonthEnd ? endOfMonth(endDate) : currentMonthEnd;
       while (currentMonth <= endOfPeriod) {
         const monthKey = format(currentMonth, 'yyyy-MM');
         monthlyMetricsMap.set(monthKey, {

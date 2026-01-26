@@ -7,11 +7,12 @@
  */
 
 import { useState } from 'react';
-import { Folder, FileBarChart, LayoutDashboard } from 'lucide-react';
+import { Folder, FileBarChart, LayoutDashboard, Banknote } from 'lucide-react';
 import { ProfitabilityReport } from './ProfitabilityReport';
 import { MyReportsOverview } from './MyReportsOverview';
+import { RecoverabilityReport } from './RecoverabilityReport';
 
-type ReportTab = 'overview' | 'profitability' | 'coming-soon';
+type ReportTab = 'overview' | 'profitability' | 'recoverability' | 'coming-soon';
 
 export function MyReportsView() {
   const [activeReportTab, setActiveReportTab] = useState<ReportTab>('overview');
@@ -48,6 +49,20 @@ export function MyReportsView() {
               <span>Profitability</span>
             </div>
           </button>
+
+          <button
+            onClick={() => setActiveReportTab('recoverability')}
+            className={`px-4 py-2 text-sm font-medium transition-all duration-200 border-b-2 ${
+              activeReportTab === 'recoverability'
+                ? 'border-forvis-blue-500 text-forvis-blue-600'
+                : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Banknote className="h-4 w-4" />
+              <span>Recoverability</span>
+            </div>
+          </button>
           
           <button
             onClick={() => setActiveReportTab('coming-soon')}
@@ -71,6 +86,8 @@ export function MyReportsView() {
           <MyReportsOverview />
         ) : activeReportTab === 'profitability' ? (
           <ProfitabilityReport />
+        ) : activeReportTab === 'recoverability' ? (
+          <RecoverabilityReport />
         ) : (
           /* More Reports Coming Soon Placeholder */
           <div className="flex items-center justify-center py-16">

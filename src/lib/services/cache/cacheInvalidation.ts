@@ -481,6 +481,29 @@ export async function invalidateProfitabilityCache(userId?: string): Promise<voi
   }
 }
 
+/**
+ * Invalidate Recoverability Report caches for a specific user or all users
+ * Use this when DRS transactions are modified (nightly sync or billing updates)
+ * 
+ * @param userId - Optional user ID to invalidate specific user's caches
+ */
+export async function invalidateRecoverabilityCache(userId?: string): Promise<void> {
+  try {
+    if (userId) {
+      // Invalidate all cache variations for specific user (fiscal years + custom ranges)
+      await cache.invalidatePattern(`${CACHE_PREFIXES.USER}my-reports:recoverability:*:${userId}`);
+      logger.debug('Recoverability cache invalidated for user', { userId });
+    } else {
+      // Invalidate all Recoverability caches (admin operation after data sync)
+      await cache.invalidatePattern(`${CACHE_PREFIXES.USER}my-reports:recoverability:*`);
+      logger.info('Recoverability cache invalidated for all users');
+    }
+  } catch (error) {
+    logger.error('Failed to invalidate Recoverability cache', { userId, error });
+    // Silent fail - cache invalidation errors are not critical
+  }
+}
+
 
 
 

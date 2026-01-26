@@ -402,8 +402,12 @@ function ChartCard({
           }
         });
         
+        // Only include month if at least one year has data (prevents line dropping to zero)
+        const hasAnyData = years.some(year => monthPoint[`FY${year}`] !== undefined);
+        if (!hasAnyData) return null;
+        
         return monthPoint;
-      });
+      }).filter(Boolean);
     }
     
     // Custom date range mode: use actual calendar months with years
@@ -424,21 +428,22 @@ function ChartCard({
     }
     
     // Fiscal year mode (single year): use fiscal month abbreviations
+    // Only map months that have data (prevents line dropping to zero for future months)
     if (data && data.length > 0) {
       const firstMonth = data[0]?.month || '';
       const year = firstMonth.split('-')[0] || '';
       
-      return fiscalMonths.map((fiscalMonth, monthIndex) => {
-        const monthData = data[monthIndex];
-        if (!monthData) return { fiscalMonth, fiscalMonthIndex: monthIndex };
+      return data.map((monthData, index) => {
+        const fiscalMonth = fiscalMonths[index];
+        if (!fiscalMonth) return null;
         
         return {
           fiscalMonth,
-          fiscalMonthIndex: monthIndex,
+          fiscalMonthIndex: index,
           [`FY${year}`]: monthData.value,
           yearData: { [year]: monthData }
         };
-      });
+      }).filter(Boolean);
     }
     
     return [];
