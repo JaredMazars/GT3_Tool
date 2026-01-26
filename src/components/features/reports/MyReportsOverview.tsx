@@ -308,7 +308,7 @@ interface ChartCardProps {
   title: string;
   description: string;
   icon: React.ReactNode;
-  data?: Array<MonthlyMetrics & { value: number }>;
+  data?: MonthlyMetrics[];
   yearlyData?: { [year: string]: MonthlyMetrics[] };
   valueFormatter: (value: number) => string;
   yAxisFormatter: (value: number) => string;
@@ -418,10 +418,18 @@ function ChartCard({
         const displayMonth = formatMonthForDisplay(monthData.month);
         const year = monthData.month.split('-')[0] || '';
         
+        // Extract value based on metricKey (same logic as multi-year mode)
+        let value: number;
+        if (metricKey === 'totalLockup') {
+          value = (monthData.wipLockupDays ?? 0) + (monthData.debtorsLockupDays ?? 0);
+        } else {
+          value = (monthData as any)[metricKey] ?? 0;
+        }
+        
         return {
           displayMonth,
           month: monthData.month,
-          CustomRange: monthData.value, // Single line for custom date range
+          CustomRange: value,
           yearData: { [year]: monthData }
         };
       });
@@ -437,10 +445,18 @@ function ChartCard({
         const fiscalMonth = fiscalMonths[index];
         if (!fiscalMonth) return null;
         
+        // Extract value based on metricKey (same logic as multi-year mode)
+        let value: number;
+        if (metricKey === 'totalLockup') {
+          value = (monthData.wipLockupDays ?? 0) + (monthData.debtorsLockupDays ?? 0);
+        } else {
+          value = (monthData as any)[metricKey] ?? 0;
+        }
+        
         return {
           fiscalMonth,
           fiscalMonthIndex: index,
-          [`FY${year}`]: monthData.value,
+          [`FY${year}`]: value,
           yearData: { [year]: monthData }
         };
       }).filter(Boolean);
@@ -680,13 +696,11 @@ export function MyReportsOverview() {
     return `${value.toFixed(0)}d`;
   };
 
-  // Prepare single-year data with value property for ChartCard
+  // Prepare single-year data for ChartCard
+  // ChartCard's transformDataToFiscalMonths extracts the correct metric based on metricKey
   const singleYearData = useMemo(() => {
     if (!data?.monthlyMetrics) return undefined;
-    return data.monthlyMetrics.map(m => ({
-      ...m,
-      value: m.netRevenue, // Default value, ChartCard will use metricKey to extract correct value
-    }));
+    return data.monthlyMetrics;
   }, [data?.monthlyMetrics]);
 
   if (isLoading) {
