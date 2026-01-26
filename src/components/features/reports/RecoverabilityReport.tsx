@@ -35,7 +35,7 @@ export function RecoverabilityReport() {
   const [activeTab, setActiveTab] = useState<'fiscal' | 'custom'>('fiscal');
   const [fiscalYear, setFiscalYear] = useState(currentFY);
   const [activeReportTab, setActiveReportTab] = useState<ReportSubTab>('aging');
-  const [selectedMonth, setSelectedMonth] = useState<string>('Sep'); // Default to Sep
+  const [selectedMonth, setSelectedMonth] = useState<string>('Aug'); // Default to Aug (full fiscal year)
   
   // Separate state for date inputs vs applied query params
   const [customInputs, setCustomInputs] = useState({ start: '', end: '' });
@@ -45,6 +45,7 @@ export function RecoverabilityReport() {
   // Fetch data based on current mode - use appliedDates for query
   const { data, isLoading, error } = useRecoverabilityReport({
     fiscalYear: activeTab === 'fiscal' ? fiscalYear : undefined,
+    fiscalMonth: activeTab === 'fiscal' ? selectedMonth : undefined,
     startDate: activeTab === 'custom' && appliedDates.start ? appliedDates.start : undefined,
     endDate: activeTab === 'custom' && appliedDates.end ? appliedDates.end : undefined,
     mode: activeTab,
@@ -150,43 +151,28 @@ export function RecoverabilityReport() {
     };
   }, [filteredClients]);
 
-  // Compute available months based on data - only show months with actual activity
+  // Compute available months based on current fiscal period
   const availableMonths = useMemo(() => {
-    if (!data?.clients?.length) return FISCAL_MONTHS;
+    const currentPeriod = getCurrentFiscalPeriod();
     
-    // Collect all months that have actual transactions (receipts or billings)
-    const monthsWithActivity = new Set<string>();
-    
-    data.clients.forEach(client => {
-      client.monthlyReceipts?.forEach(m => {
-        // Month has activity if there are receipts or billings in that month
-        // (not just carrying forward a balance from prior months)
-        if (m.receipts > 0 || m.billings > 0) {
-          monthsWithActivity.add(m.month);
-        }
-      });
-    });
-    
-    // If no months have activity, show at least the first month
-    if (monthsWithActivity.size === 0) return [FISCAL_MONTHS[0]].filter(Boolean) as string[];
-    
-    // Find the latest month index that has activity
-    let lastMonthIndex = -1;
-    FISCAL_MONTHS.forEach((month, idx) => {
-      if (monthsWithActivity.has(month)) {
-        lastMonthIndex = idx;
-      }
-    });
-    
-    // Return fiscal months up to and including the last month with activity
-    return FISCAL_MONTHS.slice(0, lastMonthIndex + 1);
-  }, [data?.clients]);
+    if (fiscalYear < currentPeriod.fiscalYear) {
+      // Past fiscal year - show all 12 months
+      return FISCAL_MONTHS;
+    } else if (fiscalYear === currentPeriod.fiscalYear) {
+      // Current fiscal year - show up to current month
+      const currentMonthIndex = currentPeriod.fiscalMonth - 1;
+      return FISCAL_MONTHS.slice(0, currentMonthIndex + 1);
+    } else {
+      // Future fiscal year - show first month only
+      return ['Sep'];
+    }
+  }, [fiscalYear]);
 
-  // Auto-select first available month when data changes
+  // Auto-select last available month when fiscal year changes
   useEffect(() => {
-    const firstMonth = availableMonths[0];
-    if (firstMonth && !availableMonths.includes(selectedMonth)) {
-      setSelectedMonth(firstMonth);
+    const lastMonth = availableMonths[availableMonths.length - 1];
+    if (lastMonth && !availableMonths.includes(selectedMonth)) {
+      setSelectedMonth(lastMonth);
     }
   }, [availableMonths, selectedMonth]);
 
@@ -456,10 +442,12 @@ export function RecoverabilityReport() {
             </nav>
           </div>
 
-          {/* Month Selector - Only show when receipts tab is active and months are available */}
-          {activeReportTab === 'receipts' && activeTab === 'fiscal' && availableMonths.length > 0 && (
+          {/* Month Selector - Show for both aging and receipts tabs in fiscal year mode */}
+          {activeTab === 'fiscal' && availableMonths.length > 0 && (
             <div className="mb-4 flex items-center gap-3">
-              <label className="text-sm font-medium text-forvis-gray-700">Select Month:</label>
+              <label className="text-sm font-medium text-forvis-gray-700">
+                {activeReportTab === 'aging' ? 'Show aging as of:' : 'Select Month:'}
+              </label>
               <div className="flex flex-wrap gap-1">
                 {availableMonths.map((month) => (
                   <button
@@ -513,7 +501,11 @@ export function RecoverabilityReport() {
                     {activeReportTab === 'aging' ? 'Aging Buckets:' : 'Monthly Receipts:'}
                   </strong>{' '}
                   {activeReportTab === 'aging' 
-                    ? 'Current (0-30 days), 31-60, 61-90, 91-120, 120+ days outstanding'
+                    ? `Current (0-30 days), 31-60, 61-90, 91-120, 120+ days outstanding${
+                        activeTab === 'fiscal' 
+                          ? ` | Lifetime-to-date cumulative: All transactions from inception through ${selectedMonth} (not just fiscal year)`
+                          : ''
+                      }`
                     : 'Opening Balance is debtor balance at month start. Recovery % = Receipts / Opening Balance × 100'
                   }
                 </p>

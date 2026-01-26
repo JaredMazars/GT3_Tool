@@ -9,6 +9,7 @@ import type { ProfitabilityReportData } from '@/types/api';
 
 export interface UseProfitabilityReportParams {
   fiscalYear?: number;        // If provided, show fiscal year view
+  fiscalMonth?: string;       // If provided with fiscalYear, show cumulative through month ('Sep', 'Oct', etc.)
   startDate?: string;         // For custom date range (ISO format)
   endDate?: string;           // For custom date range (ISO format)
   mode?: 'fiscal' | 'custom'; // View mode (defaults to 'fiscal')
@@ -23,10 +24,10 @@ export interface UseProfitabilityReportParams {
  * - Others: Tasks as Manager
  */
 export function useProfitabilityReport(params: UseProfitabilityReportParams = {}) {
-  const { fiscalYear, startDate, endDate, mode = 'fiscal', enabled = true } = params;
+  const { fiscalYear, fiscalMonth, startDate, endDate, mode = 'fiscal', enabled = true } = params;
 
   return useQuery<ProfitabilityReportData>({
-    queryKey: ['my-reports', 'profitability', mode, fiscalYear, startDate, endDate],
+    queryKey: ['my-reports', 'profitability', mode, fiscalYear, fiscalMonth, startDate, endDate],
     queryFn: async () => {
       // Build query parameters
       const queryParams = new URLSearchParams();
@@ -34,6 +35,9 @@ export function useProfitabilityReport(params: UseProfitabilityReportParams = {}
       
       if (mode === 'fiscal' && fiscalYear) {
         queryParams.set('fiscalYear', fiscalYear.toString());
+        if (fiscalMonth) {
+          queryParams.set('fiscalMonth', fiscalMonth);
+        }
       } else if (mode === 'custom' && startDate && endDate) {
         queryParams.set('startDate', startDate);
         queryParams.set('endDate', endDate);

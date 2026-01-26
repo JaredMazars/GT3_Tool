@@ -137,6 +137,7 @@ export interface ProfitabilityReportData {
   filterMode: 'PARTNER' | 'MANAGER';
   employeeCode: string;
   fiscalYear?: number;        // If fiscal year mode
+  fiscalMonth?: string;       // If fiscal year + month mode ('Sep', 'Oct', etc.)
   dateRange?: {               // If custom mode
     start: string;
     end: string;
@@ -295,6 +296,7 @@ export interface RecoverabilityReportData {
   };
   employeeCode: string;
   fiscalYear?: number;        // If fiscal year mode
+  fiscalMonth?: string;       // If fiscal year + month mode ('Sep', 'Oct', etc.)
   dateRange?: {               // If custom mode
     start: string;
     end: string;

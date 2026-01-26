@@ -10,6 +10,7 @@ import type { RecoverabilityReportData } from '@/types/api';
 
 export interface UseRecoverabilityReportParams {
   fiscalYear?: number;        // If provided, show fiscal year view
+  fiscalMonth?: string;       // If provided with fiscalYear, show aging as of month end ('Sep', 'Oct', etc.)
   startDate?: string;         // For custom date range (ISO format)
   endDate?: string;           // For custom date range (ISO format)
   mode?: 'fiscal' | 'custom'; // View mode (defaults to 'fiscal')
@@ -22,10 +23,10 @@ export interface UseRecoverabilityReportParams {
  * Returns clients filtered by Biller = employee.EmpCode
  */
 export function useRecoverabilityReport(params: UseRecoverabilityReportParams = {}) {
-  const { fiscalYear, startDate, endDate, mode = 'fiscal', enabled = true } = params;
+  const { fiscalYear, fiscalMonth, startDate, endDate, mode = 'fiscal', enabled = true } = params;
 
   return useQuery<RecoverabilityReportData>({
-    queryKey: ['my-reports', 'recoverability', mode, fiscalYear, startDate, endDate],
+    queryKey: ['my-reports', 'recoverability', mode, fiscalYear, fiscalMonth, startDate, endDate],
     queryFn: async () => {
       // Build query parameters
       const queryParams = new URLSearchParams();
@@ -33,6 +34,9 @@ export function useRecoverabilityReport(params: UseRecoverabilityReportParams = 
       
       if (mode === 'fiscal' && fiscalYear) {
         queryParams.set('fiscalYear', fiscalYear.toString());
+        if (fiscalMonth) {
+          queryParams.set('fiscalMonth', fiscalMonth);
+        }
       } else if (mode === 'custom' && startDate && endDate) {
         queryParams.set('startDate', startDate);
         queryParams.set('endDate', endDate);

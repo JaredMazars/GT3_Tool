@@ -294,3 +294,37 @@ export function parseFiscalPeriod(periodStr: string): FiscalPeriodFilter {
   };
 }
 
+/**
+ * Fiscal month names in order (September to August)
+ */
+export const FISCAL_MONTHS = ['Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
+
+/**
+ * Get the end date for a fiscal month by month name
+ * Returns the last day of the specified month (inclusive)
+ * 
+ * @param fiscalYear - Fiscal year (e.g., 2024)
+ * @param month - Month name ('Sep', 'Oct', etc.)
+ * @returns Last day of the month with time set to end of day
+ * 
+ * @example
+ * getFiscalMonthEndDate(2024, 'Sep') // Returns Sep 30, 2023 23:59:59.999
+ * getFiscalMonthEndDate(2024, 'Oct') // Returns Oct 31, 2023 23:59:59.999
+ * getFiscalMonthEndDate(2024, 'Jan') // Returns Jan 31, 2024 23:59:59.999
+ */
+export function getFiscalMonthEndDate(fiscalYear: number, month: string): Date {
+  const monthIndex = FISCAL_MONTHS.indexOf(month);
+  
+  if (monthIndex === -1) {
+    throw new Error(`Invalid month name: ${month}. Must be one of: ${FISCAL_MONTHS.join(', ')}`);
+  }
+  
+  // Convert to fiscal month number (1-12)
+  const fiscalMonth = monthIndex + 1;
+  
+  // Use existing getFiscalMonthRange function to get the end date
+  const { end } = getFiscalMonthRange(fiscalYear, fiscalMonth);
+  
+  return end;
+}
+

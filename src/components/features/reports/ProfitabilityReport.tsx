@@ -7,7 +7,7 @@
  * Supports fiscal year and custom date range filtering with cumulative WIP metrics.
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Layers, Building2, ListTodo, LayoutList, FolderTree, Tag } from 'lucide-react';
 import { Input, Button, LoadingSpinner } from '@/components/ui';
 import { Banner } from '@/components/ui/Banner';
@@ -21,7 +21,7 @@ import { MasterServiceLineTotalsTable } from './MasterServiceLineTotalsTable';
 import { SubServiceLineGroupTotalsTable } from './SubServiceLineGroupTotalsTable';
 import { ServiceLineTotalsTable } from './ServiceLineTotalsTable';
 import { parseISO, differenceInMonths } from 'date-fns';
-import { getCurrentFiscalPeriod } from '@/lib/utils/fiscalPeriod';
+import { getCurrentFiscalPeriod, FISCAL_MONTHS } from '@/lib/utils/fiscalPeriod';
 
 type ViewMode = 'group' | 'client' | 'task' | 'master-service-line' | 'sub-service-line-group' | 'service-line';
 
@@ -30,6 +30,7 @@ export function ProfitabilityReport() {
   const currentFY = getCurrentFiscalPeriod().fiscalYear;
   const [activeTab, setActiveTab] = useState<'fiscal' | 'custom'>('fiscal');
   const [fiscalYear, setFiscalYear] = useState(currentFY);
+  const [selectedMonth, setSelectedMonth] = useState<string>('Aug'); // Default to Aug (full fiscal year)
   
   // Separate state for date inputs vs applied query params
   const [customInputs, setCustomInputs] = useState({ start: '', end: '' });
@@ -39,6 +40,7 @@ export function ProfitabilityReport() {
   // Fetch data based on current mode - use appliedDates for query
   const { data, isLoading, error } = useProfitabilityReport({
     fiscalYear: activeTab === 'fiscal' ? fiscalYear : undefined,
+    fiscalMonth: activeTab === 'fiscal' ? selectedMonth : undefined,
     startDate: activeTab === 'custom' && appliedDates.start ? appliedDates.start : undefined,
     endDate: activeTab === 'custom' && appliedDates.end ? appliedDates.end : undefined,
     mode: activeTab,
@@ -52,6 +54,31 @@ export function ProfitabilityReport() {
     masterServiceLines: [],
     subServiceLineGroups: [],
   });
+
+  // Compute available months based on current fiscal period
+  const availableMonths = useMemo(() => {
+    const currentPeriod = getCurrentFiscalPeriod();
+    
+    if (fiscalYear < currentPeriod.fiscalYear) {
+      // Past fiscal year - show all 12 months
+      return FISCAL_MONTHS;
+    } else if (fiscalYear === currentPeriod.fiscalYear) {
+      // Current fiscal year - show up to current month
+      const currentMonthIndex = currentPeriod.fiscalMonth - 1;
+      return FISCAL_MONTHS.slice(0, currentMonthIndex + 1);
+    } else {
+      // Future fiscal year - show first month only
+      return ['Sep'];
+    }
+  }, [fiscalYear]);
+
+  // Auto-select last available month when fiscal year changes
+  useEffect(() => {
+    const lastMonth = availableMonths[availableMonths.length - 1];
+    if (lastMonth && !availableMonths.includes(selectedMonth)) {
+      setSelectedMonth(lastMonth);
+    }
+  }, [availableMonths, selectedMonth]);
 
   // Handle custom date range validation and application
   const handleDateRangeApply = () => {
@@ -168,7 +195,11 @@ export function ProfitabilityReport() {
             >
               <p className="text-xs text-forvis-gray-700 whitespace-nowrap">
                 <span className="font-semibold">Period:</span>{' '}
-                {activeTab === 'fiscal' ? `FY${fiscalYear} (Cumulative)` : 'Custom Date Range (Cumulative)'} •{' '}
+                {activeTab === 'fiscal' 
+                  ? selectedMonth === 'Aug' 
+                    ? `FY${fiscalYear} (Full Year)` 
+                    : `FY${fiscalYear} (Fiscal YTD through ${selectedMonth})`
+                  : 'Custom Date Range (Cumulative)'} •{' '}
                 <span className="font-semibold">Viewing as:</span>{' '}
                 {data.filterMode === 'PARTNER' ? 'Task Partner' : 'Task Manager'} •{' '}
                 <span className="font-semibold">{filteredTasks.length}</span> task
@@ -342,6 +373,35 @@ export function ProfitabilityReport() {
         </div>
       </div>
 
+      {/* Month Selector - Only show in fiscal year mode */}
+      {activeTab === 'fiscal' && availableMonths.length > 0 && (
+        <div className="mb-4 flex items-center gap-3">
+          <label className="text-sm font-medium text-forvis-gray-700">
+            Show cumulative through:
+          </label>
+          <div className="flex flex-wrap gap-1">
+            {availableMonths.map((month) => (
+              <button
+                key={month}
+                onClick={() => setSelectedMonth(month)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200 ${
+                  selectedMonth === month
+                    ? 'text-white shadow-sm'
+                    : 'text-forvis-gray-600 bg-forvis-gray-100 hover:bg-forvis-gray-200'
+                }`}
+                style={
+                  selectedMonth === month
+                    ? { background: 'linear-gradient(to right, #2E5AAC, #25488A)' }
+                    : {}
+                }
+              >
+                {month}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Loading State */}
       {isLoading && (
         <div className="flex flex-col items-center justify-center py-12">
@@ -393,7 +453,13 @@ export function ProfitabilityReport() {
               <div className="rounded-lg p-3 bg-forvis-gray-50 border border-forvis-gray-200">
                 <p className="text-xs text-forvis-gray-600">
                   <strong className="text-forvis-gray-700">Net WIP:</strong> Time + Adjustments +
-                  Disbursements - Fees + Provision
+                  Disbursements - Fees + Provision{' '}
+                  {activeTab === 'fiscal' && (
+                    <>
+                      | <strong className="text-forvis-gray-700">Fiscal YTD:</strong> Cumulative from{' '}
+                      Sep 1 of fiscal year through {selectedMonth} (fiscal year-to-date only, not lifetime)
+                    </>
+                  )}
                 </p>
               </div>
             </div>

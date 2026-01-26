@@ -28,9 +28,9 @@ import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { logger } from '@/lib/utils/logger';
-import type { RecoverabilityReportData, ClientDebtorData, MonthlyReceiptData } from '@/types/api';
+import { RecoverabilityReportData, ClientDebtorData, MonthlyReceiptData } from '@/types/api';
 import { format, startOfMonth, endOfMonth, parseISO, subMonths, addMonths } from 'date-fns';
-import { getCurrentFiscalPeriod, getFiscalYearRange } from '@/lib/utils/fiscalPeriod';
+import { getCurrentFiscalPeriod, getFiscalYearRange, getFiscalMonthEndDate, FISCAL_MONTHS } from '@/lib/utils/fiscalPeriod';
 import type { AgingBuckets } from '@/lib/services/analytics/debtorAggregation';
 
 /**
@@ -144,9 +144,19 @@ export const GET = secureRoute.query({
       // Parse query parameters
       const { searchParams } = new URL(request.url);
       const fiscalYearParam = searchParams.get('fiscalYear');
+      const fiscalMonthParam = searchParams.get('fiscalMonth'); // NEW: Month filter
       const startDateParam = searchParams.get('startDate');
       const endDateParam = searchParams.get('endDate');
       const mode = (searchParams.get('mode') || 'fiscal') as 'fiscal' | 'custom';
+
+      // Validate fiscalMonth if provided
+      if (fiscalMonthParam && !FISCAL_MONTHS.includes(fiscalMonthParam)) {
+        throw new AppError(
+          400,
+          `Invalid fiscalMonth parameter. Must be one of: ${FISCAL_MONTHS.join(', ')}`,
+          ErrorCodes.VALIDATION_ERROR
+        );
+      }
 
       // Determine fiscal year and date range
       const currentFY = getCurrentFiscalPeriod().fiscalYear;
@@ -163,7 +173,14 @@ export const GET = secureRoute.query({
         // Fiscal year mode (default)
         const { start, end } = getFiscalYearRange(fiscalYear);
         startDate = start;
-        endDate = end;
+        
+        // If fiscalMonth is provided, calculate aging as of that month end (LIFETIME TO DATE)
+        // Note: Unlike profitability, this is cumulative from INCEPTION (not just fiscal year)
+        if (fiscalMonthParam) {
+          endDate = getFiscalMonthEndDate(fiscalYear, fiscalMonthParam);
+        } else {
+          endDate = end; // Full fiscal year
+        }
       }
 
       // 1. Find employee record for current user
@@ -201,25 +218,29 @@ export const GET = secureRoute.query({
         userId: user.id,
         empCode: employee.EmpCode,
         fiscalYear,
+        fiscalMonth: fiscalMonthParam,
         mode,
       });
 
-      // Check cache
+      // Check cache (include fiscalMonth in key)
       const cacheKey = mode === 'fiscal'
-        ? `${CACHE_PREFIXES.USER}my-reports:recoverability:fy${fiscalYear}:${user.id}`
+        ? fiscalMonthParam
+          ? `${CACHE_PREFIXES.USER}my-reports:recoverability:fy${fiscalYear}:${fiscalMonthParam}:${user.id}`
+          : `${CACHE_PREFIXES.USER}my-reports:recoverability:fy${fiscalYear}:${user.id}`
         : `${CACHE_PREFIXES.USER}my-reports:recoverability:custom:${format(startDate, 'yyyy-MM-dd')}:${format(endDate, 'yyyy-MM-dd')}:${user.id}`;
       
       const cached = await cache.get<RecoverabilityReportData>(cacheKey);
       if (cached) {
-        logger.info('Returning cached recoverability report', { userId: user.id, mode, fiscalYear });
+        logger.info('Returning cached recoverability report', { userId: user.id, mode, fiscalYear, fiscalMonth: fiscalMonthParam });
         return NextResponse.json(successResponse(cached));
       }
 
-      // 2. Query all DrsTransactions for this biller (all time for running balance)
+      // 2. Query all DrsTransactions for this biller (LIFETIME TO DATE up to endDate)
+      // NOTE: No fiscal year filter - this is cumulative from INCEPTION
       const allTransactions = await prisma.drsTransactions.findMany({
         where: {
           Biller: employee.EmpCode,
-          TranDate: { lte: endDate },
+          TranDate: { lte: endDate }, // All transactions from beginning of time up to cutoff
         },
         select: {
           TranDate: true,
@@ -255,6 +276,7 @@ export const GET = secureRoute.query({
           },
           employeeCode: employee.EmpCode,
           fiscalYear: mode === 'fiscal' ? fiscalYear : undefined,
+          fiscalMonth: mode === 'fiscal' && fiscalMonthParam ? fiscalMonthParam : undefined,
           dateRange: mode === 'custom' ? {
             start: format(startDate, 'yyyy-MM-dd'),
             end: format(endDate, 'yyyy-MM-dd'),
@@ -529,6 +551,7 @@ export const GET = secureRoute.query({
         },
         employeeCode: employee.EmpCode,
         fiscalYear: mode === 'fiscal' ? fiscalYear : undefined,
+        fiscalMonth: mode === 'fiscal' && fiscalMonthParam ? fiscalMonthParam : undefined,
         dateRange: mode === 'custom' ? {
           start: format(startDate, 'yyyy-MM-dd'),
           end: format(endDate, 'yyyy-MM-dd'),
@@ -549,6 +572,7 @@ export const GET = secureRoute.query({
         userId: user.id,
         mode,
         fiscalYear: mode === 'fiscal' ? fiscalYear : undefined,
+        fiscalMonth: fiscalMonthParam,
         clientCount: clients.length,
         duration,
       });

@@ -34,7 +34,7 @@ import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { logger } from '@/lib/utils/logger';
 import type { ProfitabilityReportData, TaskWithWIPAndServiceLine } from '@/types/api';
 import { format, startOfMonth, endOfMonth, parseISO } from 'date-fns';
-import { getCurrentFiscalPeriod, getFiscalYearRange } from '@/lib/utils/fiscalPeriod';
+import { getCurrentFiscalPeriod, getFiscalYearRange, getFiscalMonthEndDate, FISCAL_MONTHS } from '@/lib/utils/fiscalPeriod';
 
 export const dynamic = 'force-dynamic';
 
@@ -87,9 +87,19 @@ export const GET = secureRoute.query({
       // Parse query parameters
       const { searchParams } = new URL(request.url);
       const fiscalYearParam = searchParams.get('fiscalYear');
+      const fiscalMonthParam = searchParams.get('fiscalMonth'); // NEW: Month filter
       const startDateParam = searchParams.get('startDate');
       const endDateParam = searchParams.get('endDate');
       const mode = (searchParams.get('mode') || 'fiscal') as 'fiscal' | 'custom';
+
+      // Validate fiscalMonth if provided
+      if (fiscalMonthParam && !FISCAL_MONTHS.includes(fiscalMonthParam)) {
+        throw new AppError(
+          400,
+          `Invalid fiscalMonth parameter. Must be one of: ${FISCAL_MONTHS.join(', ')}`,
+          ErrorCodes.VALIDATION_ERROR
+        );
+      }
 
       // Determine fiscal year and date range
       const currentFY = getCurrentFiscalPeriod().fiscalYear;
@@ -107,7 +117,13 @@ export const GET = secureRoute.query({
         // Fiscal year mode (default)
         const { start, end } = getFiscalYearRange(fiscalYear);
         startDate = start;
-        endDate = end;
+        
+        // If fiscalMonth is provided, calculate cumulative through that month (FISCAL YTD)
+        if (fiscalMonthParam) {
+          endDate = getFiscalMonthEndDate(fiscalYear, fiscalMonthParam);
+        } else {
+          endDate = end; // Full fiscal year
+        }
       }
 
       // 1. Find employee record for current user
@@ -156,14 +172,16 @@ export const GET = secureRoute.query({
       const isPartnerReport = partnerCategories.includes(employee.EmpCatCode);
       const filterMode = isPartnerReport ? 'PARTNER' : 'MANAGER';
 
-      // Check cache (mode-specific key)
+      // Check cache (mode-specific key, include fiscalMonth)
       const cacheKey = mode === 'fiscal'
-        ? `${CACHE_PREFIXES.USER}my-reports:profitability:fy${fiscalYear}:${user.id}`
+        ? fiscalMonthParam 
+          ? `${CACHE_PREFIXES.USER}my-reports:profitability:fy${fiscalYear}:${fiscalMonthParam}:${user.id}`
+          : `${CACHE_PREFIXES.USER}my-reports:profitability:fy${fiscalYear}:${user.id}`
         : `${CACHE_PREFIXES.USER}my-reports:profitability:custom:${format(startDate, 'yyyy-MM-dd')}:${format(endDate, 'yyyy-MM-dd')}:${user.id}`;
       
       const cached = await cache.get<ProfitabilityReportData>(cacheKey);
       if (cached) {
-        logger.info('Returning cached profitability report', { userId: user.id, filterMode, mode, fiscalYear });
+        logger.info('Returning cached profitability report', { userId: user.id, filterMode, mode, fiscalYear, fiscalMonth: fiscalMonthParam });
         return NextResponse.json(successResponse(cached));
       }
 
@@ -221,6 +239,7 @@ export const GET = secureRoute.query({
           filterMode,
           employeeCode: employee.EmpCode,
           fiscalYear: mode === 'fiscal' ? fiscalYear : undefined,
+          fiscalMonth: mode === 'fiscal' && fiscalMonthParam ? fiscalMonthParam : undefined,
           dateRange: mode === 'custom' ? {
             start: format(startDate, 'yyyy-MM-dd'),
             end: format(endDate, 'yyyy-MM-dd'),
@@ -413,6 +432,7 @@ export const GET = secureRoute.query({
         filterMode,
         employeeCode: employee.EmpCode,
         fiscalYear: mode === 'fiscal' ? fiscalYear : undefined,
+        fiscalMonth: mode === 'fiscal' && fiscalMonthParam ? fiscalMonthParam : undefined,
         dateRange: mode === 'custom' ? {
           start: format(startDate, 'yyyy-MM-dd'),
           end: format(endDate, 'yyyy-MM-dd'),
@@ -435,6 +455,7 @@ export const GET = secureRoute.query({
         filterMode,
         mode,
         fiscalYear: mode === 'fiscal' ? fiscalYear : undefined,
+        fiscalMonth: fiscalMonthParam,
         taskCount: flatTasks.length,
         duration,
       });
