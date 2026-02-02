@@ -1,9 +1,10 @@
 name: Deploy to Azure Container Apps
 
 on:
-  push:
-    branches:
-      - main
+  # Disabled - uncomment when Azure credentials are configured
+  # push:
+  #   branches:
+  #     - main
   workflow_dispatch:
 
 env:
